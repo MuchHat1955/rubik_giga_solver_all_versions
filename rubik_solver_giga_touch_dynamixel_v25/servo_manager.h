@@ -63,7 +63,7 @@ public:
   bool moveServosToGroupPose(const String &groupKey, uint32_t duration_ms = 700);
 
   // --- diagnostics ---
-  String getFullDiagnosticString() const;
+  String getServosDiagnosticString() const;
 
   // --- startup error tracking ---
   void setStartupTestErrorString(const String &msg);

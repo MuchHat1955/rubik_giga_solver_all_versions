@@ -375,31 +375,44 @@ void buildMenu(const char *menuName) {
         lv_obj_set_size(ta, colW, textH);
         lv_obj_set_pos(ta, x, y);
 
-        // ✅ Disable flex auto-resize & keep fixed height
+        // Disable flex auto-resize
         lv_obj_set_style_height(ta, textH, 0);
         lv_obj_clear_flag(ta, LV_OBJ_FLAG_FLEX_IN_NEW_TRACK);
         lv_obj_set_style_flex_grow(ta, 0, 0);
 
-        // ✅ Enable internal scroll by drag gesture
+        // Scroll behavior
         lv_obj_set_scrollbar_mode(ta, LV_SCROLLBAR_MODE_AUTO);
         lv_obj_set_scroll_dir(ta, LV_DIR_VER);
-        lv_obj_clear_flag(ta, LV_OBJ_FLAG_SCROLL_CHAIN);  // prevents scroll chaining to parent
-        lv_obj_add_flag(ta, LV_OBJ_FLAG_SCROLL_ELASTIC);  // smooth touch drag scroll
+        lv_obj_clear_flag(ta, LV_OBJ_FLAG_SCROLL_CHAIN);
+        lv_obj_add_flag(ta, LV_OBJ_FLAG_SCROLL_ELASTIC);
 
-        // ✅ Set text and styling
-        lv_textarea_set_text(ta,
-                             (String("build ") + getSketchVersionWithDate() + "\n\n" +  //
-                              servoMgr.getStartupTestErrorString() + "\n\n" +           //
-                              servoMgr.getFullDiagnosticString() + "\n\n")
-                               .c_str());
+        // Compose colored / formatted text
+        String errText =
+          "#FFA500 build#\n" + getSketchVersionWithDate() + "\n\n" +              //
+          "#FFA500 startup#\n" + servoMgr.getStartupTestErrorString() + "\n\n" +  //
+          "#FFA500 servos diagnostics#\n" + servoMgr.getServosDiagnosticString() + "\n";
+
+        lv_textarea_set_text(ta, errText.c_str());
         lv_textarea_set_cursor_click_pos(ta, false);
-        lv_obj_set_style_text_font(ta, FONT_BTN_SMALL_PTR, 0);
-        lv_obj_set_style_text_color(ta, COLOR_TEXT, 0);
+        lv_textarea_set_text_selection(ta, false);
+
+        // Enable recolor and white base color on the internal label
+        lv_obj_t *label = lv_textarea_get_label(ta);
+        lv_label_set_recolor(label, true);
+        lv_obj_set_style_text_color(label, lv_color_white(), 0);
+        lv_obj_set_style_text_opa(label, LV_OPA_COVER, 0);
+
+        // Optional: slightly increase line spacing for readability
+        lv_obj_set_style_text_line_space(label, 4, 0);
+
+        // Textarea background / border styling
         lv_obj_set_style_bg_opa(ta, LV_OPA_TRANSP, 0);
         lv_obj_set_style_border_width(ta, 0, 0);
+        lv_obj_set_style_text_font(ta, FONT_BTN_SMALL_PTR, 0);
 
         adjustedRowH = textH + 20;
       }
+
       x += colW + 8;
     }
     y += adjustedRowH;

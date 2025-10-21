@@ -71,21 +71,6 @@ bool runStartupTests() {
 //           RETRIEVE STARTUP TEST SUMMARY
 // ----------------------------------------------------------
 String getStartupTestErrorString() {
-  if (startupOK) return "All servos responded OK.";
-  return startupErrors.length() ? startupErrors : "Unknown startup failure.";
-}
-
-// ----------------------------------------------------------
-//                HELPER FOR UI MODULES
-// ----------------------------------------------------------
-// Used by the “system” or “error_status” screen
-// to display all servo info plus startup summary.
-String getSystemDiagnosticString() {
-  String out = "";
-  out += "--- STARTUP STATUS ---\n";
-  out += startupOK ? "All systems OK.\n\n" : "Errors detected:\n\n";
-  out += getStartupTestErrorString();
-  out += "\n\n";
-  out += servoMgr.getFullDiagnosticString();
-  return out;
+  if (startupOK) return "all servos responded OK.";
+  return startupErrors.length() ? startupErrors : "unknown startup failure.";
 }

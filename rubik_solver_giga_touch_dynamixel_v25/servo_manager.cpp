@@ -360,8 +360,8 @@ bool ServoManager::moveServosToGroupPose(const String &groupKey, uint32_t durati
 // ----------------------------------------------------------
 //                  DIAGNOSTICS / UTILITIES
 // ----------------------------------------------------------
-String ServoManager::getFullDiagnosticString() const {
-  String out = "servo diagnostics\n-----------------\n";
+String ServoManager::getServosDiagnosticString() const {
+  String out = "";
   for (auto &kv : servosStore) {
     const ServoInfo &s = kv.second;
     out += s.key + " | id:" + String(s.id);
@@ -390,7 +390,7 @@ void ServoManager::setStartupTestErrorString(const String &msg) {
   startupErrorSummary = msg;
 }
 String ServoManager::getStartupTestErrorString() const {
-  return startupErrorSummary.length() ? startupErrorSummary : "No startup test run yet";
+  return startupErrorSummary.length() ? startupErrorSummary : "no startup test run yet";
 }
 
 // ----------------------------------------------------------
