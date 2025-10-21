@@ -692,38 +692,56 @@ const char jsonBuffer[] = R"json(
   "vertical_tune": {
   "title": "vertical tune",
   "footer": "adjust for vertical move arm1, arm2, wrist",
-  "columns": 4,
-  "equal columns": "last",
+  "columns": 5,
   "rows": [
     [
-      { "text": "mm", "type": "text", "key": "grip_open" },
+      { "text": "set", "type": "text", "key": "" },
+      { "text": "clr", "type": "text", "key": "" },
       { "text": "arm1", "type": "text" },
-      { "text": "arm2", "type": "text", "key": "grip_close" },
+      { "text": "arm2", "type": "text" },
       { "text": "wrist", "type": "text" }
     ],
     [
-      { "text": "0mm", "type": "action", "key": "vertical_0mm", "status": "yes" },
-      { "text": "arm1", "type": "num", "key": "arm1_0mm" },
-      { "text": "arm2", "type": "num", "key": "arm2_0mm" },
-      { "text": "wrist", "type": "num", "key": "wrist_0mm" }
+      { "text": "s1", "type": "action", "key": "vertical_p1_set", "status": "yes" },
+      { "text": "c1", "type": "action", "key": "vertical_p1_clr", "status": "yes" },
+      { "text": "value", "type": "num", "key": "arm1_v_pt1" },
+      { "text": "value", "type": "num", "key": "arm2_v_pt1" },
+      { "text": "value", "type": "num", "key": "wrist_v_pt1" }
+    ],
+      [
+      { "text": "s2", "type": "action", "key": "vertical_p2_set", "status": "yes" },
+      { "text": "c2", "type": "action", "key": "vertical_p2_clr", "status": "yes" },
+      { "text": "value", "type": "num", "key": "arm1_v_pt2" },
+      { "text": "value", "type": "num", "key": "arm2_v_pt2" },
+      { "text": "value", "type": "num", "key": "wrist_v_pt1" }
     ],
     [
-      { "text": "5mm", "type": "action", "key": "vertical_5mm", "status": "yes" },
-      { "text": "arm1", "type": "num", "key": "arm1_5mm" },
-      { "text": "arm2", "type": "num", "key": "arm2_5mm" },
-      { "text": "wrist", "type": "num", "key": "wrist_5mm" }
+      { "text": "s3", "type": "action", "key": "vertical_p3_set", "status": "yes" },
+      { "text": "c3", "type": "action", "key": "vertical_p3_clr", "status": "yes" },
+      { "text": "value", "type": "num", "key": "arm1_v_pt3" },
+      { "text": "value", "type": "num", "key": "arm3_v_pt3" },
+      { "text": "value", "type": "num", "key": "wrist_v_pt1" }
     ],
     [
-      { "text": "10mm", "type": "action", "key": "vertical_10mm", "status": "yes" },
-      { "text": "arm1", "type": "num", "key": "arm1_10mm" },
-      { "text": "arm2", "type": "num", "key": "arm2_10mm" },
-      { "text": "wrist", "type": "num", "key": "wrist_10mm" }
+      { "text": "s4", "type": "action", "key": "vertical_p4_set", "status": "yes" },
+      { "text": "c4", "type": "action", "key": "vertical_p4_clr", "status": "yes" },
+      { "text": "value", "type": "num", "key": "arm1_v_pt4" },
+      { "text": "value", "type": "num", "key": "arm2_v_pt4" },
+      { "text": "value", "type": "num", "key": "wrist_v_pt1" }
     ],
     [
-      { "text": "15mm", "type": "action", "key": "vertical_15mm", "status": "yes" },
-      { "text": "arm1", "type": "num", "key": "arm1_15mm" },
-      { "text": "arm2", "type": "num", "key": "arm2_15mm" },
-      { "text": "wrist", "type": "num", "key": "wrist_15mm" }
+      { "text": "s5", "type": "action", "key": "vertical_p5_set", "status": "yes" },
+      { "text": "c5", "type": "action", "key": "vertical_p5_clr", "status": "yes" },
+      { "text": "value", "type": "num", "key": "arm1_v_pt5" },
+      { "text": "value", "type": "num", "key": "arm2_v_pt5" },
+      { "text": "value", "type": "num", "key": "wrist_v_pt5" }
+    ],
+    [
+      { "text": "s6", "type": "action", "key": "vertical_p6_set", "status": "yes" },
+      { "text": "c6", "type": "action", "key": "vertical_p6_clr", "status": "yes" },
+      { "text": "value", "type": "num", "key": "arm1_v_pt6" },
+      { "text": "value", "type": "num", "key": "arm2_v_pt6" },
+      { "text": "value", "type": "num", "key": "wrist_v_pt6" }
     ],
     [
       { "text": "g1 open", "type": "action", "key": "grip1_open", "status": "yes" },
@@ -738,7 +756,7 @@ const char jsonBuffer[] = R"json(
   },
   "vertical_poses": {
   "title": "vertical poses",
-  "footer": "set vertical poses",
+  "footer": "test vertical poses",
   "columns": 3,
   "equal columns": "last",
   "rows": [

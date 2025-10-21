@@ -232,6 +232,14 @@ const char* poseKeys[] = {
   // ------------------ Base poses ------------------
   "base_0", "base_90", "base_minus90",
 
+  // ------------------ Vertical calibration ------------------
+  "arm1_v_pt1", "arm2_v_pt1", "wrist_v_pt1",
+  "arm1_v_pt2", "arm2_v_pt2", "wrist_v_pt2",
+  "arm1_v_pt3", "arm2_v_pt3", "wrist_v_pt3",
+  "arm1_v_pt4", "arm2_v_pt4", "wrist_v_pt4",
+  "arm1_v_pt5", "arm2_v_pt5", "wrist_v_pt5",
+  "arm1_v_pt6", "arm2_v_pt6", "wrist_v_pt6",
+
   // ------------------ Vertical poses ------------------
   "v_pose_0_x", "v_pose_0_y",
   "v_pose_2nd_x", "v_pose_2nd_y",
