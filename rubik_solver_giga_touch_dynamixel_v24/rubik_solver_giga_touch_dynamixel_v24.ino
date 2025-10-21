@@ -31,6 +31,7 @@
 #include <vector>
 #include <algorithm>
 #include "servo_manager.h"
+#include "vertical_kinematics.h"
 
 // TODO still need the vertical move file
 
@@ -137,6 +138,7 @@ void setup() {
   dynamixel_begin();  // open Dynamixel serial, set baud, etc.
   initParamStore();   // load or create parameter storage
   initPoseStore();    // register servos + group poses
+  vkinInit();
 
   // ----------------------------------------------------------
   // STARTUP SELF TEST
