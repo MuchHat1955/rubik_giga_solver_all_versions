@@ -443,15 +443,15 @@ void initPoseStore() {
     }
   }
 
-  servoMgr.addGroupPose("arms_home", { "vertical_pose_0" });
-  servoMgr.addGroupPose("arms_2nd", { "vertical_pose_2nd" });
-  servoMgr.addGroupPose("arms_3rd", { "vertical_pose_3rd" });
-  servoMgr.addGroupPose("arms_r1", { "vertical_pose_r1" });
-  servoMgr.addGroupPose("arms_r2", { "vertical_pose_r2" });
-  servoMgr.addGroupPose("arms_r3", { "vertical_pose_r3" });
-  servoMgr.addGroupPose("arms_r4", { "vertical_pose_r4" });
-  servoMgr.addGroupPose("arms_r5", { "vertical_pose_r5" });
-  servoMgr.addGroupPose("arms_r6", { "vertical_pose_r6" });
+  servoMgr.addGroupPose("arms_home", { "v_pose_0" });
+  servoMgr.addGroupPose("arms_2nd", { "vl_pose_2nd" });
+  servoMgr.addGroupPose("arms_3rd", { "v_pose_3rd" });
+  servoMgr.addGroupPose("arms_r1", { "v_pose_r1" });
+  servoMgr.addGroupPose("arms_r2", { "v_pose_r2" });
+  servoMgr.addGroupPose("arms_r3", { "v_pose_r3" });
+  servoMgr.addGroupPose("arms_r4", { "v_pose_r4" });
+  servoMgr.addGroupPose("arms_r5", { "v_pose_r5" });
+  servoMgr.addGroupPose("arms_r6", { "v_pose_r6" });
   servoMgr.addGroupPose("grip_open", { "grip1_0", "grip2_0" });
   servoMgr.addGroupPose("grip_close", { "grip1_1", "grip2_1" });
 

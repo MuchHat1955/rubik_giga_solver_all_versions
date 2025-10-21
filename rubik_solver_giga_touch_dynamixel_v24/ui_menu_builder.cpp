@@ -477,7 +477,7 @@ const char jsonBuffer[] = R"json(
       ],
       [
         { "text": "vertical tune", "type": "menu", "key": "vertical_tune" },
-        { "text": "", "type": "text", "key": "blank" }
+        { "text": "vertical poses", "type": "menu", "key": "vertical_poses" }
       ],
       [
         { "text": "poses", "type": "menu", "key": "poses" },
@@ -735,6 +735,67 @@ const char jsonBuffer[] = R"json(
       { "text": "back", "type": "menu", "key": "tests" }
     ]
   ]
+  },
+  "vertical_poses": {
+  "title": "vertical poses",
+  "footer": "set vertical poses",
+  "columns": 3,
+  "equal columns": "last",
+  "rows": [
+    [
+      { "text": "pose", "type": "text" },
+      { "text": "x mm", "type": "text" },
+      { "text": "y mm", "type": "text" }
+    ],
+    [
+      { "text": "arms home", "type": "action", "key": "v_pose_0", "status": "yes" },
+      { "text": "value", "type": "num", "key": "v_pose_0_x" },
+      { "text": "value", "type": "num", "key": "v_pose_0_y" }
+    ],
+    [
+      { "text": "arms 2nd", "type": "action", "key": "v_pose_2nd", "status": "yes" },
+      { "text": "value", "type": "num", "key": "v_pose_2nd_x" },
+      { "text": "value", "type": "num", "key": "v_pose_2nd_y" }
+    ],
+    [
+      { "text": "arms 3rd", "type": "action", "key": "v_pose_3rd", "status": "yes" },
+      { "text": "value", "type": "num", "key": "v_pose_3rd_x" },
+      { "text": "value", "type": "num", "key": "v_pose_3rd_y" }
+    ],
+     [
+      { "text": "arms r1", "type": "action", "key": "v_pose_r1", "status": "yes" },
+      { "text": "value", "type": "num", "key": "v_pose_r1_x" },
+      { "text": "value", "type": "num", "key": "v_pose_r1_y" }
+    ],   
+    [
+      { "text": "arms r2", "type": "action", "key": "v_pose_r2", "status": "yes" },
+      { "text": "value", "type": "num", "key": "v_pose_r2_x" },
+      { "text": "value", "type": "num", "key": "v_pose_r2_y" }
+    ],
+    [
+      { "text": "arms r3", "type": "action", "key": "v_pose_r3", "status": "yes" },
+      { "text": "value", "type": "num", "key": "v_pose_r3_x" },
+      { "text": "value", "type": "num", "key": "v_pose_r3_y" }
+    ],   
+     [
+      { "text": "arms r1", "type": "action", "key": "v_pose_r4", "status": "yes" },
+      { "text": "value", "type": "num", "key": "v_pose_r4_x" },
+      { "text": "value", "type": "num", "key": "v_pose_r4_y" }
+    ],   
+    [
+      { "text": "arms r2", "type": "action", "key": "v_pose_r5", "status": "yes" },
+      { "text": "value", "type": "num", "key": "v_pose_r5_x" },
+      { "text": "value", "type": "num", "key": "v_pose_r5_y" }
+    ],
+    [
+      { "text": "arms r3", "type": "action", "key": "v_pose_r6", "status": "yes" },
+      { "text": "value", "type": "num", "key": "v_pose_r6_x" },
+      { "text": "value", "type": "num", "key": "v_pose_r6_y" }
+    ], 
+    [
+      { "text": "back", "type": "menu", "key": "tests" }
+    ]
+   ]
   },
   "poses": {
     "title": "servo poses",
