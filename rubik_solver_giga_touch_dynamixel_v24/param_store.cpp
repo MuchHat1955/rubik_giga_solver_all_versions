@@ -231,6 +231,19 @@ const char* poseKeys[] = {
 
   // ------------------ Base poses ------------------
   "base_0", "base_90", "base_minus90",
+
+  // ------------------ Vertical poses ------------------
+  "v_pose_0_x", "v_pose_0_y",
+  "v_pose_2nd_x", "v_pose_2nd_y",
+  "v_pose_3rd_x", "v_pose_3rd_y",
+  "v_pose_0_r1", "v_pose_0_r1",
+  "v_pose_0_r2", "v_pose_0_r2",
+  "v_pose_0_r3", "v_pose_0_r3",
+  "v_pose_0_r4", "v_pose_0_r4",
+  "v_pose_0_r5", "v_pose_0_r5",
+  "v_pose_0_r6", "v_pose_0_r6",
+
+  // ------------------ Terminator ------------------
   nullptr
 };
 
