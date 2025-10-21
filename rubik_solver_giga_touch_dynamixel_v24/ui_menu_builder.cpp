@@ -589,24 +589,28 @@ const char jsonBuffer[] = R"json(
   "pose_groups": {
   "title": "pose groups",
   "footer": "tap to run pose groups",
-  "columns": 2,
+  "columns": 3,
   "equal columns": "all",
   "rows": [
     [
       { "text": "arms home", "type": "action", "key": "arms_home", "status": "yes" },
-      { "text": "arms 5mm",  "type": "action", "key": "arms_5mm",  "status": "yes" }
+      { "text": "arms 2nd",  "type": "action", "key": "arms_2nd",  "status": "yes" },
+      { "text": "arms 3rd",  "type": "action", "key": "arms_3rd",  "status": "yes" }
     ],
     [
-      { "text": "arms 10mm", "type": "action", "key": "arms_10mm", "status": "yes" },
-      { "text": "arms 15mm", "type": "action", "key": "arms_15mm", "status": "yes" }
+      { "text": "arms r1", "type": "action", "key": "arms_r1", "status": "yes" },
+      { "text": "arms r2", "type": "action", "key": "arms_r2", "status": "yes" },
+      { "text": "arms r3", "type": "action", "key": "arms_r3", "status": "yes" }
+    ],    
+    [
+      { "text": "arms r4", "type": "action", "key": "arms_r4", "status": "yes" },
+      { "text": "arms r5", "type": "action", "key": "arms_r5", "status": "yes" },
+      { "text": "arms r6", "type": "action", "key": "arms_r6", "status": "yes" }
     ],
     [
-      { "text": "arms high", "type": "action", "key": "arms_high", "status": "yes" },
-      { "text": "cube front", "type": "action", "key": "cube_front", "status": "yes" }
-    ],
-    [
-      { "text": "grippers open", "type": "action", "key": "grippers_open", "status": "yes" },
-      { "text": "grippers closed", "type": "action", "key": "grippers_closed", "status": "yes" }
+      { "text": "grippers open", "type": "action", "key": "grip_open", "status": "yes" },
+      { "text": "grippers closed", "type": "action", "key": "grip_closed", "status": "yes" },
+      { "text": "", "type": "text", "key": "" }
     ],
     [
       { "text": "back", "type": "menu", "key": "tests" }

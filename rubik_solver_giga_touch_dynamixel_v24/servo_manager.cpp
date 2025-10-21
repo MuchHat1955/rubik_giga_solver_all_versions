@@ -95,7 +95,7 @@ void ServoManager::updateServos() {
 
 //
 // TODO to optimize have a reflect UI separate for just servos, poses or group poses
-// 
+//
 void ServoManager::reflectUI() {
   LOG_SECTION_START("servo manager reflect UI (servos, poses, group poses)");
 
@@ -443,13 +443,17 @@ void initPoseStore() {
     }
   }
 
-  servoMgr.addGroupPose("arms_home", { "arm1_pose_0", "arm2_pose_0", "wrist_pose_0" });
-  servoMgr.addGroupPose("arms_5mm", { "arm1_pose_5mm", "arm2_pose_5mm", "wrist_pose_5mm" });
-  servoMgr.addGroupPose("arms_10mm", { "arm1_pose_10mm", "arm2_pose_10mm", "wrist_pose_10mm" });
-  servoMgr.addGroupPose("arms_15mm", { "arm1_pose_15mm", "arm2_pose_15mm", "wrist_pose_15mm" });
-  servoMgr.addGroupPose("arms_high", { "arm1_pose_high", "arm2_pose_high", "wrist_pose_high" });
-  servoMgr.addGroupPose("grippers_open", { "grip1_pose_0", "grip2_pose_0" });
-  servoMgr.addGroupPose("grippers_closed", { "grip1_pose_1", "grip2_pose_1" });
+  servoMgr.addGroupPose("arms_home", { "vertical_pose_0" });
+  servoMgr.addGroupPose("arms_2nd", { "vertical_pose_2nd" });
+  servoMgr.addGroupPose("arms_3rd", { "vertical_pose_3rd" });
+  servoMgr.addGroupPose("arms_r1", { "vertical_pose_r1" });
+  servoMgr.addGroupPose("arms_r2", { "vertical_pose_r2" });
+  servoMgr.addGroupPose("arms_r3", { "vertical_pose_r3" });
+  servoMgr.addGroupPose("arms_r4", { "vertical_pose_r4" });
+  servoMgr.addGroupPose("arms_r5", { "vertical_pose_r5" });
+  servoMgr.addGroupPose("arms_r6", { "vertical_pose_r6" });
+  servoMgr.addGroupPose("grip_open", { "grip1_0", "grip2_0" });
+  servoMgr.addGroupPose("grip_close", { "grip1_1", "grip2_1" });
 
   if (failCount == 0) {
     servoMgr.setStartupTestErrorString("All servos OK");
