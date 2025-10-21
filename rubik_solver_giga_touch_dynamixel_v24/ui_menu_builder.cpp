@@ -750,7 +750,8 @@ const char jsonBuffer[] = R"json(
         { "text": "g2 open", "type": "action", "key": "grip2_open", "status": "yes" },
         { "text": "g2 close", "type": "action", "key": "grip2_close", "status": "yes" },
         { "text": "", "type": "text", "key": "" }
-      ]
+      ],
+      [{ "text": "back", "type": "menu", "key": "tests" }]
     ]
   },
   "vertical_poses": {
