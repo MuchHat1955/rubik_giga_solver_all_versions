@@ -93,7 +93,9 @@ void ServoManager::updateServos() {
   LOG_SECTION_END();
 }
 
+//
 // TODO to optimize have a reflect UI separate for just servos, poses or group poses
+// 
 void ServoManager::reflectUI() {
   LOG_SECTION_START("servo manager reflect UI (servos, poses, group poses)");
 
