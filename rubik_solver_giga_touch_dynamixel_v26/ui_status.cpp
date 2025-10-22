@@ -87,31 +87,65 @@ void updateButtonStateByPtr(lv_obj_t *btn, bool issue, bool active) {
 
   // --- ISSUE: solid darker orange-red fill, white border ---
   if (issue) {
-    LOG_VAR("ISSUE: dark red fill + white border", "");
-    lv_obj_set_style_bg_color(btn, lv_color_hex(0xC0392B), LV_PART_MAIN);      // dark orange-red
-    lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);                  // opaque fill
-    lv_obj_set_style_border_color(btn, lv_color_hex(0xFFFFFF), LV_PART_MAIN);  // white border
+    lv_color_t fill = lv_color_hex(0xC0392B);    // dark orange-red
+    lv_color_t border = lv_color_hex(0xFFFFFF);  // white
+
+    // Normal (main) state
+    lv_obj_set_style_bg_color(btn, fill, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_border_color(btn, border, LV_PART_MAIN);
     lv_obj_set_style_border_width(btn, 3, LV_PART_MAIN);
     lv_obj_set_style_radius(btn, CORNERS, LV_PART_MAIN);
+
+    // ✅ Pressed state (same color, thicker border, zoom)
+    lv_obj_set_style_bg_color(btn, fill, LV_STATE_PRESSED);
+    lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_STATE_PRESSED);
+    lv_obj_set_style_border_color(btn, border, LV_STATE_PRESSED);
+    lv_obj_set_style_border_width(btn, 4, LV_STATE_PRESSED);
+    lv_obj_set_style_radius(btn, CORNERS, LV_STATE_PRESSED);
+    lv_obj_set_style_transform_zoom(btn, 260, LV_STATE_PRESSED);
+    lv_obj_set_style_transition(btn, NULL, LV_STATE_PRESSED);
   }
 
   // --- ACTIVE: solid base color fill, white border ---
   else if (active) {
-    LOG_VAR("ACTIVE: base fill + white border", "");
-    lv_obj_set_style_bg_color(btn, baseColor, LV_PART_MAIN);
+    lv_color_t fill = baseColor;
+    lv_color_t border = lv_color_hex(0xFFFFFF);
+
+    // Normal (main) state
+    lv_obj_set_style_bg_color(btn, fill, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_style_border_color(btn, lv_color_hex(0xFFFFFF), LV_PART_MAIN);  // white border
+    lv_obj_set_style_border_color(btn, border, LV_PART_MAIN);
     lv_obj_set_style_border_width(btn, 3, LV_PART_MAIN);
     lv_obj_set_style_radius(btn, CORNERS, LV_PART_MAIN);
+
+    // ✅ Pressed state (same fill, thicker border, zoom)
+    lv_obj_set_style_bg_color(btn, fill, LV_STATE_PRESSED);
+    lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_STATE_PRESSED);
+    lv_obj_set_style_border_color(btn, border, LV_STATE_PRESSED);
+    lv_obj_set_style_border_width(btn, 4, LV_STATE_PRESSED);
+    lv_obj_set_style_radius(btn, CORNERS, LV_STATE_PRESSED);
+    lv_obj_set_style_transform_zoom(btn, 260, LV_STATE_PRESSED);
+    lv_obj_set_style_transition(btn, NULL, LV_STATE_PRESSED);
   }
 
-  // --- NORMAL: transparent background, restore base border ---
+  // --- NORMAL: transparent outline only ---
   else {
-    LOG_VAR("NORMAL: transparent background", "");
+    lv_color_t border = baseColor;
+
+    // Normal
     lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, LV_PART_MAIN);
-    lv_obj_set_style_border_color(btn, baseColor, LV_PART_MAIN);
+    lv_obj_set_style_border_color(btn, border, LV_PART_MAIN);
     lv_obj_set_style_border_width(btn, 2, LV_PART_MAIN);
     lv_obj_set_style_radius(btn, CORNERS, LV_PART_MAIN);
+
+    // ✅ Pressed (same outline, thicker border, zoom)
+    lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, LV_STATE_PRESSED);
+    lv_obj_set_style_border_color(btn, border, LV_STATE_PRESSED);
+    lv_obj_set_style_border_width(btn, 3, LV_STATE_PRESSED);
+    lv_obj_set_style_radius(btn, CORNERS, LV_STATE_PRESSED);
+    lv_obj_set_style_transform_zoom(btn, 260, LV_STATE_PRESSED);
+    lv_obj_set_style_transition(btn, NULL, LV_STATE_PRESSED);
   }
 
   lv_obj_invalidate(btn);

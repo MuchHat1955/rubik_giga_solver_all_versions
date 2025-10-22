@@ -202,42 +202,62 @@ void buildMenu(const char *menuName) {
 
       // ---------- ACTION / MENU ----------
       else if (strcmp(type, "action") == 0 || strcmp(type, "menu") == 0) {
-        lv_obj_t *btn = lv_btn_create(cont);
-        lv_obj_set_size(btn, colW, 48);
-        lv_obj_set_pos(btn, x, y);
-
+        // Pick base color depending on type and label
         lv_color_t colorBtn = COLOR_BTN_ACTION;
         if (strcmp(type, "menu") == 0) colorBtn = COLOR_BTN_MENU;
         if (strcasecmp(txt, "back") == 0) colorBtn = COLOR_BTN_BACK;
 
+        // --- Create the button ---
+        lv_obj_t *btn = lv_btn_create(cont);
+        lv_obj_remove_style_all(btn);  // clear any theme defaults
+        lv_obj_set_size(btn, colW, 48);
+        lv_obj_set_pos(btn, x, y);
+
+        // --- Base appearance (outline only) ---
         lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_radius(btn, CORNERS, 0);
         lv_obj_set_style_border_width(btn, 2, 0);
         lv_obj_set_style_border_color(btn, colorBtn, 0);
-        lv_obj_set_style_bg_color(btn, colorBtn, LV_STATE_PRESSED);
+        lv_obj_set_style_radius(btn, CORNERS, 0);
 
+        // --- Pressed feedback (slightly thicker outline + zoom) ---
+        lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, LV_STATE_PRESSED);
+        lv_obj_set_style_border_color(btn, colorBtn, LV_STATE_PRESSED);
+        lv_obj_set_style_border_width(btn, 3, LV_STATE_PRESSED);
+        lv_obj_set_style_radius(btn, CORNERS, LV_STATE_PRESSED);
+        lv_obj_set_style_transform_zoom(btn, 260, LV_STATE_PRESSED);
+        lv_obj_set_style_transition(btn, NULL, LV_STATE_PRESSED);  // instant, no animation
+
+        // --- Label setup ---
         lv_obj_t *lbl = lv_label_create(btn);
         lv_label_set_text(lbl, txt);
         lv_obj_center(lbl);
         lv_obj_set_style_text_font(lbl, btnFont, 0);
+        lv_obj_set_style_text_color(lbl, COLOR_BTN_TEXT, 0);
 
+        // --- Register persistent status tracking if needed ---
         if (strcmp(it["status"] | "", "yes") == 0 && strlen(key))
           uiStatusRegisterButton(key, btn);
 
-        // ✅ Safe deferred action: lv_async_call after event
+        // --- Click handler (safe deferred build via lv_async_call) ---
         lv_obj_add_event_cb(
           btn,
           [](lv_event_t *e) {
             if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
             const char *keyUD = (const char *)lv_event_get_user_data(e);
             if (!keyUD || !*keyUD) return;
-            static char keyCopy[64];
-            strncpy(keyCopy, keyUD, sizeof(keyCopy) - 1);
-            keyCopy[sizeof(keyCopy) - 1] = '\0';
+
+            // ✅ Allocate a private copy for this async call
+            size_t n = strlen(keyUD) + 1;
+            char *heapKey = (char *)malloc(n);
+            if (!heapKey) return;
+            memcpy(heapKey, keyUD, n);
+
             lv_async_call([](void *p) {
-              const char *k = (const char *)p;
-              buttonAction(k);
-            }, keyCopy);
+              char *keyStr = (char *)p;
+              buttonAction(keyStr);  // safe now
+              free(keyStr);          // free after use
+            },
+                          heapKey);
           },
           LV_EVENT_CLICKED, (void *)key);
       }
@@ -374,9 +394,7 @@ void buildMenu(const char *menuName) {
         lv_obj_add_flag(ta, LV_OBJ_FLAG_SCROLL_ELASTIC);
 
         String errText =
-          "#FFA500 build#\n" + getSketchVersionWithDate() + "\n\n" +
-          "#FFA500 startup#\n" + servoMgr.getStartupTestErrorString() + "\n\n" +
-          "#FFA500 servos diagnostics#\n" + servoMgr.getServosDiagnosticString() + "\n";
+          "#FFA500 build#\n" + getSketchVersionWithDate() + "\n\n" + "#FFA500 startup#\n" + servoMgr.getStartupTestErrorString() + "\n\n" + "#FFA500 servos diagnostics#\n" + servoMgr.getServosDiagnosticString() + "\n";
 
         lv_textarea_set_text(ta, errText.c_str());
         lv_textarea_set_cursor_click_pos(ta, false);
