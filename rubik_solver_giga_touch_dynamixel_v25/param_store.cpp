@@ -51,6 +51,8 @@ void runAction(const char* key) {
   } else if (servoMgr.isGroupPose(key)) {
     LOG_VAR("move servo to group pose", key);
     servoMgr.moveServosToGroupPose(key);
+  } else {
+    LOG_VAR("no action for key", key);
   }
 
   LOG_SECTION_END();
@@ -296,6 +298,7 @@ int getParamValue(const char* k) {
   String key(k);  // ✅ use Arduino String, not std::string
 
   auto it = store.find(std::string(k));  // your map is still std::string-keyed
+  if (it == store.end()) return 0;
   int val = (it == store.end()) ? 0 : it->second.value;
 
   if (servoMgr.isServo(key))
@@ -362,6 +365,9 @@ void updateDerived(const std::string& k, int v) {
   }
   std::string base = k.substr(0, pos);
   std::string suffix = k.substr(pos + 1);
+
+  // update derived only for servost
+  if (!servoMgr.isServo(base.c_str())) return;
 
   auto safe_set = [&](const std::string& key, int val) {
     auto it = store.find(key);

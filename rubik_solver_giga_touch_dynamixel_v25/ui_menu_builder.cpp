@@ -57,8 +57,6 @@ void buildMenu(const char *menuName) {
   }
 
   String fullTitle = String(root["title"] | "");
-
-  // add version only for the main menu
   if (strcmp(menuName, "main") == 0) {
     String sketchVer = getSketchVersion();
     if (sketchVer.length()) fullTitle += " " + sketchVer;
@@ -106,11 +104,9 @@ void buildMenu(const char *menuName) {
   int available_h = SCREEN_H - (title_h + footer_h + 50);
   if (available_h < 60) available_h = 60;
 
-  // snap container height to full rows
   const int rowH = 62;
   int contH = available_h - (available_h % rowH);
   if (contH < rowH) contH = rowH;
-
   contH += 8;
   lv_obj_set_size(cont, SCREEN_W, contH);
   lv_obj_align(cont, LV_ALIGN_TOP_MID, 0, title_h + 18);
@@ -138,9 +134,8 @@ void buildMenu(const char *menuName) {
         extraPad = 24;
       }
       lv_txt_get_size(&sz, txt, btnFont, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
-      if (strcmp(type, "error_status") == 0) {
+      if (strcmp(type, "error_status") == 0)
         extraPad = SCREEN_W - sz.x - textPad - 60;
-      }
       int width = sz.x + textPad + extraPad;
       if (width > colWidths[ci]) colWidths[ci] = width;
     }
@@ -169,7 +164,6 @@ void buildMenu(const char *menuName) {
   int y = 0;
   for (JsonArray row : rows) {
     int numCols = row.size();
-
     int totalRowW = 0;
     for (int ci = 0; ci < numCols && ci < columns; ci++)
       if (ci < (int)colWidths.size()) totalRowW += colWidths[ci] + 8;
@@ -203,7 +197,6 @@ void buildMenu(const char *menuName) {
         lv_obj_set_style_text_opa(lbl, LV_OPA_COVER, 0);
         lv_obj_center(lbl);
 
-        // ✅ register servo name rows for persistent status
         if (strcmp(it["status"] | "", "yes") == 0)
           uiStatusRegisterButton(txt, cell);
       }
@@ -229,18 +222,30 @@ void buildMenu(const char *menuName) {
         lv_obj_center(lbl);
         lv_obj_set_style_text_font(lbl, btnFont, 0);
 
-        // ✅ Register button for persistent status tracking
         if (strcmp(it["status"] | "", "yes") == 0 && strlen(key))
           uiStatusRegisterButton(key, btn);
 
+        // ✅ Safe deferred action using malloc/free
         lv_obj_add_event_cb(
-          btn, [](lv_event_t *e) {
-            const char *k = (const char *)lv_event_get_user_data(e);
-            lv_async_call([](void *p) {
-              const char *key = (const char *)p;
-              buttonAction(key);
-            },
-                          (void *)k);
+          btn,
+          [](lv_event_t *e) {
+            if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+            const char *keyUD = (const char *)lv_event_get_user_data(e);
+            if (!keyUD || !*keyUD) return;
+
+            size_t n = strlen(keyUD) + 1;
+            char *heapKey = (char *)malloc(n);
+            if (!heapKey) return;
+            memcpy(heapKey, keyUD, n);
+
+            lv_timer_create(
+              [](lv_timer_t *timer) {
+                char *heapKey = (char *)lv_timer_get_user_data(timer);
+                buttonAction(heapKey);
+                free(heapKey);
+                lv_timer_del(timer);
+              },
+              1, heapKey);
           },
           LV_EVENT_CLICKED, (void *)key);
       }
@@ -365,47 +370,42 @@ void buildMenu(const char *menuName) {
             lv_label_set_text(lbl, b);
           },
           LV_EVENT_CLICKED, (void *)key);
+
       }
 
       // ---------- ERROR STATUS ----------
       else if (strcmp(type, "error_status") == 0) {
         int textH = SCREEN_H - 250;
+        if (textH < 60) textH = 60;
 
         lv_obj_t *ta = lv_textarea_create(cont);
         lv_obj_set_size(ta, colW, textH);
         lv_obj_set_pos(ta, x, y);
 
-        // Disable flex auto-resize
         lv_obj_set_style_height(ta, textH, 0);
         lv_obj_clear_flag(ta, LV_OBJ_FLAG_FLEX_IN_NEW_TRACK);
         lv_obj_set_style_flex_grow(ta, 0, 0);
 
-        // Scroll behavior
         lv_obj_set_scrollbar_mode(ta, LV_SCROLLBAR_MODE_AUTO);
         lv_obj_set_scroll_dir(ta, LV_DIR_VER);
         lv_obj_clear_flag(ta, LV_OBJ_FLAG_SCROLL_CHAIN);
         lv_obj_add_flag(ta, LV_OBJ_FLAG_SCROLL_ELASTIC);
 
-        // Compose colored / formatted text
         String errText =
-          "#FFA500 build#\n" + getSketchVersionWithDate() + "\n\n" +              //
-          "#FFA500 startup#\n" + servoMgr.getStartupTestErrorString() + "\n\n" +  //
-          "#FFA500 servos diagnostics#\n" + servoMgr.getServosDiagnosticString() + "\n";
+          "#FFA500 build#\n" + getSketchVersionWithDate() + "\n\n" + "#FFA500 startup#\n" + servoMgr.getStartupTestErrorString() + "\n\n" + "#FFA500 servos diagnostics#\n" + servoMgr.getServosDiagnosticString() + "\n";
 
         lv_textarea_set_text(ta, errText.c_str());
         lv_textarea_set_cursor_click_pos(ta, false);
         lv_textarea_set_text_selection(ta, false);
 
-        // Enable recolor and white base color on the internal label
         lv_obj_t *label = lv_textarea_get_label(ta);
-        lv_label_set_recolor(label, true);
-        lv_obj_set_style_text_color(label, lv_color_white(), 0);
-        lv_obj_set_style_text_opa(label, LV_OPA_COVER, 0);
+        if (label) {
+          lv_label_set_recolor(label, true);
+          lv_obj_set_style_text_color(label, lv_color_white(), 0);
+          lv_obj_set_style_text_opa(label, LV_OPA_COVER, 0);
+          lv_obj_set_style_text_line_space(label, 4, 0);
+        }
 
-        // Optional: slightly increase line spacing for readability
-        lv_obj_set_style_text_line_space(label, 4, 0);
-
-        // Textarea background / border styling
         lv_obj_set_style_bg_opa(ta, LV_OPA_TRANSP, 0);
         lv_obj_set_style_border_width(ta, 0, 0);
         lv_obj_set_style_text_font(ta, FONT_BTN_SMALL_PTR, 0);
@@ -417,8 +417,9 @@ void buildMenu(const char *menuName) {
     }
     y += adjustedRowH;
   }
+
   onBuildMenu(menuName);
-  lv_refr_now(NULL);
+  lv_obj_invalidate(lv_scr_act());  // safe redraw
 
   LOG_SECTION_END();
 }

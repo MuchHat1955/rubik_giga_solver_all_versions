@@ -37,6 +37,15 @@ void uiStatusRegisterButton(const String &buttonKey, lv_obj_t *btn) {
 }
 
 // ----------------------------------------------------------
+// Register a button when created in buildMenu()
+// ----------------------------------------------------------
+void uiStatusRegisterButtonByKey(const String &buttonKey, bool issue) {
+  ButtonState &b = buttonMap[buttonKey];
+  b.btn = nullptr;
+  b.issue = issue;
+}
+
+// ----------------------------------------------------------
 // Update button visuals by pointer (error + active)
 // ----------------------------------------------------------
 void updateButtonStateByPtr(lv_obj_t *btn, bool issue, bool active) {
@@ -116,7 +125,8 @@ void updateButtonStateByPtr(lv_obj_t *btn, bool issue, bool active) {
 void updateButtonStateByKey(const String &buttonKey, bool issue, bool active) {
   auto it = buttonMap.find(buttonKey);
   if (it == buttonMap.end()) {
-    LOG_VAR("no button found for key", buttonKey);
+    LOG_VAR2("add button with no ptr for key", buttonKey, "issue", issue);
+    uiStatusRegisterButtonByKey(buttonKey, issue);
     return;  // nothing to update
   }
 
