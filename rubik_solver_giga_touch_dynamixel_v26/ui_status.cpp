@@ -16,11 +16,8 @@ static const lv_color_t COLOR_ERROR = lv_color_hex(0xC02020);   // red
 // ----------------------------------------------------------
 
 void uiStatusClear() {
-  for (auto &entry : buttonMap) {
-    entry.second.btn = nullptr;  // ✅ clear only the pointer
-    entry.second.issue = false;  // optional: reset flags too
-    entry.second.active = false;
-  }
+  // fully reset to avoid dangling pointers and map growth
+  buttonMap.clear();
 }
 
 // ----------------------------------------------------------
@@ -54,23 +51,25 @@ void updateButtonStateByPtr(lv_obj_t *btn, bool issue, bool active) {
   LOG_SECTION_START("updateButtonStateByPtr");
   LOG_VAR2("issue", issue, "active", active);
 
-  const int CORNERS = 20;
+  constexpr int CORNERS = 20;
+  constexpr int BORDER_WIDTH_NORMAL = 2;
+  constexpr int BORDER_WIDTH_ACTIVE = 2;
+  constexpr int BORDER_WIDTH_ISSUE  = 2;
 
-  // Get current color
+  // Capture base color (used for normal border)
   lv_color_t baseColor = lv_obj_get_style_border_color(btn, LV_PART_MAIN);
 
-  // Remove old overlays
+  // Remove any overlay children (skip if LV_USE_USER_DATA disabled)
+#if LV_USE_USER_DATA
   uint32_t child_cnt = lv_obj_get_child_cnt(btn);
   for (int i = child_cnt - 1; i >= 0; --i) {
     lv_obj_t *child = lv_obj_get_child(btn, i);
     void *ud = lv_obj_get_user_data(child);
-    if (ud == (void *)0xDEAD || ud == (void *)0xBEEF) {
-      LOG_VAR("removing old overlay", (int)(uintptr_t)ud);
+    if (ud == (void *)0xDEAD || ud == (void *)0xBEEF)
       lv_obj_del(child);
-    }
   }
+#endif
 
-  // Ensure proper size
   lv_obj_update_layout(btn);
   lv_coord_t w = lv_obj_get_width(btn);
   lv_coord_t h = lv_obj_get_height(btn);
@@ -80,72 +79,33 @@ void updateButtonStateByPtr(lv_obj_t *btn, bool issue, bool active) {
     if (w == 0) w = pw;
     if (h == 0) h = ph;
   }
-  LOG_VAR2("button size after layout w", w, "h", h);
 
-  /* Allow overlay to render beyond borders if needed (LVGL 9 replacement) */
   lv_obj_add_flag(btn, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
 
-  // --- ISSUE: solid darker orange-red fill, white border ---
+  // --- ISSUE: solid red fill, no white border ---
   if (issue) {
-    lv_color_t fill = lv_color_hex(0xC0392B);    // dark orange-red
-    lv_color_t border = lv_color_hex(0xFFFFFF);  // white
-
-    // Normal (main) state
-    lv_obj_set_style_bg_color(btn, fill, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(btn, lv_color_hex(0xC0392B), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_style_border_color(btn, border, LV_PART_MAIN);
-    lv_obj_set_style_border_width(btn, 3, LV_PART_MAIN);
+    lv_obj_set_style_border_color(btn, lv_color_hex(0xC0392B), LV_PART_MAIN);
+    lv_obj_set_style_border_width(btn, BORDER_WIDTH_ISSUE, LV_PART_MAIN);
     lv_obj_set_style_radius(btn, CORNERS, LV_PART_MAIN);
-
-    // ✅ Pressed state (same color, thicker border, zoom)
-    lv_obj_set_style_bg_color(btn, fill, LV_STATE_PRESSED);
-    lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_STATE_PRESSED);
-    lv_obj_set_style_border_color(btn, border, LV_STATE_PRESSED);
-    lv_obj_set_style_border_width(btn, 4, LV_STATE_PRESSED);
-    lv_obj_set_style_radius(btn, CORNERS, LV_STATE_PRESSED);
-    lv_obj_set_style_transform_zoom(btn, 260, LV_STATE_PRESSED);
-    lv_obj_set_style_transition(btn, NULL, LV_STATE_PRESSED);
   }
 
-  // --- ACTIVE: solid base color fill, white border ---
+  // --- ACTIVE: solid blue fill, no white border ---
   else if (active) {
-    lv_color_t fill = baseColor;
-    lv_color_t border = lv_color_hex(0xFFFFFF);
-
-    // Normal (main) state
-    lv_obj_set_style_bg_color(btn, fill, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(btn, lv_color_hex(0x4040FF), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_style_border_color(btn, border, LV_PART_MAIN);
-    lv_obj_set_style_border_width(btn, 3, LV_PART_MAIN);
+    lv_obj_set_style_border_color(btn, lv_color_hex(0x4040FF), LV_PART_MAIN);
+    lv_obj_set_style_border_width(btn, BORDER_WIDTH_ACTIVE, LV_PART_MAIN);
     lv_obj_set_style_radius(btn, CORNERS, LV_PART_MAIN);
-
-    // ✅ Pressed state (same fill, thicker border, zoom)
-    lv_obj_set_style_bg_color(btn, fill, LV_STATE_PRESSED);
-    lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_STATE_PRESSED);
-    lv_obj_set_style_border_color(btn, border, LV_STATE_PRESSED);
-    lv_obj_set_style_border_width(btn, 4, LV_STATE_PRESSED);
-    lv_obj_set_style_radius(btn, CORNERS, LV_STATE_PRESSED);
-    lv_obj_set_style_transform_zoom(btn, 260, LV_STATE_PRESSED);
-    lv_obj_set_style_transition(btn, NULL, LV_STATE_PRESSED);
   }
 
-  // --- NORMAL: transparent outline only ---
+  // --- NORMAL: transparent background, restore base border ---
   else {
-    lv_color_t border = baseColor;
-
-    // Normal
     lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, LV_PART_MAIN);
-    lv_obj_set_style_border_color(btn, border, LV_PART_MAIN);
-    lv_obj_set_style_border_width(btn, 2, LV_PART_MAIN);
+    lv_obj_set_style_border_color(btn, baseColor, LV_PART_MAIN);
+    lv_obj_set_style_border_width(btn, BORDER_WIDTH_NORMAL, LV_PART_MAIN);
     lv_obj_set_style_radius(btn, CORNERS, LV_PART_MAIN);
-
-    // ✅ Pressed (same outline, thicker border, zoom)
-    lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, LV_STATE_PRESSED);
-    lv_obj_set_style_border_color(btn, border, LV_STATE_PRESSED);
-    lv_obj_set_style_border_width(btn, 3, LV_STATE_PRESSED);
-    lv_obj_set_style_radius(btn, CORNERS, LV_STATE_PRESSED);
-    lv_obj_set_style_transform_zoom(btn, 260, LV_STATE_PRESSED);
-    lv_obj_set_style_transition(btn, NULL, LV_STATE_PRESSED);
   }
 
   lv_obj_invalidate(btn);
@@ -160,7 +120,6 @@ void updateButtonStateByKey(const String &buttonKey, bool issue, bool active) {
   auto it = buttonMap.find(buttonKey);
   if (it == buttonMap.end()) {
     LOG_VAR2("add button with no ptr for key", buttonKey, "issue", issue);
-    uiStatusRegisterButtonByKey(buttonKey, issue);
     return;  // nothing to update
   }
 

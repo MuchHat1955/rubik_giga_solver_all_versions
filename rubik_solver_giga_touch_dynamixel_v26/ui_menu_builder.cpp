@@ -1,7 +1,6 @@
 #include "ui_touch.h"
 #include "logging.h"
 #include "ui_theme.h"
-#include "ui_touch.h"
 #include "param_store.h"
 #include <map>
 #include <vector>
@@ -18,9 +17,11 @@ extern ServoManager servoMgr;
 void onBuildMenu(const char *menuName) {
   LOG_SECTION_START_VAR("on build menu", "for menu", menuName);
 
-  if (strcmp(menuName, "poses") == 0 ||         //
-      strcmp(menuName, "servo_limits") == 0 ||  //
-      strcmp(menuName, "pose_groups") == 0) {
+  if (strcmp(menuName, "poses") == 0 ||          //
+      strcmp(menuName, "servo_limits") == 0 ||   //
+      strcmp(menuName, "pose_groups") == 0 ||    //
+      strcmp(menuName, "vertical_tune") == 0 ||  //
+      strcmp(menuName, "vertical_poses") == 0) {
 
     LOG_SECTION_START_VAR("update servos and status UI", "menu", menuName);
     servoMgr.updateServos();
@@ -196,8 +197,13 @@ void buildMenu(const char *menuName) {
         lv_obj_set_style_text_opa(lbl, LV_OPA_COVER, 0);
         lv_obj_center(lbl);
 
-        if (strcmp(it["status"] | "", "yes") == 0)
-          uiStatusRegisterButton(txt, cell);
+        // register for status updates if has key
+        if (strlen(key)) {
+          statusWidgets[key] = lbl;
+        }
+        if (strcmp(it["status"] | "", "yes") == 0 && strlen(key))
+          uiStatusRegisterButton(key, cell);
+
       }
 
       // ---------- ACTION / MENU ----------
@@ -213,19 +219,14 @@ void buildMenu(const char *menuName) {
         lv_obj_set_size(btn, colW, 48);
         lv_obj_set_pos(btn, x, y);
 
-        // --- Base appearance (outline only) ---
         lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_radius(btn, CORNERS, 0);
         lv_obj_set_style_border_width(btn, 2, 0);
         lv_obj_set_style_border_color(btn, colorBtn, 0);
-        lv_obj_set_style_radius(btn, CORNERS, 0);
 
-        // --- Pressed feedback (slightly thicker outline + zoom) ---
-        lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, LV_STATE_PRESSED);
-        lv_obj_set_style_border_color(btn, colorBtn, LV_STATE_PRESSED);
-        lv_obj_set_style_border_width(btn, 3, LV_STATE_PRESSED);
-        lv_obj_set_style_radius(btn, CORNERS, LV_STATE_PRESSED);
-        lv_obj_set_style_transform_zoom(btn, 260, LV_STATE_PRESSED);
-        lv_obj_set_style_transition(btn, NULL, LV_STATE_PRESSED);  // instant, no animation
+        // mirror “active” / “issue” fill logic so color consistency is exact
+        lv_obj_set_style_bg_color(btn, colorBtn, LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, LV_PART_MAIN);
 
         // --- Label setup ---
         lv_obj_t *lbl = lv_label_create(btn);
@@ -238,28 +239,33 @@ void buildMenu(const char *menuName) {
         if (strcmp(it["status"] | "", "yes") == 0 && strlen(key))
           uiStatusRegisterButton(key, btn);
 
-        // --- Click handler (safe deferred build via lv_async_call) ---
+        const char *key_copy = strdup(key);
         lv_obj_add_event_cb(
           btn,
           [](lv_event_t *e) {
             if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
-            const char *keyUD = (const char *)lv_event_get_user_data(e);
-            if (!keyUD || !*keyUD) return;
-
-            // ✅ Allocate a private copy for this async call
-            size_t n = strlen(keyUD) + 1;
-            char *heapKey = (char *)malloc(n);
-            if (!heapKey) return;
-            memcpy(heapKey, keyUD, n);
-
-            lv_async_call([](void *p) {
-              char *keyStr = (char *)p;
-              buttonAction(keyStr);  // safe now
-              free(keyStr);          // free after use
-            },
-                          heapKey);
+            const char *heapKey = static_cast<const char *>(lv_event_get_user_data(e));
+#if LV_USE_ASYNC_CALL
+            lv_async_call(
+              [](void *ud) {
+                const char *k = static_cast<const char *>(ud);
+                buttonAction(k);
+                free((void *)k);
+              },
+              (void *)heapKey);
+#else
+            lv_timer_t *t = lv_timer_create(
+              [](lv_timer_t *timer) {
+                const char *k = static_cast<const char *>(lv_timer_get_user_data(timer));
+                buttonAction(k);
+                free((void *)k);
+                lv_timer_del(timer);
+              },
+              1, (void *)heapKey);
+            if (!t) free((void *)heapKey);
+#endif
           },
-          LV_EVENT_CLICKED, (void *)key);
+          LV_EVENT_CLICKED, (void *)key_copy);
       }
 
       // ---------- NUMERIC ----------
@@ -312,6 +318,11 @@ void buildMenu(const char *menuName) {
         lv_obj_clear_flag(lblVal, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_clear_flag(lblVal, LV_OBJ_FLAG_SCROLL_CHAIN);
         lv_obj_center(lblVal);
+
+        // register numeric label by key for external updates
+        if (strlen(key)) {
+          numLabels[key] = lblVal;
+        }
 
         lv_obj_t *btnPlus = lv_btn_create(numBox);
         lv_obj_remove_style_all(btnPlus);
@@ -394,7 +405,9 @@ void buildMenu(const char *menuName) {
         lv_obj_add_flag(ta, LV_OBJ_FLAG_SCROLL_ELASTIC);
 
         String errText =
-          "#FFA500 build#\n" + getSketchVersionWithDate() + "\n\n" + "#FFA500 startup#\n" + servoMgr.getStartupTestErrorString() + "\n\n" + "#FFA500 servos diagnostics#\n" + servoMgr.getServosDiagnosticString() + "\n";
+          "#FFA500 build#\n" + getSketchVersionWithDate() + "\n\n" +              //
+          "#FFA500 startup#\n" + servoMgr.getStartupTestErrorString() + "\n\n" +  //
+          "#FFA500 servos diagnostics#\n" + servoMgr.getServosDiagnosticString() + "\n";
 
         lv_textarea_set_text(ta, errText.c_str());
         lv_textarea_set_cursor_click_pos(ta, false);
@@ -414,7 +427,6 @@ void buildMenu(const char *menuName) {
 
         adjustedRowH = textH + 20;
       }
-
       x += colW + 8;
     }
     y += adjustedRowH;
@@ -518,37 +530,37 @@ const char jsonBuffer[] = R"json(
         { "text": "max limit", "type": "text" }
       ],
       [
-        { "text": "arm1", "type": "action", "status": "yes", "key": "arm1" },
+        { "text": "arm1", "type": "action", "status": "yes", "key": "arm1_btn" },
         { "text": "-0000+", "type": "num", "key": "arm1_0" },
         { "text": "-0000+", "type": "num", "key": "arm1_min" },
         { "text": "-0000+", "type": "num", "key": "arm1_max" }
       ],
       [
-        { "text": "arm2", "type": "action", "status": "yes", "key": "arm2" },
+        { "text": "arm2", "type": "action", "status": "yes", "key": "arm2_btn" },
         { "text": "-0000+", "type": "num", "key": "arm2_0" },
         { "text": "-0000+", "type": "num", "key": "arm2_min" },
         { "text": "-0000+", "type": "num", "key": "arm2_max" }
       ],
       [
-        { "text": "wrist", "type": "action", "status": "yes", "key": "wrist" },
+        { "text": "wrist", "type": "action", "status": "yes", "key": "wrist_btn" },
         { "text": "-0000+", "type": "num", "key": "wrist_0" },
         { "text": "-0000+", "type": "num", "key": "wrist_min" },
         { "text": "-0000+", "type": "num", "key": "wrist_max" }
       ],
       [
-        { "text": "grip l", "type": "action", "status": "yes", "key": "grip1" },
+        { "text": "grip l", "type": "action", "status": "yes", "key": "grip1_btn" },
         { "text": "-0000+", "type": "num", "key": "grip1_0" },
         { "text": "-0000+", "type": "num", "key": "grip1_min" },
         { "text": "-0000+", "type": "num", "key": "grip1_max" }
       ],
       [
-        { "text": "grip r", "type": "action", "status": "yes", "key": "grip2" },
+        { "text": "grip r", "type": "action", "status": "yes", "key": "grip2_btn" },
         { "text": "-0000+", "type": "num", "key": "grip2_0" },
         { "text": "-0000+", "type": "num", "key": "grip2_min" },
         { "text": "-0000+", "type": "num", "key": "grip2_max" }
       ],
       [
-        { "text": "base", "type": "action", "status": "yes", "key": "base" },
+        { "text": "base", "type": "action", "status": "yes", "key": "base_btn" },
         { "text": "-0000+", "type": "num", "key": "base_0" },
         { "text": "-0000+", "type": "num", "key": "base_min" },
         { "text": "-0000+", "type": "num", "key": "base_max" }
@@ -624,7 +636,7 @@ const char jsonBuffer[] = R"json(
       ],
       [
         { "text": "grip open", "type": "action", "key": "grip_open", "status": "yes" },
-        { "text": "gripp close", "type": "action", "key": "grip_close", "status": "yes" },
+        { "text": "grip close", "type": "action", "key": "grip_close", "status": "yes" },
         { "text": "", "type": "text" }
       ],
       [{ "text": "back", "type": "menu", "key": "tests" }]
@@ -835,62 +847,62 @@ const char jsonBuffer[] = R"json(
     "equal_columns": "all",
     "rows": [
       [
-        { "text": "arm1 0", "type": "action", "key": "arm1_0", "status": "yes" },
+        { "text": "arm1 0", "type": "action", "key": "arm1_0_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "arm1_0" },
         { "text": "current na", "type": "text", "key": "arm1_current" }
       ],
       [
-        { "text": "arm2 0", "type": "action", "key": "arm2_0", "status": "yes" },
+        { "text": "arm2 0", "type": "action", "key": "arm2_0_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "arm2_0" },
         { "text": "current na", "type": "text", "key": "arm2_current" }
       ],
       [
-        { "text": "wrist 0", "type": "action", "key": "wrist_0", "status": "yes" },
+        { "text": "wrist 0", "type": "action", "key": "wrist_0_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "wrist_0" },
         { "text": "current na", "type": "text", "key": "wrist_current" }
       ],
       [
-        { "text": "wrist 90", "type": "action", "key": "wrist_90", "status": "yes" },
+        { "text": "wrist 90", "type": "action", "key": "wrist_90_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "wrist_90" },
         { "text": "current na", "type": "text", "key": "wrist_current" }
       ],
       [
-        { "text": "wrist -90", "type": "action", "key": "wrist_minus90", "status": "yes" },
+        { "text": "wrist -90", "type": "action", "key": "wrist_minus90_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "wrist_minus90" },
         { "text": "current na", "type": "text", "key": "wrist_current" }
       ],
       [
-        { "text": "grip1 open", "type": "action", "key": "grip1_open", "status": "yes" },
+        { "text": "grip1 open", "type": "action", "key": "grip1_open_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "grip1_open" },
         { "text": "current na", "type": "text", "key": "grip1_current" }
       ],
       [
-        { "text": "grip1 close", "type": "action", "key": "grip1_close", "status": "yes" },
+        { "text": "grip1 close", "type": "action", "key": "grip1_close_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "grip1_close" },
         { "text": "current na", "type": "text", "key": "grip1_current" }
       ],
       [
-        { "text": "grip2 open", "type": "action", "key": "grip2_open", "status": "yes" },
+        { "text": "grip2 open", "type": "action", "key": "grip2_open_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "grip2_open" },
         { "text": "current na", "type": "text", "key": "grip2_current" }
       ],
       [
-        { "text": "grip2 close", "type": "action", "key": "grip2_close", "status": "yes" },
+        { "text": "grip2 close", "type": "action", "key": "grip2_close_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "grip2_close" },
         { "text": "current na", "type": "text", "key": "grip2_current" }
       ],
       [
-        { "text": "base 0", "type": "action", "key": "base_0", "status": "yes" },
+        { "text": "base 0", "type": "action", "key": "base_0_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "base_0" },
         { "text": "current na", "type": "text", "key": "base_current" }
       ],
       [
-        { "text": "base 90", "type": "action", "key": "base_90", "status": "yes" },
+        { "text": "base 90", "type": "action", "key": "base_90_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "base_90" },
         { "text": "current na", "type": "text", "key": "base_current" }
       ],
       [
-        { "text": "base -90", "type": "action", "key": "base_minus90", "status": "yes" },
+        { "text": "base -90", "type": "action", "key": "base_minus90_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "base_minus90" },
         { "text": "current na", "type": "text", "key": "base_current" }
       ],

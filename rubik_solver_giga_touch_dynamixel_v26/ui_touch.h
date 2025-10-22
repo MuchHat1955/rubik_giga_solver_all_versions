@@ -49,3 +49,7 @@ extern lv_style_t style_num_btn_pressed;
 // Version helpers
 String getSketchVersion();
 String getSketchVersionWithDate();
+
+extern std::map<String, lv_obj_t*> statusWidgets;
+extern std::map<String, lv_obj_t*> numLabels;
+

@@ -43,18 +43,51 @@ int clampServoParamTicks(const char* key, int val) {
 // ----------------------------------------------------------
 
 void runAction(const char* key) {
-  LOG_SECTION_START_VAR("run", "action", key);
+  LOG_SECTION_START_VAR("runAction", "key", key);
 
-  if (servoMgr.isServoPose(key)) {
-    LOG_VAR("move servo to pose", key);
-    servoMgr.moveServoToPose(key);
-  } else if (servoMgr.isGroupPose(key)) {
-    LOG_VAR("move servo to group pose", key);
-    servoMgr.moveServosToGroupPose(key);
-  } else {
-    LOG_VAR("no action for key", key);
+  // --- Pose buttons (e.g., "arm1_0_btn", "v_pose_r1") ---
+  if (servoMgr.isBtnForPose(key)) {
+    String poseKey = servoMgr.getPoseFromBtn(key);
+    bool ok = servoMgr.moveServoToPose(poseKey);
+    servoMgr.reflectUIForKey(key);
+    LOG_VAR2("pose move", poseKey, ok ? "OK" : "FAIL");
+    LOG_SECTION_END();
+    return;
   }
 
+  // --- Servo buttons (e.g., "arm1_btn", "wrist_btn") ---
+  if (servoMgr.isBtnForServo(key)) {
+    String servoKey = servoMgr.getServoFromBtn(key);
+    // Optional: if you want direct centering or test motion
+    int mid = (SERVO_TICKS_MAX + SERVO_TICKS_MIN) / 2;
+    bool ok = servoMgr.moveServoToTicks(servoKey, mid);
+    servoMgr.reflectUIForKey(key);
+    LOG_VAR2("servo move", servoKey, ok ? "OK" : "FAIL");
+    LOG_SECTION_END();
+    return;
+  }
+
+  // --- Group pose buttons (e.g., "arms_home", "grip_open_btn") ---
+  if (servoMgr.isBtnForGroupPose(key)) {
+    String groupKey = servoMgr.getGroupPoseFromBtn(key);
+    bool ok = servoMgr.moveServosToGroupPose(groupKey, 800);
+    servoMgr.reflectUIForKey(key);
+    LOG_VAR2("group move", groupKey, ok ? "OK" : "FAIL");
+    LOG_SECTION_END();
+    return;
+  }
+
+  // --- Legacy / fallback: check for plain servo pose keys (no _btn) ---
+  if (servoMgr.isServoPose(key)) {
+    bool ok = servoMgr.moveServoToPose(key);
+    servoMgr.reflectUIForKey(String(key) + "_btn");
+    LOG_VAR2("plain pose move", key, ok ? "OK" : "FAIL");
+    LOG_SECTION_END();
+    return;
+  }
+
+  // --- Fallback for sequences or other custom actions ---
+  LOG_VAR("unhandled action key", key);
   LOG_SECTION_END();
 }
 

@@ -11,8 +11,6 @@
 #include "ui_status.h"
 #include "servo_manager.h"
 
-static std::map<String, ButtonState> buttonMap;
-
 // Forward declarations
 void updateButtonStateByPtr(lv_obj_t *btn, bool issue, bool active);
 
@@ -30,6 +28,12 @@ extern lv_obj_t *selected_num_box;
 extern lv_style_t style_num_selected;
 extern lv_style_t style_num_btn_active;
 extern lv_style_t style_num_btn_pressed;
+
+// ----------------------------------------------------------
+//                   GLOBAL UI STATE MAPS
+// ----------------------------------------------------------
+std::map<String, lv_obj_t *> statusWidgets;  // text/status labels
+std::map<String, lv_obj_t *> numLabels;      // numeric value labels
 
 // ----------------------------------------------------------
 //                SERVO BUTTON MAPPING & STATES

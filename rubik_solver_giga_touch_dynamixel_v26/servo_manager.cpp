@@ -241,6 +241,138 @@ bool ServoManager::isServoAtPose(const String &key, int targetTicks, int tol) {
 }
 
 // ----------------------------------------------------------
+//                 BTN / TYPE HELPER FUNCTIONS
+// ----------------------------------------------------------
+
+// Check if a key corresponds to a specific category of button and
+// provide the logical key behind it. These are used to identify what
+// type of object (servo, pose, or group) a UI button represents.
+
+bool ServoManager::isBtnForPose(const String &key) const {
+  // e.g. "arm1_0_btn", "base_90_btn", "v_pose_r2"
+  if (key.endsWith("_btn")) {
+    String stripped = key.substring(0, key.length() - 4);
+    return getParamValue(stripped.c_str()) != 0;
+  }
+  if (key.startsWith("v_pose_")) return true;
+  return false;
+}
+
+String ServoManager::getPoseFromBtn(const String &key) const {
+  if (key.endsWith("_btn"))
+    return key.substring(0, key.length() - 4);
+  if (key.startsWith("v_pose_"))
+    return key;
+  return "";
+}
+
+bool ServoManager::isBtnForServo(const String &key) const {
+  // e.g. "arm1_btn", "grip1_btn"
+  if (key.endsWith("_btn")) {
+    String stripped = key.substring(0, key.length() - 4);
+    return isServo(stripped);
+  }
+  return isServo(key);
+}
+
+String ServoManager::getServoFromBtn(const String &key) const {
+  if (key.endsWith("_btn"))
+    return key.substring(0, key.length() - 4);
+  return key;
+}
+
+bool ServoManager::isBtnForGroupPose(const String &key) const {
+  // e.g. "arms_home_btn", "grip_open_btn"
+  if (key.endsWith("_btn")) {
+    String stripped = key.substring(0, key.length() - 4);
+    return isGroupPose(stripped);
+  }
+  return isGroupPose(key);
+}
+
+String ServoManager::getGroupPoseFromBtn(const String &key) const {
+  if (key.endsWith("_btn"))
+    return key.substring(0, key.length() - 4);
+  return key;
+}
+
+// ----------------------------------------------------------
+//                   REFLECT UI FOR ONE KEY
+// ----------------------------------------------------------
+
+void ServoManager::reflectUIForKey(const String &key) {
+  LOG_SECTION_START_VAR("reflectUIForKey", "key", key);
+
+  // ---- Servo buttons ----
+  if (isBtnForServo(key)) {
+    String servoKey = getServoFromBtn(key);
+    auto it = servosStore.find(servoKey);
+    if (it == servosStore.end()) {
+      LOG_VAR("servo not found", servoKey);
+      return;
+    }
+    const ServoInfo &s = it->second;
+    bool issue = (!s.pingOK) || s.isThermal || s.isStall || s.isAtMin || s.isAtMax;
+    ::updateButtonStateByKey(key, issue, false);
+    LOG_VAR2("reflect servo", servoKey, "issue", issue);
+    LOG_SECTION_END();
+    return;
+  }
+
+  // ---- Pose buttons ----
+  if (isBtnForPose(key)) {
+    String poseKey = getPoseFromBtn(key);
+    String servoKey = servoKeyFromPose(poseKey.c_str());
+    auto it = servosStore.find(servoKey);
+    if (it == servosStore.end()) {
+      LOG_VAR("pose servo not found", servoKey);
+      return;
+    }
+
+    const ServoInfo &s = it->second;
+    bool issue = (!s.pingOK) || s.isThermal || s.isStall || s.isAtMin || s.isAtMax;
+    int target = getParamValue(poseKey.c_str());
+    bool active = (target != 0) && isServoAtPose(servoKey, target, POSE_TOL_TICKS);
+    ::updateButtonStateByKey(key, issue, active);
+
+    LOG_VAR2("reflect pose", poseKey, "issue", issue ? "Y" : "N");
+    LOG_VAR2("pose", poseKey, "active", active ? "Y" : "N");
+    LOG_SECTION_END();
+    return;
+  }
+
+  // ---- Group pose buttons ----
+  if (isBtnForGroupPose(key)) {
+    String groupKey = getGroupPoseFromBtn(key);
+    auto it = groupPoseStore.find(groupKey);
+    if (it == groupPoseStore.end()) {
+      LOG_VAR("group not found", groupKey);
+      return;
+    }
+    const auto &poseList = it->second;
+    bool issue = false;
+    for (const auto &pose : poseList) {
+      String servoKey = servoKeyFromPose(pose.c_str());
+      auto sit = servosStore.find(servoKey);
+      if (sit != servosStore.end()) {
+        const ServoInfo &s = sit->second;
+        if (!s.pingOK || s.isThermal || s.isStall || s.isAtMin || s.isAtMax) {
+          issue = true;
+          break;
+        }
+      }
+    }
+    ::updateButtonStateByKey(key, issue, false);
+    LOG_VAR2("reflect group", groupKey, "issue", issue ? "Y" : "N");
+    LOG_SECTION_END();
+    return;
+  }
+
+  LOG_VAR("reflectUIForKey: unrecognized key type", key);
+  LOG_SECTION_END();
+}
+
+// ----------------------------------------------------------
 //                     MOTION CONTROL
 // ----------------------------------------------------------
 bool ServoManager::moveServoToTicks(const String &key, int ticks) {
@@ -262,7 +394,7 @@ bool ServoManager::moveServoToTicks(const String &key, int ticks) {
 
   s.goalTicks = clampTicksForServo(key, ticks);
   dxl.setGoalPosition(s.id, s.goalTicks);
-  updateServo(key);
+  updateServo(key); //TODO refresh buttons
   return true;
 }
 
