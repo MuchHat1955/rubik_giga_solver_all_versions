@@ -32,8 +32,8 @@ extern lv_style_t style_num_btn_pressed;
 // ----------------------------------------------------------
 //                   GLOBAL UI STATE MAPS
 // ----------------------------------------------------------
-std::map<String, lv_obj_t*> statusWidgets;
-std::map<String, lv_obj_t*> numLabels;
+std::map<String, lv_obj_t *> statusWidgets;
+std::map<String, lv_obj_t *> numLabels;
 
 // ----------------------------------------------------------
 //                SERVO BUTTON MAPPING & STATES
@@ -82,20 +82,48 @@ void updateStatus(const char *key, const char *value, const char *colorName) {
 //                   BUTTON ACTION LOGIC
 // ----------------------------------------------------------
 void buttonAction(const char *key) {
-  LOG_SECTION_START_VAR("buttonAction", "key", key);
+  LOG_SECTION_START_VAR("buttonAction", "key", key ? key : "(null)");
 
-  if (menuDoc.containsKey(key)) {  // navigate to submenu
+  static unsigned long lastClickTime = 0;
+  static String lastClickKey;
+
+  unsigned long now = millis();
+  if (key && *key && key == lastClickKey && now - lastClickTime < 500) {
+    LOG_VAR("buttonAction: rapid re-click ignored", key);
+    LOG_SECTION_END();
+    return;
+  }
+  lastClickTime = now;
+  lastClickKey = key;
+
+  // --- Safety: guard against null or empty keys ---
+  if (!key || !*key) {
+    LOG_VAR("buttonAction: empty or null key ignored", "");
+    LOG_SECTION_END();
+    return;
+  }
+
+  // --- Navigate to a submenu if the key matches a menu name ---
+  if (menuDoc.containsKey(key)) {
     currentMenu = key;
     setFooter((String("switch menu ") + key).c_str());
     buildMenu(currentMenu.c_str());
-  } else if (strcmp(key, "main") == 0) {  // explicit back to main
+    LOG_SECTION_END();
+    return;
+  }
+
+  // --- Explicit back to main menu ---
+  if (strcmp(key, "main") == 0) {
     currentMenu = "main";
     setFooter("back to main menu");
     buildMenu(currentMenu.c_str());
-  } else {
-    setFooter((String("action ") + key).c_str());
-    runAction(key);
+    LOG_SECTION_END();
+    return;
   }
+
+  // --- Regular action (pose / servo / group / sequence) ---
+  setFooter((String("action ") + key).c_str());
+  runAction(key);
 
   LOG_SECTION_END();
 }
@@ -131,6 +159,23 @@ void select_num_pair(lv_obj_t *numBox, bool toggle) {
 // ----------------------------------------------------------
 //                   UI INITIALIZATION
 // ----------------------------------------------------------
+void validateMenuKeys() {
+  for (JsonPair kv : menuDoc.as<JsonObject>()) {
+    const char *menuName = kv.key().c_str();
+    JsonObject menu = kv.value().as<JsonObject>();
+    JsonArray rows = menu["rows"].as<JsonArray>();
+    for (JsonArray row : rows) {
+      for (JsonObject it : row) {
+        const char *type = it["type"] | "";
+        const char *key = it["key"] | "";
+        if ((strcmp(type, "action") == 0 || strcmp(type, "menu") == 0) && (!key || !*key)) {
+          LOG_VAR2("menu missing key", menuName, "type", type);
+        }
+      }
+    }
+  }
+}
+
 extern const char jsonBuffer[];
 
 void ui_init() {
@@ -152,6 +197,8 @@ void ui_init() {
     LOG_SECTION_END();
     return;  // avoid using empty doc
   }
+
+  validateMenuKeys();
 
   // 4. Build the initial main menu screen
   buildMenu("main");

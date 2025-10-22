@@ -9,6 +9,7 @@
 #include "param_store.h"
 #include "servos.h"
 #include "servo_manager.h"
+#include "ui_touch.h"
 
 extern ServoManager servoMgr;
 
@@ -45,6 +46,17 @@ int clampServoParamTicks(const char* key, int val) {
 void runAction(const char* key) {
   LOG_SECTION_START_VAR("runAction", "key", key);
 
+  if (!key || !*key) {
+    LOG_VAR("runAction: null/empty key ignored", "");
+    return;
+  }
+
+  // Defensive: prevent recursive self-call crash
+  if (strcmp(key, "runAction") == 0) {
+    LOG_VAR("runAction: recursion guard triggered", "");
+    return;
+  }
+
   // --- Pose buttons (e.g., "arm1_0_btn", "v_pose_r1") ---
   if (servoMgr.isBtnForPose(key)) {
     String poseKey = servoMgr.getPoseFromBtn(key);
@@ -73,6 +85,10 @@ void runAction(const char* key) {
     bool ok = servoMgr.moveServosToGroupPose(groupKey, 800);
     servoMgr.reflectUIForKey(key);
     LOG_VAR2("group move", groupKey, "", ok ? "OK" : "FAIL");
+    if (!ok) {
+      setFooter("group move failed");
+      delay(1111);
+    }
     LOG_SECTION_END();
     return;
   }

@@ -239,33 +239,39 @@ void buildMenu(const char *menuName) {
         if (strcmp(it["status"] | "", "yes") == 0 && strlen(key))
           uiStatusRegisterButton(key, btn);
 
-        const char *key_copy = strdup(key);
+        // --- Skip empty keys entirely ---
+        if (!key || !*key) {
+          LOG_VAR("skipping button with empty key", txt);
+          continue;
+        }
+
+        // --- Attach event callback directly without heap copies ---
         lv_obj_add_event_cb(
           btn,
           [](lv_event_t *e) {
             if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
-            const char *heapKey = static_cast<const char *>(lv_event_get_user_data(e));
+
+            const char *keyUD = static_cast<const char *>(lv_event_get_user_data(e));
+            if (!keyUD || !*keyUD) {
+              LOG_VAR("click event: empty key", "");
+              return;
+            }
+
 #if LV_USE_ASYNC_CALL
+            // Safe async call, no free, key pointer is stable (JSON lives until menu rebuilt)
             lv_async_call(
               [](void *ud) {
                 const char *k = static_cast<const char *>(ud);
                 buttonAction(k);
-                free((void *)k);
               },
-              (void *)heapKey);
+              (void *)keyUD);
 #else
-            lv_timer_t *t = lv_timer_create(
-              [](lv_timer_t *timer) {
-                const char *k = static_cast<const char *>(lv_timer_get_user_data(timer));
-                buttonAction(k);
-                free((void *)k);
-                lv_timer_del(timer);
-              },
-              1, (void *)heapKey);
-            if (!t) free((void *)heapKey);
+            // Direct call if async not enabled
+            buttonAction(keyUD);
 #endif
           },
-          LV_EVENT_CLICKED, (void *)key_copy);
+          LV_EVENT_CLICKED, (void *)key);
+
       }
 
       // ---------- NUMERIC ----------
