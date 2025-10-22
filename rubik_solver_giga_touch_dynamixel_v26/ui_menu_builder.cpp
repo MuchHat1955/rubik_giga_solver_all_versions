@@ -622,8 +622,8 @@ const char jsonBuffer[] = R"json(
         { "text": "arms r6", "type": "action", "key": "arms_r6", "status": "yes" }
       ],
       [
-        { "text": "grippers open", "type": "action", "key": "grip_open", "status": "yes" },
-        { "text": "grippers closed", "type": "action", "key": "grip_closed", "status": "yes" },
+        { "text": "grip open", "type": "action", "key": "grip_open", "status": "yes" },
+        { "text": "gripp close", "type": "action", "key": "grip_close", "status": "yes" },
         { "text": "", "type": "text" }
       ],
       [{ "text": "back", "type": "menu", "key": "tests" }]
