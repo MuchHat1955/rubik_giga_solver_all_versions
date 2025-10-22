@@ -32,8 +32,8 @@ extern lv_style_t style_num_btn_pressed;
 // ----------------------------------------------------------
 //                   GLOBAL UI STATE MAPS
 // ----------------------------------------------------------
-std::map<String, lv_obj_t *> statusWidgets;  // text/status labels
-std::map<String, lv_obj_t *> numLabels;      // numeric value labels
+std::map<String, lv_obj_t*> statusWidgets;
+std::map<String, lv_obj_t*> numLabels;
 
 // ----------------------------------------------------------
 //                SERVO BUTTON MAPPING & STATES

@@ -50,7 +50,7 @@ void runAction(const char* key) {
     String poseKey = servoMgr.getPoseFromBtn(key);
     bool ok = servoMgr.moveServoToPose(poseKey);
     servoMgr.reflectUIForKey(key);
-    LOG_VAR2("pose move", poseKey, ok ? "OK" : "FAIL");
+    LOG_VAR2("pose move", poseKey, "", ok ? "OK" : "FAIL");
     LOG_SECTION_END();
     return;
   }
@@ -62,7 +62,7 @@ void runAction(const char* key) {
     int mid = (SERVO_TICKS_MAX + SERVO_TICKS_MIN) / 2;
     bool ok = servoMgr.moveServoToTicks(servoKey, mid);
     servoMgr.reflectUIForKey(key);
-    LOG_VAR2("servo move", servoKey, ok ? "OK" : "FAIL");
+    LOG_VAR2("servo move", servoKey, "", ok ? "OK" : "FAIL");
     LOG_SECTION_END();
     return;
   }
@@ -72,7 +72,7 @@ void runAction(const char* key) {
     String groupKey = servoMgr.getGroupPoseFromBtn(key);
     bool ok = servoMgr.moveServosToGroupPose(groupKey, 800);
     servoMgr.reflectUIForKey(key);
-    LOG_VAR2("group move", groupKey, ok ? "OK" : "FAIL");
+    LOG_VAR2("group move", groupKey, "", ok ? "OK" : "FAIL");
     LOG_SECTION_END();
     return;
   }
@@ -81,7 +81,7 @@ void runAction(const char* key) {
   if (servoMgr.isServoPose(key)) {
     bool ok = servoMgr.moveServoToPose(key);
     servoMgr.reflectUIForKey(String(key) + "_btn");
-    LOG_VAR2("plain pose move", key, ok ? "OK" : "FAIL");
+    LOG_VAR2("plain pose move", key, "", ok ? "OK" : "FAIL");
     LOG_SECTION_END();
     return;
   }

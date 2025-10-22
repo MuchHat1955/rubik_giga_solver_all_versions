@@ -62,8 +62,6 @@ const int SCREEN_W = 800;
 const int SCREEN_H = 480;
 
 lv_obj_t *footLbl = nullptr;
-std::map<String, lv_obj_t *> numLabels;
-std::map<String, lv_obj_t *> statusWidgets;
 
 lv_obj_t *selected_num_box = nullptr;
 lv_style_t style_num_selected;     // orange border + light background
