@@ -31,7 +31,7 @@ void onBuildMenu(const char *menuName) {
 }
 
 // ----------------------------------------------------------
-//                     MENU BUILDER
+//                     MENU BUILDER (safe version)
 // ----------------------------------------------------------
 void buildMenu(const char *menuName) {
 
@@ -93,7 +93,6 @@ void buildMenu(const char *menuName) {
   lv_obj_update_layout(titleLbl);
   int title_h = lv_obj_get_height(titleLbl);
 
-  // recreate footer every time
   footLbl = lv_label_create(scr);
   lv_obj_set_style_text_font(footLbl, FONT_FOOT_PTR, 0);
   lv_label_set_text(footLbl, footer);
@@ -225,27 +224,20 @@ void buildMenu(const char *menuName) {
         if (strcmp(it["status"] | "", "yes") == 0 && strlen(key))
           uiStatusRegisterButton(key, btn);
 
-        // ✅ Safe deferred action using malloc/free
+        // ✅ Safe deferred action: lv_async_call after event
         lv_obj_add_event_cb(
           btn,
           [](lv_event_t *e) {
             if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
             const char *keyUD = (const char *)lv_event_get_user_data(e);
             if (!keyUD || !*keyUD) return;
-
-            size_t n = strlen(keyUD) + 1;
-            char *heapKey = (char *)malloc(n);
-            if (!heapKey) return;
-            memcpy(heapKey, keyUD, n);
-
-            lv_timer_create(
-              [](lv_timer_t *timer) {
-                char *heapKey = (char *)lv_timer_get_user_data(timer);
-                buttonAction(heapKey);
-                free(heapKey);
-                lv_timer_del(timer);
-              },
-              1, heapKey);
+            static char keyCopy[64];
+            strncpy(keyCopy, keyUD, sizeof(keyCopy) - 1);
+            keyCopy[sizeof(keyCopy) - 1] = '\0';
+            lv_async_call([](void *p) {
+              const char *k = (const char *)p;
+              buttonAction(k);
+            }, keyCopy);
           },
           LV_EVENT_CLICKED, (void *)key);
       }
@@ -253,18 +245,16 @@ void buildMenu(const char *menuName) {
       // ---------- NUMERIC ----------
       else if (strcmp(type, "num") == 0) {
 
-        // Outer numeric container
         lv_obj_t *numBox = lv_obj_create(cont);
         lv_obj_remove_style_all(numBox);
-        lv_obj_set_size(numBox, colW - 2, 44);  // a bit narrower
-        lv_obj_set_pos(numBox, x + 1, y + 2);   // visually centered vertically
+        lv_obj_set_size(numBox, colW - 2, 44);
+        lv_obj_set_pos(numBox, x + 1, y + 2);
         lv_obj_set_flex_flow(numBox, LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(numBox,
                               LV_FLEX_ALIGN_SPACE_BETWEEN,
                               LV_FLEX_ALIGN_CENTER,
                               LV_FLEX_ALIGN_CENTER);
 
-        // Outline box
         lv_obj_set_style_border_width(numBox, 2, 0);
         lv_obj_set_style_border_color(numBox, COLOR_BTN_NUM, 0);
         lv_obj_set_style_radius(numBox, CORNERS, 0);
@@ -273,7 +263,6 @@ void buildMenu(const char *menuName) {
         lv_obj_clear_flag(numBox, LV_OBJ_FLAG_SCROLL_CHAIN);
         lv_obj_add_flag(numBox, LV_OBJ_FLAG_CLICKABLE);
 
-        // --- MINUS button ---
         lv_obj_t *btnMinus = lv_btn_create(numBox);
         lv_obj_remove_style_all(btnMinus);
         lv_obj_set_size(btnMinus, 40, 40);
@@ -291,7 +280,6 @@ void buildMenu(const char *menuName) {
         lv_obj_set_style_text_color(lblMinus, COLOR_BTN_TEXT, 0);
         lv_obj_center(lblMinus);
 
-        // --- VALUE label ---
         lv_obj_t *lblVal = lv_label_create(numBox);
         char buf[8];
         snprintf(buf, sizeof(buf), "%04d", getParamValue(key));
@@ -305,7 +293,6 @@ void buildMenu(const char *menuName) {
         lv_obj_clear_flag(lblVal, LV_OBJ_FLAG_SCROLL_CHAIN);
         lv_obj_center(lblVal);
 
-        // --- PLUS button ---
         lv_obj_t *btnPlus = lv_btn_create(numBox);
         lv_obj_remove_style_all(btnPlus);
         lv_obj_set_size(btnPlus, 40, 40);
@@ -323,25 +310,22 @@ void buildMenu(const char *menuName) {
         lv_obj_set_style_text_color(lblPlus, COLOR_BTN_TEXT, 0);
         lv_obj_center(lblPlus);
 
-        // --- Layout padding and translation tweaks ---
         lv_obj_set_style_pad_left(numBox, 4, 0);
         lv_obj_set_style_pad_right(numBox, 4, 0);
         lv_obj_set_style_pad_gap(numBox, 8, 0);
-        lv_obj_set_style_translate_x(btnMinus, -4, 0);  // shift minus slightly left
-        lv_obj_set_style_translate_x(btnPlus, 4, 0);    // shift plus slightly right
+        lv_obj_set_style_translate_x(btnMinus, -4, 0);
+        lv_obj_set_style_translate_x(btnPlus, 4, 0);
 
-        // --- selection by tapping number ---
         lv_obj_add_event_cb(
           lblVal, [](lv_event_t *e) {
             if (lv_event_get_code(e) == LV_EVENT_CLICKED) {
               lv_obj_t *val = (lv_obj_t *)lv_event_get_target(e);
               lv_obj_t *numBoxP = lv_obj_get_parent(val);
-              select_num_pair(numBoxP, /*toggle=*/true);
+              select_num_pair(numBoxP, true);
             }
           },
           LV_EVENT_CLICKED, nullptr);
 
-        // --- MINUS click ---
         lv_obj_add_event_cb(
           btnMinus, [](lv_event_t *e) {
             const char *keyUD = (const char *)lv_event_get_user_data(e);
@@ -356,7 +340,6 @@ void buildMenu(const char *menuName) {
           },
           LV_EVENT_CLICKED, (void *)key);
 
-        // --- PLUS click ---
         lv_obj_add_event_cb(
           btnPlus, [](lv_event_t *e) {
             const char *keyUD = (const char *)lv_event_get_user_data(e);
@@ -370,7 +353,6 @@ void buildMenu(const char *menuName) {
             lv_label_set_text(lbl, b);
           },
           LV_EVENT_CLICKED, (void *)key);
-
       }
 
       // ---------- ERROR STATUS ----------
@@ -392,7 +374,9 @@ void buildMenu(const char *menuName) {
         lv_obj_add_flag(ta, LV_OBJ_FLAG_SCROLL_ELASTIC);
 
         String errText =
-          "#FFA500 build#\n" + getSketchVersionWithDate() + "\n\n" + "#FFA500 startup#\n" + servoMgr.getStartupTestErrorString() + "\n\n" + "#FFA500 servos diagnostics#\n" + servoMgr.getServosDiagnosticString() + "\n";
+          "#FFA500 build#\n" + getSketchVersionWithDate() + "\n\n" +
+          "#FFA500 startup#\n" + servoMgr.getStartupTestErrorString() + "\n\n" +
+          "#FFA500 servos diagnostics#\n" + servoMgr.getServosDiagnosticString() + "\n";
 
         lv_textarea_set_text(ta, errText.c_str());
         lv_textarea_set_cursor_click_pos(ta, false);
@@ -419,8 +403,7 @@ void buildMenu(const char *menuName) {
   }
 
   onBuildMenu(menuName);
-  lv_obj_invalidate(lv_scr_act());  // safe redraw
-
+  lv_obj_invalidate(lv_scr_act());  // safe redraw scheduling
   LOG_SECTION_END();
 }
 
