@@ -85,10 +85,6 @@ void runAction(const char* key) {
     bool ok = servoMgr.moveServosToGroupPose(groupKey, 800);
     servoMgr.reflectUIForKey(key);
     LOG_VAR2("group move", groupKey, "", ok ? "OK" : "FAIL");
-    if (!ok) {
-      setFooter("group move failed");
-      delay(1111);
-    }
     LOG_SECTION_END();
     return;
   }
