@@ -631,13 +631,15 @@ void cmdMoveAdaptiveSync(int id1, int goal1,
   lOff(id2);
   lOff(idGrip);
 
-  if (verboseOn)
+  if (verboseOn) {
+    for (int i = 0; i < depth_in; i++) Serial.print(" ");
     serial_printf("SYNC MOVE END d=%d | A1:%d→%d (Δ=%d)  A2:%d→%d (Δ=%d)\n",
-                  depth, start1, pos1, pos1 - start1, start2, pos2, pos2 - start2);
+                  depth_in, start1, pos1, pos1 - start1, start2, pos2, pos2 - start2);
+  }
 
   // --- Adaptive recursive finish (like cmdMoveAdaptive) ---
   int diffMax = max(abs(goal1 - pos1), abs(goal2 - pos2));
-  if (diffMax > 6 && depth < 2) {
+  if (diffMax > 6 && depth_in < 2) {
     int subGoal1 = goal1 + (goal1 - pos1 > 0 ? 10 : -10);
     int subGoal2 = goal2 + (goal2 - pos2 > 0 ? 10 : -10);
     subGoal1 = constrain(subGoal1, 0, 4095);
@@ -653,11 +655,11 @@ void cmdMoveAdaptiveSync(int id1, int goal1,
 // -------------------------------------------------------------------
 
 void print_xy() {
-    serial_printf("READXY X=%.2fmm Y=%.2fmm\n", kin.getXmm(), kin.getYmm());
-    serial_printf("READXY A1=%.2f° A2=%.2f°\n", kin.getA1deg(), kin.getA2deg());
-    serial_printf("READXY ticks A1=%4d  A2=%4d\n", kin.getA1ticks(), kin.getA2ticks());
-    serial_printf("GRIPPER ticks=%4d  angle=%.2f°\n",
-                  kin.getGripperTicks(), kin.getGripperAng());
+  serial_printf("READXY X=%.2fmm Y=%.2fmm\n", kin.getXmm(), kin.getYmm());
+  serial_printf("READXY A1=%.2f° A2=%.2f°\n", kin.getA1deg(), kin.getA2deg());
+  serial_printf("READXY ticks A1=%4d  A2=%4d\n", kin.getA1ticks(), kin.getA2ticks());
+  serial_printf("GRIPPER ticks=%4d  angle=%.2f°\n",
+                kin.getGripperTicks(), kin.getGripperAng());
 }
 
 void cmdMoveY(double y_mm) {
