@@ -860,7 +860,7 @@ void setup() {
     }
   }
 
-  Serial.println("\nDynamixel xl430 controller v8");
+  Serial.println("\nDynamixel xl430 controller v9");
   Serial.println("Supported Commands (VERBOSE ON):");
   Serial.println("  VERBOSEON / VERBOSEOFF         - toggle console verbosity");
   Serial.println("  SETLIMIT <id> <min> <max>      - set soft position limits");
