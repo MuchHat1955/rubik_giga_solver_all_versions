@@ -168,33 +168,33 @@ public:
   // ---------------- Configuration ----------------
   void setArmLength(double mm) {
     l_mm = mm;
-    recompute();
+    update_from_angles();
   }
 
   void setTickZeroArm1(int t0) {
     tick0_arm1 = t0;
-    recompute();
+    update_from_angles();
   }
   void setTickZeroArm2(int t0) {
     tick0_arm2 = t0;
-    recompute();
+    update_from_angles();
   }
   void setTickZeroGripper(int t0) {
     tick0_grip = t0;
-    recompute();
+    update_from_angles();
   }
 
   void setDirArm1(double d) {
     dir1 = (d >= 0) ? +1.0 : -1.0;
-    recompute();
+    update_from_angles();
   }
   void setDirArm2(double d) {
     dir2 = (d >= 0) ? +1.0 : -1.0;
-    recompute();
+    update_from_angles();
   }
   void setDirGripper(double d) {
     dirg = (d >= 0) ? +1.0 : -1.0;
-    recompute();
+    update_from_angles();
   }
 
   // ---------------- Setters (servo positions) ----------------
@@ -227,21 +227,21 @@ public:
     double c = clamp(y_mm / (2.0 * l_mm), -1.0, 1.0);
     double beta_rad = 2.0 * std::acos(c);
     a1_deg = rad2deg(beta_rad / 2.0);
-    a2_deg = 90.0 - rad2deg(beta_rad);
-    update_from_angles();
+    a2_deg = 90.0 - 2.0 * a1_deg;
+    x_mm = l_mm * std::sin(deg2rad(a1_deg));
   }
 
   void setXmm(double x) {
     a1_deg = rad2deg(std::asin(clamp(x / l_mm, -1.0, 1.0)));
     a2_deg = 90.0 - 2.0 * a1_deg;
-    update_from_angles();
+    x_mm = x;
+    y_mm = 2.0 * l_mm * std::cos(deg2rad(a1_deg));
   }
 
   // ---------------- Getters ----------------
   double getArmLength() const {
     return l_mm;
   }
-
   double getA1deg() const {
     return a1_deg;
   }
@@ -326,10 +326,6 @@ private:
   void update_from_angles() {
     x_mm = l_mm * std::sin(deg2rad(a1_deg));
     y_mm = 2.0 * l_mm * std::cos(deg2rad(a1_deg));
-  }
-
-  void recompute() {
-    update_from_angles();
   }
 };
 
@@ -483,7 +479,7 @@ void updateGripperKeepBaseRef(int gripper_start) {
 }
 
 // -------------------------------------------------------------------
-//                   ADAPTIVE MOVE
+//                   ADAPTIVE MOVE - single servo
 // -------------------------------------------------------------------
 
 void cmdMoveAdaptive(uint8_t id, int goal, int final_goal, uint8_t depth = 0) {
@@ -531,22 +527,137 @@ void cmdMoveAdaptive(uint8_t id, int goal, int final_goal, uint8_t depth = 0) {
 }
 
 // -------------------------------------------------------------------
+//                   ADAPTIVE MOVE - arm1, arm2 and wrist
+// -------------------------------------------------------------------
+void cmdMoveAdaptiveSync(int id1, int goal1,
+                         int id2, int goal2,
+                         int idGrip, int grip_start,
+                         uint8_t depth_in) {
+  if (!dxl.ping(id1) || !dxl.ping(id2) || !dxl.ping(idGrip)) return;
+  if (depth_in > 2) return;
+
+  // --- Enable torque & LED feedback ---
+  dxl.torqueOn(id1);
+  dxl.torqueOn(id2);
+  dxl.torqueOn(idGrip);
+  lOn(id1);
+  lOn(id2);
+  lOn(idGrip);
+
+  // --- Setup PWM limit and motion profiles ---
+  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, id1, 1023);
+  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, id2, 1023);
+  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, idGrip, 1023);
+
+  int start1 = dxl.getPresentPosition(id1);
+  int start2 = dxl.getPresentPosition(id2);
+
+  int delta1 = goal1 - start1;
+  int delta2 = goal2 - start2;
+  int maxDelta = max(abs(delta1), abs(delta2));
+  if (maxDelta < 3) return;
+
+  // choose motion profile (same as cmdMoveAdaptive)
+  int pv = COARSE_PV, pa = COARSE_PA, pg = COARSE_PG, dg = COARSE_DG, ig = FINE_IG;
+  if (maxDelta <= FINE_WINDOW_TICKS) {
+    pv = FINE_PV;
+    pa = FINE_PA;
+    pg = FINE_PG;
+    dg = FINE_DG;
+    ig = FINE_IG;
+  }
+
+  // apply identical profile to both arms
+  dxl.writeControlTableItem(ControlTableItem::PROFILE_VELOCITY, id1, pv);
+  dxl.writeControlTableItem(ControlTableItem::PROFILE_ACCELERATION, id1, pa);
+  dxl.writeControlTableItem(ControlTableItem::POSITION_P_GAIN, id1, pg);
+  dxl.writeControlTableItem(ControlTableItem::POSITION_D_GAIN, id1, dg);
+  dxl.writeControlTableItem(ControlTableItem::POSITION_I_GAIN, id1, ig);
+
+  dxl.writeControlTableItem(ControlTableItem::PROFILE_VELOCITY, id2, pv);
+  dxl.writeControlTableItem(ControlTableItem::PROFILE_ACCELERATION, id2, pa);
+  dxl.writeControlTableItem(ControlTableItem::POSITION_P_GAIN, id2, pg);
+  dxl.writeControlTableItem(ControlTableItem::POSITION_D_GAIN, id2, dg);
+  dxl.writeControlTableItem(ControlTableItem::POSITION_I_GAIN, id2, ig);
+
+  // --- Issue coordinated goals ---
+  dxl.setGoalPosition(id1, goal1);
+  dxl.setGoalPosition(id2, goal2);
+
+  uint32_t maxTime = max(estimateTravelTimeMs(id1, delta1),
+                         estimateTravelTimeMs(id2, delta2));
+  uint32_t t0 = millis();
+
+  // --- Motion loop: both arms move, gripper tracked live ---
+  while (millis() - t0 < maxTime) {
+    if (checkStall(id1) || checkStall(id2)) break;
+
+    updateGripperKeepBaseRef(grip_start);  // maintain verticality
+
+    bool moving1 = isMoving(id1);
+    bool moving2 = isMoving(id2);
+    if (!moving1 && !moving2) break;
+    delay(10);
+  }
+
+  // --- Fine micro-jog correction ---
+  int pos1 = dxl.getPresentPosition(id1);
+  int pos2 = dxl.getPresentPosition(id2);
+  int diff1 = goal1 - pos1;
+  int diff2 = goal2 - pos2;
+  uint32_t t_trim = millis();
+
+  while (millis() - t_trim < MICROJOG_MAX_MS) {
+    if (abs(diff1) <= FINISH_TOL_TICKS && abs(diff2) <= FINISH_TOL_TICKS) break;
+
+    if (abs(diff1) > FINISH_TOL_TICKS)
+      dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, id1,
+                                pos1 + (diff1 > 0 ? 1 : -1));
+    if (abs(diff2) > FINISH_TOL_TICKS)
+      dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, id2,
+                                pos2 + (diff2 > 0 ? 1 : -1));
+
+    delay(MICROJOG_SAMPLE_DELAY);
+    pos1 = dxl.getPresentPosition(id1);
+    pos2 = dxl.getPresentPosition(id2);
+    diff1 = goal1 - pos1;
+    diff2 = goal2 - pos2;
+  }
+
+  delay(20);
+  pos1 = dxl.getPresentPosition(id1);
+  pos2 = dxl.getPresentPosition(id2);
+  lOff(id1);
+  lOff(id2);
+  lOff(idGrip);
+
+  if (verboseOn)
+    serial_printf("SYNC MOVE END d=%d | A1:%d→%d (Δ=%d)  A2:%d→%d (Δ=%d)\n",
+                  depth, start1, pos1, pos1 - start1, start2, pos2, pos2 - start2);
+
+  // --- Adaptive recursive finish (like cmdMoveAdaptive) ---
+  int diffMax = max(abs(goal1 - pos1), abs(goal2 - pos2));
+  if (diffMax > 6 && depth < 2) {
+    int subGoal1 = goal1 + (goal1 - pos1 > 0 ? 10 : -10);
+    int subGoal2 = goal2 + (goal2 - pos2 > 0 ? 10 : -10);
+    subGoal1 = constrain(subGoal1, 0, 4095);
+    subGoal2 = constrain(subGoal2, 0, 4095);
+
+    cmdMoveAdaptiveSync(id1, subGoal1, id2, subGoal2, idGrip, grip_start, depth_in + 1);
+    cmdMoveAdaptiveSync(id1, goal1, id2, goal2, idGrip, grip_start, depth_in + 1);
+  }
+}
+
+// -------------------------------------------------------------------
 //                   MOVEY / MOVEX (with gripper) using kinematics
 // -------------------------------------------------------------------
 
 void print_xy() {
-  serial_printf("READXY %.2MM %.2MM\n",
-                kin.getXmm(), kin.getYmm());
-  serial_printf("READXY %.2DEG %.2DEG\n",
-                kin.getA1deg(), kin.getA2deg());
-  serial_printf("READXY %4dTICKS %4dTICKS\n",
-                kin.getA1ticks(), kin.getA2ticks());
-  serial_printf("READXY %.2DEG %.2DEG\n",
-                kin.getA1deg(), kin.getA2deg());
-  serial_printf("READGRIP %4dTICKS\n",
-                kin.getGripperTicks());
-  serial_printf("READGRIP %.2DEG\n",
-                kin.getGripperAng());
+    serial_printf("READXY X=%.2fmm Y=%.2fmm\n", kin.getXmm(), kin.getYmm());
+    serial_printf("READXY A1=%.2f° A2=%.2f°\n", kin.getA1deg(), kin.getA2deg());
+    serial_printf("READXY ticks A1=%4d  A2=%4d\n", kin.getA1ticks(), kin.getA2ticks());
+    serial_printf("GRIPPER ticks=%4d  angle=%.2f°\n",
+                  kin.getGripperTicks(), kin.getGripperAng());
 }
 
 void cmdMoveY(double y_mm) {
@@ -575,14 +686,10 @@ void cmdMoveY(double y_mm) {
                   y_mm, kin.getA1deg(), kin.getA2deg(), goal1, goal2);
 
   // --- gripper compensation setup ---
-  int arm2_start = dxl.getPresentPosition(ID_ARM2);
   int gripper_start = dxl.getPresentPosition(ID_WRIST);
 
-  // --- coordinated move (simple synchronous for now) ---
-  cmdMoveAdaptive(ID_ARM1, goal1, goal1, 0);
-  cmdMoveAdaptive(ID_ARM2, goal2, goal2, 0);
-
-  updateGripperKeepBaseRef(gripper_start);
+  // --- coordinated move ---
+  cmdMoveAdaptiveSync(ID_ARM1, goal1, ID_ARM2, goal2, ID_WRIST, gripper_start, 0);
 }
 
 
@@ -611,13 +718,10 @@ void cmdMoveX(double x_mm) {
     serial_printf("MOVEX x=%.2fmm -> A1=%.2f° A2=%.2f° | ticks1=%d ticks2=%d\n",
                   x_mm, kin.getA1deg(), kin.getA2deg(), goal1, goal2);
 
-  int arm2_start = dxl.getPresentPosition(ID_ARM2);
   int gripper_start = dxl.getPresentPosition(ID_WRIST);
 
-  cmdMoveAdaptive(ID_ARM1, goal1, goal1, 0);
-  cmdMoveAdaptive(ID_ARM2, goal2, goal2, 0);
-
-  updateGripperKeepBaseRef(gripper_start);
+  // --- coordinated move ---
+  cmdMoveAdaptiveSync(ID_ARM1, goal1, ID_ARM2, goal2, ID_WRIST, gripper_start, 0);
 }
 
 // -------------------------------------------------------------------
