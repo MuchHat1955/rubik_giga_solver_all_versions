@@ -1101,6 +1101,404 @@ void cmdTestMoveX(int rel_ticks) {
 }
 
 // -------------------------------------------------------------------
+// Smooth synchronized vertical move (Arm1 + Arm2 + Gripper)
+// -------------------------------------------------------------------
+void cmdMoveYSyncSmooth(int relTicks) {
+  if (!dxl.ping(ID_ARM1) || !dxl.ping(ID_ARM2) || !dxl.ping(ID_WRIST)) return;
+
+  // --- Read starting positions ---
+  int start1 = dxl.getPresentPosition(ID_ARM1);
+  int start2 = dxl.getPresentPosition(ID_ARM2);
+  int startG = dxl.getPresentPosition(ID_WRIST);
+
+  // directions: arm1 (+), arm2 (-), gripper (+)
+  int goal1 = constrain(start1 + relTicks, 0, 4095);
+  int goal2 = constrain(start2 - relTicks, 0, 4095);
+  int goalG = constrain(startG + relTicks, 0, 4095);
+
+  const int totalTicks = abs(relTicks);
+  if (totalTicks < 3) return;
+
+  // --- Servo config ---
+  dxl.torqueOn(ID_ARM1);
+  dxl.torqueOn(ID_ARM2);
+  dxl.torqueOn(ID_WRIST);
+  lOn(ID_ARM1);
+  lOn(ID_ARM2);
+  lOn(ID_WRIST);
+
+  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, ID_ARM1, 880);
+  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, ID_ARM2, 880);
+  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, ID_WRIST, 880);
+
+  // --- Motion profile ---
+  const int stepInterval_ms = 15;
+  const int accelSteps = 20;
+  const int decelSteps = 20;
+  const int minStep = 1;
+  const int maxStep = 25;
+  const int syncTol = 4;  // allowable tick error between axes
+
+  // Compute acceleration, coast, decel spans
+  int accelSpan = accelSteps * (minStep + maxStep) / 2;
+  int decelSpan = decelSteps * (minStep + maxStep) / 2;
+  int coastSpan = totalTicks - (accelSpan + decelSpan);
+  if (coastSpan < 0) coastSpan = 0;
+  int coastTicks = coastSpan / maxStep;
+
+  // --- Working positions ---
+  int pos1 = start1;
+  int pos2 = start2;
+  int posG = startG;
+
+  // --- Function to apply micro sync correction ---
+  auto syncNudge = [&](int &p1, int &p2, int &pg) {
+    int e21 = (dxl.getPresentPosition(ID_ARM2) - p2) - (dxl.getPresentPosition(ID_ARM1) - p1);
+    int eG2 = (dxl.getPresentPosition(ID_WRIST) - pg) - (dxl.getPresentPosition(ID_ARM2) - p2);
+
+    if (abs(e21) > syncTol) {
+      int nudge = constrain(e21 / 2, -3, 3);
+      dxl.setGoalPosition(ID_ARM2, dxl.getPresentPosition(ID_ARM2) - nudge);
+    }
+    if (abs(eG2) > syncTol) {
+      int nudge = constrain(eG2 / 2, -3, 3);
+      dxl.setGoalPosition(ID_WRIST, dxl.getPresentPosition(ID_WRIST) - nudge);
+    }
+  };
+
+  // --- Acceleration phase ---
+  for (int i = 0; i < accelSteps; i++) {
+    int step = map(i, 0, accelSteps - 1, minStep, maxStep);
+    pos1 += (relTicks > 0 ? +step : -step);
+    pos2 -= (relTicks > 0 ? +step : -step);
+    posG += (relTicks > 0 ? +step : -step);
+
+    dxl.setGoalPosition(ID_ARM1, pos1);
+    dxl.setGoalPosition(ID_ARM2, pos2);
+    dxl.setGoalPosition(ID_WRIST, posG);
+    delay(stepInterval_ms);
+    syncNudge(pos1, pos2, posG);
+  }
+
+  // --- Coast phase ---
+  for (int i = 0; i < coastTicks; i++) {
+    pos1 += (relTicks > 0 ? +maxStep : -maxStep);
+    pos2 -= (relTicks > 0 ? +maxStep : -maxStep);
+    posG += (relTicks > 0 ? +maxStep : -maxStep);
+
+    dxl.setGoalPosition(ID_ARM1, pos1);
+    dxl.setGoalPosition(ID_ARM2, pos2);
+    dxl.setGoalPosition(ID_WRIST, posG);
+    delay(stepInterval_ms);
+    syncNudge(pos1, pos2, posG);
+  }
+
+  // --- Deceleration phase ---
+  for (int i = decelSteps - 1; i >= 0; i--) {
+    int step = map(i, 0, decelSteps - 1, minStep, maxStep);
+    pos1 += (relTicks > 0 ? +step : -step);
+    pos2 -= (relTicks > 0 ? +step : -step);
+    posG += (relTicks > 0 ? +step : -step);
+
+    if (relTicks > 0) {
+      if (pos1 > goal1) pos1 = goal1;
+      if (pos2 < goal2) pos2 = goal2;
+      if (posG > goalG) posG = goalG;
+    } else {
+      if (pos1 < goal1) pos1 = goal1;
+      if (pos2 > goal2) pos2 = goal2;
+      if (posG < goalG) posG = goalG;
+    }
+
+    dxl.setGoalPosition(ID_ARM1, pos1);
+    dxl.setGoalPosition(ID_ARM2, pos2);
+    dxl.setGoalPosition(ID_WRIST, posG);
+    delay(stepInterval_ms);
+    syncNudge(pos1, pos2, posG);
+  }
+
+  // --- Final correction phase ---
+  delay(80);  // allow settle
+  int p1f = dxl.getPresentPosition(ID_ARM1);
+  int p2f = dxl.getPresentPosition(ID_ARM2);
+  int pGf = dxl.getPresentPosition(ID_WRIST);
+
+  int e1 = goal1 - p1f;
+  int e2 = goal2 - p2f;
+  int eG = goalG - pGf;
+
+  const int tol = 4;
+  for (int n = 0; n < 6; n++) {
+    if (abs(e1) <= tol && abs(e2) <= tol && abs(eG) <= tol) break;
+
+    dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, ID_ARM1, p1f + constrain(e1 / 3, -3, 3));
+    dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, ID_ARM2, p2f + constrain(e2 / 3, -3, 3));
+    dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, ID_WRIST, pGf + constrain(eG / 3, -3, 3));
+
+    delay(30);
+    p1f = dxl.getPresentPosition(ID_ARM1);
+    p2f = dxl.getPresentPosition(ID_ARM2);
+    pGf = dxl.getPresentPosition(ID_WRIST);
+    e1 = goal1 - p1f;
+    e2 = goal2 - p2f;
+    eG = goalG - pGf;
+  }
+
+  // --- Gentle torque release ---
+  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, ID_ARM1, 400);
+  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, ID_ARM2, 400);
+  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, ID_WRIST, 400);
+  delay(30);
+  lOff(ID_ARM1);
+  lOff(ID_ARM2);
+  lOff(ID_WRIST);
+
+  if (verboseOn) {
+    serial_printf("MOVEY SYNC done | A1=%d(%d)  A2=%d(%d)  G=%d(%d)\n",
+                  p1f, e1, p2f, e2, pGf, eG);
+  }
+}
+
+// -------------------------------------------------------------------
+// Smooth synchronized lateral move (Arm1 + Arm2 + Gripper)
+// Each axis can have its own small delta (±ticks)
+// -------------------------------------------------------------------
+void cmdMoveXSyncSmooth(int delta1, int delta2, int deltaG) {
+  if (!dxl.ping(ID_ARM1) || !dxl.ping(ID_ARM2) || !dxl.ping(ID_WRIST)) return;
+
+  // --- Starting positions and goals ---
+  int start1 = dxl.getPresentPosition(ID_ARM1);
+  int start2 = dxl.getPresentPosition(ID_ARM2);
+  int startG = dxl.getPresentPosition(ID_WRIST);
+
+  int goal1 = constrain(start1 + delta1, 0, 4095);
+  int goal2 = constrain(start2 + delta2, 0, 4095);
+  int goalG = constrain(startG + deltaG, 0, 4095);
+
+  int maxDiff = max(max(abs(delta1), abs(delta2)), abs(deltaG));
+  if (maxDiff < 2) return;
+
+  // --- Basic setup ---
+  dxl.torqueOn(ID_ARM1);
+  dxl.torqueOn(ID_ARM2);
+  dxl.torqueOn(ID_WRIST);
+  lOn(ID_ARM1);
+  lOn(ID_ARM2);
+  lOn(ID_WRIST);
+
+  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, ID_ARM1, 880);
+  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, ID_ARM2, 880);
+  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, ID_WRIST, 880);
+
+  // --- Shared motion profile parameters ---
+  const int stepInterval_ms = 15;
+  const int accelSteps = 20;
+  const int decelSteps = 20;
+  const int minStep = 1;
+  const int maxStep = 20;
+  const int syncTol = 4;
+
+  int accelSpan = accelSteps * (minStep + maxStep) / 2;
+  int decelSpan = decelSteps * (minStep + maxStep) / 2;
+  int coastSpan = maxDiff - (accelSpan + decelSpan);
+  if (coastSpan < 0) coastSpan = 0;
+  int coastTicks = coastSpan / maxStep;
+
+  // --- Working positions ---
+  int pos1 = start1, pos2 = start2, posG = startG;
+
+  // lambda for selective sync correction
+  auto selectiveNudge = [&](int g1, int g2, int g3) {
+    int p1 = dxl.getPresentPosition(ID_ARM1);
+    int p2 = dxl.getPresentPosition(ID_ARM2);
+    int p3 = dxl.getPresentPosition(ID_WRIST);
+
+    int e1 = g1 - p1;
+    int e2 = g2 - p2;
+    int e3 = g3 - p3;
+
+    if (abs(e1) > syncTol)
+      dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, ID_ARM1, p1 + constrain(e1 / 3, -3, 3));
+    if (abs(e2) > syncTol)
+      dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, ID_ARM2, p2 + constrain(e2 / 3, -3, 3));
+    if (abs(e3) > syncTol)
+      dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, ID_WRIST, p3 + constrain(e3 / 3, -3, 3));
+  };
+
+  // --- Helper to compute scaled step for each axis ---
+  auto scaledStep = [&](int delta, int step) -> int {
+    if (maxDiff == 0) return 0;
+    return (int)round((float)delta / (float)maxDiff * step);
+  };
+
+  // --- Acceleration phase ---
+  for (int i = 0; i < accelSteps; i++) {
+    int step = map(i, 0, accelSteps - 1, minStep, maxStep);
+    pos1 += scaledStep(delta1, step);
+    pos2 += scaledStep(delta2, step);
+    posG += scaledStep(deltaG, step);
+    dxl.setGoalPosition(ID_ARM1, pos1);
+    dxl.setGoalPosition(ID_ARM2, pos2);
+    dxl.setGoalPosition(ID_WRIST, posG);
+    delay(stepInterval_ms);
+    selectiveNudge(goal1, goal2, goalG);
+  }
+
+  // --- Coast phase ---
+  for (int i = 0; i < coastTicks; i++) {
+    pos1 += scaledStep(delta1, maxStep);
+    pos2 += scaledStep(delta2, maxStep);
+    posG += scaledStep(deltaG, maxStep);
+    dxl.setGoalPosition(ID_ARM1, pos1);
+    dxl.setGoalPosition(ID_ARM2, pos2);
+    dxl.setGoalPosition(ID_WRIST, posG);
+    delay(stepInterval_ms);
+    selectiveNudge(goal1, goal2, goalG);
+  }
+
+  // --- Deceleration phase ---
+  for (int i = decelSteps - 1; i >= 0; i--) {
+    int step = map(i, 0, decelSteps - 1, minStep, maxStep);
+    pos1 += scaledStep(delta1, step);
+    pos2 += scaledStep(delta2, step);
+    posG += scaledStep(deltaG, step);
+    dxl.setGoalPosition(ID_ARM1, pos1);
+    dxl.setGoalPosition(ID_ARM2, pos2);
+    dxl.setGoalPosition(ID_WRIST, posG);
+    delay(stepInterval_ms);
+    selectiveNudge(goal1, goal2, goalG);
+  }
+
+  // --- Final correction phase ---
+  delay(60);
+  int p1f = dxl.getPresentPosition(ID_ARM1);
+  int p2f = dxl.getPresentPosition(ID_ARM2);
+  int p3f = dxl.getPresentPosition(ID_WRIST);
+  int e1 = goal1 - p1f;
+  int e2 = goal2 - p2f;
+  int e3 = goalG - p3f;
+
+  const int tol = 4;
+  for (int n = 0; n < 6; n++) {
+    if (abs(e1) <= tol && abs(e2) <= tol && abs(e3) <= tol) break;
+    if (abs(e1) > tol)
+      dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, ID_ARM1, p1f + constrain(e1 / 3, -3, 3));
+    if (abs(e2) > tol)
+      dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, ID_ARM2, p2f + constrain(e2 / 3, -3, 3));
+    if (abs(e3) > tol)
+      dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, ID_WRIST, p3f + constrain(e3 / 3, -3, 3));
+    delay(30);
+    p1f = dxl.getPresentPosition(ID_ARM1);
+    p2f = dxl.getPresentPosition(ID_ARM2);
+    p3f = dxl.getPresentPosition(ID_WRIST);
+    e1 = goal1 - p1f;
+    e2 = goal2 - p2f;
+    e3 = goalG - p3f;
+  }
+
+  // --- Gentle torque release ---
+  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, ID_ARM1, 400);
+  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, ID_ARM2, 400);
+  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, ID_WRIST, 400);
+  delay(30);
+  lOff(ID_ARM1);
+  lOff(ID_ARM2);
+  lOff(ID_WRIST);
+
+  if (verboseOn)
+    serial_printf("MOVEX SYNC done | A1=%d(%d) A2=%d(%d) G=%d(%d)\n",
+                  p1f, e1, p2f, e2, p3f, e3);
+}
+
+// -------------------------------------------------------------------
+// MOVE TO ABSOLUTE Y (mm) USING KINEMATICS + SMOOTH SYNC MOVE
+// -------------------------------------------------------------------
+void cmdMoveYmm(double y_mm) {
+  if (!has_arm_len || !has_zero_arm1 || !has_zero_arm2 || !has_zero_gripper) {
+    Serial.println("ERR: Missing calibration (SETLEN / SETZERO)");
+    return;
+  }
+
+  // Clamp Y to mechanical limits
+  if (y_mm < 0) y_mm = 0;
+  if (y_mm > 2 * kin.getArmLength()) y_mm = 2 * kin.getArmLength();
+
+  // Read current position
+  int currA1 = dxl.getPresentPosition(ID_ARM1);
+  kin.setA1ticks(currA1);
+
+  // Compute desired tick deltas from target Y
+  double currY = kin.getYmm();
+  double deltaY = y_mm - currY;
+  kin.setYmm(y_mm);
+  int goalA1 = kin.getA1ticks();
+  int goalA2 = kin.getA2ticks();
+  int goalG = kin.getGripperTicks();
+
+  int deltaA1 = goalA1 - currA1;
+  int currA2 = dxl.getPresentPosition(ID_ARM2);
+  int deltaA2 = goalA2 - currA2;
+  int currG = dxl.getPresentPosition(ID_WRIST);
+  int deltaG = goalG - currG;
+
+  // Verbose summary
+  if (verboseOn) {
+    serial_printf("MOVEY mm=%.2f  currY=%.2f ΔY=%.2f\n", y_mm, currY, deltaY);
+    serial_printf("Δticks A1=%d  A2=%d  G=%d\n", deltaA1, deltaA2, deltaG);
+  }
+
+  // Align to vertical first (ensure arms in sync)
+  cmdMoveXSyncSmooth(0, 0, 0);
+
+  // Perform vertical synchronized move
+  cmdMoveYSyncSmooth(deltaA1);
+
+  // Print final measured XY
+  cmdReadXY();
+}
+
+// -------------------------------------------------------------------
+// MOVE TO RELATIVE X (mm OFFSET FROM VERTICAL) USING KINEMATICS
+// -------------------------------------------------------------------
+void cmdMoveXmm(double x_mm) {
+  if (!has_arm_len || !has_zero_arm1 || !has_zero_arm2 || !has_zero_gripper) {
+    Serial.println("ERR: Missing calibration (SETLEN / SETZERO)");
+    return;
+  }
+
+  // Read current geometry from servos
+  int currA1 = dxl.getPresentPosition(ID_ARM1);
+  int currA2 = dxl.getPresentPosition(ID_ARM2);
+  int currG = dxl.getPresentPosition(ID_WRIST);
+  kin.setA1ticks(currA1);
+  kin.setA2ticks(currA2);
+
+  // Compute current X and target X
+  double currX = kin.getXmm();
+  double targetX = currX + x_mm;
+  kin.setXmm(targetX);
+
+  int goalA1 = kin.getA1ticks();
+  int goalA2 = kin.getA2ticks();
+  int goalG = kin.getGripperTicks();
+
+  int deltaA1 = goalA1 - currA1;
+  int deltaA2 = goalA2 - currA2;
+  int deltaG = goalG - currG;
+
+  if (verboseOn) {
+    serial_printf("MOVEX mm=%.2f  currX=%.2f targetX=%.2f\n", x_mm, currX, targetX);
+    serial_printf("Δticks A1=%d  A2=%d  G=%d\n", deltaA1, deltaA2, deltaG);
+  }
+
+  // Execute the small lateral coordinated motion
+  cmdMoveXSyncSmooth(deltaA1, deltaA2, deltaG);
+
+  // Print final measured XY
+  cmdReadXY();
+}
+
+// -------------------------------------------------------------------
 // TESTMOVEY <y1_mm> <y2_mm> – geometric Y-axis test (kinematics-based)
 // -------------------------------------------------------------------
 void cmdTestMoveY(float yStart_mm, float yEnd_mm, int steps = 10) {
@@ -1203,6 +1601,8 @@ void setup() {
   Serial.println("  MOVE  <id> <absgoal|±rel>      - adaptive move one servo");
   Serial.println("  MOVEY <float mm>               - vertical (mirror arm1/arm2)");
   Serial.println("  MOVEX <float mm>               - lateral (keep y)");
+  Serial.println("  ANGX <int ang>                 - vertical (1 relative angle arm1/arm2)");
+  Serial.println("  ANGY <ang1> <ang2> <angw>      - lateral (3 rel angles for 1,2,w)");
   Serial.println("  READ                           - diagnostics table");
   Serial.println("  READXY                         - compute current X/Y midpoint");
   Serial.println("  TESTMOVE  <id> [cycles]        - adaptive single-servo test");
@@ -1328,17 +1728,34 @@ void loop() {
   }
 
   // -------------- MOVE Y AXIS --------------
-  else if (U.startsWith("MOVEY")) {
+  else if (U.startsWith("ANGY")) {
     double val = line.substring(6).toFloat();
-    cmdMoveY(val);
+    // Perform vertical synchronized move
+    cmdMoveYSyncSmooth(val);
     print_xy();
   }
 
   // -------------- MOVE X AXIS --------------
+  else if (U.startsWith("ANGX")) {
+    int a1, a2, aw;
+    if (sscanf(line.c_str(), "ANGX %d %d %d", &a1, &a2, &aw) == 3) {
+      cmdMoveXSyncSmooth(a1, a2, aw);
+      print_xy();
+    } else
+      Serial.println("Usage: ANG <a1> <a2> <aw>");
+  }
+
+
+  // -------------- MOVE Y AXIS (absolute mm) --------------
+  else if (U.startsWith("MOVEY")) {
+    double val = line.substring(6).toFloat();
+    cmdMoveYmm(val);
+  }
+
+  // -------------- MOVE X AXIS (relative mm offset) --------------
   else if (U.startsWith("MOVEX")) {
     double val = line.substring(6).toFloat();
-    cmdMoveX(val);
-    print_xy();
+    cmdMoveXmm(val);
   }
 
   // -------------- READ XY (kinematic position) --------------
