@@ -418,9 +418,58 @@ void moveServoSmart(uint8_t id, int rel_ticks) {
     delay(10);
   }
 
-  // Micro-jog finisher
+  // -------------------------------------------------------------------
+  // Enhanced micro-jog finisher (smooth, adaptive, safe)
+  // -------------------------------------------------------------------
   int pos = dxl.getPresentPosition(id);
   int diff = goal - pos;
+  int prevPos = pos;
+  int stagnant = 0;  // same-pos counter
+  t0 = millis();
+
+  // adaptive maximum trim time: longer for big moves
+  unsigned long maxTrimMs = constrain(abs(goal - start) / 5, 150, 600);
+
+  while (millis() - t0 < maxTrimMs) {
+    if (abs(diff) <= FINISH_TOL_TICKS) break;
+
+    // proportional nudge: smaller near target, larger farther away
+    int nudge = constrain(diff / 3, -3, 3);
+    if (abs(diff) < 5) nudge = (diff > 0 ? 1 : -1);  // last tiny steps
+
+    // issue micro correction
+    dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, id, pos + nudge);
+
+    delay(MICROJOG_SAMPLE_DELAY);  // let internal PID settle
+
+    pos = dxl.getPresentPosition(id);
+    diff = goal - pos;
+
+    // detect no movement (stiction or limit)
+    stagnant = (pos == prevPos) ? stagnant + 1 : 0;
+    prevPos = pos;
+    if (stagnant > 3) break;
+  }
+
+  // final short adaptive settle
+  int err = goal - pos;
+  delay(constrain(abs(err) * 2, 20, 80));
+
+  // gentle torque release
+  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, id, 400);
+  delay(30);
+  lOff(id);
+
+  // final read for logging
+  pos = dxl.getPresentPosition(id);
+  err = goal - pos;
+  // end micro-jog finisher
+
+  /*
+
+  // start micro-jog finisher
+  int pos = dxl.getPresentPosition(id);
+  int diff = goal - pos;  // end micro-jog finisher
   uint32_t t_trim = millis();
   while (millis() - t_trim < MICROJOG_MAX_MS) {
     if (abs(diff) <= FINISH_TOL_TICKS) break;
@@ -435,7 +484,11 @@ void moveServoSmart(uint8_t id, int rel_ticks) {
   pos = dxl.getPresentPosition(id);
   int err = pos - goal;
   lOff(id);
+  // end micro-jog finisher
 
+*/
+
+  // print result
   if (verboseOn)
     serial_printf("MOVE END id=%d start=%d goal=%d final=%d err=%d\n",
                   id, start, goal, pos, err);
