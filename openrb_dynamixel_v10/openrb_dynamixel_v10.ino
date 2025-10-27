@@ -1151,7 +1151,7 @@ void loop() {
   }
 
   // -------------- TEST MOVE Y --------------
-  else if (U.startsWith("TESTMOVEY")) {
+  else if (verboseOn && U.startsWith("TESTMOVEY")) {
     float y1 = 0, y2 = 0;
     if (sscanf(line.c_str(), "TESTMOVEY %f %f", &y1, &y2) == 2)
       cmdTestMoveY(y1, y2);
@@ -1160,13 +1160,13 @@ void loop() {
   }
 
   // -------------- TEST MOVE X --------------
-  else if (U.startsWith("TESTMOVEX")) {
+  else if (verboseOn && U.startsWith("TESTMOVEX")) {
     int v = line.substring(9).toInt();
     cmdTestMoveX(v);
   }
 
   // -------------- TEST MOVE (single servo cycles) --------------
-  else if (U.startsWith("TESTMOVE")) {
+  else if (verboseOn && U.startsWith("TESTMOVE")) {
     int id = 0, cnt = TEST_DEFAULT_COUNT;
     if (sscanf(line.c_str(), "TESTMOVE %d %d", &id, &cnt) >= 1)
       cmdTestMove((uint8_t)id, cnt);
