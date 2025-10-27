@@ -1101,12 +1101,14 @@ void loop() {
   else if (U.startsWith("MOVEY")) {
     double val = line.substring(6).toFloat();
     cmdMoveY(val);
+    print_xy();
   }
 
   // -------------- MOVE X AXIS --------------
   else if (U.startsWith("MOVEX")) {
     double val = line.substring(6).toFloat();
     cmdMoveX(val);
+    print_xy();
   }
 
   // -------------- READ XY (kinematic position) --------------
