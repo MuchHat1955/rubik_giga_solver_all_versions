@@ -15,7 +15,7 @@ struct TestStats {
 };
 
 // Forward declarations to satisfy the Arduino pre-parser
-void print_status();
+void print_status(uint8_t id);
 void cmdInfo(uint8_t id);
 
 // ---------------- Serial printf helper ----------------
@@ -140,7 +140,7 @@ bool checkStall(uint8_t id) {
   if (temp >= TEMP_LIMIT_C || curr > STALL_CURRENT_mA) {
     dxl.torqueOff(id);
     lOn(id);
-    serial_printf("STALL ID %d curr=%d temp=%d\n", id, curr, temp);
+    serial_printf("ERR: STALL ID %d curr=%d temp=%d\n", id, curr, temp);
     return true;
   }
   return false;
@@ -372,52 +372,16 @@ static inline uint32_t estimateTravelTimeMs(uint8_t id, int deltaTicks) {
 }
 
 // -------------------------------------------------------------------
-//   GRIPPER COMPENSATION (maintain relative angle to vertical)
-// -------------------------------------------------------------------
-void updateGripperKeepBaseRef(int gripper_start) {
-  if (!has_zero_arm1 || !has_zero_arm2 || !has_zero_gripper) return;
-
-  // read current arm positions
-  int a1_ticks = dxl.getPresentPosition(ID_ARM1);
-  int a2_ticks = dxl.getPresentPosition(ID_ARM2);
-
-  // update kinematics with live arm positions
-  kin.setA1ticks(a1_ticks);
-  kin.setA2ticks(a2_ticks);
-
-  // compute new ideal gripper ticks for perfect vertical
-  int ideal_vert_ticks = kin.getGripperTicks();
-
-  // compute the starting offset (difference from vertical)
-  // this preserves any tilt the gripper had when the move started
-  int offset = gripper_start - ideal_vert_ticks;
-
-  // apply offset to keep same relative angle
-  int goal_ticks = ideal_vert_ticks + offset;
-  goal_ticks = constrain(goal_ticks, 0, 4095);
-
-  // send command to gripper
-  dxl.setGoalPosition(ID_WRIST, goal_ticks);
-
-  if (verboseOn) {
-    serial_printf(
-      "GRIPPER keep-base: A1=%d A2=%d | vert=%d start=%d offset=%d -> goal=%d (%.2f°)\n",
-      a1_ticks, a2_ticks,
-      ideal_vert_ticks, gripper_start, offset, goal_ticks, kin.getGripperAng());
-  }
-}
-
-// -------------------------------------------------------------------
 //                   SMOOTH MOVE: slow start, coast, slow end
 // -------------------------------------------------------------------
-void cmdMoveSmooth(uint8_t id, int goal) {
-  if (!dxl.ping(id)) return;
+bool cmdMoveSmooth(uint8_t id, int goal) {
+  if (!dxl.ping(id)) return false;
 
   int start = dxl.getPresentPosition(id);
   int totalDiff = goal - start;
   int dir = (totalDiff >= 0) ? 1 : -1;
   int dist = abs(totalDiff);
-  if (dist < 3) return;
+  if (dist < 3) return true;
 
   dxl.torqueOn(id);
   dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, id, 880);
@@ -446,6 +410,8 @@ void cmdMoveSmooth(uint8_t id, int goal) {
     delay(stepInterval_ms);
   }
 
+  if (checkStall(id)) return false;
+
   // --- constant-speed (coast) phase ---
   int coastTicks = coastSpan / maxStep;
   for (int i = 0; i < coastTicks; i++) {
@@ -453,6 +419,8 @@ void cmdMoveSmooth(uint8_t id, int goal) {
     dxl.setGoalPosition(id, pos);
     delay(stepInterval_ms);
   }
+
+  if (checkStall(id)) return false;
 
   // --- deceleration phase ---
   for (int i = decelSteps - 1; i >= 0; i--) {
@@ -462,6 +430,8 @@ void cmdMoveSmooth(uint8_t id, int goal) {
     dxl.setGoalPosition(id, pos);
     delay(stepInterval_ms);
   }
+
+  if (checkStall(id)) return false;
 
   // --- final settle ---
   int posNow = dxl.getPresentPosition(id);
@@ -503,63 +473,48 @@ void cmdMoveSmooth(uint8_t id, int goal) {
 
   lOff(id);
 
+  if (checkStall(id)) return false;
+
   if (verboseOn) {
     serial_printf("SMOOTH MOVE id=%d start=%d goal=%d final=%d err=%d (nudges=%d)\n",
                   id, start, goal, posNow, err, count);
   }
-}
-
-// -------------------------------------------------------------------
-//                   MOVEY / MOVEX (with gripper) using kinematics
-// -------------------------------------------------------------------
-void print_xy() {
-  serial_printf("READXY x=%.2fmm y=%.2fmm\n", kin.getXmm(), kin.getYmm());
-  serial_printf("READXY a1deg=%.2f° a2deg=%.2f° wdeg=%.2f°\n", kin.getA1deg(), kin.getA2deg(), kin.getGripperAng());
-  serial_printf("READXY a1ticks=%4d a2ticks=%4d wticks=%4d\n", kin.getA1ticks(), kin.getA2ticks(), kin.getGripperTicks());
+  return true;
 }
 
 // -------------------------------------------------------------------
 //                        READXY using kinematics
 // -------------------------------------------------------------------
-void cmdReadXY() {
-  if (!dxl.ping(ID_ARM1) || !dxl.ping(ID_ARM2) || !dxl.ping(ID_WRIST)) {
-    if (!dxl.ping(ID_ARM1)) Serial.println("ERR: servo 11 (arm1) not connected");
-    if (!dxl.ping(ID_ARM2)) Serial.println("ERR: servo 12 (arm2) not connected");
-    if (!dxl.ping(ID_WRIST)) Serial.println("ERR: servo 13 (gripper) not connected");
-    return;
+void print_status(int id) {
+  for (uint8_t i = 0; i < SERVO_COUNT; i++) {
+    uint8_t crrid = servo_ids[i];
+    if (id <= 0) crrid = id;
+    if (!dxl.ping(crrid)) {
+      Serial.println("STATUS id=na pos=na current=na temp=na");
+    } else {
+      int pos = dxl.getPresentPosition(crrid);
+      int curr = dxl.getPresentCurrent(crrid);
+      int temp = dxl.readControlTableItem(ControlTableItem::PRESENT_TEMPERATURE, id);
+      serial_printf("STATUS id=%2d pos=%5d current=%6dmA temp=%3d\n", crrid, pos, curr, temp);
+    }
+    if (id <= 0) break;
   }
-
   int a1_ticks = dxl.getPresentPosition(ID_ARM1);
   int a2_ticks = dxl.getPresentPosition(ID_ARM2);
 
-  kin.setA1ticks(a1_ticks);
-  kin.setA2ticks(a2_ticks);
-
-  print_xy();
-}
-
-// -------------------------------------------------------------------
-// READ: diagnostics table (position, current, temp)
-// -------------------------------------------------------------------
-void print_status() {
-  Serial.println("ID | Position | Current(mA) | Temp(C)");
-  Serial.println("--------------------------------------");
-  for (uint8_t i = 0; i < SERVO_COUNT; i++) {
-    uint8_t id = servo_ids[i];
-    if (!dxl.ping(id)) {
-      serial_printf("%2d |   ---     |    ---     |  ---\n", id);
-      continue;
-    }
-    int pos = dxl.getPresentPosition(id);
-    int curr = dxl.getPresentCurrent(id);
-    int temp = dxl.readControlTableItem(ControlTableItem::PRESENT_TEMPERATURE, id);
-    serial_printf("%2d | %5d     | %6d     | %3d\n", id, pos, curr, temp);
+  if (dxl.ping(ID_ARM1) && dxl.ping(ID_ARM2)) {
+    kin.setA1ticks(a1_ticks);
+    kin.setA2ticks(a2_ticks);
+    serial_printf("STATUS XY X=%.2fmm Y=%.2mm\n", kin.getXmm(), kin.getYmm());
+  } else {
+    Serial.println("STATUS XY X=na Y=na");
   }
-  Serial.println("--------------------------------------");
 }
 
 void print_pos(int id) {
   if (!dxl.ping(id)) {
+    double currY = kin.getYmm();
+    double currX = kin.getXmm();
     serial_printf("READ ERR=%2d ERR", id);
     return;
   }
@@ -644,8 +599,6 @@ void cmdTestMove(uint8_t id, int count = TEST_DEFAULT_COUNT) {
   serial_printf("TESTMOVE end id=%d\n", id);
 }
 
-// TODO do both move x and move y to be in mm
-
 // -------------------------------------------------------------------
 // TESTMOVEX <ticks>  – move both arms laterally
 // -------------------------------------------------------------------
@@ -668,8 +621,8 @@ void cmdTestMoveX(int rel_ticks) {
 // -------------------------------------------------------------------
 // Smooth synchronized vertical move (Arm1 + Arm2 + Gripper)
 // -------------------------------------------------------------------
-void cmdMoveYSyncSmooth(int relTicks) {
-  if (!dxl.ping(ID_ARM1) || !dxl.ping(ID_ARM2) || !dxl.ping(ID_WRIST)) return;
+bool cmdMoveYSyncSmooth(int relTicks) {
+  if (!dxl.ping(ID_ARM1) || !dxl.ping(ID_ARM2) || !dxl.ping(ID_WRIST)) return false;
 
   // --- Read starting positions ---
   int start1 = dxl.getPresentPosition(ID_ARM1);
@@ -682,7 +635,7 @@ void cmdMoveYSyncSmooth(int relTicks) {
   int goalG = constrain(startG + relTicks, 0, 4095);
 
   const int totalTicks = abs(relTicks);
-  if (totalTicks < 3) return;
+  if (totalTicks < 3) return true;
 
   // --- Servo config ---
   dxl.torqueOn(ID_ARM1);
@@ -745,6 +698,10 @@ void cmdMoveYSyncSmooth(int relTicks) {
     syncNudge(pos1, pos2, posG);
   }
 
+  if (checkStall(ID_ARM1)) return false;
+  if (checkStall(ID_ARM2)) return false;
+  if (checkStall(ID_WRIST)) return false;
+
   // --- Coast phase ---
   for (int i = 0; i < coastTicks; i++) {
     pos1 += (relTicks > 0 ? +maxStep : -maxStep);
@@ -757,6 +714,10 @@ void cmdMoveYSyncSmooth(int relTicks) {
     delay(stepInterval_ms);
     syncNudge(pos1, pos2, posG);
   }
+
+  if (checkStall(ID_ARM1)) return false;
+  if (checkStall(ID_ARM2)) return false;
+  if (checkStall(ID_WRIST)) return false;
 
   // --- Deceleration phase ---
   for (int i = decelSteps - 1; i >= 0; i--) {
@@ -818,18 +779,24 @@ void cmdMoveYSyncSmooth(int relTicks) {
   lOff(ID_ARM2);
   lOff(ID_WRIST);
 
+  if (checkStall(ID_ARM1)) return false;
+  if (checkStall(ID_ARM2)) return false;
+  if (checkStall(ID_WRIST)) return false;
+
   if (verboseOn) {
     serial_printf("MOVEY SYNC done | A1=%d(%d)  A2=%d(%d)  G=%d(%d)\n",
                   p1f, e1, p2f, e2, pGf, eG);
   }
+
+  return true;
 }
 
 // -------------------------------------------------------------------
 // Smooth synchronized lateral move (Arm1 + Arm2 + Gripper)
 // Each axis can have its own small delta (±ticks)
 // -------------------------------------------------------------------
-void cmdMoveXSyncSmooth(int delta1, int delta2, int deltaG) {
-  if (!dxl.ping(ID_ARM1) || !dxl.ping(ID_ARM2) || !dxl.ping(ID_WRIST)) return;
+bool cmdMoveXSyncSmooth(int delta1, int delta2, int deltaG) {
+  if (!dxl.ping(ID_ARM1) || !dxl.ping(ID_ARM2) || !dxl.ping(ID_WRIST)) return false;
 
   // --- Starting positions and goals ---
   int start1 = dxl.getPresentPosition(ID_ARM1);
@@ -841,7 +808,6 @@ void cmdMoveXSyncSmooth(int delta1, int delta2, int deltaG) {
   int goalG = constrain(startG + deltaG, 0, 4095);
 
   int maxDiff = max(max(abs(delta1), abs(delta2)), abs(deltaG));
-  if (maxDiff < 2) return;
 
   // --- Basic setup ---
   dxl.torqueOn(ID_ARM1);
@@ -909,6 +875,10 @@ void cmdMoveXSyncSmooth(int delta1, int delta2, int deltaG) {
     selectiveNudge(goal1, goal2, goalG);
   }
 
+  if (checkStall(ID_ARM1)) return false;
+  if (checkStall(ID_ARM2)) return false;
+  if (checkStall(ID_WRIST)) return false;
+
   // --- Coast phase ---
   for (int i = 0; i < coastTicks; i++) {
     pos1 += scaledStep(delta1, maxStep);
@@ -920,6 +890,10 @@ void cmdMoveXSyncSmooth(int delta1, int delta2, int deltaG) {
     delay(stepInterval_ms);
     selectiveNudge(goal1, goal2, goalG);
   }
+
+  if (checkStall(ID_ARM1)) return false;
+  if (checkStall(ID_ARM2)) return false;
+  if (checkStall(ID_WRIST)) return false;
 
   // --- Deceleration phase ---
   for (int i = decelSteps - 1; i >= 0; i--) {
@@ -970,6 +944,10 @@ void cmdMoveXSyncSmooth(int delta1, int delta2, int deltaG) {
   lOff(ID_ARM2);
   lOff(ID_WRIST);
 
+  if (checkStall(ID_ARM1)) return false;
+  if (checkStall(ID_ARM2)) return false;
+  if (checkStall(ID_WRIST)) return false;
+
   if (verboseOn)
     serial_printf("MOVEX SYNC done | A1=%d(%d) A2=%d(%d) G=%d(%d)\n",
                   p1f, e1, p2f, e2, p3f, e3);
@@ -978,10 +956,10 @@ void cmdMoveXSyncSmooth(int delta1, int delta2, int deltaG) {
 // -------------------------------------------------------------------
 // MOVE TO ABSOLUTE Y (mm) USING KINEMATICS + SMOOTH SYNC MOVE
 // -------------------------------------------------------------------
-void cmdMoveYmm(double y_mm) {
+bool cmdMoveYmm(double y_mm) {
   if (!has_arm_len || !has_zero_arm1 || !has_zero_arm2 || !has_zero_gripper) {
     Serial.println("ERR: Missing calibration (SETLEN / SETZERO)");
-    return;
+    return false;
   }
 
   // Clamp Y to mechanical limits
@@ -1008,27 +986,34 @@ void cmdMoveYmm(double y_mm) {
 
   // Verbose summary
   if (verboseOn) {
-    serial_printf("MOVEY END mm=%.2f  crrY=%.2f ΔY=%.2f\n", y_mm, currY, deltaY);
+    serial_printf("MOVEY START mm=%.2f  crrY=%.2f ΔY=%.2f\n", y_mm, currY, deltaY);
     serial_printf("Δticks A1=%d  A2=%d  G=%d\n", deltaA1, deltaA2, deltaG);
   }
 
   // Align to vertical first (ensure arms in sync)
   cmdMoveXSyncSmooth(0, 0, 0);
 
+  if (checkStall(ID_ARM1)) return false;
+  if (checkStall(ID_ARM2)) return false;
+  if (checkStall(ID_WRIST)) return false;
+
   // Perform vertical synchronized move
   cmdMoveYSyncSmooth(deltaA1);
 
-  // Print final measured XY
-  cmdReadXY();
+  if (checkStall(ID_ARM1)) return false;
+  if (checkStall(ID_ARM2)) return false;
+  if (checkStall(ID_WRIST)) return false;
+
+  return true;
 }
 
 // -------------------------------------------------------------------
 // MOVE TO RELATIVE X (mm OFFSET FROM VERTICAL) USING KINEMATICS
 // -------------------------------------------------------------------
-void cmdMoveXmm(double x_mm) {
+bool cmdMoveXmm(double x_mm) {
   if (!has_arm_len || !has_zero_arm1 || !has_zero_arm2 || !has_zero_gripper) {
     Serial.println("ERR: Missing calibration (SETLEN / SETZERO)");
-    return;
+    return false;
   }
 
   // Read current geometry from servos
@@ -1052,15 +1037,18 @@ void cmdMoveXmm(double x_mm) {
   int deltaG = goalG - currG;
 
   if (verboseOn) {
-    serial_printf("MOVEX END mm=%.2f  crrX=%.2f targetX=%.2f\n", x_mm, currX, targetX);
+    serial_printf("MOVEX START mm=%.2f  crrX=%.2f targetX=%.2f\n", x_mm, currX, targetX);
     serial_printf("Δticks A1=%d  A2=%d  G=%d\n", deltaA1, deltaA2, deltaG);
   }
 
   // Execute the small lateral coordinated motion
   cmdMoveXSyncSmooth(deltaA1, deltaA2, deltaG);
 
-  // Print final measured XY
-  cmdReadXY();
+  if (checkStall(ID_ARM1)) return false;
+  if (checkStall(ID_ARM2)) return false;
+  if (checkStall(ID_WRIST)) return false;
+
+  return true;
 }
 
 // -------------------------------------------------------------------
@@ -1110,7 +1098,6 @@ void cmdTestMoveY(float yStart_mm, float yEnd_mm, int steps = 10) {
 
     cmdMoveSmooth(ID_ARM1, goal1);
     cmdMoveSmooth(ID_ARM2, goal2);
-    updateGripperKeepBaseRef(dxl.getPresentPosition(ID_WRIST));
 
     int a1 = dxl.getPresentPosition(ID_ARM1);
     int a2 = dxl.getPresentPosition(ID_ARM2);
@@ -1146,7 +1133,7 @@ void setup() {
   dxl.begin(57600);
   dxl.setPortProtocolVersion(PROTOCOL);
 
-  Serial.println("=== OpenRB Arm Motion Controller v12 (Adaptive + Verbose + GripperComp) ===");
+  Serial.println("---- OpenRB Arm Motion Controller v12 (Adaptive + Verbose + GripperComp) ----");
   for (uint8_t i = 0; i < SERVO_COUNT; i++) {
     uint8_t id = servo_ids[i];
     if (dxl.ping(id)) {
@@ -1214,7 +1201,7 @@ void loop() {
     arm_length_mm = line.substring(6).toFloat();
     has_arm_len = arm_length_mm > 0;
     kin.setArmLength(arm_length_mm);
-    serial_printf("Arm length set to %.1f mm\n", arm_length_mm);
+    serial_printf("Arm length set to %.1fmm\n", arm_length_mm);
   }
 
   // -------------- SET ZERO (with optional direction) --------------
@@ -1285,61 +1272,64 @@ void loop() {
       } else {  // absolute move
         goal = atoi(valStr);
       }
-      cmdMoveSmooth((uint8_t)id, goal);
-      print_pos(id);
+      if (!cmdMoveSmooth((uint8_t)id, goal)) Serial.println("MOVE ERR");
+      else Serial.println("MOVE OK");
+      print_status(id);
     } else {
-      Serial.println("Usage: MOVE <id> <absgoal|±rel>");
+      if (verboseOn) Serial.println("Usage: MOVE <id> <absgoal|±rel>");
     }
   }
 
   // -------------- MOVE Y AXIS --------------
   else if (U.startsWith("ANGY")) {
-    double val = line.substring(6).toFloat();
-    // Perform vertical synchronized move
-    cmdMoveYSyncSmooth(val);
-    print_xy();
+    int val = 0;
+    if (sscanf(line.c_str(), "ANGY %d", &val) == 1) {
+      // Perform vertical synchronized move
+      if (!cmdMoveYSyncSmooth(val)) Serial.println("ANGY ERR");
+      else Serial.println("ANGY OK");
+      print_status(0);
+    } else if (verboseOn) Serial.println("Usage: ANGY <ticks>");
   }
 
-  // -------------- MOVE X AXIS --------------
+  // -------------- ANGX (3 relative tick deltas: a1, a2, aw) --------------
   else if (U.startsWith("ANGX")) {
     int a1, a2, aw;
     if (sscanf(line.c_str(), "ANGX %d %d %d", &a1, &a2, &aw) == 3) {
-      cmdMoveXSyncSmooth(a1, a2, aw);
-      print_xy();
-    } else
-      Serial.println("Usage: ANG <a1> <a2> <aw>");
+      if (!cmdMoveXSyncSmooth(a1, a2, aw)) Serial.println("ANGX ERR");
+      else Serial.println("ANGX OK");
+      print_status(0);
+    } else if (verboseOn) {
+      Serial.println("Usage: ANGX <a1_ticks> <a2_ticks> <aw_ticks>");
+    }
   }
-
 
   // -------------- MOVE Y AXIS (absolute mm) --------------
   else if (U.startsWith("MOVEY")) {
-    double val = line.substring(6).toFloat();
-    cmdMoveYmm(val);
+    double val = 0;
+    if (sscanf(line.c_str(), "MOVEY %lf", &val) == 1) {
+      if (!cmdMoveYmm(val)) Serial.println("MOVEY ERR");
+      else Serial.println("MOVEY OK");
+      print_status(0);
+    } else if (verboseOn) {
+      Serial.println("Usage: MOVEY <target_y_mm>");
+    }
   }
 
   // -------------- MOVE X AXIS (relative mm offset) --------------
   else if (U.startsWith("MOVEX")) {
-    double val = line.substring(6).toFloat();
-    cmdMoveXmm(val);
-  }
-
-  // -------------- READ XY (kinematic position) --------------
-  else if (U.startsWith("READXY")) {
-    cmdReadXY();
+    double val = 0;
+    if (sscanf(line.c_str(), "MOVEX %lf", &val) == 1) {
+      if (!cmdMoveXmm(val)) Serial.println("MOVEX ERR");
+      else Serial.println("MOVEX OK");
+      print_status(0);
+    } else if (verboseOn) {
+      Serial.println("Usage: MOVEX <delta_x_mm>");
+    }
   }
 
   // -------------- READ STATUS (all servos) --------------
   else if (U.startsWith("READ")) {
-    if (verboseOn)
-      print_status();
-    else {
-      print_pos(ID_ARM1);
-      print_pos(ID_ARM2);
-      print_pos(ID_WRIST);
-      print_pos(ID_GRIP1);
-      print_pos(ID_GRIP2);
-      print_pos(ID_BASE);
-    }
+    print_status(0);
   }
 
   // -------------- INFO (servo parameters) --------------
