@@ -372,132 +372,8 @@ static inline uint32_t estimateTravelTimeMs(uint8_t id, int deltaTicks) {
 }
 
 // -------------------------------------------------------------------
-//                     MOTION CONTROL CORE
-// -------------------------------------------------------------------
-
-void moveServoSmart(uint8_t id, int rel_ticks) {
-  if (!dxl.ping(id) || rel_ticks == 0) return;
-
-  int start = dxl.getPresentPosition(id);
-  int goal = start + rel_ticks;
-  int absMove = abs(rel_ticks);
-  bool smallMove = (absMove <= SMALL_MOVE_TICKS);
-
-  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, id, 885);
-  dxl.writeControlTableItem(ControlTableItem::MOVING_THRESHOLD, id, 1);
-  dxl.writeControlTableItem(ControlTableItem::DRIVE_MODE, id, 0);
-  if (!dxl.readControlTableItem(ControlTableItem::TORQUE_ENABLE, id)) dxl.torqueOn(id);
-  lOn(id);
-
-  if (abs(goal - start) > FINE_WINDOW_TICKS) {
-    dxl.writeControlTableItem(ControlTableItem::PROFILE_VELOCITY, id, COARSE_PV);
-    dxl.writeControlTableItem(ControlTableItem::PROFILE_ACCELERATION, id, COARSE_PA);
-    dxl.writeControlTableItem(ControlTableItem::POSITION_P_GAIN, id, COARSE_PG);
-    dxl.writeControlTableItem(ControlTableItem::POSITION_D_GAIN, id, COARSE_DG);
-  } else {
-    dxl.writeControlTableItem(ControlTableItem::PROFILE_VELOCITY, id, FINE_PV);
-    dxl.writeControlTableItem(ControlTableItem::PROFILE_ACCELERATION, id, FINE_PA);
-    dxl.writeControlTableItem(ControlTableItem::POSITION_P_GAIN, id, FINE_PG);
-    dxl.writeControlTableItem(ControlTableItem::POSITION_D_GAIN, id, FINE_DG);
-    dxl.writeControlTableItem(ControlTableItem::POSITION_I_GAIN, id, FINE_IG);
-  }
-
-  if (smallMove) {
-    int over = (rel_ticks > 0 ? SMALL_OVER_UP_TICKS : -SMALL_OVER_DOWN_TICKS);
-    dxl.setGoalPosition(id, goal + over);
-    delay(abs(over) * OVER_DELAY_MS_PER_TICK);
-  }
-
-  dxl.setGoalPosition(id, goal);
-  uint32_t maxTime = estimateTravelTimeMs(id, goal - start);
-  uint32_t t0 = millis();
-
-  while (millis() - t0 < maxTime) {
-    if (checkStall(id)) return;
-    if (!isMoving(id) && isInPosition(id)) break;
-    delay(10);
-  }
-
-  // -------------------------------------------------------------------
-  // Enhanced micro-jog finisher (smooth, adaptive, safe)
-  // -------------------------------------------------------------------
-  int pos = dxl.getPresentPosition(id);
-  int diff = goal - pos;
-  int prevPos = pos;
-  int stagnant = 0;  // same-pos counter
-  t0 = millis();
-
-  // adaptive maximum trim time: longer for big moves
-  unsigned long maxTrimMs = constrain(abs(goal - start) / 5, 150, 600);
-
-  while (millis() - t0 < maxTrimMs) {
-    if (abs(diff) <= FINISH_TOL_TICKS) break;
-
-    // proportional nudge: smaller near target, larger farther away
-    int nudge = constrain(diff / 3, -3, 3);
-    if (abs(diff) < 5) nudge = (diff > 0 ? 1 : -1);  // last tiny steps
-
-    // issue micro correction
-    dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, id, pos + nudge);
-
-    delay(MICROJOG_SAMPLE_DELAY);  // let internal PID settle
-
-    pos = dxl.getPresentPosition(id);
-    diff = goal - pos;
-
-    // detect no movement (stiction or limit)
-    stagnant = (pos == prevPos) ? stagnant + 1 : 0;
-    prevPos = pos;
-    if (stagnant > 3) break;
-  }
-
-  // final short adaptive settle
-  int err = goal - pos;
-  delay(constrain(abs(err) * 2, 20, 80));
-
-  // gentle torque release
-  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, id, 400);
-  delay(30);
-  lOff(id);
-
-  // final read for logging
-  pos = dxl.getPresentPosition(id);
-  err = goal - pos;
-  // end micro-jog finisher
-
-  /*
-
-  // start micro-jog finisher
-  int pos = dxl.getPresentPosition(id);
-  int diff = goal - pos;
-  uint32_t t_trim = millis();
-  while (millis() - t_trim < MICROJOG_MAX_MS) {
-    if (abs(diff) <= FINISH_TOL_TICKS) break;
-    int nudge = (diff > 0 ? 1 : -1);
-    dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, id, pos + nudge);
-    delay(MICROJOG_SAMPLE_DELAY);
-    pos = dxl.getPresentPosition(id);
-    diff = goal - pos;
-  }
-
-  delay(20);
-  pos = dxl.getPresentPosition(id);
-  int err = pos - goal;
-  lOff(id);
-  // end micro-jog finisher
-
-*/
-
-  // print result
-  if (verboseOn)
-    serial_printf("MOVE END id=%d start=%d goal=%d final=%d err=%d\n",
-                  id, start, goal, pos, err);
-}
-
-// -------------------------------------------------------------------
 //   GRIPPER COMPENSATION (maintain relative angle to vertical)
 // -------------------------------------------------------------------
-
 void updateGripperKeepBaseRef(int gripper_start) {
   if (!has_zero_arm1 || !has_zero_arm2 || !has_zero_gripper) return;
 
@@ -532,13 +408,9 @@ void updateGripperKeepBaseRef(int gripper_start) {
 }
 
 // -------------------------------------------------------------------
-//                   ADAPTIVE MOVE - single servo
+//                   SMOOTH MOVE: slow start, coast, slow end
 // -------------------------------------------------------------------
-
-// -------------------------------------------------------------------
-// Smooth motion: slow start, coast, slow end
-// -------------------------------------------------------------------
-void cmdMoveAdaptive(uint8_t id, int goal, int nu1, int nu2) {
+void cmdMoveSmooth(uint8_t id, int goal) {
   if (!dxl.ping(id)) return;
 
   int start = dxl.getPresentPosition(id);
@@ -637,327 +509,18 @@ void cmdMoveAdaptive(uint8_t id, int goal, int nu1, int nu2) {
   }
 }
 
-void cmdMoveAdaptive_old_adaptive(uint8_t id, int goal, int final_goal, uint8_t depth = 0) {
-  if (!dxl.ping(id)) return;
-  if (depth > 2) return;
-
-  int start = dxl.getPresentPosition(id);
-  int diff = final_goal - start;
-  if (abs(diff) <= 3) return;
-
-  dxl.torqueOn(id);
-
-  // --- SMOOTH CONFIGURATION ---
-  // slightly reduce PWM limit for smoother acceleration
-  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, id, 920);
-
-  // raise the threshold so small motion doesn’t jitter around stop
-  dxl.writeControlTableItem(ControlTableItem::MOVING_THRESHOLD, id, 3);
-
-  // soft start profile (brief gentle accel/vel, then ramp up)
-  dxl.writeControlTableItem(ControlTableItem::PROFILE_VELOCITY, id, FINE_PV);
-  dxl.writeControlTableItem(ControlTableItem::PROFILE_ACCELERATION, id, FINE_PA);
-  delay(10);
-  dxl.writeControlTableItem(ControlTableItem::PROFILE_VELOCITY, id, COARSE_PV);
-  dxl.writeControlTableItem(ControlTableItem::PROFILE_ACCELERATION, id, COARSE_PA);
-
-  lOn(id);
-
-  // --- MAIN MOVE ---
-  dxl.setGoalPosition(id, goal);
-  uint32_t maxTime = estimateTravelTimeMs(id, final_goal - start);
-  uint32_t t0 = millis();
-
-  // poll more frequently (3 ms) for smoother feedback
-  while (isMoving(id) && (millis() - t0 < maxTime)) {
-    if (checkStall(id)) return;
-    delay(3);
-  }
-
-  // --- TRIM CORRECTION (eased) ---
-  int pos = dxl.getPresentPosition(id);
-  diff = final_goal - pos;
-
-  if (abs(diff) > 5) {
-    int trim = (diff > 0 ? 1 : -1);
-    // apply a short easing sequence rather than one hard nudge
-    for (int i = 0; i < 3; i++) {
-      dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, id, goal + trim);
-      delay(8);
-      trim /= 2;  // progressively smaller correction
-    }
-    dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, id, goal);
-  }
-
-  // allow short PID settle before torque off
-  delay(50);
-
-  pos = dxl.getPresentPosition(id);
-  diff = final_goal - pos;
-
-  lOff(id);
-
-  if (verboseOn) {
-    for (int i = 0; i < depth; i++) Serial.print(" ");
-    serial_printf("MOVE END id=%d start=%d goal=%d final=%d err=%d (ADAPTIVE d=%d)\n",
-                  id, start, goal, pos, diff, depth);
-  }
-
-  // --- RECURSIVE FINISH (unchanged) ---
-  if (abs(diff) > 6 && depth < 2) {
-    int subGoal = goal + (diff > 0 ? 10 : -10);
-    subGoal = constrain(subGoal, 0, 4095);
-    cmdMoveAdaptive(id, subGoal, goal, depth + 1);
-    cmdMoveAdaptive(id, goal, goal, depth + 1);
-  }
-}
-
-void cmdMoveAdaptive_old_adaptive2(uint8_t id, int goal, int final_goal, uint8_t depth = 0) {
-  if (!dxl.ping(id)) return;
-  if (depth > 2) return;
-
-  int start = dxl.getPresentPosition(id);
-  int diff = final_goal - start;
-  if (abs(diff) <= 3) return;
-  dxl.torqueOn(id);
-  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, id, 1023);
-  lOn(id);
-
-  dxl.setGoalPosition(id, goal);
-  uint32_t maxTime = estimateTravelTimeMs(id, final_goal - start);
-  uint32_t t0 = millis();
-  while (isMoving(id) && (millis() - t0 < maxTime)) delay(10);
-
-  int pos = dxl.getPresentPosition(id);
-  diff = final_goal - pos;
-  if (abs(diff) > 5) {
-    int trim = (diff > 0 ? 1 : -1);
-    dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, id, goal + trim);
-    delay(15);
-    dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, id, goal);
-  }
-
-  delay(20);
-  pos = dxl.getPresentPosition(id);
-  diff = final_goal - pos;
-  lOff(id);
-
-  if (verboseOn) {
-    for (int i = 0; i < depth; i++) Serial.print(" ");
-    serial_printf("MOVE END id=%d start=%d goal=%d final=%d err=%d (ADAPTIVE d=%d)\n",
-                  id, start, goal, pos, diff, depth);
-  }
-
-  if (abs(diff) > 6 && depth < 2) {
-    int subGoal = goal + (diff > 0 ? 10 : -10);
-    subGoal = constrain(subGoal, 0, 4095);
-    cmdMoveAdaptive(id, subGoal, goal, depth + 1);
-    cmdMoveAdaptive(id, goal, goal, depth + 1);
-  }
-}
-
-// -------------------------------------------------------------------
-//                   ADAPTIVE MOVE - arm1, arm2 and wrist
-// -------------------------------------------------------------------
-void cmdMoveAdaptiveSync(int id1, int goal1,
-                         int id2, int goal2,
-                         int idGrip, int grip_start,
-                         uint8_t depth_in) {
-  if (!dxl.ping(id1) || !dxl.ping(id2) || !dxl.ping(idGrip)) return;
-  if (depth_in > 2) return;
-
-  // --- Enable torque & LED feedback ---
-  dxl.torqueOn(id1);
-  dxl.torqueOn(id2);
-  dxl.torqueOn(idGrip);
-  lOn(id1);
-  lOn(id2);
-  lOn(idGrip);
-
-  // --- Setup PWM limit and motion profiles ---
-  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, id1, 1023);
-  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, id2, 1023);
-  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, idGrip, 1023);
-
-  int start1 = dxl.getPresentPosition(id1);
-  int start2 = dxl.getPresentPosition(id2);
-
-  int delta1 = goal1 - start1;
-  int delta2 = goal2 - start2;
-  int maxDelta = max(abs(delta1), abs(delta2));
-  if (maxDelta < 3) return;
-
-  // choose motion profile (same as cmdMoveAdaptive)
-  int pv = COARSE_PV, pa = COARSE_PA, pg = COARSE_PG, dg = COARSE_DG, ig = FINE_IG;
-  if (maxDelta <= FINE_WINDOW_TICKS) {
-    pv = FINE_PV;
-    pa = FINE_PA;
-    pg = FINE_PG;
-    dg = FINE_DG;
-    ig = FINE_IG;
-  }
-
-  // apply identical profile to both arms
-  dxl.writeControlTableItem(ControlTableItem::PROFILE_VELOCITY, id1, pv);
-  dxl.writeControlTableItem(ControlTableItem::PROFILE_ACCELERATION, id1, pa);
-  dxl.writeControlTableItem(ControlTableItem::POSITION_P_GAIN, id1, pg);
-  dxl.writeControlTableItem(ControlTableItem::POSITION_D_GAIN, id1, dg);
-  dxl.writeControlTableItem(ControlTableItem::POSITION_I_GAIN, id1, ig);
-
-  dxl.writeControlTableItem(ControlTableItem::PROFILE_VELOCITY, id2, pv);
-  dxl.writeControlTableItem(ControlTableItem::PROFILE_ACCELERATION, id2, pa);
-  dxl.writeControlTableItem(ControlTableItem::POSITION_P_GAIN, id2, pg);
-  dxl.writeControlTableItem(ControlTableItem::POSITION_D_GAIN, id2, dg);
-  dxl.writeControlTableItem(ControlTableItem::POSITION_I_GAIN, id2, ig);
-
-  // --- Issue coordinated goals ---
-  dxl.setGoalPosition(id1, goal1);
-  dxl.setGoalPosition(id2, goal2);
-
-  uint32_t maxTime = max(estimateTravelTimeMs(id1, delta1),
-                         estimateTravelTimeMs(id2, delta2));
-  uint32_t t0 = millis();
-
-  // --- Motion loop: both arms move, gripper tracked live ---
-  while (millis() - t0 < maxTime) {
-    if (checkStall(id1) || checkStall(id2)) break;
-
-    updateGripperKeepBaseRef(grip_start);  // maintain verticality
-
-    bool moving1 = isMoving(id1);
-    bool moving2 = isMoving(id2);
-    if (!moving1 && !moving2) break;
-    delay(10);
-  }
-
-  // --- Fine micro-jog correction ---
-  int pos1 = dxl.getPresentPosition(id1);
-  int pos2 = dxl.getPresentPosition(id2);
-  int diff1 = goal1 - pos1;
-  int diff2 = goal2 - pos2;
-  uint32_t t_trim = millis();
-
-  while (millis() - t_trim < MICROJOG_MAX_MS) {
-    if (abs(diff1) <= FINISH_TOL_TICKS && abs(diff2) <= FINISH_TOL_TICKS) break;
-
-    if (abs(diff1) > FINISH_TOL_TICKS)
-      dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, id1,
-                                pos1 + (diff1 > 0 ? 1 : -1));
-    if (abs(diff2) > FINISH_TOL_TICKS)
-      dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, id2,
-                                pos2 + (diff2 > 0 ? 1 : -1));
-
-    delay(MICROJOG_SAMPLE_DELAY);
-    pos1 = dxl.getPresentPosition(id1);
-    pos2 = dxl.getPresentPosition(id2);
-    diff1 = goal1 - pos1;
-    diff2 = goal2 - pos2;
-  }
-
-  delay(20);
-  pos1 = dxl.getPresentPosition(id1);
-  pos2 = dxl.getPresentPosition(id2);
-  lOff(id1);
-  lOff(id2);
-  lOff(idGrip);
-
-  if (verboseOn) {
-    for (int i = 0; i < depth_in; i++) Serial.print(" ");
-    serial_printf("SYNC MOVE END d=%d | A1:%d→%d (Δ=%d)  A2:%d→%d (Δ=%d)\n",
-                  depth_in, start1, pos1, pos1 - start1, start2, pos2, pos2 - start2);
-  }
-
-  // --- Adaptive recursive finish (like cmdMoveAdaptive) ---
-  int diffMax = max(abs(goal1 - pos1), abs(goal2 - pos2));
-  if (diffMax > 6 && depth_in < 2) {
-    int subGoal1 = goal1 + (goal1 - pos1 > 0 ? 10 : -10);
-    int subGoal2 = goal2 + (goal2 - pos2 > 0 ? 10 : -10);
-    subGoal1 = constrain(subGoal1, 0, 4095);
-    subGoal2 = constrain(subGoal2, 0, 4095);
-
-    cmdMoveAdaptiveSync(id1, subGoal1, id2, subGoal2, idGrip, grip_start, depth_in + 1);
-    cmdMoveAdaptiveSync(id1, goal1, id2, goal2, idGrip, grip_start, depth_in + 1);
-  }
-}
-
 // -------------------------------------------------------------------
 //                   MOVEY / MOVEX (with gripper) using kinematics
 // -------------------------------------------------------------------
-
 void print_xy() {
-  serial_printf("READXY MM %.2fmm %.2fmm\n", kin.getXmm(), kin.getYmm());
-  serial_printf("READXY DEG %.2f° %.2f° %.2f°\n", kin.getA1deg(), kin.getA2deg(), kin.getGripperAng());
-  serial_printf("READXY TICKS %4d %4d %4d\n", kin.getA1ticks(), kin.getA2ticks(), kin.getGripperTicks());
-}
-
-void cmdMoveY(double y_mm) {
-  // --- validation ---
-  if (!dxl.ping(ID_ARM1) || !dxl.ping(ID_ARM2) || !dxl.ping(ID_WRIST)) {
-    if (!dxl.ping(ID_ARM1)) Serial.println("ERR: servo 11 (arm1) not connected");
-    if (!dxl.ping(ID_ARM2)) Serial.println("ERR: servo 12 (arm2) not connected");
-    if (!dxl.ping(ID_WRIST)) Serial.println("ERR: servo 13 (gripper) not connected");
-    return;
-  }
-  if (!has_arm_len || !has_zero_arm1 || !has_zero_arm2 || !has_zero_gripper) {
-    if (!has_arm_len) Serial.println("ERR: SETLEN missing");
-    if (!has_zero_arm1) Serial.println("ERR: SETZERO 11 (arm1) missing");
-    if (!has_zero_arm2) Serial.println("ERR: SETZERO 12 (arm2) missing");
-    if (!has_zero_gripper) Serial.println("ERR: SETZERO 13 (gripper) missing");
-    return;
-  }
-
-  // --- compute new arm angles and ticks from desired Y ---
-  kin.setYmm(y_mm);
-  int goal1 = kin.getA1ticks();
-  int goal2 = kin.getA2ticks();
-
-  if (verboseOn)
-    serial_printf("MOVEY y=%.2fmm -> A1=%.2f° A2=%.2f° | ticks1=%d ticks2=%d\n",
-                  y_mm, kin.getA1deg(), kin.getA2deg(), goal1, goal2);
-
-  // --- gripper compensation setup ---
-  int gripper_start = dxl.getPresentPosition(ID_WRIST);
-
-  // --- coordinated move ---
-  cmdMoveAdaptiveSync(ID_ARM1, goal1, ID_ARM2, goal2, ID_WRIST, gripper_start, 0);
-}
-
-
-void cmdMoveX(double x_mm) {
-  // --- validation ---
-  if (!dxl.ping(ID_ARM1) || !dxl.ping(ID_ARM2) || !dxl.ping(ID_WRIST)) {
-    if (!dxl.ping(ID_ARM1)) Serial.println("ERR: servo 11 (arm1) not connected");
-    if (!dxl.ping(ID_ARM2)) Serial.println("ERR: servo 12 (arm1) not connected");
-    if (!dxl.ping(ID_WRIST)) Serial.println("ERR: servo 13 (gripper) not connected");
-    return;
-  }
-  if (!has_arm_len || !has_zero_arm1 || !has_zero_arm2 || !has_zero_gripper) {
-    if (!has_arm_len) Serial.println("ERR: SETLEN missing");
-    if (!has_zero_arm1) Serial.println("ERR: SETZERO 11 (arm1) missing");
-    if (!has_zero_arm2) Serial.println("ERR: SETZERO 12 (arm2) missing");
-    if (!has_zero_gripper) Serial.println("ERR: SETZERO 13 (gripper) missing");
-    return;
-  }
-
-  // --- compute new arm angles/ticks for lateral X displacement ---
-  kin.setXmm(x_mm);
-  int goal1 = kin.getA1ticks();
-  int goal2 = kin.getA2ticks();
-
-  if (verboseOn)
-    serial_printf("MOVEX x=%.2fmm -> A1=%.2f° A2=%.2f° | ticks1=%d ticks2=%d\n",
-                  x_mm, kin.getA1deg(), kin.getA2deg(), goal1, goal2);
-
-  int gripper_start = dxl.getPresentPosition(ID_WRIST);
-
-  // --- coordinated move ---
-  cmdMoveAdaptiveSync(ID_ARM1, goal1, ID_ARM2, goal2, ID_WRIST, gripper_start, 0);
+  serial_printf("READXY x=%.2fmm y=%.2fmm\n", kin.getXmm(), kin.getYmm());
+  serial_printf("READXY a1deg=%.2f° a2deg=%.2f° wdeg=%.2f°\n", kin.getA1deg(), kin.getA2deg(), kin.getGripperAng());
+  serial_printf("READXY a1ticks=%4d a2ticks=%4d wticks=%4d\n", kin.getA1ticks(), kin.getA2ticks(), kin.getGripperTicks());
 }
 
 // -------------------------------------------------------------------
 //                        READXY using kinematics
 // -------------------------------------------------------------------
-
 void cmdReadXY() {
   if (!dxl.ping(ID_ARM1) || !dxl.ping(ID_ARM2) || !dxl.ping(ID_WRIST)) {
     if (!dxl.ping(ID_ARM1)) Serial.println("ERR: servo 11 (arm1) not connected");
@@ -997,11 +560,11 @@ void print_status() {
 
 void print_pos(int id) {
   if (!dxl.ping(id)) {
-    serial_printf("READ %2d ERR", id);
+    serial_printf("READ ERR=%2d ERR", id);
     return;
   }
   int pos = dxl.getPresentPosition(id);
-  serial_printf("READ %2d %5d\n", id, pos);
+  serial_printf("READ id=%2d ticks=%5d\n", id, pos);
 }
 
 // -------------------------------------------------------------------
@@ -1061,25 +624,27 @@ void cmdTestMove(uint8_t id, int count = TEST_DEFAULT_COUNT) {
 
   for (int iter = 0; iter < count; ++iter) {
     // small ± moves
-    cmdMoveAdaptive(id, STOW_TICK, STOW_TICK, 0);
-    cmdMoveAdaptive(id, STOW_TICK, STOW_TICK, 0);
+    cmdMoveSmooth(id, STOW_TICK);
+    cmdMoveSmooth(id, STOW_TICK);
     int baseline = dxl.getPresentPosition(id);
     for (int i = 0; i < RAND_INCS_N; ++i) {
       int goalUp = baseline + RAND_INCS[i];
       int goalDn = baseline - RAND_INCS[i];
-      cmdMoveAdaptive(id, goalUp, goalUp, 0);
-      cmdMoveAdaptive(id, goalDn, goalDn, 0);
+      cmdMoveSmooth(id, goalUp);
+      cmdMoveSmooth(id, goalDn);
       int final = dxl.getPresentPosition(id);
       tst::addErr(stats, RAND_INCS[i], abs(final - goalDn));
     }
     // large excursion
-    cmdMoveAdaptive(id, STOW_TICK + 1000, STOW_TICK + 1000, 0);
-    cmdMoveAdaptive(id, STOW_TICK, STOW_TICK, 0);
+    cmdMoveSmooth(id, STOW_TICK + 1000);
+    cmdMoveSmooth(id, STOW_TICK);
   }
 
   tst::printStats("TESTMOVE", id, stats);
   serial_printf("TESTMOVE end id=%d\n", id);
 }
+
+// TODO do both move x and move y to be in mm
 
 // -------------------------------------------------------------------
 // TESTMOVEX <ticks>  – move both arms laterally
@@ -1092,7 +657,7 @@ void cmdTestMoveX(int rel_ticks) {
   }
   int start1 = dxl.getPresentPosition(ID_ARM1);
   int start2 = dxl.getPresentPosition(ID_ARM2);
-  cmdMoveX(rel_ticks);
+  cmdMoveXSyncSmooth(rel_ticks, 0, 0);  // TODO add test angles for arm2 and w
   int end1 = dxl.getPresentPosition(ID_ARM1);
   int end2 = dxl.getPresentPosition(ID_ARM2);
   serial_printf("TESTMOVEX Δticks=%d | Arm1:%d→%d  Arm2:%d→%d\n",
@@ -1443,7 +1008,7 @@ void cmdMoveYmm(double y_mm) {
 
   // Verbose summary
   if (verboseOn) {
-    serial_printf("MOVEY mm=%.2f  currY=%.2f ΔY=%.2f\n", y_mm, currY, deltaY);
+    serial_printf("MOVEY END mm=%.2f  crrY=%.2f ΔY=%.2f\n", y_mm, currY, deltaY);
     serial_printf("Δticks A1=%d  A2=%d  G=%d\n", deltaA1, deltaA2, deltaG);
   }
 
@@ -1487,7 +1052,7 @@ void cmdMoveXmm(double x_mm) {
   int deltaG = goalG - currG;
 
   if (verboseOn) {
-    serial_printf("MOVEX mm=%.2f  currX=%.2f targetX=%.2f\n", x_mm, currX, targetX);
+    serial_printf("MOVEX END mm=%.2f  crrX=%.2f targetX=%.2f\n", x_mm, currX, targetX);
     serial_printf("Δticks A1=%d  A2=%d  G=%d\n", deltaA1, deltaA2, deltaG);
   }
 
@@ -1523,8 +1088,8 @@ void cmdTestMoveY(float yStart_mm, float yEnd_mm, int steps = 10) {
                 yStart_mm, yEnd_mm, (yEnd_mm - yStart_mm));
 
   // bring both arms to start
-  cmdMoveAdaptive(ID_ARM1, ticksStart1, ticksStart1, 0);
-  cmdMoveAdaptive(ID_ARM2, ticksStart2, ticksStart2, 0);
+  cmdMoveSmooth(ID_ARM1, ticksStart1);
+  cmdMoveSmooth(ID_ARM2, ticksStart2);
   delay(300);
 
   int pos1 = dxl.getPresentPosition(ID_ARM1);
@@ -1543,8 +1108,8 @@ void cmdTestMoveY(float yStart_mm, float yEnd_mm, int steps = 10) {
     int goal1 = kin.getA1ticks();
     int goal2 = kin.getA2ticks();
 
-    cmdMoveAdaptive(ID_ARM1, goal1, goal1, 0);
-    cmdMoveAdaptive(ID_ARM2, goal2, goal2, 0);
+    cmdMoveSmooth(ID_ARM1, goal1);
+    cmdMoveSmooth(ID_ARM2, goal2);
     updateGripperKeepBaseRef(dxl.getPresentPosition(ID_WRIST));
 
     int a1 = dxl.getPresentPosition(ID_ARM1);
@@ -1720,7 +1285,7 @@ void loop() {
       } else {  // absolute move
         goal = atoi(valStr);
       }
-      cmdMoveAdaptive((uint8_t)id, goal, goal, 0);
+      cmdMoveSmooth((uint8_t)id, goal);
       print_pos(id);
     } else {
       Serial.println("Usage: MOVE <id> <absgoal|±rel>");
