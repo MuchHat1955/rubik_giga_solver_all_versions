@@ -265,29 +265,56 @@ public:
   //   • setXYmm(X, -1)  -> horizontal offset X, preserving current Y
   //   • full inverse kinematics (updates both angles)
   // -------------------------------------------------------------------
+  // ----------------------------------------------------------
+  //   Solve for a1r, a2r given x_mm, y_mm, and link length l_mm
+  // ----------------------------------------------------------
+  void solve_angles_from_xy(double x_mm, double y_mm,
+                            double &a1r, double &a2r) {
+    double A = x_mm / l_mm;
+    double B = y_mm / l_mm;
+
+    // step 1: compute q
+    double q = atan2(-A, B);
+
+    // step 2: compute sin(p)
+    double cos_q = cos(q);
+    double sin_p = (cos_q != 0.0) ? (B / (2.0 * cos_q)) : 0.0;
+    if (sin_p > 1.0) sin_p = 1.0;
+    if (sin_p < -1.0) sin_p = -1.0;
+
+    double p = asin(sin_p);
+
+    // step 3: compute angles
+    double a1abs_right_rad = p + q;
+    double a2abs_left_rad = p - q;
+
+    /*
+    double a1r = deg2rad(a1_deg);           // 0
+    double a2r = deg2rad(a2_deg);           // 0
+    double a1abs_right = M_PI / 2.0 - a1r;  // 90
+    double a2abs_left = a1r + a2r;          // 0
+    double a2abs_right = M_PI - a2r - a1r;  // 180
+    */
+
+    int a1abs_right = rad2deg(a1abs_right_deg);
+    int a2abs_left = rad2deg(a2abs_left_rad);
+
+    a1r = 90 - a1abs_right;
+    a2r = a2abs_left - a1r;
+  }
+
   void setXYmm(double x, double y) {
     if (x < 0 && y < 0) return;
     if (x < 0) x = x_mm;
     if (y < 0) y = y_mm;
 
-    // clamp to reach
-    double r = hypot(x, y);
-    double maxReach = 2.0 * l_mm;
-    if (r > maxReach) {
-      double scale = maxReach / r;
-      x *= scale;
-      y *= scale;
-      r = maxReach;
-    }
+    double a1_rel = 0;
+    double a2_rel = 0;
 
-    // inverse kinematics (elbow-down)
-    double D = clamp((x * x + y * y - 2.0 * l_mm * l_mm) / (2.0 * l_mm * l_mm), -1.0, 1.0);
-    double a2r = acos(D);       // internal elbow angle
-    double phi = atan2(y, -x);  // rotated 90° frame (Arm1=vertical, Arm2=left)
-    double a1r = phi - a2r / 2.0;
+    solve_angles_from_xy(x, y, a1_rel, a2_rel);
 
-    a1_deg = rad2deg(a1r);
-    a2_deg = rad2deg(a2r);
+    a1_deg = rad2deg(a1_rel);
+    a2_deg = rad2deg(a2_rel);
     update_from_angles();
   }
 
@@ -375,13 +402,15 @@ private:
   // ---------------- Forward kinematics ----------------
   void update_from_angles() {
     // a1 from vertical; a2 relative (0° = left)
-    double a1r = deg2rad(a1_deg);
-    double a2r = deg2rad(a2_deg);
-    double a2abs = a1r + a2r - M_PI / 2.0;
+    double a1r = deg2rad(a1_deg);           // 0
+    double a2r = deg2rad(a2_deg);           // 0
+    double a1abs_right = M_PI / 2.0 - a1r;  // 90
+    double a2abs_left = a1r + a2r;          // 0
+    double a2abs_right = M_PI - a2r - a1r;  // 180
 
-    // rotated coordinate frame (+90°)
-    x_mm = -l_mm * cos(a1r) - l_mm * cos(a2abs);
-    y_mm = l_mm * sin(a1r) + l_mm * sin(a2abs);
+    // compute using absolute, 0 is vertical, 90 is horizontal towards right
+    y_mm = l_mm * sin(a1abs_right) + l_mm * sin(a2abs_left);  // sin 0 + sin 0
+    x_mm = l_mm * cos(a1abs_right) - l_mm * cos(a2abs_left);  // cos 90 - cos 0
   }
 };
 
@@ -1196,10 +1225,12 @@ void setup() {
   Serial.println("  SETLEN  <mm>                   - set arm length");
   Serial.println("  SETZERO <id> <ticks> [±1]      - set zero tick and dir");
   Serial.println("  MOVE  <id> <absgoal|±rel>      - adaptive move one servo");
+  Serial.println("  MOVEDEG  <id> <deg>            - adaptive move one servo");
   Serial.println("  MOVEY <float mm>               - vertical (mirror arm1/arm2)");
   Serial.println("  MOVEX <float mm>               - lateral (keep y)");
-  Serial.println("  ANGX <int ang>                 - vertical (1 relative angle arm1/arm2)");
-  Serial.println("  ANGY <ang1> <ang2> <angw>      - lateral (3 rel angles for 1,2,w)");
+  Serial.println("  MOVECENTER                     - move all to 2048 ticks");
+  Serial.println("  MOVEXDEG <int ang>             - vertical (1 relative angle arm1/arm2)");
+  Serial.println("  MOVEYDEG <ang1> <ang2> <angw>  - lateral (3 rel angles for 1,2,w)");
   Serial.println("  READ <id> | 0 for all          - servos basics");
   Serial.println("  TESTMOVE  <id> [cycles]        - adaptive single-servo test");
   Serial.println("  TESTMOVEX <ticks>              - lateral X-axis test");
@@ -1326,26 +1357,54 @@ void loop() {
     }
   }
 
-  // -------------- MOVE Y AXIS --------------
-  else if (U.startsWith("ANGY")) {
-    int val = 0;
-    if (sscanf(line.c_str(), "ANGY %d", &val) == 1) {
-      // Perform vertical synchronized move
-      if (!cmdMoveYSyncSmooth(val)) Serial.println("ANGY ERR");
-      else Serial.println("ANGY OK");
-      print_status(0);
-    } else if (verboseOn) Serial.println("Usage: ANGY <ticks>");
+  // -------------- MOVE SINGLE SERVO BY ANGLE
+  else if (U.startsWith("MOVEDEG ")) {
+    int angle = 0;
+    if (sscanf(line.c_str(), "MOVEDEG %d %d", &id, angle) == 2) {
+      int goal = 0;
+      if (id == ID_ARM1) goal = (int)round(kin.getTickZeroArm1() + kin.getDirArm1() * (double)angle * TICKS_PER_DEG);
+      if (id == ID_ARM2) goal = (int)round(kin.getTickZeroArm2() + kin.getDirArm2() * (double)angle * TICKS_PER_DEG);
+      if (id == ID_WRIST) goal = (int)round(kin.getTickZeroWrist() + kin.getDirWrist() * (double)angle * TICKS_PER_DEG);
+      else val = (int)round(2048 + (double)angle * TICKS_PER_DEG);
+      if (!cmdMoveSmooth((uint8_t)id, goal)) Serial.println("MOVE ERR");
+      else Serial.println("MOVE OK");
+      print_status(id);
+    } else {
+      if (verboseOn) Serial.println("Usage: MOVE <id> <absgoal|±rel>");
+    }
   }
 
-  // -------------- ANGX (3 relative tick deltas: a1, a2, aw) --------------
-  else if (U.startsWith("ANGX")) {
+  // -------------- MOVE ALL TO CENTER --------------
+  else if (U.startsWith("MOVECENTER")) {
+    bool hasError = false;
+    for (int i = 0; i < SERVO_COUNT; i++) {
+      if (!cmdMoveSmooth((uint8_t)servo_ids[i], 2048)) hasError = true;
+    }
+    print_status(0);
+    if (hasError) Serial.println("MOVECENTER ERR");
+    else Serial.println("MOVECENTER OK");
+  }
+
+  // -------------- MOVE Y AXIS --------------
+  else if (U.startsWith("MOVEYDEG")) {
+    int val = 0;
+    if (sscanf(line.c_str(), "MOVEYDEG %d", &val) == 1) {
+      // Perform vertical synchronized move
+      if (!cmdMoveYSyncSmooth(val)) Serial.println("MOVEYDEG ERR");
+      else Serial.println("MOVEYDEG OK");
+      print_status(0);
+    } else if (verboseOn) Serial.println("Usage: MOVEYDEG <ticks>");
+  }
+
+  // -------------- MOVEXDEG (3 relative tick deltas: a1, a2, aw) --------------
+  else if (U.startsWith("MOVEXDEG")) {
     int a1, a2, aw;
-    if (sscanf(line.c_str(), "ANGX %d %d %d", &a1, &a2, &aw) == 3) {
-      if (!cmdMoveXSyncSmooth(a1, a2, aw)) Serial.println("ANGX ERR");
-      else Serial.println("ANGX OK");
+    if (sscanf(line.c_str(), "MOVEXDEG %d %d %d", &a1, &a2, &aw) == 3) {
+      if (!cmdMoveXSyncSmooth(a1, a2, aw)) Serial.println("MOVEXDEG ERR");
+      else Serial.println("MOVEXDEG OK");
       print_status(0);
     } else if (verboseOn) {
-      Serial.println("Usage: ANGX <a1_ticks> <a2_ticks> <aw_ticks>");
+      Serial.println("Usage: MOVEXDEG <a1_ticks> <a2_ticks> <aw_ticks>");
     }
   }
 
