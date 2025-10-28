@@ -202,13 +202,10 @@ class VerticalKinematics {
 public:
   // -------------------------------------------------------------------
   // Geometry conventions:
-  //   • Arm1 (shoulder): angle a1_deg from +Y (vertical). 0° = vertical up.
-  //   • Arm2 (elbow): relative angle a2_deg from Arm1.
-  //       -> 0° = perpendicular to Arm1 on the left.
-  //       -> positive = opens upward (obtuse)
-  //       -> negative = folds downward (acute)
+  //   • Arm1 (shoulder): a1_deg = 0° when vertical up (+Y)
+  //   • Arm2 (elbow): a2_deg = 0° when perpendicular to Arm1 on its left
+  //   • For a1=0°, a2=0° → endpoint X=-l, Y=+l
   //   • X grows right, Y grows upward.
-  //   • For a1=0,a2=0: X=-l, Y=+l  (arm1 up, arm2 left)
   // -------------------------------------------------------------------
   VerticalKinematics(double arm_len_mm = 60.0)
     : l_mm(arm_len_mm),
@@ -218,25 +215,45 @@ public:
       dir1(+1.0), dir2(+1.0), dirg(+1.0) {}
 
   // ---------------- Configuration ----------------
-  void setArmLength(double mm) { l_mm = mm; update_from_angles(); }
+  void setArmLength(double mm) {
+    l_mm = mm;
+    update_from_angles();
+  }
 
-  void setTickZeroArm1(int t0) { tick0_arm1 = t0; }
-  void setTickZeroArm2(int t0) { tick0_arm2 = t0; }
-  void setTickZeroGripper(int t0) { tick0_grip = t0; }
+  void setTickZeroArm1(int t0) {
+    tick0_arm1 = t0;
+  }
+  void setTickZeroArm2(int t0) {
+    tick0_arm2 = t0;
+  }
+  void setTickZeroGripper(int t0) {
+    tick0_grip = t0;
+  }
 
-  void setDirArm1(double d) { dir1 = (d >= 0) ? +1.0 : -1.0; }
-  void setDirArm2(double d) { dir2 = (d >= 0) ? +1.0 : -1.0; }
-  void setDirGripper(double d) { dirg = (d >= 0) ? +1.0 : -1.0; }
+  void setDirArm1(double d) {
+    dir1 = (d >= 0) ? +1.0 : -1.0;
+  }
+  void setDirArm2(double d) {
+    dir2 = (d >= 0) ? +1.0 : -1.0;
+  }
+  void setDirGripper(double d) {
+    dirg = (d >= 0) ? +1.0 : -1.0;
+  }
 
   // ---------------- Independent Setters ----------------
-  void setA1deg(double a1) { a1_deg = a1; update_from_angles(); }
-  void setA2deg(double a2) { a2_deg = a2; update_from_angles(); }
+  void setA1deg(double a1) {
+    a1_deg = a1;
+    update_from_angles();
+  }
+  void setA2deg(double a2) {
+    a2_deg = a2;
+    update_from_angles();
+  }
 
   void setA1ticks(int ticks) {
     a1_deg = (ticks - tick0_arm1) * DEG_PER_TICK * dir1;
     update_from_angles();
   }
-
   void setA2ticks(int ticks) {
     a2_deg = (ticks - tick0_arm2) * DEG_PER_TICK * dir2;
     update_from_angles();
@@ -244,16 +261,16 @@ public:
 
   // -------------------------------------------------------------------
   // setXYmm(x, y)
-  //   • setXYmm(0, Y)   -> vertical at height Y
-  //   • setXYmm(X, -1)  -> lateral offset X at current Y
-  //   • Full inverse kinematics (a1, a2 both updated)
+  //   • setXYmm(0, Y)   -> vertical up/down at given Y
+  //   • setXYmm(X, -1)  -> horizontal offset X, preserving current Y
+  //   • full inverse kinematics (updates both angles)
   // -------------------------------------------------------------------
   void setXYmm(double x, double y) {
     if (x < 0 && y < 0) return;
     if (x < 0) x = x_mm;
     if (y < 0) y = y_mm;
 
-    // distance from base to target
+    // clamp to reach
     double r = hypot(x, y);
     double maxReach = 2.0 * l_mm;
     if (r > maxReach) {
@@ -263,58 +280,74 @@ public:
       r = maxReach;
     }
 
-    // compute inner elbow angle (same as before)
+    // inverse kinematics (elbow-down)
     double D = clamp((x * x + y * y - 2.0 * l_mm * l_mm) / (2.0 * l_mm * l_mm), -1.0, 1.0);
-    double a2r = acos(D);              // internal elbow angle
-    double phi = atan2(x, y);          // target direction
-
-    // adjust 90° offset so arm2 starts perpendicular at a2=0
-    double a1r = phi - (M_PI / 2.0) + a2r / 2.0;
+    double a2r = acos(D);       // internal elbow angle
+    double phi = atan2(y, -x);  // rotated 90° frame (Arm1=vertical, Arm2=left)
+    double a1r = phi - a2r / 2.0;
 
     a1_deg = rad2deg(a1r);
-    a2_deg = rad2deg(a2r - M_PI / 2.0);   // convert to servo-style relative (0° = perpendicular)
+    a2_deg = rad2deg(a2r);
     update_from_angles();
   }
 
   // ---------------- Getters ----------------
-  double getArmLength() const { return l_mm; }
-  double getA1deg() const { return a1_deg; }   // absolute wrt +Y
-  double getA2deg() const { return a2_deg; }   // relative (servo sees this)
+  double getArmLength() const {
+    return l_mm;
+  }
+  double getA1deg() const {
+    return a1_deg;
+  }  // absolute wrt vertical
+  double getA2deg() const {
+    return a2_deg;
+  }  // relative (servo sees this)
 
   int getA1ticks() const {
     return (int)round(tick0_arm1 + dir1 * a1_deg * TICKS_PER_DEG);
   }
-
   int getA2ticks() const {
     return (int)round(tick0_arm2 + dir2 * a2_deg * TICKS_PER_DEG);
   }
 
-  double getXmm() const { return x_mm; }
-  double getYmm() const { return y_mm; }
+  double getXmm() const {
+    return x_mm;
+  }
+  double getYmm() const {
+    return y_mm;
+  }
 
   // ---------------- Gripper math ----------------
   double getGripperAng() const {
-    // absolute orientation of gripper wrt +Y
+    // 0° = gripper vertical; positive tilts along Arm2
     return a1_deg + a2_deg - 90.0;
   }
-
   int getGripperTicks() const {
     return (int)round(tick0_grip + dirg * getGripperAng() * TICKS_PER_DEG);
   }
-
   void setZeroGripper(int currentTicks) {
-    tick0_grip = currentTicks -
-                 (int)round(dirg * getGripperAng() * TICKS_PER_DEG);
+    tick0_grip = currentTicks - (int)round(dirg * getGripperAng() * TICKS_PER_DEG);
   }
 
   // ---------------- Accessors ----------------
-  int getTickZeroArm1() const { return tick0_arm1; }
-  int getTickZeroArm2() const { return tick0_arm2; }
-  int getTickZeroGripper() const { return tick0_grip; }
+  int getTickZeroArm1() const {
+    return tick0_arm1;
+  }
+  int getTickZeroArm2() const {
+    return tick0_arm2;
+  }
+  int getTickZeroGripper() const {
+    return tick0_grip;
+  }
 
-  double getDirArm1() const { return dir1; }
-  double getDirArm2() const { return dir2; }
-  double getDirGripper() const { return dirg; }
+  double getDirArm1() const {
+    return dir1;
+  }
+  double getDirArm2() const {
+    return dir2;
+  }
+  double getDirGripper() const {
+    return dirg;
+  }
 
 private:
   // constants
@@ -329,22 +362,29 @@ private:
   double dir1, dir2, dirg;
 
   // helpers
-  static inline double deg2rad(double d) { return d * M_PI / 180.0; }
-  static inline double rad2deg(double r) { return r * 180.0 / M_PI; }
+  static inline double deg2rad(double d) {
+    return d * M_PI / 180.0;
+  }
+  static inline double rad2deg(double r) {
+    return r * 180.0 / M_PI;
+  }
   static inline double clamp(double v, double lo, double hi) {
     return (v < lo) ? lo : (v > hi ? hi : v);
   }
 
+  // ---------------- Forward kinematics ----------------
   void update_from_angles() {
-    // a1 = wrt vertical; a2 = relative; arm2 orientation = a1 + a2 - 90°
+    // a1 from vertical; a2 relative (0° = left)
     double a1r = deg2rad(a1_deg);
     double a2r = deg2rad(a2_deg);
     double a2abs = a1r + a2r - M_PI / 2.0;
 
-    x_mm = l_mm * sin(a1r - M_PI / 2.0) + l_mm * sin(a2abs);
-    y_mm = l_mm * cos(a1r - M_PI / 2.0) + l_mm * cos(a2abs);
+    // rotated coordinate frame (+90°)
+    x_mm = -l_mm * cos(a1r) - l_mm * cos(a2abs);
+    y_mm = l_mm * sin(a1r) + l_mm * sin(a2abs);
   }
 };
+
 
 VerticalKinematics kin(60.0);
 
