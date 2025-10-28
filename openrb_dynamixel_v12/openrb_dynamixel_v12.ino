@@ -38,7 +38,8 @@ Dynamixel2Arduino dxl(DXL_SERIAL, DXL_DIR_PIN);
 #define ID_GRIP1 14
 #define ID_GRIP2 15
 #define ID_BASE 16
-uint8_t servo_ids[] = { ID_ARM1, ID_ARM2, ID_WRIST, ID_GRIP1, ID_GRIP2, ID_BASE };
+#define ID_XM 17
+uint8_t servo_ids[] = { ID_ARM1, ID_ARM2, ID_WRIST, ID_GRIP1, ID_GRIP2, ID_BASE, ID_XM };
 const uint8_t SERVO_COUNT = sizeof(servo_ids) / sizeof(servo_ids[0]);
 
 // -------------------------------------------------------------------
@@ -201,6 +202,13 @@ bool checkStall(uint8_t id) {
 
 class VerticalKinematics {
 public:
+  // -------------------------------------------------------------------
+  //   Geometry conventions:
+  //   - Arm1 = 0° → vertical (pointing up)
+  //   - Arm2 = 0° → horizontal to the left of Arm1
+  //   - a2_deg = 90° - 2 * a1_deg ensures symmetric elbow bend
+  //   - X increases forward (outward), Y increases upward
+  // -------------------------------------------------------------------
   VerticalKinematics(double arm_len_mm = 60.0)
     : l_mm(arm_len_mm) {
     tick0_arm1 = 2048;
@@ -246,45 +254,58 @@ public:
     update_from_angles();
   }
 
-  // ---------------- Setters (servo positions) ----------------
+  // ---------------- Independent Setters ----------------
   void setA1deg(double a1) {
     a1_deg = a1;
-    a2_deg = 90.0 - 2.0 * a1;
     update_from_angles();
   }
   void setA2deg(double a2) {
     a2_deg = a2;
-    a1_deg = (90.0 - a2) / 2.0;
     update_from_angles();
   }
 
   void setA1ticks(int ticks) {
     a1_deg = (ticks - tick0_arm1) * DEG_PER_TICK * dir1;
-    a2_deg = 90.0 - 2.0 * a1_deg;
     update_from_angles();
   }
 
   void setA2ticks(int ticks) {
     a2_deg = (ticks - tick0_arm2) * DEG_PER_TICK * dir2;
-    a1_deg = (90.0 - a2_deg) / 2.0;
     update_from_angles();
   }
 
-  // ---------------- Setters (geometry positions) ----------------
-  void setYmm(double y) {
+  // -------------------------------------------------------------------
+  //  setXYmm(x, y)
+  //  - Use setXYmm(0, ymm) to position vertically at given Y
+  //  - Use setXYmm(xmm, -1) to move laterally to X while keeping current Y
+  //  - Independent X/Y allowed (non-vertical geometry)
+  // -------------------------------------------------------------------
+  void setXYmm(double x, double y) {
+    // Keep current values if one is negative
+    if (x < 0 && y < 0) return;
+    if (x < 0) x = x_mm;
+    if (y < 0) y = y_mm;
+
+    // --- Pure vertical case (x == 0) ---
+    if (fabs(x) < 1e-6) {
+      y_mm = y;
+      double c = clamp(y_mm / (2.0 * l_mm), -1.0, 1.0);
+      double beta_rad = 2.0 * std::acos(c);
+      a1_deg = rad2deg(beta_rad / 2.0);
+      a2_deg = 90.0 - 2.0 * a1_deg;
+      x_mm = l_mm * std::sin(deg2rad(a1_deg));
+      return;
+    }
+
+    // --- General case: arbitrary X and Y (independent set) ---
+    x_mm = x;
     y_mm = y;
+
+    // Compute a1_deg based on Y geometry (safe even if X arbitrary)
     double c = clamp(y_mm / (2.0 * l_mm), -1.0, 1.0);
     double beta_rad = 2.0 * std::acos(c);
     a1_deg = rad2deg(beta_rad / 2.0);
     a2_deg = 90.0 - 2.0 * a1_deg;
-    x_mm = l_mm * std::sin(deg2rad(a1_deg));
-  }
-
-  void setXmm(double x) {
-    a1_deg = rad2deg(std::asin(clamp(x / l_mm, -1.0, 1.0)));
-    a2_deg = 90.0 - 2.0 * a1_deg;
-    x_mm = x;
-    y_mm = 2.0 * l_mm * std::cos(deg2rad(a1_deg));
   }
 
   // ---------------- Getters ----------------
@@ -314,7 +335,7 @@ public:
 
   // ---------------- Gripper math ----------------
   double getGripperAng() const {
-    // 0° = gripper vertical; positive = tilted with arm2
+    // 0° = gripper vertical; positive = tilts following arm2
     return a1_deg + 90.0 - a2_deg;
   }
 
@@ -327,25 +348,14 @@ public:
     tick0_grip = currentTicks - static_cast<int>(std::round(dirg * getGripperAng() * TICKS_PER_DEG));
   }
 
-  int getTickZeroArm1() const {
-    return tick0_arm1;
-  }
-  int getTickZeroArm2() const {
-    return tick0_arm2;
-  }
-  int getTickZeroGripper() const {
-    return tick0_grip;
-  }
+  // ---------------- Zero / Direction Accessors ----------------
+  int getTickZeroArm1() const { return tick0_arm1; }
+  int getTickZeroArm2() const { return tick0_arm2; }
+  int getTickZeroGripper() const { return tick0_grip; }
 
-  double getDirArm1() const {
-    return dir1;
-  }
-  double getDirArm2() const {
-    return dir2;
-  }
-  double getDirGripper() const {
-    return dirg;
-  }
+  double getDirArm1() const { return dir1; }
+  double getDirArm2() const { return dir2; }
+  double getDirGripper() const { return dirg; }
 
 private:
   // constants
@@ -360,16 +370,11 @@ private:
   double dir1, dir2, dirg;
 
   // helpers
-  static inline double deg2rad(double deg) {
-    return deg * M_PI / 180.0;
-  }
-  static inline double rad2deg(double rad) {
-    return rad * 180.0 / M_PI;
-  }
+  static inline double deg2rad(double deg) { return deg * M_PI / 180.0; }
+  static inline double rad2deg(double rad) { return rad * 180.0 / M_PI; }
 
   static inline double clamp(double v, double lo, double hi) {
-    return (v < lo) ? lo : (v > hi) ? hi
-                                    : v;
+    return (v < lo) ? lo : (v > hi) ? hi : v;
   }
 
   void update_from_angles() {
@@ -487,7 +492,7 @@ bool cmdMoveSmooth(uint8_t id, int goal) {
   int err = goal - posNow;
   const int tol = 4;
   const int maxNudges = 6;
-  const int nudgeDelay = 35;
+  const int nudgeDelay = 85;
 
   int count = 0;
   int prevPos = posNow;
@@ -504,7 +509,7 @@ bool cmdMoveSmooth(uint8_t id, int goal) {
     else if (abs(err) < 8 && count < 3) nudge /= 4;
 
     if (verboseOn)
-      serial_printf("    err=%d nudge=%d\n", err, nudge);
+      serial_printf("    %d) err=%d nudge=%d\n", count, err, nudge);
 
     dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, id, posNow + nudge);
     delay(nudgeDelay);
@@ -513,10 +518,13 @@ bool cmdMoveSmooth(uint8_t id, int goal) {
     err = goal - posNow;
     samePos = (prevPos == posNow);
     prevPos = posNow;
+
+    if (verboseOn)
+      serial_printf("    %d) err=%d nudge=%d\n", count, err, nudge);
     count++;
   }
 
-  delay(45);  // final settle
+  delay(85);  // final settle
   posNow = dxl.getPresentPosition(id);
   err = goal - posNow;
 
@@ -566,7 +574,7 @@ void print_status(uint8_t id) {
       int pos = dxl.getPresentPosition(crrid);
       int curr = dxl.getPresentCurrent(crrid);
       int temp = dxl.readControlTableItem(ControlTableItem::PRESENT_TEMPERATURE, crrid);
-      serial_printf("STATUS id=%2d pos=%5d current=%6dmA temp=%3d\n", crrid, pos, curr, temp);
+      serial_printf("STATUS id=%2d pos=%4d current=%dmA temp=%ddeg\n", crrid, pos, curr, temp);
     }
   }
 
@@ -579,9 +587,9 @@ void print_status(uint8_t id) {
   if (dxl.ping(ID_ARM1) && dxl.ping(ID_ARM2)) {
     kin.setA1ticks(a1_ticks);
     kin.setA2ticks(a2_ticks);
-    serial_printf("STATUS XY X=%.2fmm Y=%.2fmm\n", kin.getXmm(), kin.getYmm());
+    serial_printf("STATUS XY X=%.2fmm Y=%.2fmm A1=%.2fdeg A2=%.2fdeg\n", kin.getXmm(), kin.getYmm(), kin.getA1deg(), kin.getA2deg());
   } else {
-    serial_printf("STATUS XY X=na Y=na");
+    serial_printf("STATUS XY X=na Y=na A1=na A2=na");
   }
 }
 
@@ -1366,7 +1374,11 @@ void loop() {
 
   // -------------- READ STATUS (all servos) --------------
   else if (U.startsWith("READ")) {
-    print_status(0);
+    int id = 0;
+    if (sscanf(line.c_str(), "READ %d", &id) == 1)
+      print_status(id);
+    else if (verboseOn)
+      Serial.println("Usage: READ <id>");
   }
 
   // -------------- INFO (servo parameters) --------------
