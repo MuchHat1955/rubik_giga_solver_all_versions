@@ -296,7 +296,7 @@ public:
     double a2abs_right = M_PI - a2r - a1r;  // 180
     */
 
-    int a1abs_right = rad2deg(a1abs_right_deg);
+    int a1abs_right = rad2deg(a1abs_right_rad);
     int a2abs_left = rad2deg(a2abs_left_rad);
 
     a1r = 90 - a1abs_right;
