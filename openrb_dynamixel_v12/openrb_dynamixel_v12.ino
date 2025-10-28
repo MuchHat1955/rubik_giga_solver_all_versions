@@ -1,6 +1,7 @@
 #include <Dynamixel2Arduino.h>
 #include <math.h>
 #include <cmath>
+#include <initializer_list>
 
 // -------------------------------------------------------------------
 //                   GLOBAL STRUCTS & HELPERS
@@ -17,14 +18,6 @@ struct TestStats {
 // Forward declarations to satisfy the Arduino pre-parser
 void print_status(uint8_t id);
 void cmdInfo(uint8_t id);
-
-// ---------------- Serial printf helper ----------------
-template<typename... Args>
-void serial_printf(const char *fmt, Args... args) {
-  char buf[200];
-  snprintf(buf, sizeof(buf), fmt, args...);
-  Serial.print(buf);
-}
 
 // ---------------- Verbose mode ----------------
 bool verboseOn = true;  // default at boot = ON
@@ -118,6 +111,62 @@ void lOn(uint8_t id) {
 }
 void lOff(uint8_t id) {
   if (dxl.ping(id)) dxl.ledOff(id);
+}
+
+// -------------------------------------------------------------------
+//                      SERIAL PRINTF HELPER
+// -------------------------------------------------------------------
+template<typename... Args>
+void serial_printf(const char *fmt, Args... args) {
+  char buf[200];
+  snprintf(buf, sizeof(buf), fmt, args...);
+  Serial.print(buf);
+}
+
+// -------------------------------------------------------------------
+//    COMMON HELPERS FOR SAME CALL ON MULTIPLE SERVERS
+// -------------------------------------------------------------------
+inline void torqueOnGroup(std::initializer_list<uint8_t> ids) {
+  for (auto id : ids) {
+    if (!dxl.ping(id)) continue;
+    dxl.torqueOn(id);
+  }
+}
+
+inline void adjustPwmGroup(std::initializer_list<uint8_t> ids, int pwmLimit) {
+  for (auto id : ids) {
+    if (!dxl.ping(id)) continue;
+    dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, id, pwmLimit);
+  }
+}
+
+inline void torqueOffGroup(std::initializer_list<uint8_t> ids) {
+  for (auto id : ids) {
+    if (!dxl.ping(id)) continue;
+    dxl.torqueOff(id);
+    delay(30);
+  }
+}
+
+inline void ledOnGroup(std::initializer_list<uint8_t> ids) {
+  for (auto id : ids) {
+    if (!dxl.ping(id)) continue;
+    lOn(id);
+  }
+}
+
+inline void ledOffGroup(std::initializer_list<uint8_t> ids) {
+  for (auto id : ids) {
+    if (!dxl.ping(id)) continue;
+    lOff(id);
+  }
+}
+
+inline bool checkStallGroup(std::initializer_list<uint8_t> ids) {
+  for (auto id : ids) {
+    if (checkStall(id)) return true;
+  }
+  return false;
 }
 
 // -------------------------------------------------------------------
@@ -485,37 +534,60 @@ bool cmdMoveSmooth(uint8_t id, int goal) {
 // -------------------------------------------------------------------
 //                        READXY using kinematics
 // -------------------------------------------------------------------
-void print_status(int id) {
-  for (uint8_t i = 0; i < SERVO_COUNT; i++) {
+void print_status(uint8_t id) {
+
+  //---- basic status for each server ----
+  uint8_t startIndex = 0;
+  uint8_t endIndex = SERVO_COUNT;
+
+  if (id > 0) {
+    // find index of the requested servo (optional: guard if id not found)
+    for (uint8_t i = 0; i < SERVO_COUNT; i++) {
+      if (servo_ids[i] == id) {
+        startIndex = i;
+        endIndex = i + 1;
+        break;
+      }
+    }
+  }
+
+  // ---- if invalid id ----
+  if (id > 0 && startIndex == 0 && servo_ids[0] != id) {
+    serial_printf("STATUS id=%d not found\n", id);
+    return;
+  }
+
+  for (uint8_t i = startIndex; i < endIndex; i++) {
     uint8_t crrid = servo_ids[i];
-    if (id <= 0) crrid = id;
+
     if (!dxl.ping(crrid)) {
-      Serial.println("STATUS id=na pos=na current=na temp=na");
+      serial_printf("STATUS id=na pos=na current=na temp=na");
     } else {
       int pos = dxl.getPresentPosition(crrid);
       int curr = dxl.getPresentCurrent(crrid);
-      int temp = dxl.readControlTableItem(ControlTableItem::PRESENT_TEMPERATURE, id);
+      int temp = dxl.readControlTableItem(ControlTableItem::PRESENT_TEMPERATURE, crrid);
       serial_printf("STATUS id=%2d pos=%5d current=%6dmA temp=%3d\n", crrid, pos, curr, temp);
     }
-    if (id <= 0) break;
   }
+
+  if (id > 0) return;
+
+  // ---- xy metrics ----
   int a1_ticks = dxl.getPresentPosition(ID_ARM1);
   int a2_ticks = dxl.getPresentPosition(ID_ARM2);
 
   if (dxl.ping(ID_ARM1) && dxl.ping(ID_ARM2)) {
     kin.setA1ticks(a1_ticks);
     kin.setA2ticks(a2_ticks);
-    serial_printf("STATUS XY X=%.2fmm Y=%.2mm\n", kin.getXmm(), kin.getYmm());
+    serial_printf("STATUS XY X=%.2fmm Y=%.2fmm\n", kin.getXmm(), kin.getYmm());
   } else {
-    Serial.println("STATUS XY X=na Y=na");
+    serial_printf("STATUS XY X=na Y=na");
   }
 }
 
-void print_pos(int id) {
+void print_pos(uint8_t id) {
   if (!dxl.ping(id)) {
-    double currY = kin.getYmm();
-    double currX = kin.getXmm();
-    serial_printf("READ ERR=%2d ERR", id);
+    serial_printf("READ id=%2d ticks=na\n", id);
     return;
   }
   int pos = dxl.getPresentPosition(id);
@@ -638,16 +710,9 @@ bool cmdMoveYSyncSmooth(int relTicks) {
   if (totalTicks < 3) return true;
 
   // --- Servo config ---
-  dxl.torqueOn(ID_ARM1);
-  dxl.torqueOn(ID_ARM2);
-  dxl.torqueOn(ID_WRIST);
-  lOn(ID_ARM1);
-  lOn(ID_ARM2);
-  lOn(ID_WRIST);
-
-  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, ID_ARM1, 880);
-  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, ID_ARM2, 880);
-  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, ID_WRIST, 880);
+  torqueOnGroup({ ID_ARM1, ID_ARM2, ID_WRIST });
+  ledOnGroup({ ID_ARM1, ID_ARM2, ID_WRIST });
+  adjustPwmGroup({ ID_ARM1, ID_ARM2, ID_WRIST }, 880);
 
   // --- Motion profile ---
   const int stepInterval_ms = 15;
@@ -698,9 +763,7 @@ bool cmdMoveYSyncSmooth(int relTicks) {
     syncNudge(pos1, pos2, posG);
   }
 
-  if (checkStall(ID_ARM1)) return false;
-  if (checkStall(ID_ARM2)) return false;
-  if (checkStall(ID_WRIST)) return false;
+  if (checkStallGroup({ ID_ARM1, ID_ARM2, ID_WRIST })) return false;
 
   // --- Coast phase ---
   for (int i = 0; i < coastTicks; i++) {
@@ -715,9 +778,7 @@ bool cmdMoveYSyncSmooth(int relTicks) {
     syncNudge(pos1, pos2, posG);
   }
 
-  if (checkStall(ID_ARM1)) return false;
-  if (checkStall(ID_ARM2)) return false;
-  if (checkStall(ID_WRIST)) return false;
+  if (checkStallGroup({ ID_ARM1, ID_ARM2, ID_WRIST })) return false;
 
   // --- Deceleration phase ---
   for (int i = decelSteps - 1; i >= 0; i--) {
@@ -771,17 +832,11 @@ bool cmdMoveYSyncSmooth(int relTicks) {
   }
 
   // --- Gentle torque release ---
-  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, ID_ARM1, 400);
-  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, ID_ARM2, 400);
-  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, ID_WRIST, 400);
+  adjustPwmGroup({ ID_ARM1, ID_ARM2, ID_WRIST }, 400);
   delay(30);
-  lOff(ID_ARM1);
-  lOff(ID_ARM2);
-  lOff(ID_WRIST);
+  ledOffGroup({ ID_ARM1, ID_ARM2, ID_WRIST });
 
-  if (checkStall(ID_ARM1)) return false;
-  if (checkStall(ID_ARM2)) return false;
-  if (checkStall(ID_WRIST)) return false;
+  if (checkStallGroup({ ID_ARM1, ID_ARM2, ID_WRIST })) return false;
 
   if (verboseOn) {
     serial_printf("MOVEY SYNC done | A1=%d(%d)  A2=%d(%d)  G=%d(%d)\n",
@@ -808,18 +863,12 @@ bool cmdMoveXSyncSmooth(int delta1, int delta2, int deltaG) {
   int goalG = constrain(startG + deltaG, 0, 4095);
 
   int maxDiff = max(max(abs(delta1), abs(delta2)), abs(deltaG));
+  if (maxDiff < 2) return true;
 
   // --- Basic setup ---
-  dxl.torqueOn(ID_ARM1);
-  dxl.torqueOn(ID_ARM2);
-  dxl.torqueOn(ID_WRIST);
-  lOn(ID_ARM1);
-  lOn(ID_ARM2);
-  lOn(ID_WRIST);
-
-  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, ID_ARM1, 880);
-  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, ID_ARM2, 880);
-  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, ID_WRIST, 880);
+  torqueOnGroup({ ID_ARM1, ID_ARM2, ID_WRIST });
+  ledOnGroup({ ID_ARM1, ID_ARM2, ID_WRIST });
+  adjustPwmGroup({ ID_ARM1, ID_ARM2, ID_WRIST }, 880);
 
   // --- Shared motion profile parameters ---
   const int stepInterval_ms = 15;
@@ -875,9 +924,7 @@ bool cmdMoveXSyncSmooth(int delta1, int delta2, int deltaG) {
     selectiveNudge(goal1, goal2, goalG);
   }
 
-  if (checkStall(ID_ARM1)) return false;
-  if (checkStall(ID_ARM2)) return false;
-  if (checkStall(ID_WRIST)) return false;
+  if (checkStallGroup({ ID_ARM1, ID_ARM2, ID_WRIST })) return false;
 
   // --- Coast phase ---
   for (int i = 0; i < coastTicks; i++) {
@@ -891,9 +938,7 @@ bool cmdMoveXSyncSmooth(int delta1, int delta2, int deltaG) {
     selectiveNudge(goal1, goal2, goalG);
   }
 
-  if (checkStall(ID_ARM1)) return false;
-  if (checkStall(ID_ARM2)) return false;
-  if (checkStall(ID_WRIST)) return false;
+  if (checkStallGroup({ ID_ARM1, ID_ARM2, ID_WRIST })) return false;
 
   // --- Deceleration phase ---
   for (int i = decelSteps - 1; i >= 0; i--) {
@@ -936,21 +981,17 @@ bool cmdMoveXSyncSmooth(int delta1, int delta2, int deltaG) {
   }
 
   // --- Gentle torque release ---
-  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, ID_ARM1, 400);
-  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, ID_ARM2, 400);
-  dxl.writeControlTableItem(ControlTableItem::PWM_LIMIT, ID_WRIST, 400);
+  adjustPwmGroup({ ID_ARM1, ID_ARM2, ID_WRIST }, 400);
   delay(30);
-  lOff(ID_ARM1);
-  lOff(ID_ARM2);
-  lOff(ID_WRIST);
+  ledOffGroup({ ID_ARM1, ID_ARM2, ID_WRIST });
 
-  if (checkStall(ID_ARM1)) return false;
-  if (checkStall(ID_ARM2)) return false;
-  if (checkStall(ID_WRIST)) return false;
+  if (checkStallGroup({ ID_ARM1, ID_ARM2, ID_WRIST })) return false;
 
   if (verboseOn)
     serial_printf("MOVEX SYNC done | A1=%d(%d) A2=%d(%d) G=%d(%d)\n",
                   p1f, e1, p2f, e2, p3f, e3);
+
+  return true;
 }
 
 // -------------------------------------------------------------------
@@ -986,23 +1027,19 @@ bool cmdMoveYmm(double y_mm) {
 
   // Verbose summary
   if (verboseOn) {
-    serial_printf("MOVEY START mm=%.2f  crrY=%.2f ΔY=%.2f\n", y_mm, currY, deltaY);
+    serial_printf("MOVEY START mm=%.2f  currY=%.2f ΔY=%.2f\n", y_mm, currY, deltaY);
     serial_printf("Δticks A1=%d  A2=%d  G=%d\n", deltaA1, deltaA2, deltaG);
   }
 
   // Align to vertical first (ensure arms in sync)
   cmdMoveXSyncSmooth(0, 0, 0);
 
-  if (checkStall(ID_ARM1)) return false;
-  if (checkStall(ID_ARM2)) return false;
-  if (checkStall(ID_WRIST)) return false;
+  if (checkStallGroup({ ID_ARM1, ID_ARM2, ID_WRIST })) return false;
 
   // Perform vertical synchronized move
   cmdMoveYSyncSmooth(deltaA1);
 
-  if (checkStall(ID_ARM1)) return false;
-  if (checkStall(ID_ARM2)) return false;
-  if (checkStall(ID_WRIST)) return false;
+  if (checkStallGroup({ ID_ARM1, ID_ARM2, ID_WRIST })) return false;
 
   return true;
 }
@@ -1037,16 +1074,14 @@ bool cmdMoveXmm(double x_mm) {
   int deltaG = goalG - currG;
 
   if (verboseOn) {
-    serial_printf("MOVEX START mm=%.2f  crrX=%.2f targetX=%.2f\n", x_mm, currX, targetX);
+    serial_printf("MOVEX START mm=%.2f  currX=%.2f targetX=%.2f\n", x_mm, currX, targetX);
     serial_printf("Δticks A1=%d  A2=%d  G=%d\n", deltaA1, deltaA2, deltaG);
   }
 
   // Execute the small lateral coordinated motion
   cmdMoveXSyncSmooth(deltaA1, deltaA2, deltaG);
 
-  if (checkStall(ID_ARM1)) return false;
-  if (checkStall(ID_ARM2)) return false;
-  if (checkStall(ID_WRIST)) return false;
+  if (checkStallGroup({ ID_ARM1, ID_ARM2, ID_WRIST })) return false;
 
   return true;
 }
@@ -1189,7 +1224,8 @@ void loop() {
 
   // -------------- SET LIMITS --------------
   else if (U.startsWith("SETLIMIT")) {
-    int id, minL, maxL;
+    uint8_t id;
+    int minL, maxL;
     if (sscanf(line.c_str(), "SETLIMIT %d %d %d", &id, &minL, &maxL) == 3)
       cmdSetLimit(id, minL, maxL);
     else
@@ -1206,7 +1242,8 @@ void loop() {
 
   // -------------- SET ZERO (with optional direction) --------------
   else if (U.startsWith("SETZERO")) {
-    int id = 0, ticks = 0;
+    int id = 0;
+    int ticks = 0;
     int dir_i = 999;  // sentinel if not provided
     char dir_s[8] = { 0 };
 
