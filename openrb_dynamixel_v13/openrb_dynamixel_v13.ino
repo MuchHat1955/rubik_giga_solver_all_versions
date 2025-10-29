@@ -5,7 +5,7 @@
 #include <initializer_list>
 #include <algorithm>
 
-class ServoConfig; 
+class ServoConfig;
 
 // -------------------------------------------------------------------
 //                   GLOBAL STRUCTS & HELPERS
@@ -103,7 +103,7 @@ private:
 #define ID_BASE 16
 #define ID_XM 17
 
-// TODO below wi
+// TODO update below once the HW is working
 ServoConfig arm1("arm1", ID_ARM1, 2048, 1.0, 0, 4096);
 ServoConfig arm2("arm2", ID_ARM2, 2048, 1.0, 0, 4096);
 ServoConfig wrist("wrist", ID_WRIST, 2048, 1.0, 0, 4096);
@@ -145,9 +145,9 @@ inline ServoConfig *find_servo(const char *name) {
 
 // Convert ticks to degrees using servo config
 inline double ticks2deg(uint8_t id, int ticks) {
-  ServoConfig *s = find_servo(id);
-  if (!s) return 0.0;
-  return (ticks - s->zero_ticks()) * (360.0 / 4096.0) * s->dir();
+  if (auto *s = find_servo(id))
+    return (ticks - s->zero_ticks()) * (360.0 / 4096.0) * s->dir();
+  return 0.0;
 }
 
 // Convert degrees to ticks using servo config
@@ -363,7 +363,10 @@ public:
 
     // step 2: compute sin(p)
     double cos_q = cos(q);
-    double sin_p = (cos_q != 0.0) ? (B / (2.0 * cos_q)) : 0.0;
+    double sin_p = 0.0;
+    if (fabs(cos_q) > 1e-9) {
+      sin_p = clamp(B / (2.0 * cos_q), -1.0, 1.0);
+    }
     if (sin_p > 1.0) sin_p = 1.0;
     if (sin_p < -1.0) sin_p = -1.0;
 
@@ -447,7 +450,6 @@ private:
     double a2r = deg2rad(a2_deg);           // 0
     double a1abs_right = M_PI / 2.0 - a1r;  // 90
     double a2abs_left = a1r + a2r;          // 0
-    double a2abs_right = M_PI - a2r - a1r;  // 180
 
     // compute using absolute, 0 is vertical, 90 is horizontal towards right
     y_mm = arm_length_mm * sin(a1abs_right) + arm_length_mm * sin(a2abs_left);  // sin 0 + sin 0
@@ -641,21 +643,20 @@ void print_status(uint8_t id) {
 
   for (uint8_t i = startIndex; i < endIndex && i < SERVO_COUNT; i++) {
     ServoConfig *s = all_servos[i];
-    uint8_t id = s->get_id();
+    uint8_t sid = s->get_id();
 
     if (!dxl.ping(id)) {
-      serial_printf("STATUS %s (id=%u): pos=na current=na temp=na\n", s->get_key(), id);
+      serial_printf("STATUS %s (id=%u): pos=na current=na temp=na\n", s->get_key(), sid);
     } else {
-      int pos = dxl.getPresentPosition(id);
-      int curr = dxl.getPresentCurrent(id);
-      int temp = dxl.readControlTableItem(ControlTableItem::PRESENT_TEMPERATURE, id);
+      int pos = dxl.getPresentPosition(sid);
+      int curr = dxl.getPresentCurrent(sid);
+      int temp = dxl.readControlTableItem(ControlTableItem::PRESENT_TEMPERATURE, sid);
       double deg = ticks2deg(id, pos);
 
       serial_printf("STATUS %s (id=%2u): pos=%4d deg=%.1f current=%dmA temp=%d°C\n",
-                    s->get_key(), id, pos, deg, curr, temp);
+                    s->get_key(), sid, pos, deg, curr, temp);
     }
   }
-
   if (id > 0) return;
 
   // ---- xy metrics ----
@@ -1317,7 +1318,7 @@ void loop() {
   else if (U.startsWith("MOVEDEG ")) {
     int angle = 0;
     int id = 0;
-    if (sscanf(line.c_str(), "MOVEDEG %d %d", &id, angle) == 2) {
+    if (sscanf(line.c_str(), "MOVEDEG %d %d", &id, &angle) == 2) {
       int goal = deg2ticks(id, angle);
       if (!cmdMoveSmooth((uint8_t)id, goal)) Serial.println("MOVE ERR");
       else Serial.println("MOVE OK");
