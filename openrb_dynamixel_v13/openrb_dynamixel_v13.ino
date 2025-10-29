@@ -1,11 +1,23 @@
+#include <Arduino.h>
 #include <Dynamixel2Arduino.h>
 #include <math.h>
 #include <cmath>
 #include <initializer_list>
+#include <algorithm>
+
+class ServoConfig; 
 
 // -------------------------------------------------------------------
 //                   GLOBAL STRUCTS & HELPERS
 // -------------------------------------------------------------------
+
+// constants
+static constexpr double TICKS_PER_DEG = 4096.0 / 360.0;
+static constexpr double DEG_PER_TICK = 360.0 / 4096.0;
+
+static inline double clamp(double v, double lo, double hi) {
+  return (v < lo) ? lo : (v > hi ? hi : v);
+}
 
 // ---------------- Test stats ----------------
 struct TestStats {
@@ -31,7 +43,58 @@ bool verboseOn = true;  // default at boot = ON
 #define PROTOCOL 2.0
 Dynamixel2Arduino dxl(DXL_SERIAL, DXL_DIR_PIN);
 
-// Servo IDs (customize for your robot)
+// ----------------------------------------------------------
+//   ServoConfig class: one instance per servo
+// ----------------------------------------------------------
+
+float arm_length_mm = 60;
+
+/* EXAMPLES OF USAGE
+  int id = ID_ARM1;
+  const char *name = id2name(12);
+  double deg = ticks2deg(11, 2300);
+  int ticks = deg2ticks(11, 45.0);
+*/
+class ServoConfig {
+public:
+  ServoConfig(const char *key,
+              uint8_t id,
+              uint16_t zero_ticks,
+              double dir,
+              uint16_t limit_min,
+              uint16_t limit_max)
+    : key_(key),
+      id_(id),
+      zero_ticks_(zero_ticks),
+      dir_(dir),
+      limit_min_(limit_min),
+      limit_max_(limit_max) {}
+
+  uint8_t get_id() const {
+    return id_;
+  }
+  const char *get_key() const {
+    return key_;
+  }
+  uint16_t zero_ticks() const {
+    return zero_ticks_;
+  }
+  double dir() const {
+    return dir_;
+  }
+
+private:
+  const char *key_;
+  uint8_t id_;
+  uint16_t zero_ticks_;
+  double dir_;
+  uint16_t limit_min_;
+  uint16_t limit_max_;
+};
+
+// ----------------------------------------------------------
+//   Global servo instances
+// ----------------------------------------------------------
 #define ID_ARM1 11
 #define ID_ARM2 12
 #define ID_WRIST 13
@@ -39,8 +102,71 @@ Dynamixel2Arduino dxl(DXL_SERIAL, DXL_DIR_PIN);
 #define ID_GRIP2 15
 #define ID_BASE 16
 #define ID_XM 17
-uint8_t servo_ids[] = { ID_ARM1, ID_ARM2, ID_WRIST, ID_GRIP1, ID_GRIP2, ID_BASE, ID_XM };
-const uint8_t SERVO_COUNT = sizeof(servo_ids) / sizeof(servo_ids[0]);
+
+// TODO below wi
+ServoConfig arm1("arm1", ID_ARM1, 2048, 1.0, 0, 4096);
+ServoConfig arm2("arm2", ID_ARM2, 2048, 1.0, 0, 4096);
+ServoConfig wrist("wrist", ID_WRIST, 2048, 1.0, 0, 4096);
+ServoConfig grip1("grip1", ID_GRIP1, 2048, 1.0, 0, 4096);
+ServoConfig grip2("grip2", ID_GRIP2, 2048, 1.0, 0, 4096);
+ServoConfig base("base", ID_BASE, 2048, 1.0, 0, 4096);
+ServoConfig xm("xm", ID_XM, 2048, 1.0, 0, 4096);
+
+ServoConfig *all_servos[] = {
+  &arm1, &arm2, &wrist, &grip1, &grip2, &base, &xm
+};
+constexpr uint8_t SERVO_COUNT = sizeof(all_servos) / sizeof(all_servos[0]);
+
+// ----------------------------------------------------------
+//   Global helper functions (no class prefix)
+// ----------------------------------------------------------
+inline double rad2deg(double rad) {
+  return rad * 180.0 / M_PI;
+}
+inline double deg2rad(double deg) {
+  return deg * M_PI / 180.0;
+}
+
+// Find servo object by ID
+inline ServoConfig *find_servo(uint8_t id) {
+  for (uint8_t i = 0; i < SERVO_COUNT; i++) {
+    if (all_servos[i]->get_id() == id) return all_servos[i];
+  }
+  return nullptr;
+}
+
+// Find servo object by name
+inline ServoConfig *find_servo(const char *name) {
+  for (uint8_t i = 0; i < SERVO_COUNT; i++) {
+    if (strcmp(all_servos[i]->get_key(), name) == 0) return all_servos[i];
+  }
+  return nullptr;
+}
+
+// Convert ticks to degrees using servo config
+inline double ticks2deg(uint8_t id, int ticks) {
+  ServoConfig *s = find_servo(id);
+  if (!s) return 0.0;
+  return (ticks - s->zero_ticks()) * (360.0 / 4096.0) * s->dir();
+}
+
+// Convert degrees to ticks using servo config
+inline int deg2ticks(uint8_t id, double deg) {
+  ServoConfig *s = find_servo(id);
+  if (!s) return 0;
+  return s->zero_ticks() + (int)(deg / (360.0 / 4096.0) * s->dir());
+}
+
+// Simple name <-> id lookups (no prefix)
+inline uint8_t name2id(const char *name) {
+  ServoConfig *s = find_servo(name);
+  return s ? s->get_id() : 0;
+}
+
+inline const char *id2name(uint8_t id) {
+  ServoConfig *s = find_servo(id);
+  return s ? s->get_key() : "";
+}
 
 // -------------------------------------------------------------------
 //                     GLOBAL CONSTANTS
@@ -77,7 +203,6 @@ const uint32_t SMALL_MOVE_TIMEOUT_MS = 600;
 const uint32_t LARGE_MOVE_TIMEOUT_MS = 3000;
 
 const float TICKS_PER_REV = 4096.0f;
-const float DEG_PER_TICK = 360.0f / TICKS_PER_REV;
 const float PV_UNIT_RPM = 0.229f;
 const float TIME_SAFETY_FACTOR = 1.20f;
 const uint32_t MIN_WAIT_MS = 120;
@@ -93,15 +218,6 @@ const int RAND_INCS_N = sizeof(RAND_INCS) / sizeof(RAND_INCS[0]);
 // -------------------------------------------------------------------
 //                      CALIBRATION FLAGS
 // -------------------------------------------------------------------
-
-float arm_length_mm = 0;
-int tick_zero_arm1 = -1;
-int tick_zero_arm2 = -1;
-int tick_zero_gripper = -1;
-bool has_arm_len = false;
-bool has_zero_arm1 = false;
-bool has_zero_arm2 = false;
-bool has_zero_gripper = false;
 
 // -------------------------------------------------------------------
 //                      LED HELPERS
@@ -207,41 +323,11 @@ public:
   //   • For a1=0°, a2=0° → endpoint X=-l, Y=+l
   //   • X grows right, Y grows upward.
   // -------------------------------------------------------------------
-  VerticalKinematics(double arm_len_mm = 60.0)
-    : l_mm(arm_len_mm),
-      a1_deg(0), a2_deg(0),
-      x_mm(-arm_len_mm), y_mm(arm_len_mm),
-      tick0_arm1(2048), tick0_arm2(2048), tick0_grip(2048),
-      dir1(+1.0), dir2(+1.0), dirg(+1.0) {}
-
-  // ---------------- Configuration ----------------
-  void setArmLength(double mm) {
-    l_mm = mm;
-    update_from_angles();
-  }
-
-  void setTickZeroArm1(int t0) {
-    tick0_arm1 = t0;
-  }
-  void setTickZeroArm2(int t0) {
-    tick0_arm2 = t0;
-  }
-  void setTickZeroGripper(int t0) {
-    tick0_grip = t0;
-  }
-
-  void setDirArm1(double d) {
-    dir1 = (d >= 0) ? +1.0 : -1.0;
-  }
-  void setDirArm2(double d) {
-    dir2 = (d >= 0) ? +1.0 : -1.0;
-  }
-  void setDirGripper(double d) {
-    dirg = (d >= 0) ? +1.0 : -1.0;
-  }
+  VerticalKinematics() {}
 
   // ---------------- Independent Setters ----------------
-  void setA1deg(double a1) {
+  void
+  setA1deg(double a1) {
     a1_deg = a1;
     update_from_angles();
   }
@@ -249,13 +335,12 @@ public:
     a2_deg = a2;
     update_from_angles();
   }
-
   void setA1ticks(int ticks) {
-    a1_deg = (ticks - tick0_arm1) * DEG_PER_TICK * dir1;
+    a1_deg = ticks2deg(ID_ARM1, ticks);
     update_from_angles();
   }
   void setA2ticks(int ticks) {
-    a2_deg = (ticks - tick0_arm2) * DEG_PER_TICK * dir2;
+    a2_deg = ticks2deg(ID_ARM2, ticks);
     update_from_angles();
   }
 
@@ -266,12 +351,12 @@ public:
   //   • full inverse kinematics (updates both angles)
   // -------------------------------------------------------------------
   // ----------------------------------------------------------
-  //   Solve for a1r, a2r given x_mm, y_mm, and link length l_mm
+  //   Solve for a1r, a2r given x_mm, y_mm, and link length arm_length_mm
   // ----------------------------------------------------------
   void solve_angles_from_xy(double x_mm, double y_mm,
                             double &a1r, double &a2r) {
-    double A = x_mm / l_mm;
-    double B = y_mm / l_mm;
+    double A = x_mm / arm_length_mm;
+    double B = y_mm / arm_length_mm;
 
     // step 1: compute q
     double q = atan2(-A, B);
@@ -319,9 +404,6 @@ public:
   }
 
   // ---------------- Getters ----------------
-  double getArmLength() const {
-    return l_mm;
-  }
   double getA1deg() const {
     return a1_deg;
   }  // absolute wrt vertical
@@ -330,10 +412,10 @@ public:
   }  // relative (servo sees this)
 
   int getA1ticks() const {
-    return (int)round(tick0_arm1 + dir1 * a1_deg * TICKS_PER_DEG);
+    return deg2ticks(ID_ARM1, a1_deg);
   }
   int getA2ticks() const {
-    return (int)round(tick0_arm2 + dir2 * a2_deg * TICKS_PER_DEG);
+    return deg2ticks(ID_ARM2, a2_deg);
   }
 
   double getXmm() const {
@@ -349,55 +431,14 @@ public:
     return a1_deg + a2_deg - 90.0;
   }
   int getGripperTicks() const {
-    return (int)round(tick0_grip + dirg * getGripperAng() * TICKS_PER_DEG);
-  }
-  void setZeroGripper(int currentTicks) {
-    tick0_grip = currentTicks - (int)round(dirg * getGripperAng() * TICKS_PER_DEG);
-  }
-
-  // ---------------- Accessors ----------------
-  int getTickZeroArm1() const {
-    return tick0_arm1;
-  }
-  int getTickZeroArm2() const {
-    return tick0_arm2;
-  }
-  int getTickZeroGripper() const {
-    return tick0_grip;
-  }
-
-  double getDirArm1() const {
-    return dir1;
-  }
-  double getDirArm2() const {
-    return dir2;
-  }
-  double getDirGripper() const {
-    return dirg;
+    return deg2ticks(ID_WRIST, getGripperAng());
   }
 
 private:
-  // constants
-  static constexpr double TICKS_PER_DEG = 4096.0 / 360.0;
-  static constexpr double DEG_PER_TICK = 360.0 / 4096.0;
-
   // state
-  double l_mm;
-  double a1_deg, a2_deg;
+  double a1_deg = 0.0;
+  double a2_deg = 0.0;
   double x_mm, y_mm;
-  int tick0_arm1, tick0_arm2, tick0_grip;
-  double dir1, dir2, dirg;
-
-  // helpers
-  static inline double deg2rad(double d) {
-    return d * M_PI / 180.0;
-  }
-  static inline double rad2deg(double r) {
-    return r * 180.0 / M_PI;
-  }
-  static inline double clamp(double v, double lo, double hi) {
-    return (v < lo) ? lo : (v > hi ? hi : v);
-  }
 
   // ---------------- Forward kinematics ----------------
   void update_from_angles() {
@@ -409,13 +450,12 @@ private:
     double a2abs_right = M_PI - a2r - a1r;  // 180
 
     // compute using absolute, 0 is vertical, 90 is horizontal towards right
-    y_mm = l_mm * sin(a1abs_right) + l_mm * sin(a2abs_left);  // sin 0 + sin 0
-    x_mm = l_mm * cos(a1abs_right) - l_mm * cos(a2abs_left);  // cos 90 - cos 0
+    y_mm = arm_length_mm * sin(a1abs_right) + arm_length_mm * sin(a2abs_left);  // sin 0 + sin 0
+    x_mm = arm_length_mm * cos(a1abs_right) - arm_length_mm * cos(a2abs_left);  // cos 90 - cos 0
   }
 };
 
-
-VerticalKinematics kin(60.0);
+VerticalKinematics kin;
 
 // -------------------------------------------------------------------
 //                   TEST STATS HELPERS
@@ -581,32 +621,38 @@ void print_status(uint8_t id) {
   uint8_t endIndex = SERVO_COUNT;
 
   if (id > 0) {
-    // find index of the requested servo (optional: guard if id not found)
-    for (uint8_t i = 0; i < SERVO_COUNT; i++) {
-      if (servo_ids[i] == id) {
-        startIndex = i;
-        endIndex = i + 1;
-        break;
+    // find servo object by ID
+    ServoConfig *s = find_servo(id);
+
+    if (s) {
+      // find its index in the all_servos[] array
+      for (uint8_t i = 0; i < SERVO_COUNT; i++) {
+        if (all_servos[i] == s) {
+          startIndex = i;
+          endIndex = i + 1;
+          break;
+        }
       }
+    } else {
+      serial_printf("STATUS id=%d not found\n", id);
+      return;
     }
   }
 
-  // ---- if invalid id ----
-  if (id > 0 && startIndex == 0 && servo_ids[0] != id) {
-    serial_printf("STATUS id=%d not found\n", id);
-    return;
-  }
+  for (uint8_t i = startIndex; i < endIndex && i < SERVO_COUNT; i++) {
+    ServoConfig *s = all_servos[i];
+    uint8_t id = s->get_id();
 
-  for (uint8_t i = startIndex; i < endIndex; i++) {
-    uint8_t crrid = servo_ids[i];
-
-    if (!dxl.ping(crrid)) {
-      serial_printf("STATUS id=na pos=na current=na temp=na");
+    if (!dxl.ping(id)) {
+      serial_printf("STATUS %s (id=%u): pos=na current=na temp=na\n", s->get_key(), id);
     } else {
-      int pos = dxl.getPresentPosition(crrid);
-      int curr = dxl.getPresentCurrent(crrid);
-      int temp = dxl.readControlTableItem(ControlTableItem::PRESENT_TEMPERATURE, crrid);
-      serial_printf("STATUS id=%2d pos=%4d current=%dmA temp=%ddeg\n", crrid, pos, curr, temp);
+      int pos = dxl.getPresentPosition(id);
+      int curr = dxl.getPresentCurrent(id);
+      int temp = dxl.readControlTableItem(ControlTableItem::PRESENT_TEMPERATURE, id);
+      double deg = ticks2deg(id, pos);
+
+      serial_printf("STATUS %s (id=%2u): pos=%4d deg=%.1f current=%dmA temp=%d°C\n",
+                    s->get_key(), id, pos, deg, curr, temp);
     }
   }
 
@@ -716,10 +762,7 @@ void cmdTestMove(uint8_t id, int count = TEST_DEFAULT_COUNT) {
 // -------------------------------------------------------------------
 void cmdTestMoveX(int rel_ticks) {
   Serial.println("=== TESTMOVEX ===");
-  if (!has_arm_len || !has_zero_arm1 || !has_zero_arm2) {
-    Serial.println("ERR: not calibrated");
-    return;
-  }
+
   int start1 = dxl.getPresentPosition(ID_ARM1);
   int start2 = dxl.getPresentPosition(ID_ARM2);
   cmdMoveXSyncSmooth(rel_ticks, 0, 0);  // TODO add test angles for arm2 and w
@@ -1038,14 +1081,10 @@ bool cmdMoveXSyncSmooth(int delta1, int delta2, int deltaG) {
 // MOVE TO ABSOLUTE Y (mm) USING KINEMATICS + SMOOTH SYNC MOVE
 // -------------------------------------------------------------------
 bool cmdMoveYmm(double y_mm) {
-  if (!has_arm_len || !has_zero_arm1 || !has_zero_arm2 || !has_zero_gripper) {
-    Serial.println("ERR: Missing calibration (SETLEN / SETZERO)");
-    return false;
-  }
 
   // Clamp Y to mechanical limits
   if (y_mm < 0) y_mm = 0;
-  if (y_mm > 2 * kin.getArmLength()) y_mm = 2 * kin.getArmLength();
+  if (y_mm > 2 * arm_length_mm) y_mm = 2 * arm_length_mm;
 
   // Read current position
   int currA1 = dxl.getPresentPosition(ID_ARM1);
@@ -1088,10 +1127,6 @@ bool cmdMoveYmm(double y_mm) {
 // MOVE TO RELATIVE X (mm OFFSET FROM VERTICAL) USING KINEMATICS
 // -------------------------------------------------------------------
 bool cmdMoveXmm(double x_mm) {
-  if (!has_arm_len || !has_zero_arm1 || !has_zero_arm2 || !has_zero_gripper) {
-    Serial.println("ERR: Missing calibration (SETLEN / SETZERO)");
-    return false;
-  }
 
   // Read current geometry from servos
   int currA1 = dxl.getPresentPosition(ID_ARM1);
@@ -1129,10 +1164,6 @@ bool cmdMoveXmm(double x_mm) {
 // TESTMOVEY <y1_mm> <y2_mm> – geometric Y-axis test (kinematics-based)
 // -------------------------------------------------------------------
 void cmdTestMoveY(float yStart_mm, float yEnd_mm, int steps = 10) {
-  if (!has_arm_len || !has_zero_arm1 || !has_zero_arm2) {
-    Serial.println("ERR: Calibration missing (SETLEN, SETZERO 11, SETZERO 12)");
-    return;
-  }
 
   Serial.println("=== TESTMOVEY (vertical geometry) ===");
   serial_printf("Arm length=%.1fmm\n", arm_length_mm);
@@ -1208,22 +1239,20 @@ void setup() {
   dxl.setPortProtocolVersion(PROTOCOL);
 
   Serial.println("---- OpenRB Arm Motion Controller v13 (Adaptive + Verbose + GripperComp) ----");
-  for (uint8_t i = 0; i < SERVO_COUNT; i++) {
-    uint8_t id = servo_ids[i];
+  for (auto *s : all_servos) {
+    uint8_t id = s->get_id();
     if (dxl.ping(id)) {
       dxl.torqueOff(id);
       dxl.setOperatingMode(id, OP_POSITION);
       dxl.torqueOn(id);
-      serial_printf("Servo %d OK\n", id);
+      serial_printf("Servo %s (id=%u) OK\n", s->get_key(), id);
     }
   }
 
-  Serial.println("\nDynamixel xl430 controller v10");
+  Serial.println("\nDynamixel xl430 controller v13");
   Serial.println("Supported Commands (VERBOSE ON):");
   Serial.println("  VERBOSEON / VERBOSEOFF         - toggle console verbosity");
   Serial.println("  SETLIMIT <id> <min> <max>      - set soft position limits");
-  Serial.println("  SETLEN  <mm>                   - set arm length");
-  Serial.println("  SETZERO <id> <ticks> [±1]      - set zero tick and dir");
   Serial.println("  MOVE  <id> <absgoal|±rel>      - adaptive move one servo");
   Serial.println("  MOVEDEG  <id> <deg>            - adaptive move one servo");
   Serial.println("  MOVEY <float mm>               - vertical (mirror arm1/arm2)");
@@ -1262,79 +1291,6 @@ void loop() {
     Serial.println("Verbose OFF");
   }
 
-  // -------------- SET LIMITS --------------
-  else if (U.startsWith("SETLIMIT")) {
-    uint8_t id;
-    int minL, maxL;
-    if (sscanf(line.c_str(), "SETLIMIT %d %d %d", &id, &minL, &maxL) == 3)
-      cmdSetLimit(id, minL, maxL);
-    else
-      Serial.println("Usage: SETLIMIT <id> <min> <max>");
-  }
-
-  // -------------- SET ARM LENGTH --------------
-  else if (U.startsWith("SETLEN")) {
-    arm_length_mm = line.substring(6).toFloat();
-    has_arm_len = arm_length_mm > 0;
-    kin.setArmLength(arm_length_mm);
-    serial_printf("Arm length set to %.1fmm\n", arm_length_mm);
-  }
-
-  // -------------- SET ZERO (with optional direction) --------------
-  else if (U.startsWith("SETZERO")) {
-    int id = 0;
-    int ticks = 0;
-    int dir_i = 999;  // sentinel if not provided
-    char dir_s[8] = { 0 };
-
-    // Accept any of:
-    //   SETZERO <id> <ticks>
-    //   SETZERO <id> <ticks> <dir_int>  (e.g., -1 or +1)
-    //   SETZERO <id> <ticks> <dir_str>  (e.g., "-1" or "+1")
-    bool ok = false;
-    if (sscanf(line.c_str(), "SETZERO %d %d %d", &id, &ticks, &dir_i) == 3) {
-      ok = true;
-    } else if (sscanf(line.c_str(), "SETZERO %d %d %7s", &id, &ticks, dir_s) == 3) {
-      dir_i = (dir_s[0] == '-') ? -1 : +1;
-      ok = true;
-    } else if (sscanf(line.c_str(), "SETZERO %d %d", &id, &ticks) == 2) {
-      dir_i = +1;  // default if direction omitted
-      ok = true;
-    }
-
-    if (!ok) {
-      Serial.println("Usage: SETZERO <id> <ticks> [±1]");
-    } else {
-      double dir = (dir_i < 0) ? -1.0 : +1.0;
-
-      if (id == ID_ARM1) {  // ---- Arm1 zero ----
-        tick_zero_arm1 = ticks;
-        has_zero_arm1 = true;
-        kin.setTickZeroArm1(tick_zero_arm1);
-        kin.setDirArm1(dir);
-        serial_printf("Zero tick for %d = %d  dir=%d\n", id, ticks, (dir_i < 0 ? -1 : +1));
-
-      } else if (id == ID_ARM2) {  // ---- Arm2 zero ----
-        tick_zero_arm2 = ticks;
-        has_zero_arm2 = true;
-        kin.setTickZeroArm2(tick_zero_arm2);
-        kin.setDirArm2(dir);
-        serial_printf("Zero tick for %d = %d  dir=%d\n", id, ticks, (dir_i < 0 ? -1 : +1));
-
-      } else if (id == ID_WRIST) {  // ---- Gripper / wrist zero ----
-        tick_zero_gripper = ticks;
-        has_zero_gripper = true;
-        kin.setTickZeroGripper(tick_zero_gripper);
-        kin.setDirGripper(dir);
-        serial_printf("Zero tick for %d = %d  dir=%d\n", id, ticks, (dir_i < 0 ? -1 : +1));
-
-      } else {
-        serial_printf("SETZERO: unknown id %d (use %d/%d/%d)\n",
-                      id, ID_ARM1, ID_ARM2, ID_WRIST);
-      }
-    }
-  }
-
   // -------------- MOVE SINGLE SERVO --------------
   else if (U.startsWith("MOVE ")) {
     int id = 0;
@@ -1360,12 +1316,9 @@ void loop() {
   // -------------- MOVE SINGLE SERVO BY ANGLE
   else if (U.startsWith("MOVEDEG ")) {
     int angle = 0;
+    int id = 0;
     if (sscanf(line.c_str(), "MOVEDEG %d %d", &id, angle) == 2) {
-      int goal = 0;
-      if (id == ID_ARM1) goal = (int)round(kin.getTickZeroArm1() + kin.getDirArm1() * (double)angle * TICKS_PER_DEG);
-      if (id == ID_ARM2) goal = (int)round(kin.getTickZeroArm2() + kin.getDirArm2() * (double)angle * TICKS_PER_DEG);
-      if (id == ID_WRIST) goal = (int)round(kin.getTickZeroWrist() + kin.getDirWrist() * (double)angle * TICKS_PER_DEG);
-      else val = (int)round(2048 + (double)angle * TICKS_PER_DEG);
+      int goal = deg2ticks(id, angle);
       if (!cmdMoveSmooth((uint8_t)id, goal)) Serial.println("MOVE ERR");
       else Serial.println("MOVE OK");
       print_status(id);
@@ -1378,11 +1331,12 @@ void loop() {
   else if (U.startsWith("MOVECENTER")) {
     bool hasError = false;
     for (int i = 0; i < SERVO_COUNT; i++) {
-      if (!cmdMoveSmooth((uint8_t)servo_ids[i], 2048)) hasError = true;
+      auto *s = all_servos[i];
+      if (!cmdMoveSmooth(s->get_id(), 2048)) {
+        serial_printf("Error moving %s (id=%u)\n", s->get_key(), s->get_id());
+        hasError = true;
+      }
     }
-    print_status(0);
-    if (hasError) Serial.println("MOVECENTER ERR");
-    else Serial.println("MOVECENTER OK");
   }
 
   // -------------- MOVE Y AXIS --------------
