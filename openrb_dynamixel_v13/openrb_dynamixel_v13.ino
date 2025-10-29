@@ -645,13 +645,13 @@ void print_status(uint8_t id) {
     ServoConfig *s = all_servos[i];
     uint8_t sid = s->get_id();
 
-    if (!dxl.ping(id)) {
+    if (!dxl.ping(sid)) {
       serial_printf("STATUS %s (id=%u): pos=na current=na temp=na\n", s->get_key(), sid);
     } else {
       int pos = dxl.getPresentPosition(sid);
       int curr = dxl.getPresentCurrent(sid);
       int temp = dxl.readControlTableItem(ControlTableItem::PRESENT_TEMPERATURE, sid);
-      double deg = ticks2deg(id, pos);
+      double deg = ticks2deg(sid, pos);
 
       serial_printf("STATUS %s (id=%2u): pos=%4d deg=%.1f current=%dmA temp=%d°C\n",
                     s->get_key(), sid, pos, deg, curr, temp);
