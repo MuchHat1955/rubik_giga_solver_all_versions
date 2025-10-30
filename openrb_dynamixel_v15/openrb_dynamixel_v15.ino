@@ -1327,7 +1327,7 @@ void setup() {
   dxl.begin(57600);
   dxl.setPortProtocolVersion(PROTOCOL);
 
-  Serial.println("---- OpenRB Arm Motion Controller v13 (Adaptive + Verbose + GripperComp) ----");
+  Serial.println("---- OpenRB Arm Motion Controller v25 (Adaptive + Verbose + GripperComp) ----");
   for (auto *s : all_servos) {
     uint8_t id = s->get_id();
     if (dxl.ping(id)) {
