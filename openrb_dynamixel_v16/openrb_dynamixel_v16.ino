@@ -1289,7 +1289,8 @@ static inline double constrainf(double val, double min_val, double max_val) {
 
 // -------------------------------------------------------------------
 
-bool cmdMoveSmoothXYG(double goal_xmm, double goal_ymm, double goal_gdeg,
+bool cmdMoveSmoothXYG(double goal_xmm, double goal_ymm,
+                      bool keepXconstant,
                       double tol_xmm, double tol_ymm, double tol_gdeg,
                       double oneTickMm, double oneTickDeg,
                       bool nudge_x_enabled = true,
@@ -1298,16 +1299,24 @@ bool cmdMoveSmoothXYG(double goal_xmm, double goal_ymm, double goal_gdeg,
   const double zero_tol_mm = oneTickMm / 2.0;
   const double zero_tol_deg = oneTickDeg / 2.0;
 
+  // compute the g goal
+  kin.setXYmm(goal_xmm, goal_ymm);
+  double goal_gdeg = kin.getGdeg_aligned();
+
   kin.readPresentPositions();
   double start_xmm = kin.getXmm();
   double start_ymm = kin.getYmm();
-  double start_gdeg = kin.getGdeg();
+  double start_gdeg = kin.getGdeg();  // not used
 
   double total_dx = goal_xmm - start_xmm;
   double total_dy = goal_ymm - start_ymm;
-  double total_dg = goal_gdeg - start_gdeg;
+  double total_dg = goal_gdeg - start_gdeg;  // not used
 
-  double dist_mm = sqrt(total_dx * total_dx + total_dy * total_dy);
+  if (keepXconstant) total_dx = 0;
+  else total_dy = 0;
+
+  double dist_mm = total_dy;
+  if (!keepXconstant) dist_mm = total_dx;
   if (dist_mm < (3 * oneTickMm) && fabs(total_dg) < (3 * oneTickDeg)) return true;
 
   const int stepInterval_ms = 15;
@@ -1326,7 +1335,7 @@ bool cmdMoveSmoothXYG(double goal_xmm, double goal_ymm, double goal_gdeg,
 
   double x = start_xmm;
   double y = start_ymm;
-  double g = start_gdeg;
+  double g = start_gdeg;  // not used
 
   double ux = (dist_mm > 0) ? (total_dx / dist_mm) : 0;
   double uy = (dist_mm > 0) ? (total_dy / dist_mm) : 0;
@@ -1339,8 +1348,8 @@ bool cmdMoveSmoothXYG(double goal_xmm, double goal_ymm, double goal_gdeg,
   int samePosX_count = 0, samePosY_count = 0, samePosG_count = 0;
 
   if (verboseOn) {
-    serial_printf("START SMOOTH MOVE XYG start(%.2f,%.2f,%.2f) goal(%.2f,%.2f,%.2f)\n",
-                  start_xmm, start_ymm, start_gdeg, goal_xmm, goal_ymm, goal_gdeg);
+    serial_printf("START SMOOTH MOVE XYG keepX(%d) start(%.2f,%.2f,%.2f) goal(%.2f,%.2f,%.2f)\n",
+                  keepXconstant, start_xmm, start_ymm, start_gdeg, goal_xmm, goal_ymm, goal_gdeg);
     serial_printf("Nudge flags X=%s Y=%s G=%s\n",
                   nudge_x_enabled ? "ON" : "OFF",
                   nudge_y_enabled ? "ON" : "OFF",
@@ -1365,7 +1374,18 @@ bool cmdMoveSmoothXYG(double goal_xmm, double goal_ymm, double goal_gdeg,
 
     double err_x = goal_xmm - curr_x;
     double err_y = goal_ymm - curr_y;
-    double err_g = goal_gdeg - curr_g;
+    double err_g = kin.getGdeg_aligned() - kin.getGdeg();
+
+    // the error is only the the axis that stays eg keepX or keepY
+    // as how well it stays
+    // g err is diff between crr g and aligned g at the current x and y
+    if (keepXconstant) {
+      err_y = 0;
+    } else {
+      err_x = 0;
+    }
+
+    // g is computed as where it should be based on current X Y
 
     // --- adaptive stagnation detection ---
     if (fabs(err_x - prev_err_x) < zero_tol_mm) samePosX_count++;
@@ -1431,9 +1451,22 @@ bool cmdMoveSmoothXYG(double goal_xmm, double goal_ymm, double goal_gdeg,
   double curr_x = kin.getXmm();
   double curr_y = kin.getYmm();
   double curr_g = kin.getGdeg();
+
   double err_xmm = goal_xmm - curr_x;
   double err_ymm = goal_ymm - curr_y;
-  double err_gdeg = goal_gdeg - curr_g;
+
+  // g is corrected just to be aligned to what x and y are
+  double err_gdeg = kin.getGdeg_aligned() - kin.getGdeg();
+
+  // the error is only the the axis that stays eg keepX or keepY
+  // as how well it stays
+  // g err is diff between crr g and aligned g at the current x and y
+  // below shoud NOT be used for the final nudge as both x and y need correcting
+  // if (keepXconstant) {
+  //   err_y = 0;
+  // } else {
+  //   err_x = 0;
+  // }
 
   const int maxNudges = 6;
   const int nudgeDelay = 85;
@@ -1442,7 +1475,7 @@ bool cmdMoveSmoothXYG(double goal_xmm, double goal_ymm, double goal_gdeg,
   int samePosX = 0, samePosY = 0, samePosG = 0;
 
   while ((fabs(err_xmm) > tol_xmm || fabs(err_ymm) > tol_ymm || fabs(err_gdeg) > tol_gdeg) && count < maxNudges) {
-    double nudge_x = (err_xmm > 0 ? err_xmm + 0.3 : err_xmm - 0.3);
+    double nudge_x = (err_xmm > 0 ? err_xmm + 0.3 : err_xmm - 0.3);  // TODO adjust those
     double nudge_y = (err_ymm > 0 ? err_ymm + 0.3 : err_ymm - 0.3);
     double nudge_g = (err_gdeg > 0 ? err_gdeg + 0.2 : err_gdeg - 0.2);
 
@@ -1650,6 +1683,9 @@ bool cmdMoveSmoothG(double goal_gdeg,
   return true;
 }
 
+#define KEEP_X_CONSTANT true
+#define KEEP_Y_CONSTANT false
+
 // -------------------------------------------------------------------
 // MOVE TO ABSOLUTE Y (mm) USING KINEMATICS + SMOOTH SYNC MOVE
 // -------------------------------------------------------------------
@@ -1664,7 +1700,8 @@ bool cmdMoveYmm(double y_mm) {
   kin.setXYmm(x_mm_curr, y_mm);
   double g_goal_deg = kin.getGdeg_aligned();
 
-  return cmdMoveSmoothXYG(x_mm_curr, y_mm, g_goal_deg,
+  return cmdMoveSmoothXYG(x_mm_curr, y_mm,                                     //
+                          KEEP_X_CONSTANT,                                     // X stays constant at the value specified
                           3 * MM_PER_TICK, 6 * MM_PER_TICK, 3 * DEG_PER_TICK,  // TOL in MM, DEG
                           3 * MM_PER_TICK, 3 * DEG_PER_TICK,                   // size of steps in MM, DEG
                           true,                                                // nudge x during move
@@ -1682,7 +1719,8 @@ bool cmdMoveXmm(double x_mm) {
   kin.setXYmm(x_mm, y_mm_curr);
   double g_goal_deg = kin.getGdeg_aligned();
 
-  return cmdMoveSmoothXYG(x_mm, y_mm_curr, g_goal_deg,
+  return cmdMoveSmoothXYG(x_mm, y_mm_curr,
+                          KEEP_Y_CONSTANT,                                     // keep Y constant
                           3 * MM_PER_TICK, 6 * MM_PER_TICK, 3 * DEG_PER_TICK,  // TOL in MM, DEG
                           3 * MM_PER_TICK, 3 * DEG_PER_TICK,                   // size of steps in MM, DEG
                           false,                                               // nudge x during move
