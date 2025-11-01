@@ -652,7 +652,7 @@ bool move_smooth(
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~START WRAPPERS FOR COMMANDS~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-bool cmdMoveSmoothServo(uint8_t id, double goal_deg) {
+bool cmdMoveServoDeg(uint8_t id, double goal_deg) {
   if (!dxl.ping(id)) return false;
 
   axes.setMode(MODE_SINGLE_SERVO);
@@ -664,7 +664,7 @@ bool cmdMoveSmoothServo(uint8_t id, double goal_deg) {
   return move_smooth();
 }
 
-bool cmdMoveSmoothGripper(double goal_per) {
+bool cmdMoveGripperPer(double goal_per) {
   if (!dxl.ping(ID_GRIP1) || !dxl.ping(ID_GRIP2)) return false;
 
   axes.setMode(MODE_GRIPPER);

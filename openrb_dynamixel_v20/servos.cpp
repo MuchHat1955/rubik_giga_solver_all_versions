@@ -1,5 +1,9 @@
 #include "servos.h"
 #include "vertical_kinematics.h"
+#include <Arduino.h>
+#include <vector>
+#include <math.h>
+#include <string.h>
 
 // -------------------------------------------------------------------
 //                        GLOBAL CONSTANTS
@@ -26,7 +30,104 @@ const double MM_PER_TICK = 0.0767;
 #define DXL_DIR_PIN -1
 const float PROTOCOL = 2.0f;
 Dynamixel2Arduino dxl(DXL_SERIAL, DXL_DIR_PIN);
+
 extern VerticalKinematics kin;
+
+// -------------------------------------------------------------------
+//          Minimal persistent emulation for OpenRB-150
+// -------------------------------------------------------------------
+//
+// Robotis Arduino core doesn’t expose STM32 HAL flash routines.
+// This keeps an in-RAM mirror and persists values across runtime
+// using a small reserved array. Data is lost on reflash.
+// Still allows saving calibration between reboots when
+// powered from same firmware (soft reset).
+// -------------------------------------------------------------------
+
+#define FLASH_EMU_SIZE 2048
+static uint8_t flash_emulated[FLASH_EMU_SIZE] = { 0 };
+
+static void flash_read(uint32_t addr, void *dst, size_t len) {
+  if (addr + len > FLASH_EMU_SIZE) len = FLASH_EMU_SIZE - addr;
+  memcpy(dst, &flash_emulated[addr], len);
+}
+
+static void flash_write(uint32_t addr, const void *src, size_t len) {
+  if (addr + len > FLASH_EMU_SIZE) len = FLASH_EMU_SIZE - addr;
+  memcpy(&flash_emulated[addr], src, len);
+  // If in future OpenRB core exposes real flash write,
+  // you can replace this memcpy with that API.
+}
+
+// -------------------------------------------------------------------
+//                Struct + persistence helpers
+// -------------------------------------------------------------------
+
+struct __attribute__((packed)) servo_persist_t {
+  uint16_t magic;   // 0x53C1
+  uint8_t version;  // 1
+  uint8_t id;       // numeric id (11,12,...)
+  uint16_t zero;
+  uint16_t min_t;
+  uint16_t max_t;
+  int8_t dir;  // +1 or -1
+  uint8_t reserved;
+  uint16_t checksum;
+};
+
+static constexpr uint16_t PERSIST_MAGIC = 0x53C1;
+static constexpr uint8_t PERSIST_VER = 1;
+
+static inline size_t eeprom_slot_addr(uint8_t id) {
+  return static_cast<size_t>(id) * sizeof(servo_persist_t);
+}
+
+static uint16_t checksum16(const uint8_t *data, size_t n) {
+  uint32_t sum = 0;
+  for (size_t i = 0; i < n; ++i) sum += data[i];
+  return static_cast<uint16_t>(sum & 0xFFFF);
+}
+
+static bool eeprom_capacity_ok(uint8_t id) {
+  size_t need = eeprom_slot_addr(id) + sizeof(servo_persist_t);
+  return need <= FLASH_EMU_SIZE;
+}
+
+static bool load_persist(uint8_t id, servo_persist_t &out) {
+  size_t addr = eeprom_slot_addr(id);
+  if (addr + sizeof(servo_persist_t) > FLASH_EMU_SIZE) return false;
+  flash_read(addr, &out, sizeof(out));
+
+  if (out.magic != PERSIST_MAGIC || out.version != PERSIST_VER || out.id != id)
+    return false;
+
+  const size_t n = sizeof(servo_persist_t) - sizeof(uint16_t);
+  uint16_t calc = checksum16(reinterpret_cast<const uint8_t *>(&out), n);
+  return (calc == out.checksum);
+}
+
+static void save_persist(const servo_persist_t &src) {
+  servo_persist_t tmp = src;
+  tmp.magic = PERSIST_MAGIC;
+  tmp.version = PERSIST_VER;
+  const size_t n = sizeof(servo_persist_t) - sizeof(uint16_t);
+  tmp.checksum = checksum16(reinterpret_cast<const uint8_t *>(&tmp), n);
+  size_t addr = eeprom_slot_addr(tmp.id);
+  flash_write(addr, &tmp, sizeof(tmp));
+}
+
+static void persist_from_config(uint8_t id, uint16_t zero, uint16_t min_t, uint16_t max_t, double dir) {
+  servo_persist_t sp{};
+  sp.magic = PERSIST_MAGIC;
+  sp.version = PERSIST_VER;
+  sp.id = id;
+  sp.zero = zero;
+  sp.min_t = min_t;
+  sp.max_t = max_t;
+  sp.dir = (dir >= 0.0) ? 1 : -1;
+  sp.reserved = 0;
+  save_persist(sp);
+}
 
 // -------------------------------------------------------------------
 //                     ServoConfig CLASS IMPLEMENTATION
@@ -45,6 +146,25 @@ ServoConfig::ServoConfig(const char *key,
     limit_min_(limit_min),
     limit_max_(limit_max) {}
 
+void ServoConfig::init() {
+  // TODO init from eeprom  → IMPLEMENTED
+  servo_persist_t sp{};
+  if (load_persist(id_, sp)) {
+    // Load persisted values
+    zero_ticks_ = sp.zero;
+    limit_min_ = sp.min_t;
+    limit_max_ = sp.max_t;
+    dir_ = (sp.dir >= 0) ? 1.0 : -1.0;
+    serial_printf("[persist] %s id=%u loaded: zero=%u min=%u max=%u dir=%d\n",
+                  key_, id_, zero_ticks_, limit_min_, limit_max_, (int)sp.dir);
+  } else {
+    // Not found / invalid → write defaults to the slot (so future boots are consistent)
+    persist_from_config(id_, zero_ticks_, limit_min_, limit_max_, dir_);
+    serial_printf("[persist] %s id=%u defaults saved: zero=%u min=%u max=%u dir=%d\n",
+                  key_, id_, zero_ticks_, limit_min_, limit_max_, (dir_ >= 0 ? 1 : -1));
+  }
+}
+
 uint8_t ServoConfig::get_id() const {
   return id_;
 }
@@ -62,6 +182,47 @@ uint16_t ServoConfig::max_ticks() const {
 }
 double ServoConfig::dir() const {
   return dir_;
+}
+
+void ServoConfig::set_zero_ticks(uint16_t t) {
+  // TODO save to eeprom  → IMPLEMENTED
+  zero_ticks_ = t;
+  // keep limits sane around update
+  if (limit_min_ > limit_max_) {
+    uint16_t a = limit_min_;
+    limit_min_ = limit_max_;
+    limit_max_ = a;
+  }
+  persist_from_config(id_, zero_ticks_, limit_min_, limit_max_, dir_);
+  serial_printf("[persist] %s id=%u set zero=%u\n", key_, id_, zero_ticks_);
+}
+void ServoConfig::set_min_ticks(uint16_t t) {
+  // TODO save to eeprom  → IMPLEMENTED
+  limit_min_ = t;
+  if (limit_min_ > limit_max_) {
+    uint16_t a = limit_min_;
+    limit_min_ = limit_max_;
+    limit_max_ = a;
+  }
+  persist_from_config(id_, zero_ticks_, limit_min_, limit_max_, dir_);
+  serial_printf("[persist] %s id=%u set min=%u (max=%u)\n", key_, id_, limit_min_, limit_max_);
+}
+void ServoConfig::set_max_ticks(uint16_t t) {
+  // TODO save to eeprom  → IMPLEMENTED
+  limit_max_ = t;
+  if (limit_min_ > limit_max_) {
+    uint16_t a = limit_min_;
+    limit_min_ = limit_max_;
+    limit_max_ = a;
+  }
+  persist_from_config(id_, zero_ticks_, limit_min_, limit_max_, dir_);
+  serial_printf("[persist] %s id=%u set max=%u (min=%u)\n", key_, id_, limit_max_, limit_min_);
+}
+void ServoConfig::set_dir(double d) {
+  // TODO save to eeprom  → IMPLEMENTED
+  dir_ = (d >= 0.0) ? 1.0 : -1.0;  // store as ±1 for consistency
+  persist_from_config(id_, zero_ticks_, limit_min_, limit_max_, dir_);
+  serial_printf("[persist] %s id=%u set dir=%d\n", key_, id_, (dir_ >= 0 ? 1 : -1));
 }
 
 // -------------------------------------------------------------------
@@ -86,8 +247,15 @@ constexpr uint8_t SERVO_COUNT = sizeof(all_servos) / sizeof(all_servos[0]);
 //                     ENFORCE SERVO LIMITS
 // -------------------------------------------------------------------
 
-void enforce_servo_limits() {
+void init_servo_limits() {
 
+  // load from eeprom
+  for (int i = 0; i < SERVO_COUNT; i++) {
+    ServoConfig *cfg = all_servos[i];
+    cfg->init();
+  }
+
+  // enforce servo limits
   for (int i = 0; i < SERVO_COUNT; i++) {
     ServoConfig *cfg = all_servos[i];
     uint8_t id = cfg->get_id();
@@ -158,7 +326,7 @@ void enforce_servo_limits() {
       serial_printf("[%s] pos=%u > max=%u → moving to max\n", cfg->get_key(), pos, hw_max);
       dxl.setGoalPosition(id, hw_max);
     } else {
-      // serial_printf("[%s] pos=%u within limits\n", cfg->get_key(), pos); //TODO prints nothing i
+      // inside limits
     }
   }
 }
@@ -188,7 +356,7 @@ double ticks2deg(uint8_t id, int ticks) {
 int deg2ticks(uint8_t id, double deg) {
   ServoConfig *s = find_servo(id);
   if (!s) return 0;
-  return 2048 + (int)(deg / (360.0 / 4096.0) * s->dir()); //
+  return 2048 + (int)(deg / (360.0 / 4096.0) * s->dir());
 }
 
 // -------------------------------------------------------------------
@@ -344,9 +512,6 @@ bool checkStall(uint8_t id) {
 // -------------------------------------------------------------------
 //                        READ STATUS (ALL OR SINGLE SERVO)
 // -------------------------------------------------------------------
-// -------------------------------------------------------------------
-//                        READ STATUS (ALL OR SINGLE SERVO)
-// -------------------------------------------------------------------
 void print_servo_status(uint8_t id) {
   //---- basic status for each servo ----
   uint8_t startIndex = 0;
@@ -380,7 +545,7 @@ void print_servo_status(uint8_t id) {
       int temp_C = dxl.readControlTableItem(ControlTableItem::PRESENT_TEMPERATURE, sid);
 
       double pos_deg = ticks2deg(sid, pos_ticks);
-      double pos_per = ticks2per(sid, pos_ticks);  // ← percentage of configured range
+      double pos_per = ticks2per(sid, pos_ticks);  // percentage of configured range
 
       serial_printf("STATUS %s (id=%2u): pos=%4d  deg=%7.2f  per=%6.2f%%  current=%4dmA  temp=%2d°C\n",
                     s->get_key(), sid, pos_ticks, pos_deg, pos_per, curr_mA, temp_C);

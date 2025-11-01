@@ -34,7 +34,7 @@ EXACTLY identical — only reorganized for readability and reuse.
   │     ├── initializes all servo instances (arm1, arm2, grip, etc.)
   │     ├── provides helpers:
   │     │     • find_servo(), ticks2deg(), deg2ticks()
-  │     │     • enforce_servo_limits()
+  │     │     • init_servo_limits()
   │     │     • torqueOnGroup(), ledOnGroup(), etc.
   │     │     • checkStall(), isMoving(), getPos_deg()
   │     └── owns the global `dxl` Dynamixel2Arduino instance
@@ -79,7 +79,7 @@ EXACTLY identical — only reorganized for readability and reuse.
       - Initializes Serial and Dynamixel bus.
       - Pings all known servos.
       - Sets default position mode.
-      - Reads and enforces servo limits via `enforce_servo_limits()`.
+      - Reads and enforces servo limits via `init_servo_limits()`.
       - Prints available commands.
 
 2.  **loop()**

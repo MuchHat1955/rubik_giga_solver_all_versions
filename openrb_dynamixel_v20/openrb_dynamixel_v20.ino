@@ -58,7 +58,7 @@ void setup() {
   Serial.println(get_help_text());
   Serial.println();
 
-  enforce_servo_limits();
+  init_servo_limits();
   Serial.println();
 
   Serial.println("------------------ End Setup --------------------------------------------");

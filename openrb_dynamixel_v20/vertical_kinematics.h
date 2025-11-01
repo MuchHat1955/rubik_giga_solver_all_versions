@@ -32,6 +32,8 @@ public:
   double getYmm() const;
 
   double getGdeg() const;
+  double getGdeg_horizontal() const;
+  double getGdeg_vertical() const;
   double getGdeg_aligned() const;
   int getGticks() const;
   int getGticksAligned() const;

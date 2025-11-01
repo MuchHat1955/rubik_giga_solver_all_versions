@@ -1,5 +1,7 @@
 #include "cmd_parser.h"
 
+void print_info(uint8_t id);
+
 // -------------------------------------------------------------------
 //                            PARSE HELPERS
 // -------------------------------------------------------------------
@@ -70,45 +72,218 @@ bool cmd_verbose_off(int argc, double *argv) {
   return true;
 }
 
-// For MOVE: we must read from last_raw_tokens passed by dispatcher
-static String last_raw_tokens[8];
-
-bool cmd_move(int argc, double *argv) {
+bool cmd_move_deg(int argc, double *argv) {
   int id = (int)argv[0];
-  const char *valStr = last_raw_tokens[1].c_str();
-
   if (!dxl.ping(id)) return false;
 
   int current = dxl.getPresentPosition(id);
-  double goal = 0;
+  int goal_deg = (int)argv[1];
 
-  if (valStr[0] == '+' || valStr[0] == '-') {
-    goal = current + atof(valStr);  // relative move
-    serial_printf("Relative move: start=%d rel=%d goal=%d\n", current, atoi(valStr), goal);
-  } else {
-    goal = atof(valStr);  // absolute move
-  }
-  if (goal < -95.0 || goal > 95.0) {
-    serial_printf("Invalid servo deg: %.2f expected range (-90.0 to 90.0)\n", goal);
+  if (goal_deg < -95.0 || goal_deg > 95.0) {
+    serial_printf("Invalid servo deg: %.2f expected range (-90.0 deg to 90.0 deg)\n", goal_deg);
     return false;
   }
+  int goal_ticks = per2ticks(id, goal_deg);
+  serial_printf("cmd_move_deg: id=%d deg=%d\n", id, goal_deg);
 
-  if (!cmdMoveSmoothServo((uint8_t)id, goal)) return false;
+  if (!cmdMoveServoDeg((uint8_t)id, goal_deg)) return false;
   print_servo_status(id);
   return true;
 }
 
-bool cmd_movecenter(int argc, double *argv) {
+bool cmd_move_ticks(int argc, double *argv) {
+  int id = (int)argv[0];
+  if (!dxl.ping(id)) return false;
+
+  int goal_ticks = (int)argv[1];
+  serial_printf("cmd_move_ticks: id=%d ticks=%d\n", id, goal_ticks);
+
+  if (!dxl.setGoalPosition(id, goal_ticks)) return false;
+  print_servo_status(id);
+  return true;
+}
+
+bool cmd_move_per(int argc, double *argv) {
+  int id = (int)argv[0];
+  if (!dxl.ping(id)) return false;
+
+  double goal_per = argv[1];
+  if (goal_per < 5.0 || goal_per > 105.0) {
+    serial_printf("Invalid servo percentage: %.2f expected range (-5.0 deg to 95.0 deg)\n", goal_per);
+    return false;
+  }
+
+  double goal_deg = per2deg(id, goal_per);
+  serial_printf("cmd_move_per: id=%d per=%d deg=%d\n", id, goal_per, goal_deg);
+
+  if (!cmdMoveServoDeg((uint8_t)id, goal_deg)) return false;
+  print_servo_status(id);
+  return true;
+}
+
+bool cmd_set_min(int argc, double *argv) {
+  int id = (int)argv[0];
+  if (!dxl.ping(id)) return false;
+
+  int t = (int)argv[1];
+
+  if (auto *s = find_servo(id)) {
+    serial_printf("cmd_set_min: id=%d ticks=%d\n", id, t);
+    s->set_min_ticks(t);
+    return true;
+  }
+  return false;
+}
+
+bool cmd_set_max(int argc, double *argv) {
+  int id = (int)argv[0];
+  if (!dxl.ping(id)) return false;
+
+  int t = (int)argv[1];
+
+  if (auto *s = find_servo(id)) {
+    serial_printf("cmd_set_max: id=%d ticks=%d\n", id, t);
+    s->set_max_ticks(t);
+    return true;
+  }
+  return false;
+}
+
+bool cmd_set_zero(int argc, double *argv) {
+  int id = (int)argv[0];
+  if (!dxl.ping(id)) return false;
+
+  int t = (int)argv[1];
+
+  if (auto *s = find_servo(id)) {
+    serial_printf("cmd_set_zero: id=%d ticks=%d\n", id, t);
+    s->set_zero_ticks(t);
+    return true;
+  }
+  return false;
+}
+
+bool cmd_set_dir_plus(int argc, double *argv) {
+  int id = (int)argv[0];
+  if (!dxl.ping(id)) return false;
+
+  int t = (int)argv[1];
+
+  if (auto *s = find_servo(id)) {
+    int curr = dxl.getPresentPosition(id);
+    int zero = s->zero_ticks();
+    if (abs(curr - zero) < 100) {
+      serial_printf("Move servo at least 100 ticks from zero to set dir: zero=%d curr=%d\n", zero, curr);
+      return false;
+    }
+    double dir = 1.0;
+    if (curr < zero) dir = -1.0;
+    serial_printf("cmd_set_dir_plus: id=%d zero=%d curr=%d dir=%.2f\n", id, zero, curr, dir);
+    s->set_dir(dir);
+    return true;
+  }
+  return false;
+}
+
+bool cmd_set_dir_minus(int argc, double *argv) {
+  int id = (int)argv[0];
+  if (!dxl.ping(id)) return false;
+
+  int t = (int)argv[1];
+
+  if (auto *s = find_servo(id)) {
+    int curr = dxl.getPresentPosition(id);
+    int zero = s->zero_ticks();
+    if (abs(curr - zero) < 100) {
+      serial_printf("Move servo at least 100 ticks from zero to set dir: zero=%d curr=%d\n", zero, curr);
+      return false;
+    }
+    double dir = 1.0;
+    if (curr > zero) dir = -1.0;
+    serial_printf("cmd_set_dir_plus: id=%d zero=%d curr=%d dir=%.2f\n", id, zero, curr, dir);
+    s->set_dir(dir);
+    return true;
+  }
+  return false;
+}
+
+bool cmd_extend_min(int argc, double *argv) {
+  int id = (int)argv[0];
+  if (!dxl.ping(id)) return false;
+
+  uint16_t t = (int)argv[1];
+  uint16_t hw_min = dxl.readControlTableItem(ControlTableItem::MIN_POSITION_LIMIT, id);
+
+  if (auto *s = find_servo(id)) {
+    uint16_t hw_min = s->min_ticks();
+    if (hw_min < t) hw_min = t;
+    uint16_t tf = hw_min - t;
+    serial_printf("cmd_extend_min: id=%d from=%d to ticks=%d\n", id, hw_min, tf);
+    s->set_max_ticks(tf);
+    return true;
+  }
+  return false;
+}
+
+bool cmd_extend_max(int argc, double *argv) {
+  int id = (int)argv[0];
+  if (!dxl.ping(id)) return false;
+
+  uint16_t t = (int)argv[1];
+
+  if (auto *s = find_servo(id)) {
+    uint16_t hw_max = s->max_ticks();
+    uint16_t tf = hw_max + t;
+    serial_printf("cmd_extend_max: id=%d from=%d to ticks=%d\n", id, hw_max, tf);
+    s->set_max_ticks(tf);
+    return true;
+  }
+  return false;
+}
+
+bool cmd_move_center(int argc, double *argv) {
   for (int i = 0; i < SERVO_COUNT; i++)
     dxl.setGoalPosition(all_servos[i]->get_id(), 2048);
   return true;
 }
 
-bool cmd_movey(int argc, double *argv) {
+bool cmd_move_y(int argc, double *argv) {
+  double goal_mm = argv[1];
+  if (goal_mm < 40.0 || goal_mm > 110.0) {
+    serial_printf("Invalid y mm: %.2f expected range (40 mm to 110 mm)\n", goal_mm);
+    return false;
+  }
+
+  serial_printf("cmd_move_y: y=%.2fmm\n", goal_mm);
   return cmdMoveYmm(argv[0]);
 }
-bool cmd_movex(int argc, double *argv) {
+
+bool cmd_move_x(int argc, double *argv) {
+  double goal_mm = argv[1];
+  if (goal_mm < -40.0 || goal_mm > 40.0) {
+    serial_printf("Invalid x mm: %.2f expected range (-40 mm to 40 mm)\n", goal_mm);
+    return false;
+  }
+
+  serial_printf("cmd_move_x: x=%.2fmm\n", goal_mm);
   return cmdMoveXmm(argv[0]);
+}
+
+bool cmd_move_gripper(int argc, double *argv) {
+  int id = (int)argv[0];
+  if (!dxl.ping(id)) return false;
+
+  double goal_deg = argv[1];
+
+  if (goal_deg < 5.0 || goal_deg > 105.0) {
+    serial_printf("Invalid gripper percentage: %.2f expected range (-5.0 deg to 95.0 deg)\n", goal_deg);
+    return false;
+  }
+
+  serial_printf("cmd_move_gripper: deg=%.2\n", goal_deg);
+  if (!cmdMoveGripperPer(goal_deg)) return false;
+  print_servo_status(id);
+  return true;
 }
 
 bool cmd_read(int argc, double *argv) {
@@ -117,7 +292,7 @@ bool cmd_read(int argc, double *argv) {
 }
 
 bool cmd_info(int argc, double *argv) {
-  cmdInfo((uint8_t)argv[0]);
+  print_info((uint8_t)argv[0]);
   return true;
 }
 
@@ -134,7 +309,7 @@ bool cmd_ledoff(int argc, double *argv) {
 // -------------------------------------------------------------------
 // INFO <id> : print key control-table data for one servo
 // -------------------------------------------------------------------
-void cmdInfo(uint8_t id) {
+void print_info(uint8_t id) {
   if (!dxl.ping(id)) {
     serial_printf("Servo %d not found\n", id);
     return;
@@ -176,14 +351,28 @@ struct CommandEntry {
 static CommandEntry command_table[] = {
   { "VERBOSEON", "", cmd_verbose_on, "VERBOSEON - enable verbose output" },
   { "VERBOSEOFF", "", cmd_verbose_off, "VERBOSEOFF - disable verbose output" },
-  { "MOVEDEG", "%id %s", cmd_move, "MOVEDEG <id|name> <absgoal|±rel> - move one servo to degree" },
-  { "MOVECENTER", "", cmd_movecenter, "MOVECENTER - move all to center" },
-  { "MOVEYMM", "%f", cmd_movey, "MOVEYMM <float mm> - vertical move" },
-  { "MOVEXMM", "%f", cmd_movex, "MOVEXMM <float mm> - lateral move" },
-  { "READ", "%id", cmd_read, "READ [id|name] - show servo summary status" },
-  { "INFO", "%id", cmd_info, "INFO <id|name> - show servo full status" },
-  { "LEDON", "%id", cmd_ledon, "LEDON <id|name> - turn servo LED on" },
-  { "LEDOFF", "%id", cmd_ledoff, "LEDOFF <id|name> - turn servo LED off" },
+
+  { "SETMIN", "%d", cmd_set_min, "SETMIN <id> - set current pos as min" },
+  { "SETMAX", "%d", cmd_set_max, "SETMAX <id> - set current pos as max" },
+  { "EXTENDMIN", "%d", cmd_extend_min, "SETLMIN <id> <ticks> - extend min with <ticks>" },
+  { "EXTENDMAX", "%d", cmd_extend_max, "EXTENDMAX <id> <ticks> - extend max with <ticks>" },
+  { "SETZERO", "%d", cmd_set_zero, "SETLIMITMAX <id> - set current pos as zero" },
+  { "SETDIRPLUS", "%d", cmd_set_dir_plus, "SETDIRPLUS <id> - set dir using the current pos > zero" },
+  { "SETDIRMINUS", "%d", cmd_set_dir_minus, "SETDIRMINUS <id> - set dir using the current pos < zero" },
+
+  { "MOVETICKS", "%d %d", cmd_move_ticks, "MOVEDEG <id> <abs ticks goal> - move one servo to ticks (not smooth)" },
+  { "MOVEDEG", "%d %f", cmd_move_deg, "MOVEDEG <id> <abs deg goal> - move one servo to degree (smooth)" },
+  { "MOVEPER", "%d %f", cmd_move_per, "MOVEPER <id> <abs per goal> - move one servo to percent (smooth)" },
+  { "MOVECENTER", "", cmd_move_center, "MOVECENTER - move all to center" },
+  { "MOVEYMM", "%f", cmd_move_y, "MOVEYMM <float mm> - vertical move" },
+  { "MOVEXMM", "%f", cmd_move_x, "MOVEXMM <float mm> - lateral move" },
+  { "MOVEGRIPPER", "%f", cmd_move_gripper, "MOVEGRIPPER <percentage> - move both grips to percebtge" },
+
+  { "READ", "%d", cmd_read, "READ [id|name] - show servo summary status" },
+  { "INFO", "%id", cmd_info, "INFO <id> - show servo full status" },
+
+  { "LEDON", "%d", cmd_ledon, "LEDON <id> - turn servo LED on" },
+  { "LEDOFF", "%d", cmd_ledoff, "LEDOFF <id> - turn servo LED off" },
 };
 
 static constexpr int COMMAND_COUNT = sizeof(command_table) / sizeof(command_table[0]);
@@ -212,13 +401,11 @@ void process_serial_command(String &line) {
   U.toUpperCase();
 
   // derive count of args and id flag from format
-  auto derive_format_info = [](const char *fmt, int &min_args, bool &first_is_id) {
+  auto derive_format_info = [](const char *fmt, int &min_args) {
     min_args = 0;
-    first_is_id = false;
     for (const char *p = fmt; *p; p++) {
       if (*p == '%') {
         min_args++;
-        if (*(p + 1) == 'i' && *(p + 2) == 'd') first_is_id = true;
       }
     }
   };
@@ -230,16 +417,12 @@ void process_serial_command(String &line) {
         "---- START %s params: %s ----\n", cmd.name, line.c_str());
 
       int min_args = 0;
-      bool first_is_id = false;
-      derive_format_info(cmd.fmt, min_args, first_is_id);
+      derive_format_info(cmd.fmt, min_args);
 
       double argv[8] = { 0 };
       int argc = 0;
       String raw[8];
       argc = parse_args(line, cmd.fmt, argv, 8, raw);
-
-      // save for MOVE relative parsing
-      for (int j = 0; j < 8; j++) last_raw_tokens[j] = raw[j];
 
       // ---------------- Argument validation ----------------
       if (argc < min_args) {
@@ -248,19 +431,6 @@ void process_serial_command(String &line) {
         serial_printf(
           "---- END %s ERR ----\n\n", cmd.name);
         return;
-      }
-
-      // ---------------- ID or Name Resolution ----------------
-      if (first_is_id && argc > 0) {
-        int id = resolve_id_or_name(raw[0]);
-        if ((id < ID_ARM1 || id > ID_BASE) && id != 0) {
-          serial_printf(
-            "Invalid servo name/id: %s\n", raw[0].c_str());
-          serial_printf(
-            "---- END %s ERR ----\n\n", cmd.name);
-          return;
-        }
-        argv[0] = id;
       }
 
       // ---------------- Execute Command ----------------

@@ -95,11 +95,8 @@ bool move_smooth_ticks(
 //                High-level wrappers / API commands
 // ============================================================
 
-bool cmdMoveSmoothServo(uint8_t id, double goal_deg);
-bool cmdMoveSmoothGripper(double goal_per);
-bool cmdMoveSmoothXY(double goal_xmm, double goal_ymm);
-bool cmdMoveSmoothYWithGrip(double goal_xmm, double goal_ymm, double goal_gdeg);
-
 // convenience motion commands in mm
+bool cmdMoveServoDeg(uint8_t id, double goal_deg);
 bool cmdMoveYmm(double y_mm);
 bool cmdMoveXmm(double x_mm);
+bool cmdMoveGripperPer(double goal_per);

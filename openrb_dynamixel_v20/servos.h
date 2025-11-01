@@ -38,12 +38,17 @@ public:
               uint16_t limit_min,
               uint16_t limit_max);
 
+  void init();
   uint8_t get_id() const;
   const char *get_key() const;
   uint16_t zero_ticks() const;
   uint16_t min_ticks() const;
   uint16_t max_ticks() const;
   double dir() const;
+  void set_zero_ticks(uint16_t t);
+  void set_min_ticks(uint16_t t);
+  void set_max_ticks(uint16_t t);
+  void set_dir(double d);
 
 private:
   const char *key_;
@@ -74,7 +79,7 @@ extern ServoConfig *all_servos[];
 //                     Servo helper functions
 // -------------------------------------------------------------------
 
-void enforce_servo_limits();
+void init_servo_limits();
 
 ServoConfig *find_servo(uint8_t id);
 ServoConfig *find_servo(const char *name);

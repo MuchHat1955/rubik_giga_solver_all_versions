@@ -95,16 +95,40 @@ void VerticalKinematics::setXYmm(double x, double y) {
 // -------------------------------------------------------------------
 //                           GETTERS
 // -------------------------------------------------------------------
-double VerticalKinematics::getA1deg() const { return a1_deg; }
-double VerticalKinematics::getA2deg() const { return a2_deg; }
+double VerticalKinematics::getA1deg() const {
+  return a1_deg;
+}
+double VerticalKinematics::getA2deg() const {
+  return a2_deg;
+}
 
-int VerticalKinematics::getA1ticks() const { return deg2ticks(ID_ARM1, a1_deg); }
-int VerticalKinematics::getA2ticks() const { return deg2ticks(ID_ARM2, a2_deg); }
+int VerticalKinematics::getA1ticks() const {
+  return deg2ticks(ID_ARM1, a1_deg);
+}
+int VerticalKinematics::getA2ticks() const {
+  return deg2ticks(ID_ARM2, a2_deg);
+}
 
-double VerticalKinematics::getXmm() const { return x_mm; }
-double VerticalKinematics::getYmm() const { return y_mm; }
+double VerticalKinematics::getXmm() const {
+  return x_mm;
+}
+double VerticalKinematics::getYmm() const {
+  return y_mm;
+}
 
-double VerticalKinematics::getGdeg() const { return g_deg; }
+double VerticalKinematics::getGdeg() const {
+  return g_deg;
+}
+
+double VerticalKinematics::getGdeg_vertical() const {
+  // 0° = gripper vertical; positive tilts along Arm2
+  return 90 - a1_deg - a2_deg;
+}
+
+double VerticalKinematics::getGdeg_horizontal() const {
+  // 0° = gripper vertical; positive tilts along Arm2
+  return 180 - a1_deg - a2_deg;
+}
 
 double VerticalKinematics::getGdeg_aligned() const {
   // 0° = gripper vertical; positive tilts along Arm2
@@ -112,8 +136,12 @@ double VerticalKinematics::getGdeg_aligned() const {
   return 90 - a1_deg - a2_deg;
 }
 
-int VerticalKinematics::getGticks() const { return deg2ticks(ID_GRIP, getGdeg()); }
-int VerticalKinematics::getGticksAligned() const { return deg2ticks(ID_GRIP, getGdeg_aligned()); }
+int VerticalKinematics::getGticks() const {
+  return deg2ticks(ID_GRIP, getGdeg());
+}
+int VerticalKinematics::getGticksAligned() const {
+  return deg2ticks(ID_GRIP, getGdeg_aligned());
+}
 
 // -------------------------------------------------------------------
 //                     GRIPPER ALIGNMENT
@@ -158,10 +186,8 @@ void VerticalKinematics::update_from_angles() {
   double a2abs_left_rad = a1r_rad + a2r_rad;
 
   // compute using absolute, 0 is vertical, 90 is horizontal right
-  y_mm = arm_length_mm * sin(a1abs_right_rad) +
-         arm_length_mm * sin(a2abs_left_rad);
-  x_mm = arm_length_mm * cos(a1abs_right_rad) -
-         arm_length_mm * cos(a2abs_left_rad);
+  y_mm = arm_length_mm * sin(a1abs_right_rad) + arm_length_mm * sin(a2abs_left_rad);
+  x_mm = arm_length_mm * cos(a1abs_right_rad) - arm_length_mm * cos(a2abs_left_rad);
 }
 
 // -------------------------------------------------------------------
