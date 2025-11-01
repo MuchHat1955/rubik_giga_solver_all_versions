@@ -190,10 +190,15 @@ public:
     dxl->setGoalPosition(getId(masterIndex), goalTicks);
   }
 
-  void applyNudge(uint8_t axisIndex, int correction) {
+  void applyNudge(uint8_t axisIndex, int goal, int correction) {
     uint8_t id = getId(axisIndex);
-    int curr = dxl->getPresentPosition(id);
-    dxl->writeControlTableItem(ControlTableItem::GOAL_POSITION, id, curr + correction);
+    int curr = dxl->getPresentPosition(id);  // TODO maybe nudge over the current not the goal
+    dxl->writeControlTableItem(ControlTableItem::GOAL_POSITION, id, goal + correction);
+  }
+
+  void applyPos(uint8_t axisIndex, int pos) {
+    uint8_t id = getId(axisIndex);
+    dxl->writeControlTableItem(ControlTableItem::GOAL_POSITION, id, pos);
   }
 
   // Compute synchronized tick for slave axis using kinematics (XY) or % catch-up (gripper)
@@ -447,9 +452,12 @@ void NudgeController::recordData(int prevGoal, int currPos, int nudge, MovePhase
 }
 
 int NudgeController::computeNudge(int currErr, MovePhase phase, int samePosCount) {
+
+  if (abs(currErr) <= 4) return 0;  //TODO
   // If no history, fall back to simple proportional estimate
-  if (records.empty())
-    return baseEstimate(currErr, phase, samePosCount);
+
+  // if (records.empty()) // TODO use just the base
+  return baseEstimate(currErr, phase, samePosCount);
 
   double sumErr = 0, sumNudge = 0, weightSum = 0;
   for (int i = records.size() - 1; i >= 0; i--) {
@@ -488,11 +496,14 @@ void NudgeController::printLog() {
 }
 
 int NudgeController::baseEstimate(int err, MovePhase phase, int samePosCount) {
+  // TODO if err is negate -> pos nudge
   double k = phaseGain(phase);
-  double nudge = k * err;
+  double nudge = k * -err;
   if (phase == MovePhase::FINAL && samePosCount > 0)
-    nudge += samePosCount * 0.5 * (err > 0 ? 1 : -1);
-  return (int)constrain(nudge, -15.0, 15.0);
+    nudge += samePosCount * 2 * (err > 0 ? -1 : 1);  //TODO adjust
+  nudge = constrain(nudge, -35.0, 35.0);
+  serial_printf("   --nudge for err=%d is %d", err, nudge);
+  return nudge;
 }
 
 double NudgeController::phaseGain(MovePhase p) {
@@ -520,7 +531,7 @@ inline NudgeController& getNudgeController(uint8_t id) {
 // ============================================================
 
 // Time between incremental servo goal updates (ms)
-#define SMOOTH_STEP_INTERVAL_MS 15
+#define SMOOTH_STEP_INTERVAL_MS 35
 // Number of acceleration steps before reaching full speed
 #define SMOOTH_ACCEL_STEPS 20
 // Number of deceleration steps before stopping
@@ -558,6 +569,8 @@ bool move_smooth(
   int totalDiff = abs(dist);
   if (totalDiff < 3) return true;
 
+  bool inFinalPosition = false;
+
   int accelSpan = accelSteps * (minStep_ticks + maxStep_ticks) / 2;
   int decelSpan = decelSteps * (minStep_ticks + maxStep_ticks) / 2;
   int coastSpan = totalDiff - (accelSpan + decelSpan);
@@ -588,6 +601,10 @@ bool move_smooth(
     posMaster += dir * step_ticks;
     axes.writeGoalMaster(posMaster);
 
+    // move the master first TODOTOD
+    axes.applyPos(0, posMaster);
+    delay(35);
+
     // slaves synchronized
     for (int i = 0; i < n; i++) {
       if (i == axes.getMasterIndex()) continue;
@@ -601,12 +618,16 @@ bool move_smooth(
     delay(stepInterval_ms);
     axes.readPositions();
 
+    inFinalPosition = true;
+
     // feedback & nudging
     for (int i = 0; i < n; i++) {
       int curr = axes.getCurrTicks(i);
       int goal = axes.getGoalTicks(i);
       int err = goal - curr;
       int delta = abs(curr - prevPos[i]);
+
+      if (abs(goal - curr) > tol_ticks) inFinalPosition = false;
 
       if (delta < 2) samePosCount[i]++;
       else samePosCount[i] = 0;
@@ -618,31 +639,33 @@ bool move_smooth(
                       phaseName, i, curr, goal, err, delta, samePosCount[i]);
 
       if (axes.getNudgeFlag(i)) {
-        int correction = nudgers[i]->computeNudge(err, currentPhase, samePosCount[i]);
-        axes.applyNudge(i, correction);
-        nudgers[i]->recordData(goal, curr, correction, currentPhase);
-        if (verboseOn)
-          serial_printf("[%s] NUDGE axis=%d curr=%d err=%d corr=%d\n",
-                        phaseName, i, curr, err, correction);
-      }
+        if (abs(goal - curr) > tol_ticks) {
+          int correction = nudgers[i]->computeNudge(err, currentPhase, samePosCount[i]);
+          axes.applyNudge(i, goal, correction);  // TODO
+          nudgers[i]->recordData(goal, curr, correction, currentPhase);
+          if (verboseOn)
+            serial_printf("[%s] NUDGE axis=%d curr=%d err=%d corr=%d\n",
+                          phaseName, i, curr, err, correction);
+        }
+      } else axes.applyPos(i, goal);
     }
   };
 
   // 1. Acceleration phase
   currentPhase = MovePhase::ACCEL;
-  for (int i = 0; i < accelSteps; i++) {
+  for (int i = 0; i < accelSteps && !inFinalPosition; i++) {
     int step_ticks = map(i, 0, accelSteps - 1, minStep_ticks, maxStep_ticks);
     step_axes("ACCEL", i, step_ticks);
   }
 
   // 2. Coast phase
   currentPhase = MovePhase::COAST;
-  for (int i = 0; i < coastSteps; i++)
+  for (int i = 0; i < coastSteps && !inFinalPosition; i++)
     step_axes("COAST", i, maxStep_ticks);
 
   // 3. Deceleration phase
   currentPhase = MovePhase::DECEL;
-  for (int i = decelSteps - 1; i >= 0; i--) {
+  for (int i = decelSteps - 1 && !inFinalPosition; i >= 0; i--) {
     int step_ticks = map(i, 0, decelSteps - 1, minStep_ticks, maxStep_ticks);
     step_axes("DECEL", i, step_ticks);
   }
@@ -652,7 +675,7 @@ bool move_smooth(
   const int maxNudges = 6;
   const int nudgeDelay = 85;
 
-  for (int count = 0; count < maxNudges; count++) {
+  for (int count = 0; count < maxNudges && !inFinalPosition; count++) {
     bool all_good = true;
     axes.readPositions();
 
@@ -663,8 +686,8 @@ bool move_smooth(
       if (abs(err) > tol_ticks) {
         all_good = false;
         int nudge = nudgers[i]->computeNudge(err, currentPhase, samePosCount[i]);
-        axes.applyNudge(i, nudge);
-        nudgers[i]->recordData(goal, curr, nudge, currentPhase);
+        axes.applyNudge(i, goal, nudge);
+        nudgers[i]->recordData(goal, curr, nudge, currentPhase); //TODO add goal
         if (verboseOn)
           serial_printf("[FINAL] NUDGE axis=%d curr=%d goal=%d err=%d nudge=%d\n",
                         i, curr, goal, err, nudge);
