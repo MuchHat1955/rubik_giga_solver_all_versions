@@ -92,6 +92,8 @@ const char *id2name(uint8_t id);
 void lOn(uint8_t id);
 void lOff(uint8_t id);
 
+extern const float PROTOCOL;
+
 // ---------------- Group helpers ----------------
 void torqueOnGroup(const std::vector<uint8_t> &ids);
 void torqueOffGroup(const std::vector<uint8_t> &ids);

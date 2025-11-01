@@ -24,7 +24,7 @@ const double MM_PER_TICK = 0.0767;
 
 #define DXL_SERIAL Serial1
 #define DXL_DIR_PIN -1
-#define PROTOCOL 2.0
+const float PROTOCOL = 2.0f;
 Dynamixel2Arduino dxl(DXL_SERIAL, DXL_DIR_PIN);
 extern VerticalKinematics kin;
 

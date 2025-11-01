@@ -50,7 +50,7 @@ static int resolve_id_or_name(const String &token) {
   if (s) return s->get_id();
 
   serial_printf(
-"Unknown servo name '%s'\n", token.c_str());
+    "Unknown servo name '%s'\n", token.c_str());
   return 0;
 }
 
@@ -89,7 +89,7 @@ bool cmd_move(int argc, double *argv) {
     goal = atoi(valStr);  // absolute move
   }
 
-  if (!cmdMoveSmooth((uint8_t)id, goal)) return false;
+  if (!cmdMoveSmoothServo((uint8_t)id, ticks2deg(id, goal))) return false;
   print_servo_status(id);
   return true;
 }
@@ -97,7 +97,7 @@ bool cmd_move(int argc, double *argv) {
 bool cmd_movedegr(int argc, double *argv) {
   int id = (int)argv[0];
   double deg = argv[1];
-  if (!cmdMoveSmooth((uint8_t)id, deg)) return false;
+  if (!cmdMoveSmoothServo((uint8_t)id, deg)) return false;
   print_servo_status(id);
   return true;
 }
@@ -108,12 +108,12 @@ bool cmd_movecenter(int argc, double *argv) {
   return true;
 }
 
-bool cmd_movexdeg(int argc, double *argv) {
-  return cmdMoveSmoothXYG((int)argv[0], (int)argv[1], (int)argv[2]);
+bool cmd_movey(int argc, double *argv) {
+  return cmdMoveYmm(argv[0]);
 }
-
-bool cmd_movey(int argc, double *argv) { return cmdMoveYmm(argv[0]); }
-bool cmd_movex(int argc, double *argv) { return cmdMoveXmm(argv[0]); }
+bool cmd_movex(int argc, double *argv) {
+  return cmdMoveXmm(argv[0]);
+}
 
 bool cmd_read(int argc, double *argv) {
   print_servo_status((argc > 0) ? (int)argv[0] : 0);
@@ -136,6 +136,37 @@ bool cmd_ledoff(int argc, double *argv) {
 }
 
 // -------------------------------------------------------------------
+// INFO <id> : print key control-table data for one servo
+// -------------------------------------------------------------------
+void cmdInfo(uint8_t id) {
+  if (!dxl.ping(id)) {
+    serial_printf("Servo %d not found\n", id);
+    return;
+  }
+
+  int op = dxl.readControlTableItem(ControlTableItem::OPERATING_MODE, id);
+  int drv = dxl.readControlTableItem(ControlTableItem::DRIVE_MODE, id);
+  int pv = dxl.readControlTableItem(ControlTableItem::PROFILE_VELOCITY, id);
+  int pa = dxl.readControlTableItem(ControlTableItem::PROFILE_ACCELERATION, id);
+  int pos = dxl.getPresentPosition(id);
+  int minL = dxl.readControlTableItem(ControlTableItem::MIN_POSITION_LIMIT, id);
+  int maxL = dxl.readControlTableItem(ControlTableItem::MAX_POSITION_LIMIT, id);
+
+  float rpm = pv * PV_UNIT_RPM;
+  float tps = pvToTicksPerSec(pv);
+  float spanTicks = (maxL > minL) ? (float)(maxL - minL) : TICKS_PER_REV;
+  float spanDeg = spanTicks * DEG_PER_TICK;
+
+  serial_printf("INFO id=%d\n", id);
+  serial_printf("  OperatingMode : %d\n", op);
+  serial_printf("  DriveMode     : %d (bit0=%s-profile)\n", drv, (drv & 0x01) ? "TIME" : "VELOCITY");
+  serial_printf("  Profile Vel   : %d  (≈ %.3f rpm, %.1f ticks/s)\n", pv, rpm, tps);
+  serial_printf("  Profile Accel : %d\n", pa);
+  serial_printf("  PosLimits     : min=%d  max=%d  (span≈ %.1f°)\n", minL, maxL, spanDeg);
+  serial_printf("  Present Pos   : %d (≈ %.2f°)\n", pos, pos * DEG_PER_TICK);
+}
+
+// -------------------------------------------------------------------
 //                      COMMAND TABLE
 // -------------------------------------------------------------------
 
@@ -147,18 +178,17 @@ struct CommandEntry {
 };
 
 static CommandEntry command_table[] = {
-  { "VERBOSEON",  "",          cmd_verbose_on,  "VERBOSEON - enable verbose output" },
-  { "VERBOSEOFF", "",          cmd_verbose_off, "VERBOSEOFF - disable verbose output" },
-  { "MOVE",       "%id %s",    cmd_move,        "MOVE <id|name> <absgoal|±rel> - adaptive move one servo" },
-  { "MOVEDEG",    "%id %f",    cmd_movedegr,    "MOVEDEG <id|name> <deg> - move servo by degrees" },
-  { "MOVECENTER", "",          cmd_movecenter,  "MOVECENTER - move all to center (TICK_ZERO)" },
-  { "MOVEXDEG",   "%d %d %d",  cmd_movexdeg,    "MOVEXDEG <a1> <a2> <aw> - sync multi-servo move" },
-  { "MOVEY",      "%f",        cmd_movey,       "MOVEY <float mm> - vertical move" },
-  { "MOVEX",      "%f",        cmd_movex,       "MOVEX <float mm> - lateral move" },
-  { "READ",       "%id",       cmd_read,        "READ [id|name] - show servo status" },
-  { "INFO",       "%id",       cmd_info,        "INFO <id|name> - show servo parameters" },
-  { "LEDON",      "%id",       cmd_ledon,       "LEDON <id|name> - turn servo LED on" },
-  { "LEDOFF",     "%id",       cmd_ledoff,      "LEDOFF <id|name> - turn servo LED off" },
+  { "VERBOSEON", "", cmd_verbose_on, "VERBOSEON - enable verbose output" },
+  { "VERBOSEOFF", "", cmd_verbose_off, "VERBOSEOFF - disable verbose output" },
+  { "MOVE", "%id %s", cmd_move, "MOVE <id|name> <absgoal|±rel> - adaptive move one servo" },
+  { "MOVEDEG", "%id %f", cmd_movedegr, "MOVEDEG <id|name> <deg> - move servo by degrees" },
+  { "MOVECENTER", "", cmd_movecenter, "MOVECENTER - move all to center (TICK_ZERO)" },
+  { "MOVEYMM", "%f", cmd_movey, "MOVEYMM <float mm> - vertical move" },
+  { "MOVEXMM", "%f", cmd_movex, "MOVEXMM <float mm> - lateral move" },
+  { "READ", "%id", cmd_read, "READ [id|name] - show servo status" },
+  { "INFO", "%id", cmd_info, "INFO <id|name> - show servo parameters" },
+  { "LEDON", "%id", cmd_ledon, "LEDON <id|name> - turn servo LED on" },
+  { "LEDOFF", "%id", cmd_ledoff, "LEDOFF <id|name> - turn servo LED off" },
 };
 
 static constexpr int COMMAND_COUNT = sizeof(command_table) / sizeof(command_table[0]);
@@ -202,7 +232,7 @@ void process_serial_command(String &line) {
     const CommandEntry &cmd = command_table[i];
     if (U.startsWith(cmd.name)) {
       serial_printf(
-"---- START %s params: %s ----\n", cmd.name, line.c_str());
+        "---- START %s params: %s ----\n", cmd.name, line.c_str());
 
       int min_args = 0;
       bool first_is_id = false;
@@ -219,9 +249,9 @@ void process_serial_command(String &line) {
       // ---------------- Argument validation ----------------
       if (argc < min_args) {
         serial_printf(
-"Usage: %s\n", cmd.desc);
+          "Usage: %s\n", cmd.desc);
         serial_printf(
-"---- END %s ERR ----\n\n", cmd.name);
+          "---- END %s ERR ----\n\n", cmd.name);
         return;
       }
 
@@ -230,9 +260,9 @@ void process_serial_command(String &line) {
         int id = resolve_id_or_name(raw[0]);
         if (id == 0) {
           serial_printf(
-"Invalid servo name/id: %s\n", raw[0].c_str());
+            "Invalid servo name/id: %s\n", raw[0].c_str());
           serial_printf(
-"---- END %s ERR ----\n\n", cmd.name);
+            "---- END %s ERR ----\n\n", cmd.name);
           return;
         }
         argv[0] = id;
@@ -241,7 +271,7 @@ void process_serial_command(String &line) {
       // ---------------- Execute Command ----------------
       bool ok = cmd.handler(argc, argv);
       serial_printf(
-"---- END %s %s ----\n\n", cmd.name, ok ? "OK" : "ERR");
+        "---- END %s %s ----\n\n", cmd.name, ok ? "OK" : "ERR");
       return;
     }
   }
