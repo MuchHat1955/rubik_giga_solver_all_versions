@@ -38,7 +38,7 @@ void VerticalKinematics::setA2ticks(int ticks) {
 }
 
 void VerticalKinematics::setGticks(int ticks) {
-  g_deg = ticks2deg(ID_GRIP, ticks);
+  g_deg = ticks2deg(ID_WRIST, ticks);
   update_g_alignment();
 }
 
@@ -125,12 +125,12 @@ double VerticalKinematics::getGdeg() const {
 
 double VerticalKinematics::getGdeg_for_vertical() const {  //TODO check
   // 0° = gripper vertical; positive tilts along Arm2
-  return 180 + a2_deg - a1_deg;
+  return 90 + a2_deg - a1_deg;
 }
 
 double VerticalKinematics::getGdeg_for_horizontal() const {  //TODO check
   // 0° = gripper vertical; positive tilts along Arm2
-  return 90 + a2_deg - a1_deg;
+  return 180 + a2_deg - a1_deg;
 }
 
 double VerticalKinematics::getGdeg_closest_aligned() const {
@@ -140,10 +140,10 @@ double VerticalKinematics::getGdeg_closest_aligned() const {
 }
 
 int VerticalKinematics::getGticks() const {
-  return deg2ticks(ID_GRIP, getGdeg());
+  return deg2ticks(ID_WRIST, getGdeg());
 }
 int VerticalKinematics::getGticks_closest_aligned() const {
-  return deg2ticks(ID_GRIP, getGdeg_closest_aligned());
+  return deg2ticks(ID_WRIST, getGdeg_closest_aligned());
 }
 
 // -------------------------------------------------------------------
@@ -166,7 +166,7 @@ void VerticalKinematics::update_g_alignment() {
 void VerticalKinematics::readPresentPositions() {
   setA1ticks(dxl.getPresentPosition(ID_ARM1));
   setA2ticks(dxl.getPresentPosition(ID_ARM2));
-  setGticks(dxl.getPresentPosition(ID_GRIP));
+  setGticks(dxl.getPresentPosition(ID_WRIST));
 }
 
 void VerticalKinematics::setGoalPositions(double x, double y, double gdeg) {
@@ -176,7 +176,7 @@ void VerticalKinematics::setGoalPositions(double x, double y, double gdeg) {
 
   dxl.setGoalPosition(deg2ticks(ID_ARM1, a1_deg),
                       deg2ticks(ID_ARM2, a1_deg),
-                      deg2ticks(ID_GRIP, getGdeg()));
+                      deg2ticks(ID_WRIST, getGdeg()));
 }
 
 // -------------------------------------------------------------------

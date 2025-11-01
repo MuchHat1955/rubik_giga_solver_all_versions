@@ -228,9 +228,10 @@ void ServoConfig::set_dir(double d) {
 #define TICK_90 3072
 #define TICK_MINUS90 1024
 
+// TODO fix those based on the HW
 ServoConfig arm1("arm1", ID_ARM1, TICK_ZERO, 1.0, TICK_MINUS90 - 100, TICK_90 + 100);
 ServoConfig arm2("arm2", ID_ARM2, TICK_ZERO, 1.0, TICK_MINUS90 - 100, TICK_90 + 100);
-ServoConfig grip("grip", ID_GRIP, TICK_ZERO, 1.0, TICK_MINUS90 - 100, TICK_90 + 100);
+ServoConfig grip("wrist", ID_WRIST, TICK_ZERO, 1.0, TICK_ZERO - 100, 2 * (TICK_90 - TICK_ZERO) + 100);  // wrist goes from -5 to +185 to stay horiz
 ServoConfig grip1("grip1", ID_GRIP1, TICK_ZERO, 1.0, TICK_MINUS90 - 100, TICK_90 + 100);
 ServoConfig grip2("grip2", ID_GRIP2, TICK_ZERO, 1.0, TICK_MINUS90 - 100, TICK_90 + 100);
 ServoConfig base("base", ID_BASE, TICK_ZERO, 1.0, TICK_MINUS90 - 100, TICK_90 + 100);

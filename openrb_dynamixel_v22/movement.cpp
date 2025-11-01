@@ -26,11 +26,11 @@ extern VerticalKinematics kin;
 // ====================================================================================
 
 enum AxisRunMode : uint8_t {
-  MODE_UNDEFINED      = 0,
-  MODE_SINGLE_SERVO   = 1,
-  MODE_XY_VERTICAL    = 2,
-  MODE_XY_HORIZONTAL  = 3,
-  MODE_GRIPPER        = 4
+  MODE_UNDEFINED = 0,
+  MODE_SINGLE_SERVO = 1,
+  MODE_XY_VERTICAL = 2,
+  MODE_XY_HORIZONTAL = 3,
+  MODE_GRIPPER = 4
 };
 
 class AxisGroupController {
@@ -45,8 +45,9 @@ public:
   void setMode(AxisRunMode m) {
     mode = m;
     // Reset IDs/goals
-    id_master = id_arm1 = id_arm2 = id_grip = id_grip2 = 0;
+    id_master = 0;
     id_slave = 0;
+    id_grip = 0;
     masterIndex = 0;
     slaveIndex = 1;
     goal_deg = goal_mm_x = goal_mm_y = goal_percent = 0.0;
@@ -60,35 +61,47 @@ public:
   }
 
   // For MODE_SINGLE_SERVO
-  void setServoId(uint8_t id) { id_master = id; }
-  void setGoalMasterDeg(double deg) { goal_deg = deg; }
+  void setServoId(uint8_t id) {
+    id_master = id;
+  }
+  void setGoalMasterDeg(double deg) {
+    goal_deg = deg;
+  }
 
   // For XY modes (MODE_XY_VERTICAL / MODE_XY_HORIZONTAL)
-  void setServoIds(uint8_t arm1, uint8_t arm2, uint8_t grip) {
-    id_arm1 = arm1; id_arm2 = arm2; id_grip = grip;
-    id_master = arm1;  // Arm1 is master
+  void setServoIds(uint8_t id1, uint8_t id2, uint8_t id3) {
+    id_master = id1;
+    id_slave = id2;
+    id_grip = id3;
   }
-  void setXGoalMm(double x_mm) { goal_mm_x = x_mm; }
-  void setYGoalMm(double y_mm) { goal_mm_y = y_mm; }
+  void setXGoalMm(double x_mm) {
+    goal_mm_x = x_mm;
+  }
+  void setYGoalMm(double y_mm) {
+    goal_mm_y = y_mm;
+  }
 
   // For gripper mode
   void setGripperIds(uint8_t g1, uint8_t g2) {
-    id_grip = g1; id_grip2 = g2;
-    id_master = g1;  // provisional; init will decide true master
-    masterIndex = 0; slaveIndex = 1;
+    id_master = g1;
+    id_slave = g2;
+    masterIndex = 0;
+    slaveIndex = 1;
   }
-  void setGoalMasterPercent(double per) { goal_percent = per; }
+  void setGoalMasterPercent(double per) {
+    goal_percent = per;
+  }
 
   // ------------------------------------------------------------
   //                      Initialization
   // ------------------------------------------------------------
   bool init() {
     switch (mode) {
-      case MODE_SINGLE_SERVO:   return initSingle();
-      case MODE_XY_VERTICAL:    return initXY(true);   // keep X
-      case MODE_XY_HORIZONTAL:  return initXY(false);  // keep Y
-      case MODE_GRIPPER:        return initGripper();
-      default:                  return false;
+      case MODE_SINGLE_SERVO: return initSingle();
+      case MODE_XY_VERTICAL: return initXY(true);     // keep X
+      case MODE_XY_HORIZONTAL: return initXY(false);  // keep Y
+      case MODE_GRIPPER: return initGripper();
+      default: return false;
     }
   }
 
@@ -97,30 +110,36 @@ public:
   // ------------------------------------------------------------
   int getAxisCount() const {
     switch (mode) {
-      case MODE_SINGLE_SERVO:  return 1;
-      case MODE_GRIPPER:       return 2;
+      case MODE_SINGLE_SERVO: return 1;
+      case MODE_GRIPPER: return 2;
       case MODE_XY_VERTICAL:
       case MODE_XY_HORIZONTAL: return 3;
-      default:                 return 0;
+      default: return 0;
     }
   }
 
-  int getMasterIndex() const { return masterIndex; }  // 0 for single/xy (arm1), dynamic for gripper
+  int getMasterIndex() const {
+    return masterIndex;
+  }  // 0 for single/xy (arm1), dynamic for gripper
   uint8_t getId(uint8_t index) const {
     switch (mode) {
-      case MODE_SINGLE_SERVO:  return id_master;
-      case MODE_GRIPPER:       return (index == 0) ? id_grip : id_grip2;
+      case MODE_SINGLE_SERVO: return id_master;
+      case MODE_GRIPPER: return (index == 0) ? ID_GRIP1 : ID_GRIP2;
       default:
-        if (index == 0) return id_arm1;
-        if (index == 1) return id_arm2;
+        if (index == 0) return id_master;
+        if (index == 1) return id_slave;
         if (index == 2) return id_grip;
         return 0;
     }
   }
 
   // master start/goal
-  int getStartTicksMaster() const { return start_ticks_master; }
-  int getGoalTicksMaster()  const { return goal_ticks_master;  }
+  int getStartTicksMaster() const {
+    return start_ticks_master;
+  }
+  int getGoalTicksMaster() const {
+    return goal_ticks_master;
+  }
 
   int getCurrTicks(uint8_t index) const {
     if (index >= curr_ticks.size()) return 0;
@@ -141,7 +160,9 @@ public:
     return &nudge_list[index];
   }
 
-  void start() { readPositions(); }
+  void start() {
+    readPositions();
+  }
 
   void end() {
     // optional LED off or torque relax
@@ -179,45 +200,47 @@ public:
   int getSyncGoal(uint8_t slaveIndex, int masterTicks) const {
     switch (mode) {
       case MODE_XY_VERTICAL:
-      case MODE_XY_HORIZONTAL: {
-        // master is arm1 (index 0)
-        VerticalKinematics* k = kin;
-        // Drive A1 by ticks; then solve for others with constraint:
-        // mode == MODE_XY_VERTICAL -> keep X, else keep Y
-        const_cast<VerticalKinematics*>(k)->setA1ticks(masterTicks);
-        if (slaveIndex == 1) return const_cast<VerticalKinematics*>(k)->getA2ticks();
-        if (slaveIndex == 2) return const_cast<VerticalKinematics*>(k)->getGticks_closest_aligned(); // keep existing position
-        return 0;
-      }
-
-      case MODE_GRIPPER: {
-        // Smart catch-up: slave waits until master's % travel >= slave's, then syncs
-        const int mStart  = start_ticks[masterIndex];
-        const int mGoal   = goal_ticks[masterIndex];
-        const int mTravel = abs(mGoal - mStart);
-        if (mTravel == 0) return start_ticks[slaveIndex];
-
-        // Master progress in [0..1]
-        double mProg = (double)abs(masterTicks - mStart) / (double)mTravel;
-        mProg = constrain(mProg, 0.0, 1.0);
-
-        const int sStart  = start_ticks[slaveIndex];
-        const int sGoal   = goal_ticks[slaveIndex];
-        const int sTravel = abs(sGoal - sStart);
-
-        // Monotonic progress
-        if (mProg < grip_lastProgress) mProg = grip_lastProgress;
-
-        int newGoal;
-        if (mProg * (double)mTravel < (double)sTravel) {
-          newGoal = sStart;  // hold until comparable % covered
-        } else {
-          newGoal = (int)lround(sStart + (sGoal - sStart) * mProg);
+      case MODE_XY_HORIZONTAL:
+        {
+          // master is arm1 (index 0)
+          VerticalKinematics* k = kin;
+          // Drive A1 by ticks; then solve for others with constraint:
+          // mode == MODE_XY_VERTICAL -> keep X, else keep Y
+          const_cast<VerticalKinematics*>(k)->setA1ticks(masterTicks);
+          if (slaveIndex == 1) return const_cast<VerticalKinematics*>(k)->getA2ticks();
+          if (slaveIndex == 2) return const_cast<VerticalKinematics*>(k)->getGticks_closest_aligned();  // keep existing position
+          return 0;
         }
 
-        const_cast<AxisGroupController*>(this)->grip_lastProgress = mProg;
-        return newGoal;
-      }
+      case MODE_GRIPPER:
+        {
+          // Smart catch-up: slave waits until master's % travel >= slave's, then syncs
+          const int mStart = start_ticks[masterIndex];
+          const int mGoal = goal_ticks[masterIndex];
+          const int mTravel = abs(mGoal - mStart);
+          if (mTravel == 0) return start_ticks[slaveIndex];
+
+          // Master progress in [0..1]
+          double mProg = (double)abs(masterTicks - mStart) / (double)mTravel;
+          mProg = constrain(mProg, 0.0, 1.0);
+
+          const int sStart = start_ticks[slaveIndex];
+          const int sGoal = goal_ticks[slaveIndex];
+          const int sTravel = abs(sGoal - sStart);
+
+          // Monotonic progress
+          if (mProg < grip_lastProgress) mProg = grip_lastProgress;
+
+          int newGoal;
+          if (mProg * (double)mTravel < (double)sTravel) {
+            newGoal = sStart;  // hold until comparable % covered
+          } else {
+            newGoal = (int)lround(sStart + (sGoal - sStart) * mProg);
+          }
+
+          const_cast<AxisGroupController*>(this)->grip_lastProgress = mProg;
+          return newGoal;
+        }
 
       default:
         return 0;
@@ -236,12 +259,12 @@ private:
     }
 
     start_ticks_master = dxl->getPresentPosition(id_master);
-    goal_ticks_master  = deg2ticks(id_master, goal_deg);
-    goal_ticks         = { goal_ticks_master };
-    start_ticks        = { start_ticks_master };
+    goal_ticks_master = deg2ticks(id_master, goal_deg);
+    goal_ticks = { goal_ticks_master };
+    start_ticks = { start_ticks_master };
     nudge_list.resize(1);
-    nudge_flags        = { false }; // no mid-nudging for single
-    configured         = true;
+    nudge_flags = { false };  // no mid-nudging for single
+    configured = true;
 
     if (verboseOn) {
       serial_printf("[INIT SINGLE] id=%d start=%d goal_deg=%.2f goal_ticks=%d\n",
@@ -253,12 +276,17 @@ private:
   }
 
   bool initXY(bool keepX) {
-    if (!dxl->ping(id_arm1) || !dxl->ping(id_arm2) || !dxl->ping(id_grip)) {
+    if (!dxl->ping(ID_ARM1) || !dxl->ping(ID_ARM2) || !dxl->ping(ID_WRIST)) {
       if (verboseOn)
-        serial_printf("[INIT XY] ⚠ Missing servo(s): arm1=%d arm2=%d grip=%d\n",
-                      dxl->ping(id_arm1), dxl->ping(id_arm2), dxl->ping(id_grip));
+        serial_printf("[INIT XY] ⚠ Missing servo(s): ping arm1=%d ping arm2=%d ping grip=%d\n",
+                      dxl->ping(ID_ARM1), dxl->ping(ID_ARM2), dxl->ping(ID_WRIST));
       return false;
     }
+
+    // just in case
+    id_master = ID_ARM1;
+    id_slave = ID_ARM2;
+    id_grip = ID_WRIST;
 
     kin->readPresentPositions();
     double x_now = kin->getXmm();
@@ -268,26 +296,26 @@ private:
       serial_printf("[INIT XY] Current XY=(%.2f, %.2f)mm  keepX=%d\n",
                     x_now, y_now, keepX);
 
-    if (keepX)  kin->setXYmm(x_now,  goal_mm_y);
-    else        kin->setXYmm(goal_mm_x, y_now);
+    if (keepX) kin->setXYmm(x_now, goal_mm_y);
+    else kin->setXYmm(goal_mm_x, y_now);
 
     double a1 = kin->getA1deg();
     double a2 = kin->getA2deg();
-    double g  = kin->getGdeg_closest_aligned();
+    double g = kin->getGdeg_closest_aligned();
 
-    start_ticks_master = dxl->getPresentPosition(id_arm1);
-    goal_ticks_master  = deg2ticks(id_arm1, a1);
+    start_ticks_master = dxl->getPresentPosition(id_master);
+    goal_ticks_master = deg2ticks(id_master, a1);
 
     goal_ticks = {
       goal_ticks_master,
-      deg2ticks(id_arm2, a2),
-      deg2ticks(id_grip,  g )
+      deg2ticks(id_slave, a2),
+      deg2ticks(id_grip, g)
     };
     start_ticks = { start_ticks_master,
-                    dxl->getPresentPosition(id_arm2),
+                    dxl->getPresentPosition(id_slave),
                     dxl->getPresentPosition(id_grip) };
 
-    nudge_flags = { true, true, false }; // mid-nudge for arm1 and arm2, not gripper
+    nudge_flags = { true, true, false };  // mid-nudge for arm1 and arm2, not gripper
     nudge_list.resize(3);
     configured = true;
 
@@ -304,41 +332,46 @@ private:
   }
 
   bool initGripper() {
-    bool ok1 = dxl->ping(id_grip);
-    bool ok2 = dxl->ping(id_grip2);
+    bool ok1 = dxl->ping(ID_GRIP1);
+    bool ok2 = dxl->ping(ID_GRIP2);
     if (!ok1 || !ok2) {
       if (verboseOn)
-        serial_printf("[INIT GRIP] ⚠ Gripper ping failed g1=%d g2=%d\n", ok1, ok2);
+        serial_printf("[INIT GRIP] ⚠ Gripper ping failed ping g1=%d ping g2=%d\n", ok1, ok2);
       return false;
     }
 
     // Read starts
-    int start1 = dxl->getPresentPosition(id_grip);
-    int start2 = dxl->getPresentPosition(id_grip2);
+    int start1 = dxl->getPresentPosition(ID_GRIP1);
+    int start2 = dxl->getPresentPosition(ID_GRIP2);
 
     // Compute tick goals from % for each jaw
-    int goal1  = per2ticks(id_grip,  goal_percent);
-    int goal2  = per2ticks(id_grip2, goal_percent);
+    int goal1 = per2ticks(ID_GRIP1, goal_percent);
+    int goal2 = per2ticks(ID_GRIP2, goal_percent);
 
     int travel1 = abs(goal1 - start1);
     int travel2 = abs(goal2 - start2);
 
     // Pick master = larger travel; slave waits until % matches
+    // just in case ignore the setId
     if (travel1 >= travel2) {
-      id_master = id_grip;   id_slave = id_grip2;
-      masterIndex = 0;       slaveIndex = 1;
+      id_master = ID_GRIP1;
+      id_slave = ID_GRIP2;
+      masterIndex = 0;
+      slaveIndex = 1;
       start_ticks_master = start1;
-      goal_ticks_master  = goal1;
+      goal_ticks_master = goal1;
     } else {
-      id_master = id_grip2;  id_slave = id_grip;
-      masterIndex = 1;       slaveIndex = 0;
+      id_master = ID_GRIP2;
+      id_slave = ID_GRIP1;
+      masterIndex = 1;
+      slaveIndex = 0;
       start_ticks_master = start2;
-      goal_ticks_master  = goal2;
+      goal_ticks_master = goal2;
     }
 
     start_ticks = { start1, start2 };
-    goal_ticks  = { goal1,  goal2  };
-    curr_ticks  = start_ticks;
+    goal_ticks = { goal1, goal2 };
+    curr_ticks = start_ticks;
 
     nudge_flags = { false, false };  // typically no mid-nudge for gripper
     nudge_list.resize(2);
@@ -362,25 +395,22 @@ private:
 
   // Servo IDs
   uint8_t id_master = 0;
-  uint8_t id_arm1   = 0;
-  uint8_t id_arm2   = 0;
-  uint8_t id_grip   = 0;
-  uint8_t id_grip2  = 0;
-  uint8_t id_slave  = 0;
+  uint8_t id_slave = 0;
+  uint8_t id_grip = 0;
 
   // Indices (for MODE_GRIPPER we may flip which index is master)
   int masterIndex = 0;
-  int slaveIndex  = 1;
+  int slaveIndex = 1;
 
   // Goals (varies by mode)
-  double goal_deg      = 0.0;
-  double goal_mm_x     = 0.0;
-  double goal_mm_y     = 0.0;
-  double goal_percent  = 0.0;
+  double goal_deg = 0.0;
+  double goal_mm_x = 0.0;
+  double goal_mm_y = 0.0;
+  double goal_percent = 0.0;
 
   // Cached ticks
   int start_ticks_master = 0;
-  int goal_ticks_master  = 0;
+  int goal_ticks_master = 0;
   std::vector<int> start_ticks;
   std::vector<int> goal_ticks;
   std::vector<int> curr_ticks;
@@ -424,17 +454,17 @@ int NudgeController::computeNudge(int currErr, MovePhase phase, int samePosCount
   double sumErr = 0, sumNudge = 0, weightSum = 0;
   for (int i = records.size() - 1; i >= 0; i--) {
     if (records[i].phase != phase) continue;
-    double w = 1.0 + 0.02 * (i + 1);     // more recent samples weighted higher
-    sumErr   += w * records[i].err;
+    double w = 1.0 + 0.02 * (i + 1);  // more recent samples weighted higher
+    sumErr += w * records[i].err;
     sumNudge += w * records[i].nudgeApplied;
     weightSum += w;
   }
 
-  double avgErr   = (weightSum > 0) ? (sumErr / weightSum)   : currErr;
+  double avgErr = (weightSum > 0) ? (sumErr / weightSum) : currErr;
   double avgNudge = (weightSum > 0) ? (sumNudge / weightSum) : 0.0;
 
   double kPhase = phaseGain(phase);
-  double pred   = kPhase * avgErr + 0.3 * avgNudge;
+  double pred = kPhase * avgErr + 0.3 * avgNudge;
 
   // In final phase, add same-position reinforcement if stuck
   if (phase == MovePhase::FINAL && samePosCount > 0)
@@ -449,9 +479,9 @@ void NudgeController::printLog() {
                 id, (int)records.size());
   for (auto& r : records) {
     const char* phaseStr =
-      (r.phase == MovePhase::ACCEL) ? "ACC" :
-      (r.phase == MovePhase::COAST) ? "COAST" :
-      (r.phase == MovePhase::DECEL) ? "DEC" : "FINAL";
+      (r.phase == MovePhase::ACCEL) ? "ACC" : (r.phase == MovePhase::COAST) ? "COAST"
+                                            : (r.phase == MovePhase::DECEL) ? "DEC"
+                                                                            : "FINAL";
     serial_printf("[%lu ms] %s goal=%d curr=%d err=%d nudge=%d\n",
                   r.t_ms, phaseStr, r.prevGoal, r.currPos, r.err, r.nudgeApplied);
   }
@@ -510,12 +540,11 @@ inline NudgeController& getNudgeController(uint8_t id) {
 
 bool move_smooth(
   int stepInterval_ms = SMOOTH_STEP_INTERVAL_MS,
-  int accelSteps      = SMOOTH_ACCEL_STEPS,
-  int decelSteps      = SMOOTH_DECEL_STEPS,
-  int minStep_ticks   = SMOOTH_MIN_STEP_TICKS,
-  int maxStep_ticks   = SMOOTH_MAX_STEP_TICKS,
-  int tol_ticks       = SMOOTH_TOL_TICKS)
-{
+  int accelSteps = SMOOTH_ACCEL_STEPS,
+  int decelSteps = SMOOTH_DECEL_STEPS,
+  int minStep_ticks = SMOOTH_MIN_STEP_TICKS,
+  int maxStep_ticks = SMOOTH_MAX_STEP_TICKS,
+  int tol_ticks = SMOOTH_TOL_TICKS) {
   const int n = axes.getAxisCount();
   if (n == 0) return false;
 
@@ -523,10 +552,10 @@ bool move_smooth(
 
   // Gather master trajectory info
   int masterStart = axes.getStartTicksMaster();
-  int masterGoal  = axes.getGoalTicksMaster();
-  int dist        = masterGoal - masterStart;
-  int dir         = (dist >= 0) ? 1 : -1;
-  int totalDiff   = abs(dist);
+  int masterGoal = axes.getGoalTicksMaster();
+  int dist = masterGoal - masterStart;
+  int dir = (dist >= 0) ? 1 : -1;
+  int totalDiff = abs(dist);
   if (totalDiff < 3) return true;
 
   int accelSpan = accelSteps * (minStep_ticks + maxStep_ticks) / 2;
@@ -574,12 +603,13 @@ bool move_smooth(
 
     // feedback & nudging
     for (int i = 0; i < n; i++) {
-      int curr  = axes.getCurrTicks(i);
-      int goal  = axes.getGoalTicks(i);
-      int err   = goal - curr;
+      int curr = axes.getCurrTicks(i);
+      int goal = axes.getGoalTicks(i);
+      int err = goal - curr;
       int delta = abs(curr - prevPos[i]);
 
-      if (delta < 2) samePosCount[i]++; else samePosCount[i] = 0;
+      if (delta < 2) samePosCount[i]++;
+      else samePosCount[i] = 0;
       samePosCount[i] = std::min(samePosCount[i], 6);
       prevPos[i] = curr;
 
@@ -629,7 +659,7 @@ bool move_smooth(
     for (int i = 0; i < n; i++) {
       int curr = axes.getCurrTicks(i);
       int goal = axes.getGoalTicks(i);
-      int err  = goal - curr;
+      int err = goal - curr;
       if (abs(err) > tol_ticks) {
         all_good = false;
         int nudge = nudgers[i]->computeNudge(err, currentPhase, samePosCount[i]);
@@ -679,7 +709,7 @@ bool cmdMoveYmm(double goal_ymm) {
   if (!dxl.ping(ID_ARM1) || !dxl.ping(ID_ARM2)) return false;
 
   axes.setMode(MODE_XY_VERTICAL);
-  axes.setServoIds(ID_ARM1, ID_ARM2, ID_GRIP);
+  axes.setServoIds(ID_ARM1, ID_ARM2, ID_WRIST);
   axes.setYGoalMm(goal_ymm);
   if (!axes.init()) return false;
 
@@ -692,7 +722,7 @@ bool cmdMoveXmm(double x_mm) {
   if (x_mm > 55) return false;
 
   axes.setMode(MODE_XY_HORIZONTAL);
-  axes.setServoIds(ID_ARM1, ID_ARM2, ID_GRIP);
+  axes.setServoIds(ID_ARM1, ID_ARM2, ID_WRIST);
   axes.setXGoalMm(x_mm);  // fixed: X goal for horizontal mode
   if (!axes.init()) return false;
 

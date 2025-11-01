@@ -79,8 +79,8 @@ bool cmd_move_deg(int argc, double *argv) {
   int current = dxl.getPresentPosition(id);
   int goal_deg = (int)argv[1];
 
-  if (goal_deg < -95.0 || goal_deg > 95.0) {
-    serial_printf("Invalid servo deg: %.2f expected range (-90.0 deg to 90.0 deg)\n", goal_deg);
+  if (goal_deg < -95.0 || goal_deg > 185.0) {
+    serial_printf("Invalid servo deg: %.2f expected range (-95.0 deg to 185.0 deg)\n", goal_deg);
     return false;
   }
   int goal_ticks = per2ticks(id, goal_deg);
@@ -109,7 +109,7 @@ bool cmd_move_per(int argc, double *argv) {
 
   double goal_per = argv[1];
   if (goal_per < 5.0 || goal_per > 105.0) {
-    serial_printf("Invalid servo percentage: %.2f expected range (-5.0 deg to 95.0 deg)\n", goal_per);
+    serial_printf("Invalid servo percentage: %.2f expected range (-5.0 per to 105.0 per)\n", goal_per);
     return false;
   }
 
@@ -276,7 +276,7 @@ bool cmd_move_gripper(int argc, double *argv) {
   double goal_deg = argv[1];
 
   if (goal_deg < 5.0 || goal_deg > 105.0) {
-    serial_printf("Invalid gripper percentage: %.2f expected range (-5.0 deg to 95.0 deg)\n", goal_deg);
+    serial_printf("Invalid gripper percentage: %.2f expected range (-5.0 per to 105 per)\n", goal_deg);
     return false;
   }
 
