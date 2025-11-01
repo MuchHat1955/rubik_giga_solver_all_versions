@@ -258,7 +258,7 @@ void process_serial_command(String &line) {
       // ---------------- ID or Name Resolution ----------------
       if (first_is_id && argc > 0) {
         int id = resolve_id_or_name(raw[0]);
-        if (id == 0) {
+        if ((id < ID_ARM1 || id > ID_BASE) && id != 0) {
           serial_printf(
             "Invalid servo name/id: %s\n", raw[0].c_str());
           serial_printf(

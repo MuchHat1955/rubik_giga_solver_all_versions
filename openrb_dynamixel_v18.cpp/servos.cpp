@@ -158,7 +158,7 @@ void enforce_servo_limits() {
       serial_printf("[%s] pos=%u > max=%u → moving to max\n", cfg->get_key(), pos, hw_max);
       dxl.setGoalPosition(id, hw_max);
     } else {
-      serial_printf("[%s] pos=%u within limits\n", cfg->get_key(), pos);
+      // serial_printf("[%s] pos=%u within limits\n", cfg->get_key(), pos); //TODO prints nothing i
     }
   }
 }
@@ -365,9 +365,6 @@ void print_servo_status(uint8_t id) {
           break;
         }
       }
-    } else {
-      serial_printf("STATUS id=%d not found\n", id);
-      return;
     }
   }
 
@@ -379,11 +376,11 @@ void print_servo_status(uint8_t id) {
       serial_printf("STATUS %s (id=%u): pos=na current=na temp=na\n", s->get_key(), sid);
     } else {
       int pos_ticks = dxl.getPresentPosition(sid);
-      int curr_mA   = dxl.getPresentCurrent(sid);
-      int temp_C    = dxl.readControlTableItem(ControlTableItem::PRESENT_TEMPERATURE, sid);
+      int curr_mA = dxl.getPresentCurrent(sid);
+      int temp_C = dxl.readControlTableItem(ControlTableItem::PRESENT_TEMPERATURE, sid);
 
       double pos_deg = ticks2deg(sid, pos_ticks);
-      double pos_per = ticks2per(sid, pos_ticks);   // ← percentage of configured range
+      double pos_per = ticks2per(sid, pos_ticks);  // ← percentage of configured range
 
       serial_printf("STATUS %s (id=%2u): pos=%4d  deg=%7.2f  per=%6.2f%%  current=%4dmA  temp=%2d°C\n",
                     s->get_key(), sid, pos_ticks, pos_deg, pos_per, curr_mA, temp_C);
