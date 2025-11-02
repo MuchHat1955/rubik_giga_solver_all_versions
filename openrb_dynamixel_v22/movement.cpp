@@ -301,7 +301,10 @@ private:
     id_slave = ID_ARM2;
     id_grip = ID_WRIST;
 
-    kin->readPresentPositions();
+    double _a1_center_deg = ticks2deg(ID_ARM1, dxl->getPresentPosition(ID_ARM1));
+    double _a2_center_deg = ticks2deg(ID_ARM2, dxl->getPresentPosition(ID_ARM2));
+    if (!kin->solve_x_y_from_a1_a2(_a1_center_deg, _a2_center_deg)) return false;
+
     double x_now = kin->getXmm();
     double y_now = kin->getYmm();
 
@@ -588,6 +591,8 @@ bool move_smooth(
   if (verboseOn)
     serial_printf("MOVE start=%d goal=%d totalDiff=%d accel=%d coast=%d decel=%d\n",
                   masterStart, masterGoal, totalDiff, accelSteps, coastSteps, decelSteps);
+
+  bool masterDone = false; //TODO use this one
 
   int posMaster = masterStart;
   MovePhase currentPhase = MovePhase::ACCEL;

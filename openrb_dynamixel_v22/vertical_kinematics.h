@@ -36,13 +36,6 @@ public:
   int getGticks() const;
   int getGticks_closest_aligned() const;
 
-  // ---------------- Motion utilities ----------------
-  void readPresentPositions();
-  void setGoalPositions(double x, double y, double gdeg);
-
-  // ---------------- Geometry solver ----------------
-  void solve_deg_angles_from_xy(double x_mm, double y_mm, double &a1r, double &a2r);
-
   // ---------------- Gripper alignment ----------------
   void update_g_alignment();
 

@@ -550,10 +550,15 @@ void print_servo_status(uint8_t id) {
 
   // ---- XY metrics (for 2-arm systems) ----
   if (id == 0 && dxl.ping(ID_ARM1) && dxl.ping(ID_ARM2)) {
-    kin.readPresentPositions();
-    serial_printf("STATUS XY X=%.2fmm Y=%.2fmm A1=%.2fdeg A2=%.2fdeg G=%.2fdeg  G align=%.2fdeg\n",
-                  kin.getXmm(), kin.getYmm(), kin.getA1deg(), kin.getA2deg(),
-                  kin.getGdeg(), kin.getGdeg_closest_aligned());
+    double _a1_center_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
+    double _a2_center_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
+    if (!kin.solve_x_y_from_a1_a2(_a1_center_deg, _a2_center_deg)) {
+      serial_printf("STATUS XY X=na Y=na A1=na A2=na G=na\n");
+    } else {
+      serial_printf("STATUS XY X=%.2fmm Y=%.2fmm A1=%.2fdeg A2=%.2fdeg G=%.2fdeg  G align=%.2fdeg\n",
+                    kin.getXmm(), kin.getYmm(), kin.getA1deg(), kin.getA2deg(),
+                    kin.getGdeg(), kin.getGdeg_closest_aligned());
+    }
   } else if (id == 0) {
     serial_printf("STATUS XY X=na Y=na A1=na A2=na G=na\n");
   }
