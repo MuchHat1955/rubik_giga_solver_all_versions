@@ -1,57 +1,141 @@
 #include "vertical_kinematics.h"
 
 // -------------------------------------------------------------------
-//                    GLOBAL LINK LENGTH
+//                    HELPERS
 // -------------------------------------------------------------------
-float arm_length_mm = 60.0f;
+double l_mm = 53.0;
+double _90_rad = M_PI / 2.0;
+double _180_rad = M_PI;
 
-// -------------------------------------------------------------------
-//                 VERTICAL KINEMATICS IMPLEMENTATION
-// -------------------------------------------------------------------
+static inline double clampd(double v, double lo, double hi) {
+  return v < lo ? lo : (v > hi ? hi : v);
+}
+static constexpr double EPS = 1e-9;
 
-VerticalKinematics::VerticalKinematics() {}
-
-// ---------------- Independent setters ----------------
-void VerticalKinematics::setA1deg(double a1) {
-  a1_deg = a1;
-  update_from_angles();
+// Convenience tight bounds
+bool x_in_bounds(double x) {
+  bool b = (x >= -0.5 * l_mm - EPS) && (x <= 0.5 * l_mm + EPS);
+  if (b) return true;
+  serial_printf("ERR x_in_bounds x=%.2f\n", x);
+  return false;
+}
+bool y_in_bounds(double y) {
+  bool b = (y > 0.5 * l_mm + EPS) && (y < 1.8 * l_mm - EPS);
+  if (b) return true;
+  serial_printf("ERR y_in_bounds y=%.2f\n", y);
+  return false;
+}
+bool a1_center_deg_in_bounds(double a) {
+  bool b = (a > 0.0 + EPS) && (a < 90.0 - EPS);
+  if (b) return true;
+  serial_printf("ERR a1_center_deg_in_bounds a=%.2f\n", a);
+  return false;
+}
+bool a2_center_deg_in_bounds(double a) {
+  bool b = (a > -90.0 + EPS) && (a < 90.0 - EPS);
+  if (b) return true;
+  serial_printf("ERR a2_center_deg_in_bounds a=%.2f\n", a);
+  return false;
 }
 
-void VerticalKinematics::setA2deg(double a2) {
-  a2_deg = a2;
-  update_from_angles();
+// ------------------------------------------------------------
+// A2 and Y from A1 and X
+// ------------------------------------------------------------
+bool VerticalKinematics::solve_a2_y_from_a1_x(double _a1_center_deg, double _x) {
+  if (!x_in_bounds(_x)) return false;
+  if (!a1_center_deg_in_bounds(_a1_center_deg)) return false;
+
+  double _a1_center_rad = deg2rad(_a1_center_deg);
+  double _a1_right_rad = _90_rad - _a1_center_rad;
+
+  double _c2 = cos(_a1_right_rad) - _x / l_mm;
+  // Must yield a2 in [0, pi/2] → cos in [0,1]
+  if (_c2 < -EPS || _c2 > 1.0 + EPS) return false;
+  _c2 = clampd(_c2, 0.0, 1.0);
+
+  double _a2_left_rad = acos(_c2);
+  if (_a2_left_rad < 0.0 + EPS || _a2_left_rad > _90_rad + EPS) return false;
+
+  double _y = l_mm * (sin(_a1_right_rad) + sin(_a2_left_rad));
+  double _a2_center_rad = _a2_left_rad - _a1_center_rad;
+  double _a2_center_deg = rad2deg(_a2_center_rad);
+
+  if (!y_in_bounds(_y)) return false;
+  if (!a2_center_deg_in_bounds(_a2_center_deg)) return false;
+
+  // final result
+  a2_center_deg = _a2_center_deg;
+  y_mm = _y;
+  return true;
 }
 
-void VerticalKinematics::setGdeg(double g) {
-  g_deg = g;
-  update_g_alignment();
+// ------------------------------------------------------------
+// A2 and X from A1 and Y
+// ------------------------------------------------------------
+bool VerticalKinematics::solve_a2_x_from_a1_y(double _a1_center_deg, double _y) {
+  if (!y_in_bounds(_y)) return false;
+  if (!a1_center_deg_in_bounds(_a1_center_deg)) return false;
+
+  double _a1_center_rad = deg2rad(_a1_center_deg);
+  double _a1_right_rad = _90_rad - _a1_center_rad;
+
+  double _s2 = (_y / l_mm) - sin(_a1_right_rad);
+  // Must yield a2 in [0, pi/2] → sin in [0,1]
+  if (_s2 < -EPS || _s2 > 1.0 + EPS) return false;
+  _s2 = clampd(_s2, 0.0, 1.0);
+
+  double _a2_left_rad = asin(_s2);
+  if (_a2_left_rad < 0.0 || _a2_left_rad > _90_rad + EPS) return false;
+
+  double _x = l_mm * (cos(_a1_right_rad) - cos(_a2_left_rad));
+  double _a2_center_rad = _a2_left_rad - _a1_center_rad;
+  double _a2_center_deg = rad2deg(_a2_center_rad);
+
+  if (!x_in_bounds(_x)) return false;
+  if (!a2_center_deg_in_bounds(_a2_center_deg)) return false;
+
+  // final result
+  a2_center_deg = _a2_center_deg;
+  x_mm = _x;
+  return true;
 }
 
-void VerticalKinematics::setA1ticks(int ticks) {
-  a1_deg = ticks2deg(ID_ARM1, ticks);
-  update_from_angles();
+// ------------------------------------------------------------
+// X and Y from A1 and A2
+// ------------------------------------------------------------
+bool VerticalKinematics::solve_x_y_from_a1_a2(double _a1_center_deg, double _a2_center_deg) {
+  if (!a1_center_deg_in_bounds(_a1_center_deg)) return false;
+  if (!a2_center_deg_in_bounds(_a2_center_deg)) return false;
+
+  double _a1_center_rad = deg2rad(_a1_center_deg);
+  double _a2_center_rad = deg2rad(_a2_center_deg);
+  double _a1_right_rad = _90_rad - _a1_center_rad;
+  double _a2_left_rad = _a1_center_rad + _a2_center_rad;
+
+  if (_a1_right_rad < 0.0 || _a1_right_rad > _90_rad + EPS) return false;
+  if (_a2_left_rad < 0.0 || _a2_left_rad > _90_rad + EPS) return false;
+
+  double _x = l_mm * (cos(_a1_right_rad) - cos(_a2_left_rad));
+  double _y = l_mm * (sin(_a1_right_rad) + sin(_a2_left_rad));
+
+  if (!x_in_bounds(_x)) return false;
+  if (!y_in_bounds(_y)) return false;
+
+  // final result
+  x_mm = _x;
+  y_mm = _y;
+  return true;
 }
 
-void VerticalKinematics::setA2ticks(int ticks) {
-  a2_deg = ticks2deg(ID_ARM2, ticks);
-  update_from_angles();
-}
+// ------------------------------------------------------------
+// A1 and A2 from X and Y
+// ------------------------------------------------------------
+bool VerticalKinematics::solve_a1_a2_from_x_y(double _x, double _y) {
+  if (!x_in_bounds(_x)) return false;
+  if (!y_in_bounds(_y)) return false;
 
-void VerticalKinematics::setGticks(int ticks) {
-  g_deg = ticks2deg(ID_WRIST, ticks);
-  update_g_alignment();
-}
-
-// -------------------------------------------------------------------
-// setXYmm(x, y)
-//   • setXYmm(0, Y)   -> vertical up/down at given Y
-//   • setXYmm(X, -1)  -> horizontal offset X, preserving current Y
-//   • full inverse kinematics (updates both angles)
-// -------------------------------------------------------------------
-void VerticalKinematics::solve_deg_angles_from_xy(double x_mm, double y_mm,
-                                                  double &a1r, double &a2r) {
-  double A = x_mm / arm_length_mm;
-  double B = y_mm / arm_length_mm;
+  double A = _x / l_mm;
+  double B = _y / l_mm;
 
   // step 1: compute q
   double q = atan2(-A, B);
@@ -60,56 +144,50 @@ void VerticalKinematics::solve_deg_angles_from_xy(double x_mm, double y_mm,
   double cos_q = cos(q);
   double sin_p = 0.0;
   if (fabs(cos_q) > 1e-9) {
-    sin_p = clamp(B / (2.0 * cos_q), -1.0, 1.0);
+    sin_p = clampd(B / (2.0 * cos_q), -1.0, 1.0);
   }
-  if (sin_p > 1.0) sin_p = 1.0;
-  if (sin_p < -1.0) sin_p = -1.0;
-
   double p = asin(sin_p);
 
   // step 3: compute angles
-  double a1abs_right_rad = p + q;
-  double a2abs_left_rad = p - q;
+  double _a1_right_rad = p + q;
+  double _a2_left_rad = p - q;
 
-  serial_printf("a1 abs right rad=%.2f a2 abs left rad=%.2f\n",
-                a1abs_right_rad, a2abs_left_rad);
+  double _a1_right_deg = rad2deg(_a1_right_rad);
+  double _a2_left_deg = rad2deg(_a2_left_rad);
 
-  double a1abs_right_deg = rad2deg(a1abs_right_rad);
-  double a2abs_left_deg = rad2deg(a2abs_left_rad);
+  double _a1_center_deg = 90.0 - _a1_right_deg;
+  double _a2_center_deg = _a2_left_deg + _a1_right_deg - 90.0;
 
-  serial_printf("a1 abs right deg=%.2f a2 abs left deg=%.2f\n",
-                a1abs_right_deg, a2abs_left_deg);
+  if (!a1_center_deg_in_bounds(_a1_center_deg)) return false;
+  if (!a2_center_deg_in_bounds(_a2_center_deg)) return false;
 
-  a1r = 90 - a1abs_right_deg;
-  a2r = a2abs_left_deg + a1abs_right_deg - 90;
-
-  serial_printf("a1 rel deg=%.2f a2 rel deg=%.2f\n", a1r, a2r);
+  // final result
+  a1_center_deg = _a1_center_deg;
+  a2_center_deg = _a2_center_deg;
+  return true;
 }
 
-void VerticalKinematics::setXYmm(double x, double y) {
-  if (x < 0 && y < 0) return;
-  if (x < 0) x = x_mm;
-  if (y < 0) y = y_mm;
+// -------------------------------------------------------------------
+//                 VERTICAL KINEMATICS IMPLEMENTATION
+// -------------------------------------------------------------------
 
-  solve_deg_angles_from_xy(x, y, a1_deg, a2_deg);
-  update_from_angles();
-}
+VerticalKinematics::VerticalKinematics() {}
 
 // -------------------------------------------------------------------
 //                           GETTERS
 // -------------------------------------------------------------------
 double VerticalKinematics::getA1deg() const {
-  return a1_deg;
+  return a1_center_deg;
 }
 double VerticalKinematics::getA2deg() const {
-  return a2_deg;
+  return a2_center_deg;
 }
 
 int VerticalKinematics::getA1ticks() const {
-  return deg2ticks(ID_ARM1, a1_deg);
+  return deg2ticks(ID_ARM1, a1_center_deg);
 }
 int VerticalKinematics::getA2ticks() const {
-  return deg2ticks(ID_ARM2, a2_deg);
+  return deg2ticks(ID_ARM2, a2_center_deg);
 }
 
 double VerticalKinematics::getXmm() const {
@@ -125,12 +203,12 @@ double VerticalKinematics::getGdeg() const {
 
 double VerticalKinematics::getGdeg_for_vertical() const {  //TODO check
   // 0° = gripper vertical; positive tilts along Arm2
-  return 90 + a2_deg - a1_deg;
+  return 90 + a2_center_deg - a1_center_deg;
 }
 
 double VerticalKinematics::getGdeg_for_horizontal() const {  //TODO check
   // 0° = gripper vertical; positive tilts along Arm2
-  return 180 + a2_deg - a1_deg;
+  return 180 + a2_center_deg - a1_center_deg;
 }
 
 double VerticalKinematics::getGdeg_closest_aligned() const {
@@ -158,39 +236,6 @@ void VerticalKinematics::update_g_alignment() {
     g_closest_horizontal = true;
   else
     g_closest_horizontal = false;
-}
-
-// -------------------------------------------------------------------
-//                     READ & GOAL POSITIONS
-// -------------------------------------------------------------------
-void VerticalKinematics::readPresentPositions() {
-  setA1ticks(dxl.getPresentPosition(ID_ARM1));
-  setA2ticks(dxl.getPresentPosition(ID_ARM2));
-  setGticks(dxl.getPresentPosition(ID_WRIST));
-}
-
-void VerticalKinematics::setGoalPositions(double x, double y, double gdeg) {
-  setXYmm(x, y);
-  setGdeg(gdeg);
-  update_from_angles();
-
-  dxl.setGoalPosition(deg2ticks(ID_ARM1, a1_deg),
-                      deg2ticks(ID_ARM2, a1_deg),
-                      deg2ticks(ID_WRIST, getGdeg()));
-}
-
-// -------------------------------------------------------------------
-//                     FORWARD KINEMATICS
-// -------------------------------------------------------------------
-void VerticalKinematics::update_from_angles() {
-  double a1r_rad = deg2rad(a1_deg);
-  double a2r_rad = deg2rad(a2_deg);
-  double a1abs_right_rad = M_PI / 2.0 - a1r_rad;
-  double a2abs_left_rad = a1r_rad + a2r_rad;
-
-  // compute using absolute, 0 is vertical, 90 is horizontal right
-  y_mm = arm_length_mm * sin(a1abs_right_rad) + arm_length_mm * sin(a2abs_left_rad);
-  x_mm = arm_length_mm * cos(a1abs_right_rad) - arm_length_mm * cos(a2abs_left_rad);
 }
 
 // -------------------------------------------------------------------

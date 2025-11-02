@@ -211,7 +211,15 @@ public:
           VerticalKinematics* k = kin;
           // Drive A1 by ticks; then solve for others with constraint:
           // mode == MODE_XY_VERTICAL -> keep X, else keep Y
-          const_cast<VerticalKinematics*>(k)->setA1ticks(masterTicks);
+
+          if (mode == MODE_XY_VERTICAL) {
+            double _a1_center_deg = ticks2deg(ID_ARM1, masterTicks);
+            if(!const_cast<VerticalKinematics*>(k)->solve_a2_y_from_a1_x(_a1_center_deg, goal_mm_x) return 0;
+          }
+          if (mode == MODE_XY_HORIZONTAL) {
+            double _a1_center_deg = ticks2deg(ID_ARM1, masterTicks);
+            if (!const_cast<VerticalKinematics*>(k)->solve_a2_x_from_a1_y(_a1_center_deg, goal_mm_y)) return 0;
+          }
           if (slaveIndex == 1) return const_cast<VerticalKinematics*>(k)->getA2ticks();
           if (slaveIndex == 2) return const_cast<VerticalKinematics*>(k)->getGticks_closest_aligned();  // keep existing position
           return 0;
@@ -301,8 +309,8 @@ private:
       serial_printf("[INIT XY] Current XY=(%.2f, %.2f)mm  keepX=%d\n",
                     x_now, y_now, keepX);
 
-    if (keepX) kin->setXYmm(x_now, goal_mm_y);
-    else kin->setXYmm(goal_mm_x, y_now);
+    if (keepX) kin->solve_a1_a2_from_x_y(x_now, goal_mm_y);
+    else kin->solve_a1_a2_from_x_y(goal_mm_x, y_now);
 
     double a1 = kin->getA1deg();
     double a2 = kin->getA2deg();
@@ -687,7 +695,7 @@ bool move_smooth(
         all_good = false;
         int nudge = nudgers[i]->computeNudge(err, currentPhase, samePosCount[i]);
         axes.applyNudge(i, goal, nudge);
-        nudgers[i]->recordData(goal, curr, nudge, currentPhase); //TODO add goal
+        nudgers[i]->recordData(goal, curr, nudge, currentPhase);  //TODO add goal
         if (verboseOn)
           serial_printf("[FINAL] NUDGE axis=%d curr=%d goal=%d err=%d nudge=%d\n",
                         i, curr, goal, err, nudge);
@@ -731,8 +739,13 @@ bool cmdMoveGripperPer(double goal_per) {
 bool cmdMoveYmm(double goal_ymm) {
   if (!dxl.ping(ID_ARM1) || !dxl.ping(ID_ARM2)) return false;
 
+  double _a1_center_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
+  double _a2_center_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
+  if (!kin.solve_x_y_from_a1_a2(_a1_center_deg, _a2_center_deg)) return false;
+
   axes.setMode(MODE_XY_VERTICAL);
   axes.setServoIds(ID_ARM1, ID_ARM2, ID_WRIST);
+  axes.setYGoalMm(kin.getXmm());  // use existing x
   axes.setYGoalMm(goal_ymm);
   if (!axes.init()) return false;
 
@@ -742,11 +755,15 @@ bool cmdMoveYmm(double goal_ymm) {
 
 bool cmdMoveXmm(double x_mm) {
   if (!dxl.ping(ID_ARM1) || !dxl.ping(ID_ARM2)) return false;
-  if (x_mm > 55) return false;
+
+  double _a1_center_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
+  double _a2_center_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
+  if (!kin.solve_x_y_from_a1_a2(_a1_center_deg, _a2_center_deg)) return false;
 
   axes.setMode(MODE_XY_HORIZONTAL);
   axes.setServoIds(ID_ARM1, ID_ARM2, ID_WRIST);
-  axes.setXGoalMm(x_mm);  // fixed: X goal for horizontal mode
+  axes.setXGoalMm(x_mm);
+  axes.setYGoalMm(kin.getYmm());  // use existing y
   if (!axes.init()) return false;
 
   if (verboseOn) serial_printf("START move_smooth for MODE_XY_HORIZONTAL\n");

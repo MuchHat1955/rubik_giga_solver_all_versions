@@ -12,12 +12,10 @@ public:
   VerticalKinematics();
 
   // ---------------- Independent setters ----------------
-  void setA1deg(double a1);
-  void setA2deg(double a2);
-  void setGdeg(double g);
-  void setA1ticks(int ticks);
-  void setA2ticks(int ticks);
-  void setGticks(int ticks);
+  bool solve_a2_y_from_a1_x(double _a1_center_deg, double _x);
+  bool solve_a2_x_from_a1_y(double _a1_center_deg, double _y);
+  bool solve_a1_a2_from_x_y(double _x, double _y);
+  bool solve_x_y_from_a1_a2(double _a1_center_deg, double _a2_center_deg);
 
   // ---------------- XY setters ----------------
   void setXYmm(double x, double y);
