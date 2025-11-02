@@ -63,4 +63,4 @@ private:
 // -------------------------------------------------------------------
 
 extern VerticalKinematics kin;
-extern float l_mm;
+extern double l_mm;
