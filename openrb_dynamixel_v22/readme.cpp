@@ -46,7 +46,7 @@ EXACTLY identical — only reorganized for readability and reuse.
   │     │     • update_from_angles()
   │     │     • gripper alignment logic
   │     ├── provides global instance `kin`
-  │     └── shared constants: `arm_length_mm`
+  │     └── shared constants: `l_mm`
   │
   ├── movement.h / movement.cpp
   │     ├── all coordinated motion control
@@ -163,7 +163,7 @@ EXACTLY identical — only reorganized for readability and reuse.
 - `verboseOn` allows detailed motion and error tracing.
 - All motion functions detect and stop on stall events
   (`checkStall()` using current and temperature thresholds).
-- Coordinate calculations rely on `arm_length_mm`; adjust as needed
+- Coordinate calculations rely on `l_mm`; adjust as needed
   for your specific arm geometry.
 
 -------------------------------------------------------------------------------

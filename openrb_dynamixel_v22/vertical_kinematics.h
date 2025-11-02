@@ -47,9 +47,9 @@ public:
   void update_g_alignment();
 
 private:
-  double a1_deg = 0.0;
-  double a2_deg = 0.0;
-  double g_deg = 0.0;
+  double a1_center_deg = 0.0;
+  double a2_center_deg = 0.0;
+  double g_center_deg = 0.0;
   double x_mm = 0.0;
   double y_mm = 0.0;
   bool g_closest_horizontal = false;
@@ -63,4 +63,4 @@ private:
 // -------------------------------------------------------------------
 
 extern VerticalKinematics kin;
-extern float arm_length_mm;
+extern float l_mm;

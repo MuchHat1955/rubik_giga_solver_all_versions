@@ -214,7 +214,7 @@ public:
 
           if (mode == MODE_XY_VERTICAL) {
             double _a1_center_deg = ticks2deg(ID_ARM1, masterTicks);
-            if(!const_cast<VerticalKinematics*>(k)->solve_a2_y_from_a1_x(_a1_center_deg, goal_mm_x) return 0;
+            if (!const_cast<VerticalKinematics*>(k)->solve_a2_y_from_a1_x(_a1_center_deg, goal_mm_x)) return 0;
           }
           if (mode == MODE_XY_HORIZONTAL) {
             double _a1_center_deg = ticks2deg(ID_ARM1, masterTicks);

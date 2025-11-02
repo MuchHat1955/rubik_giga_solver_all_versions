@@ -198,7 +198,7 @@ double VerticalKinematics::getYmm() const {
 }
 
 double VerticalKinematics::getGdeg() const {
-  return g_deg;
+  return g_center_deg;
 }
 
 double VerticalKinematics::getGdeg_for_vertical() const {  //TODO check
@@ -230,8 +230,8 @@ int VerticalKinematics::getGticks_closest_aligned() const {
 void VerticalKinematics::update_g_alignment() {
   double g_vert_deg = getGdeg_for_vertical();
   double g_horiz_deg = getGdeg_for_horizontal();
-  double err_vert = fabs(g_deg - g_vert_deg);
-  double err_horiz = fabs(g_deg - g_horiz_deg);
+  double err_vert = fabs(g_center_deg - g_vert_deg);
+  double err_horiz = fabs(g_center_deg - g_horiz_deg);
   if (err_horiz < err_vert)
     g_closest_horizontal = true;
   else
