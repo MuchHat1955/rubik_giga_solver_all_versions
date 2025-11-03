@@ -5,8 +5,9 @@
 // ============================================================
 
 double l_mm = 53.0;
-double _90_deg = 90.0;
 double _90_rad = M_PI / 2.0;
+double _45_rad = M_PI / 4.0;
+double _135_rad = M_PI / 2.0 + M_PI / 4.0;
 double _180_rad = M_PI;
 static constexpr double EPS = 1e-9;
 
@@ -43,25 +44,25 @@ static inline double clampd(double v, double lo, double hi) {
 // Bounds helpers
 // ============================================================
 bool x_in_bounds(double _x) {
-  bool _b = (_x >= -0.5 * l_mm - EPS) && (_x <= 0.5 * l_mm + EPS);
+  bool _b = (_x >= -0.9 * l_mm - EPS) && (_x <= 0.9 * l_mm + EPS);
   if (_b) return true;
   serial_printf("ERR x_in_bounds x=%.2f\n", _x);
   return false;
 }
 bool y_in_bounds(double _y) {
-  bool _b = (_y > 0.5 * l_mm + EPS) && (_y < 1.8 * l_mm - EPS);
+  bool _b = (_y > 0.1 * l_mm + EPS) && (_y < 1.9 * l_mm - EPS);
   if (_b) return true;
   serial_printf("ERR y_in_bounds y=%.2f\n", _y);
   return false;
 }
 bool a1_servo_deg_in_bounds(double _a) {
-  bool _b = (_a > 0.0 + EPS) && (_a < _90_deg - EPS);
+  bool _b = (_a > -45.0 + EPS) && (_a < 90.0 - EPS);
   if (_b) return true;
   serial_printf("ERR a1_servo_deg_in_bounds a=%.2f\n", _a);
   return false;
 }
 bool a2_servo_deg_in_bounds(double _a) {
-  bool _b = (_a > -_90_deg + EPS) && (_a < _90_deg - EPS);
+  bool _b = (_a > -90.0 + EPS) && (_a < 90.0 - EPS);
   if (_b) return true;
   serial_printf("ERR a2_servo_deg_in_bounds a=%.2f\n", _a);
   return false;
@@ -74,7 +75,7 @@ bool VerticalKinematics::solve_a2_y_from_a1_x(double _a1_servo_deg, double _x) {
   if (!x_in_bounds(_x))
     return_false("x=%.2f out of range | expected ±%.1f", _x, 0.5 * l_mm);
   if (!a1_servo_deg_in_bounds(_a1_servo_deg))
-    return_false("a1_servo_deg=%.2f° out of range [0,%.1f°]", _a1_servo_deg, _90_deg);
+    return_false("a1_servo_deg=%.2f° out of range", _a1_servo_deg);
 
   double _a1_servo_rad = deg2rad(_a1_servo_deg);
   double _a1_global_rad = _90_rad - _a1_servo_rad;
@@ -97,7 +98,9 @@ bool VerticalKinematics::solve_a2_y_from_a1_x(double _a1_servo_deg, double _x) {
   if (!a2_servo_deg_in_bounds(_a2_servo_deg))
     return_false("a2_servo_deg=%.2f° out of range", _a2_servo_deg);
 
+  a1_servo_deg = _a1_servo_deg;
   a2_servo_deg = _a2_servo_deg;
+  x_mm = _x;
   y_mm = _y;
 
   kin_summary("a1=%.1f° x=%.1f → a2=%.1f° y=%.1f", _a1_servo_deg, _x, a2_servo_deg, y_mm);
@@ -111,7 +114,7 @@ bool VerticalKinematics::solve_a2_x_from_a1_y(double _a1_servo_deg, double _y) {
   if (!y_in_bounds(_y))
     return_false("y=%.2f out of range [%.1f, %.1f]", _y, 0.5 * l_mm, 1.8 * l_mm);
   if (!a1_servo_deg_in_bounds(_a1_servo_deg))
-    return_false("a1_servo_deg=%.2f° out of range [0,%.1f°]", _a1_servo_deg, _90_deg);
+    return_false("a1_servo_deg=%.2f° out of range", _a1_servo_deg);
 
   double _a1_servo_rad = deg2rad(_a1_servo_deg);
   double _a1_global_rad = _90_rad - _a1_servo_rad;
@@ -134,8 +137,10 @@ bool VerticalKinematics::solve_a2_x_from_a1_y(double _a1_servo_deg, double _y) {
   if (!a2_servo_deg_in_bounds(_a2_servo_deg))
     return_false("a2_servo_deg=%.2f° out of range", _a2_servo_deg);
 
+  a1_servo_deg = _a1_servo_deg;
   a2_servo_deg = _a2_servo_deg;
   x_mm = _x;
+  y_mm = _y;
 
   kin_summary("a1=%.1f° y=%.1f → a2=%.1f° x=%.1f", _a1_servo_deg, _y, a2_servo_deg, x_mm);
   return_true("OK | a1=%.2f° y=%.2f → a2=%.2f° x=%.2f", _a1_servo_deg, _y, a2_servo_deg, x_mm);
@@ -156,10 +161,10 @@ bool VerticalKinematics::solve_x_y_from_a1_a2(double _a1_servo_deg, double _a2_s
   double _a1_global_rad = _90_rad - _a1_servo_rad;
   double _a2_global_rad = _a1_servo_rad + _a2_servo_rad;
 
-  if (_a1_global_rad < 0.0 || _a1_global_rad > _90_rad + EPS)
-    return_false("a1_global_rad %.3f out of [0,%.3f]", _a1_global_rad, _90_rad);
-  if (_a2_global_rad < 0.0 || _a2_global_rad > _90_rad + EPS)
-    return_false("a2_global_rad %.3f out of [0,%.3f]", _a2_global_rad, _90_rad);
+  if (_a1_global_rad < -_45_rad || _a1_global_rad > _135_rad + EPS)
+    return_false("a1_global_rad %.3f out of [-45,+135]", rad2deg(_a1_global_rad));
+  if (_a2_global_rad < -_45_rad || _a2_global_rad > _135_rad + EPS)
+    return_false("a2_global_rad %.3f out of [-45,+135]", rad2deg(_a2_global_rad));
 
   double _x = l_mm * (cos(_a1_global_rad) - cos(_a2_global_rad));
   double _y = l_mm * (sin(_a1_global_rad) + sin(_a2_global_rad));
@@ -171,6 +176,8 @@ bool VerticalKinematics::solve_x_y_from_a1_a2(double _a1_servo_deg, double _a2_s
 
   x_mm = _x;
   y_mm = _y;
+  a1_servo_deg = _a1_servo_deg;
+  a2_servo_deg = _a2_servo_deg;
 
   kin_summary("a1=%.1f° a2=%.1f° | x=%.1f y=%.1f", _a1_servo_deg, _a2_servo_deg, x_mm, y_mm);
   return_true("OK | a1=%.2f° a2=%.2f° → x=%.2f y=%.2f", _a1_servo_deg, _a2_servo_deg, x_mm, y_mm);
@@ -201,8 +208,8 @@ bool VerticalKinematics::solve_a1_a2_from_x_y(double _x, double _y) {
   double _a1_global_rad = _p + _q;
   double _a2_global_rad = _p - _q;
 
-  double _a1_servo_deg = _90_deg - rad2deg(_a1_global_rad);
-  double _a2_servo_deg = rad2deg(_a2_global_rad) + rad2deg(_a1_global_rad) - _90_deg;
+  double _a1_servo_deg = 90.0 - rad2deg(_a1_global_rad);
+  double _a2_servo_deg = rad2deg(_a2_global_rad) + rad2deg(_a1_global_rad) - 90.0;
 
   if (!a1_servo_deg_in_bounds(_a1_servo_deg))
     return_false("a1_servo_deg=%.2f° out of range", _a1_servo_deg);
@@ -211,10 +218,14 @@ bool VerticalKinematics::solve_a1_a2_from_x_y(double _x, double _y) {
 
   a1_servo_deg = _a1_servo_deg;
   a2_servo_deg = _a2_servo_deg;
+  x_mm = _x;
+  y_mm = _y;
 
   kin_summary("x=%.1f y=%.1f | a1=%.1f° a2=%.1f°", _x, _y, a1_servo_deg, a2_servo_deg);
   return_true("OK | x=%.2f y=%.2f → a1=%.2f° a2=%.2f°", _x, _y, a1_servo_deg, a2_servo_deg);
 }
+
+// TODO - add solve g
 
 // -------------------------------------------------------------------
 //                 VERTICAL KINEMATICS IMPLEMENTATION

@@ -229,7 +229,7 @@ void ServoConfig::set_dir(double d) {
 #define TICK_MINUS90 1024
 
 // TODO fix those based on the HW
-ServoConfig arm1("arm1", ID_ARM1, TICK_ZERO, 1.0, TICK_MINUS90 - 100, TICK_90 + 100);
+ServoConfig arm1("arm1", ID_ARM1, TICK_ZERO, -1.0, TICK_MINUS90 - 100, TICK_90 + 100);
 ServoConfig arm2("arm2", ID_ARM2, TICK_ZERO, 1.0, TICK_MINUS90 - 100, TICK_90 + 100);
 ServoConfig grip("wrist", ID_WRIST, TICK_ZERO, 1.0, TICK_ZERO - 100, 2 * (TICK_90 - TICK_ZERO) + 100);  // wrist goes from -5 to +185 to stay horiz
 ServoConfig grip1("grip1", ID_GRIP1, TICK_ZERO, 1.0, TICK_MINUS90 - 100, TICK_90 + 100);
@@ -550,9 +550,9 @@ void print_servo_status(uint8_t id) {
 
   // ---- XY metrics (for 2-arm systems) ----
   if (id == 0 && dxl.ping(ID_ARM1) && dxl.ping(ID_ARM2)) {
-    double _a1_center_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
-    double _a2_center_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
-    if (!kin.solve_x_y_from_a1_a2(_a1_center_deg, _a2_center_deg)) {
+    double _a1_servo_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
+    double _a2_servo_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
+    if (!kin.solve_x_y_from_a1_a2(_a1_servo_deg, _a2_servo_deg)) {
       serial_printf("STATUS XY X=na Y=na A1=na A2=na G=na\n");
     } else {
       serial_printf("STATUS XY X=%.2fmm Y=%.2fmm A1=%.2fdeg A2=%.2fdeg G=%.2fdeg  G align=%.2fdeg\n",
