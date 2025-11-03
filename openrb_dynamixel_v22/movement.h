@@ -47,9 +47,9 @@ class NudgeController {
 public:
   struct Record {
     unsigned long t_ms;
-    int prevGoal;
-    int currPos;
-    int err;
+    int prevGoalTicks;
+    int currPosTicks;
+    int errTicks;
     int nudgeApplied;
     MovePhase phase;
   };
