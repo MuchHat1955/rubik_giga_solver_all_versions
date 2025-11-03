@@ -99,13 +99,9 @@ public:
     }
   }
 
-  int getGoalTicks(uint8_t index) const {
+  int getId(uint8_t index) const {
     if (index >= id_list.size()) return 0;
     return id_list[index];
-  }
-  int getCurrTicks(uint8_t index) const {
-    if (index >= curr_ticks.size()) return 0;
-    return curr_ticks[index];
   }
   int getGoalTicks(uint8_t index) const {
     if (index >= goal_ticks.size()) return 0;
@@ -123,7 +119,11 @@ public:
   }
 
   void start() {
-    readPositions();
+    // optional LED on or torque relax
+    for (uint8_t i = 0; i < getAxisCount(); i++) {
+      uint8_t id = getId(i);
+      if (dxl->ping(id)) dxl->ledOn(id);
+    }
   }
 
   void end() {
@@ -134,22 +134,17 @@ public:
     }
   }
 
-  void readPositions() {
-    curr_ticks.clear();
-    curr_ticks.reserve(getAxisCount());
+  void readPositions(int* posList) {
     for (uint8_t i = 0; i < getAxisCount(); i++) {
       uint8_t id = getId(i);
-      curr_ticks.push_back(dxl->getPresentPosition(id));
+      if (id > 0) posList[i] = dxl->getPresentPosition(id);
     }
   }
-
-  void writeGoal(uint8_t axisIndex, int goalTicks) {
-    uint8_t id = getId(axisIndex);
-    dxl->setGoalPosition(id, goalTicks);
-  }
-  void applyPos(uint8_t axisIndex, int pos) {
-    uint8_t id = getId(axisIndex);
-    dxl->writeControlTableItem(ControlTableItem::GOAL_POSITION, id, pos);
+  void applyPos(int* posList) {
+    for (uint8_t i = 0; i < getAxisCount(); i++) {
+      uint8_t id = getId(i);
+      if (id > 0 && posList[i] >= 0) dxl->writeControlTableItem(ControlTableItem::GOAL_POSITION, id, posList[i]);
+    }
   }
   // Compute synchronized tick for slave axis using kinematics (XY) or % catch-up (gripper)
   int getSyncGoal(uint8_t slaveIndex, int masterTicks) const {
@@ -508,6 +503,8 @@ bool move_smooth(
 
   MovePhase currentPhase = MovePhase::ACCEL;
 
+  // TODO adjust torque
+
   // per-axis nudgers
   std::vector<NudgeController*> nudgers;
   nudgers.reserve(n);
@@ -597,8 +594,10 @@ bool move_smooth(
 
       // compute the new goal
       if (i == 0) {
+        if (step_ticks == 0) nextGoal[0] = finalGoal[0];
         nextGoal[0] += dir * step_ticks;
       } else {
+        if (step_ticks == 0) nextGoal[i] = finalGoal[i];
         nextGoal[i] = axes.getSyncGoal(i, posMaster);
       }
       nextGoal[i] += correction;
@@ -644,17 +643,15 @@ bool move_smooth(
   // 4. Final nudging & settle
   currentPhase = MovePhase::FINAL;
   const int maxNudges = 6;
-  const int nudgeDelay = 85;
+  const int nudgeExtraDelay = 65;
 
   for (int count = 0; count < maxNudges; count++) {
     if (all_good) break;
-    step_axes("FINAL", i, 0);
-    delay(nudgeDelay);  // extra delay
+    step_axes("FINAL", i, 0);  // step is zero
+    delay(nudgeExtraDelay);    // extra delay
   }
-}
-
-axes.end();
-return true;
+  axes.end();
+  return true;
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~START WRAPPERS FOR COMMANDS~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
