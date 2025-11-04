@@ -46,7 +46,6 @@ private:
   double x_mm = 0.0;
   double y_mm = 0.0;
   bool g_closest_horizontal = false;
-
 };
 
 // -------------------------------------------------------------------
@@ -55,3 +54,5 @@ private:
 
 extern VerticalKinematics kin;
 extern double l_mm;
+
+void print_xy_status(bool is_valid);

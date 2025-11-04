@@ -270,12 +270,12 @@ double VerticalKinematics::getGdeg() const {
 
 double VerticalKinematics::getGdeg_for_vertical() const {  //TODO check
   // 0° = gripper vertical; positive tilts along Arm2
-  return 90 + a2_servo_deg - a1_servo_deg;
+  return -a2_servo_deg - a1_servo_deg;
 }
 
-double VerticalKinematics::getGdeg_for_horizontal() const {  //TODO check
+double VerticalKinematics::getGdeg_for_horizontal() const {  //TODO check // mount gripper 90 towards right vs others
   // 0° = gripper vertical; positive tilts along Arm2
-  return 180 + a2_servo_deg - a1_servo_deg;
+  return 90 + a2_servo_deg - a1_servo_deg;
 }
 
 double VerticalKinematics::getGdeg_closest_aligned() const {
@@ -309,3 +309,12 @@ void VerticalKinematics::update_g_alignment() {
 //                   GLOBAL INSTANCE
 // -------------------------------------------------------------------
 VerticalKinematics kin;
+
+void print_xy_status(bool is_valid) {
+  if (!is_valid)
+    serial_printf("STATUS XY X=na Y=na A1=na A2=na G=na\n");
+  else
+    serial_printf("STATUS XY X=%.2fmm Y=%.2fmm A1=%.2fdeg A2=%.2fdeg G=%.2fdeg G horiz=%.2fdeg G vert=%.2fdeg G closest=%.2fdeg\n",
+                  kin.getXmm(), kin.getYmm(), kin.getA1deg(), kin.getA2deg(),
+                  kin.getGdeg(), kin.getGdeg_for_horizontal(), kin.getGdeg_for_vertical(), kin.getGdeg_closest_aligned());
+}

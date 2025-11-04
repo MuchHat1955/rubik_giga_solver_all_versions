@@ -154,13 +154,13 @@ void ServoConfig::init() {
     limit_min_ = sp.min_t;
     limit_max_ = sp.max_t;
     dir_ = (sp.dir >= 0) ? 1.0 : -1.0;
-    serial_printf("[persist] %s id=%u loaded: zero=%u min=%u max=%u dir=%d\n",
+    serial_printf("[loaded from persist] %s id=%u loaded: zero=%u min=%u max=%u dir=%d\n",
                   key_, id_, zero_ticks_, limit_min_, limit_max_, (int)sp.dir);
   } else {
     // Not found / invalid → write defaults to the slot (so future boots are consistent)
     persist_from_config(id_, zero_ticks_, limit_min_, limit_max_, dir_);
-    serial_printf("[persist] %s id=%u defaults saved: zero=%u min=%u max=%u dir=%d\n",
-                  key_, id_, zero_ticks_, limit_min_, limit_max_, (dir_ >= 0 ? 1 : -1));
+    serial_printf("[persist defaults] %s id=%u zero=%u min=%u max=%u dir=%d\n",
+                  key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
   }
 }
 
@@ -191,8 +191,10 @@ void ServoConfig::set_zero_ticks(uint16_t t) {
     limit_min_ = limit_max_;
     limit_max_ = a;
   }
+  serial_printf("[set zero] %s id=%u set zero=%u\n", key_, id_, zero_ticks_);
   persist_from_config(id_, zero_ticks_, limit_min_, limit_max_, dir_);
-  serial_printf("[persist] %s id=%u set zero=%u\n", key_, id_, zero_ticks_);
+  serial_printf("[persist] %s id=%u zero=%u min=%u max=%u dir=%d\n",
+                key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
 }
 void ServoConfig::set_min_ticks(uint16_t t) {
   limit_min_ = t;
@@ -201,8 +203,15 @@ void ServoConfig::set_min_ticks(uint16_t t) {
     limit_min_ = limit_max_;
     limit_max_ = a;
   }
+
+  serial_printf("[set min] %s id=%u set min=%u (max=%u)\n", key_, id_, limit_min_, limit_max_);
+  dxl.torqueOff(id_);
+  dxl.writeControlTableItem(ControlTableItem::MIN_POSITION_LIMIT, id_, limit_min_);
+  dxl.torqueOn(id_);
+
   persist_from_config(id_, zero_ticks_, limit_min_, limit_max_, dir_);
-  serial_printf("[persist] %s id=%u set min=%u (max=%u)\n", key_, id_, limit_min_, limit_max_);
+  serial_printf("[persist] %s id=%u zero=%u min=%u max=%u dir=%d\n",
+                key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
 }
 void ServoConfig::set_max_ticks(uint16_t t) {
   limit_max_ = t;
@@ -211,13 +220,21 @@ void ServoConfig::set_max_ticks(uint16_t t) {
     limit_min_ = limit_max_;
     limit_max_ = a;
   }
+
+  serial_printf("[set max] %s id=%u set max=%u (min=%u)\n", key_, id_, limit_max_, limit_min_);
+  dxl.torqueOff(id_);
+  dxl.writeControlTableItem(ControlTableItem::MAX_POSITION_LIMIT, id_, limit_max_);
+  dxl.torqueOn(id_);
+
   persist_from_config(id_, zero_ticks_, limit_min_, limit_max_, dir_);
-  serial_printf("[persist] %s id=%u set max=%u (min=%u)\n", key_, id_, limit_max_, limit_min_);
+  serial_printf("[persist] %s id=%u zero=%u min=%u max=%u dir=%d\n",
+                key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
 }
 void ServoConfig::set_dir(double d) {
   dir_ = (d >= 0.0) ? 1.0 : -1.0;  // store as ±1 for consistency
   persist_from_config(id_, zero_ticks_, limit_min_, limit_max_, dir_);
-  serial_printf("[persist] %s id=%u set dir=%d\n", key_, id_, (dir_ >= 0 ? 1 : -1));
+  serial_printf("[persist] %s id=%u zero=%u min=%u max=%u dir=%d\n",
+                key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
 }
 
 // -------------------------------------------------------------------
@@ -231,12 +248,12 @@ void ServoConfig::set_dir(double d) {
 // TODO fix those based on the HW
 ServoConfig arm1("arm1", ID_ARM1, TICK_ZERO, -1.0, TICK_MINUS90 - 100, TICK_90 + 100);
 ServoConfig arm2("arm2", ID_ARM2, TICK_ZERO, 1.0, TICK_MINUS90 - 100, TICK_90 + 100);
-ServoConfig grip("wrist", ID_WRIST, TICK_ZERO, 1.0, TICK_ZERO - 100, 2 * (TICK_90 - TICK_ZERO) + 100);  // wrist goes from -5 to +185 to stay horiz
+ServoConfig wrist("wrist", ID_WRIST, TICK_ZERO, 1.0, TICK_MINUS90 - 100, TICK_90 + 100);  // wrist zero has to be at -90 //TODO update everywhere
 ServoConfig grip1("grip1", ID_GRIP1, TICK_ZERO, 1.0, TICK_MINUS90 - 100, TICK_90 + 100);
 ServoConfig grip2("grip2", ID_GRIP2, TICK_ZERO, 1.0, TICK_MINUS90 - 100, TICK_90 + 100);
 ServoConfig base("base", ID_BASE, TICK_ZERO, 1.0, TICK_MINUS90 - 100, TICK_90 + 100);
 
-ServoConfig *all_servos[] = { &arm1, &arm2, &grip, &grip1, &grip2, &base };
+ServoConfig *all_servos[] = { &arm1, &arm2, &wrist, &grip1, &grip2, &base };
 constexpr uint8_t SERVO_COUNT = sizeof(all_servos) / sizeof(all_servos[0]);
 
 // -------------------------------------------------------------------
@@ -553,13 +570,11 @@ void print_servo_status(uint8_t id) {
     double _a1_servo_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
     double _a2_servo_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
     if (!kin.solve_x_y_from_a1_a2(_a1_servo_deg, _a2_servo_deg)) {
-      serial_printf("STATUS XY X=na Y=na A1=na A2=na G=na\n");
+      print_xy_status(false);
     } else {
-      serial_printf("STATUS XY X=%.2fmm Y=%.2fmm A1=%.2fdeg A2=%.2fdeg G=%.2fdeg  G align=%.2fdeg\n",
-                    kin.getXmm(), kin.getYmm(), kin.getA1deg(), kin.getA2deg(),
-                    kin.getGdeg(), kin.getGdeg_closest_aligned());
+      print_xy_status(true);
     }
   } else if (id == 0) {
-    serial_printf("STATUS XY X=na Y=na A1=na A2=na G=na\n");
+    print_xy_status(false);
   }
 }

@@ -127,3 +127,4 @@ bool cmdMoveServoDeg(uint8_t id, double goal_deg);
 bool cmdMoveYmm(double y_mm);
 bool cmdMoveXmm(double x_mm);
 bool cmdMoveGripperPer(double goal_per);
+bool cmdMoveWristDegVertical(double goal_deg);

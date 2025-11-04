@@ -286,6 +286,29 @@ bool cmd_move_gripper(int argc, double *argv) {
   return true;
 }
 
+bool cmd_move_wrist(int argc, double *argv) {
+  if (!dxl.ping(ID_WRIST) || !dxl.ping(ID_ARM1) || !dxl.ping(ID_ARM2)) return false;
+
+  double goal_deg = argv[0];
+
+  if (goal_deg < -5 || goal_deg > 95) {
+    serial_printf("Invalid wrist percentage: %.2f expected range (-5deg to 95deg)\n", goal_deg);
+    return false;
+  }
+
+  serial_printf("cmd_move_wrist: deg=%.2\n", goal_deg);
+  if (!cmdMoveWristDegVertical(goal_deg)) return false;
+  print_servo_status(ID_WRIST);
+  return true;
+}
+
+bool cmd_help(int argc, double *argv) {
+  Serial.println();
+  Serial.println(get_help_text());
+  Serial.println();
+  return true;
+}
+
 bool cmd_read(int argc, double *argv) {
   print_servo_status((argc > 0) ? (int)argv[0] : 0);
   return true;
@@ -366,13 +389,16 @@ static CommandEntry command_table[] = {
   { "MOVECENTER", "", cmd_move_center, "MOVECENTER - move all to center" },
   { "MOVEYMM", "%f", cmd_move_y, "MOVEYMM <float mm> - vertical move" },
   { "MOVEXMM", "%f", cmd_move_x, "MOVEXMM <float mm> - lateral move" },
-  { "MOVEGRIPPER", "%f", cmd_move_gripper, "MOVEGRIPPER <percentage> - move both grips to percebtge" },
+  { "MOVEGRIPPER", "%f", cmd_move_gripper, "MOVEGRIPPER <percentage> - move both grips to percentage" },
+  { "MOVEWRISTDEGV", "%f", cmd_move_wrist, "MOVEWRISTDEGV <deg> - move wrist relative to vertical" },
 
   { "READ", "%d", cmd_read, "READ [id|name] - show servo summary status" },
   { "INFO", "%id", cmd_info, "INFO <id> - show servo full status" },
 
   { "LEDON", "%d", cmd_ledon, "LEDON <id> - turn servo LED on" },
   { "LEDOFF", "%d", cmd_ledoff, "LEDOFF <id> - turn servo LED off" },
+
+  { "HELP", "", cmd_help, "HELP list of commands" },
 };
 
 static constexpr int COMMAND_COUNT = sizeof(command_table) / sizeof(command_table[0]);

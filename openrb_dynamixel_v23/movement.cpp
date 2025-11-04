@@ -692,11 +692,9 @@ void printXY() {
   double _a1_servo_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
   double _a2_servo_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
   if (!kin.solve_x_y_from_a1_a2(_a1_servo_deg, _a2_servo_deg)) {
-    serial_printf("STATUS XY X=na Y=na A1=na A2=na G=na\n");
+    print_xy_status(false);
   } else {
-    serial_printf("STATUS XY X=%.2fmm Y=%.2fmm A1=%.2fdeg A2=%.2fdeg G=%.2fdeg  G align=%.2fdeg\n",
-                  kin.getXmm(), kin.getYmm(), kin.getA1deg(), kin.getA2deg(),
-                  kin.getGdeg(), kin.getGdeg_closest_aligned());
+    print_xy_status(true);
   }
 }
 
@@ -712,6 +710,26 @@ bool cmdMoveGripperPer(double goal_per) {
   bool ret = move_smooth();
   printXY();
   return ret;
+}
+
+bool cmdMoveWristDegVertical(double goal_deg) {
+  if (!dxl.ping(ID_ARM1) || !dxl.ping(ID_ARM2) || !dxl.ping(ID_WRIST)) return false;
+
+  double _a1_center_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
+  double _a2_center_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
+  if (!kin.solve_x_y_from_a1_a2(_a1_center_deg, _a2_center_deg)) return false;
+
+  double vert_deg = kin.getGdeg_for_vertical();
+  print_xy_status(true);
+  serial_printf("g deg vertical=%.2f, g deg move to=%.2f\n", vert_deg, vert_deg + goal_deg);
+
+  axes.setMode(MODE_SINGLE_SERVO);
+  axes.setServoId(ID_WRIST);
+  axes.setGoalDeg(vert_deg + goal_deg);
+  if (!axes.init()) return false;
+
+  if (verboseOn) serial_printf("START move_smooth for WRIST\n");
+  return move_smooth();
 }
 
 bool cmdMoveYmm(double goal_ymm) {
