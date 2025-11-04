@@ -275,7 +275,7 @@ double VerticalKinematics::getGdeg_for_vertical() const {  //TODO check
 
 double VerticalKinematics::getGdeg_for_horizontal() const {  //TODO check // mount gripper 90 towards right vs others
   // 0° = gripper vertical; positive tilts along Arm2
-  return 90 + a2_servo_deg - a1_servo_deg;
+  return 90 - a2_servo_deg - a1_servo_deg;
 }
 
 double VerticalKinematics::getGdeg_closest_aligned() const {

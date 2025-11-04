@@ -34,7 +34,6 @@ public:
   double getGdeg_for_vertical() const;
   double getGdeg_closest_aligned() const;
   int getGticks() const;
-  int getGticks_closest_aligned() const;
 
   // ---------------- Gripper alignment ----------------
   void update_g_alignment();
