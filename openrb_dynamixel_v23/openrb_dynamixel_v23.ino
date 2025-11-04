@@ -47,10 +47,10 @@ void setup() {
       uint16_t cfg_min = s->min_ticks();
       uint16_t cfg_max = s->max_ticks();
 
-      serial_printf("Servo %s (id=%u) OK | cfg[%u-%u] hw[%u-%u]\n",
+      serial_printf_verbose("Servo %s (id=%u) OK | cfg[%u-%u] hw[%u-%u]\n",
                     s->get_key(), id, cfg_min, cfg_max, hw_min, hw_max);
     } else {
-      serial_printf("Servo %s (id=%u) NOT RESPONDING\n", s->get_key(), id);
+      serial_printf_verbose("Servo %s (id=%u) NOT RESPONDING\n", s->get_key(), id);
     }
   }
 

@@ -115,4 +115,4 @@ void setGoal_deg(int id, double goal_deg);
 bool isInPosition(uint8_t id);
 bool isMoving(uint8_t id);
 bool checkStall(uint8_t id);
-void print_servo_status(uint8_t id);
+void print_servo_status(String txt, uint8_t id);

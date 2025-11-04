@@ -37,13 +37,13 @@ extern VerticalKinematics kin;
 // Time between incremental servo goal updates (ms)
 #define SMOOTH_STEP_INTERVAL_MS 35
 // Number of acceleration steps before reaching full speed
-#define SMOOTH_ACCEL_STEPS 10 // was 20
+#define SMOOTH_ACCEL_STEPS 10  // was 20
 // Number of deceleration steps before stopping
-#define SMOOTH_DECEL_STEPS 10 // was 20
+#define SMOOTH_DECEL_STEPS 10  // was 20
 // Minimum tick change per update (slowest motion increment)
-#define SMOOTH_MIN_STEP_TICKS 1 
+#define SMOOTH_MIN_STEP_TICKS 1
 // Maximum tick change per update (fastest motion increment)
-#define SMOOTH_MAX_STEP_TICKS 15 // was 25
+#define SMOOTH_MAX_STEP_TICKS 15  // was 25
 // Tolerance in ticks for considering goal reached
 #define SMOOTH_TOL_TICKS 4
 
@@ -128,3 +128,5 @@ bool cmdMoveYmm(double y_mm);
 bool cmdMoveXmm(double x_mm);
 bool cmdMoveGripperPer(double goal_per);
 bool cmdMoveWristDegVertical(double goal_deg);
+
+void read_print_xy(String txt);

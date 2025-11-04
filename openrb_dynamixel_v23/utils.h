@@ -16,6 +16,13 @@ extern bool verboseOn;
 
 // ---------------- Serial helper ----------------
 template<typename... Args>
+inline void serial_printf_verbose(const char *fmt, Args... args) {
+  if (!verboseOn) return;
+  char buf[200];
+  snprintf(buf, sizeof(buf), fmt, args...);
+  Serial.print(buf);
+}
+template<typename... Args>
 inline void serial_printf(const char *fmt, Args... args) {
   char buf[200];
   snprintf(buf, sizeof(buf), fmt, args...);

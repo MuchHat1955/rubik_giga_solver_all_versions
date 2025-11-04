@@ -207,8 +207,7 @@ private:
   // ------------------------------------------------------------
   bool initSingle() {
     if (!dxl->ping(id_servo)) {
-      if (verboseOn)
-        serial_printf("[INIT SINGLE] ⚠ Servo %d not responding\n", id_servo);
+      serial_printf_verbose("[INIT SINGLE] ⚠ Servo %d not responding\n", id_servo);
       return false;
     }
 
@@ -222,18 +221,15 @@ private:
     dir_list = { goal_ticks_servo - start_ticks_servo > 0 ? 1.0 : -1.0, 0, 0 };
     configured = true;
 
-    if (verboseOn) {
-      serial_printf("[INIT SINGLE] id=%d start=%d goal_deg=%.2f goal_ticks=%d\n",
-                    id_list[0], start_ticks[0], goal_deg, goal_ticks[0]);
-    }
+    serial_printf_verbose("[INIT SINGLE] id=%d start=%d goal_deg=%.2f goal_ticks=%d\n",
+                          id_list[0], start_ticks[0], goal_deg, goal_ticks[0]);
     return true;
   }
 
   bool initXY(bool keepX) {
     if (!dxl->ping(ID_ARM1) || !dxl->ping(ID_ARM2) || !dxl->ping(ID_WRIST)) {
-      if (verboseOn)
-        serial_printf("[INIT XY] ⚠ Missing servo(s): ping arm1=%d ping arm2=%d ping grip=%d\n",
-                      dxl->ping(ID_ARM1), dxl->ping(ID_ARM2), dxl->ping(ID_WRIST));
+      serial_printf_verbose("[INIT XY] ⚠ Missing servo(s): ping arm1=%d ping arm2=%d ping grip=%d\n",
+                            dxl->ping(ID_ARM1), dxl->ping(ID_ARM2), dxl->ping(ID_WRIST));
       return false;
     }
 
@@ -253,9 +249,8 @@ private:
     double x_now = kin->getXmm();
     double y_now = kin->getYmm();
 
-    if (verboseOn)
-      serial_printf("[INIT XY] Current XY=(%.2f, %.2f)mm  keepX=%d\n",
-                    x_now, y_now, keepX);
+    serial_printf_verbose("[INIT XY] Current XY=(%.2f, %.2f)mm  keepX=%d\n",
+                          x_now, y_now, keepX);
 
     if (keepX) kin->solve_a1_a2_from_x_y(x_now, goal_mm_y);
     else kin->solve_a1_a2_from_x_y(goal_mm_x, y_now);
@@ -279,19 +274,17 @@ private:
 
     configured = true;
 
-    if (verboseOn) {
-      serial_printf("[INIT XY] keep%s | a1=%.2f° a2=%.2f° g=%.2f°\n",
-                    keepX ? "X" : "Y", a1, a2, g);
-      serial_printf("[INIT XY] arm1 start=%d goal=%d  Δ=%d\n",
-                    start_ticks[0], goal_ticks[0],
-                    goal_ticks[0] - start_ticks[0]);
-      serial_printf("[INIT XY] arm2 start=%d goal=%d  Δ=%d\n",
-                    start_ticks[1], goal_ticks[1],
-                    goal_ticks[1] - start_ticks[1]);
-      serial_printf("[INIT XY] grip start=%d goal=%d  Δ=%d\n",
-                    start_ticks[2], goal_ticks[2],
-                    goal_ticks[2] - start_ticks[2]);
-    }
+    serial_printf_verbose("[INIT XY] keep%s | a1=%.2f° a2=%.2f° g=%.2f°\n",
+                          keepX ? "X" : "Y", a1, a2, g);
+    serial_printf_verbose("[INIT XY] arm1 start=%d goal=%d  Δ=%d\n",
+                          start_ticks[0], goal_ticks[0],
+                          goal_ticks[0] - start_ticks[0]);
+    serial_printf_verbose("[INIT XY] arm2 start=%d goal=%d  Δ=%d\n",
+                          start_ticks[1], goal_ticks[1],
+                          goal_ticks[1] - start_ticks[1]);
+    serial_printf_verbose("[INIT XY] grip start=%d goal=%d  Δ=%d\n",
+                          start_ticks[2], goal_ticks[2],
+                          goal_ticks[2] - start_ticks[2]);
     return true;
   }
 
@@ -299,8 +292,7 @@ private:
     bool ok1 = dxl->ping(ID_GRIP1);
     bool ok2 = dxl->ping(ID_GRIP2);
     if (!ok1 || !ok2) {
-      if (verboseOn)
-        serial_printf("[INIT GRIP] ⚠ Gripper ping failed ping g1=%d ping g2=%d\n", ok1, ok2);
+      serial_printf_verbose("[INIT GRIP] ⚠ Gripper ping failed ping g1=%d ping g2=%d\n", ok1, ok2);
       return false;
     }
 
@@ -339,12 +331,10 @@ private:
     configured = true;
     grip_lastProgress = 0.0;
 
-    if (verboseOn) {
-      serial_printf("[INIT GRIP] goal%%=%.1f start1=%d start2=%d goal1=%d goal2=%d\n",
-                    goal_percent, start1, start2, goal1, goal2);
-      serial_printf("[INIT GRIP] travel1=%d travel2=%d\n",
-                    travel1, travel2);
-    }
+    serial_printf_verbose("[INIT GRIP] goal%%=%.1f start1=%d start2=%d goal1=%d goal2=%d\n",
+                          goal_percent, start1, start2, goal1, goal2);
+    serial_printf_verbose("[INIT GRIP] travel1=%d travel2=%d\n",
+                          travel1, travel2);
     return true;
   }
 
@@ -433,15 +423,15 @@ int NudgeController::computeNudge(int currErr, MovePhase phase, int samePosCount
 }
 
 void NudgeController::printLog() {
-  serial_printf("---- Nudge log for servo %d (count=%d) ----\n",
-                id, (int)records.size());
+  serial_printf_verbose("---- Nudge log for servo %d (count=%d) ----\n",
+                        id, (int)records.size());
   for (auto& r : records) {
     const char* phaseStr =
       (r.phase == MovePhase::ACCEL) ? "ACC" : (r.phase == MovePhase::COAST) ? "COAST"
                                             : (r.phase == MovePhase::DECEL) ? "DEC"
                                                                             : "FINAL";
-    serial_printf("[%lu ms] %s goal=%d curr=%d errTicks=%d nudge=%d\n",
-                  r.t_ms, phaseStr, r.prevGoalTicks, r.currPosTicks, r.errTicks, r.nudgeApplied);
+    serial_printf_verbose("[%lu ms] %s goal=%d curr=%d errTicks=%d nudge=%d\n",
+                          r.t_ms, phaseStr, r.prevGoalTicks, r.currPosTicks, r.errTicks, r.nudgeApplied);
   }
 }
 
@@ -452,7 +442,7 @@ int NudgeController::baseEstimate(int errTicks, MovePhase phase, int samePosCoun
   if (phase == MovePhase::FINAL && samePosCount > 0)
     nudge += samePosCount * 2 * (errTicks > 0 ? -1 : 1);  //TODO adjust
   nudge = constrain(nudge, -35.0, 35.0);
-  // if (verboseOn) serial_printf("   --nudge for errTicks=%d is %d\n", errTicks, (int)nudge);
+  // serial_printf_verbose("   --nudge for errTicks=%d is %d\n", errTicks, (int)nudge);
   return (int)nudge;
 }
 
@@ -516,8 +506,8 @@ bool move_smooth(
   bool axesDone[3];
 
   axes.readPresentTicks(currTicks);
-  serial_printf("-- axes read current ticks {%d, %d, %d}\n", currTicks[0], currTicks[1], currTicks[2]);
-  serial_printf("-- axes goal ticks {%d, %d, %d}\n", axes.getGoalTicks(0), axes.getGoalTicks(1), axes.getGoalTicks(2));
+  serial_printf_verbose("-- axes read current ticks {%d, %d, %d}\n", currTicks[0], currTicks[1], currTicks[2]);
+  serial_printf_verbose("-- axes goal ticks {%d, %d, %d}\n", axes.getGoalTicks(0), axes.getGoalTicks(1), axes.getGoalTicks(2));
 
   for (int i = 0; i < axes_count; i++) {
     samePosCount[i] = 0;
@@ -547,11 +537,9 @@ bool move_smooth(
   if (coastSpan < 0) coastSpan = 0;
   int coastSteps = coastSpan / maxStep_ticks;
 
-  if (verboseOn) {
-    serial_printf("MOVE start=%d goal=%d totalDiff=%d accel=%d coast=%d decel=%d\n",
-                  masterStart, masterGoal, masterGoal - masterStart, accelSteps, coastSteps, decelSteps);
-    Serial.println();
-  }
+  serial_printf_verbose("MOVE start=%d goal=%d totalDiff=%d accel=%d coast=%d decel=%d\n\n",
+                        masterStart, masterGoal, masterGoal - masterStart, accelSteps, coastSteps, decelSteps);
+  Serial.println();
 
   bool all_good = false;
   bool skip2final = false;
@@ -615,8 +603,8 @@ bool move_smooth(
       // do not apply to master in case it reached end goal, but can apply to slaves
       //if (ax == 1) Serial.print("      ");
       //if (ax == 2) Serial.print("            ");
-      if (ax == 0) serial_printf("[%s] axis=%d prev goal=%d curr= %d err=%d next goal=%d same=%d step ticks=%d skip2final=%d\n",
-                                 phaseName, ax, prevGoalTicks[ax], currTicks[ax], errTicks[ax], nextGoalTicks[ax], samePosCount[ax], step_ticks, skip2final);
+      if (ax == 0) serial_printf_verbose("[%s] axis=%d prev goal=%d curr= %d err=%d next goal=%d same=%d step ticks=%d skip2final=%d\n",
+                                         phaseName, ax, prevGoalTicks[ax], currTicks[ax], errTicks[ax], nextGoalTicks[ax], samePosCount[ax], step_ticks, skip2final);
       prevGoalTicks[ax] = nextGoalTicks[ax];
     }
 
@@ -684,17 +672,17 @@ bool cmdMoveServoDeg(uint8_t id, double goal_deg) {
   axes.setGoalDeg(goal_deg);
   if (!axes.init()) return false;
 
-  if (verboseOn) serial_printf("START move_smooth for SINGLE_SERVO\n");
+  serial_printf_verbose("START move_smooth for SINGLE_SERVO\n");
   return move_smooth();
 }
 
-void printXY() {
+void read_print_xy(String txt) {
   double _a1_servo_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
   double _a2_servo_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
   if (!kin.solve_x_y_from_a1_a2(_a1_servo_deg, _a2_servo_deg)) {
-    print_xy_status(false);
+    print_xy_status(txt, false);
   } else {
-    print_xy_status(true);
+    print_xy_status(txt, true);
   }
 }
 
@@ -705,10 +693,10 @@ bool cmdMoveGripperPer(double goal_per) {
   axes.setGoalPercent(goal_per);
   if (!axes.init()) return false;
 
-  if (verboseOn) serial_printf("START move_smooth for MODE_GRIPPER\n");
+  serial_printf_verbose("START move_smooth for MODE_GRIPPER\n");
 
   bool ret = move_smooth();
-  printXY();
+  read_print_xy("");
   return ret;
 }
 
@@ -720,15 +708,15 @@ bool cmdMoveWristDegVertical(double goal_deg) {
   if (!kin.solve_x_y_from_a1_a2(_a1_center_deg, _a2_center_deg)) return false;
 
   double vert_deg = kin.getGdeg_for_vertical();
-  print_xy_status(true);
-  serial_printf("g deg vertical=%.2f, g deg move to=%.2f\n", vert_deg, vert_deg + goal_deg);
+  print_xy_status("", true);
+  serial_printf_verbose("g deg vertical=%.2f, g deg move to=%.2f\n", vert_deg, vert_deg + goal_deg);
 
   axes.setMode(MODE_SINGLE_SERVO);
   axes.setServoId(ID_WRIST);
   axes.setGoalDeg(vert_deg + goal_deg);
   if (!axes.init()) return false;
 
-  if (verboseOn) serial_printf("START move_smooth for WRIST\n");
+  serial_printf_verbose("START move_smooth for WRIST\n");
   return move_smooth();
 }
 
@@ -744,9 +732,9 @@ bool cmdMoveYmm(double goal_ymm) {
   axes.setYGoalMm(goal_ymm);
   if (!axes.init()) return false;
 
-  if (verboseOn) serial_printf("START move_smooth for MODE_XY_VERTICAL\n");
+  serial_printf_verbose("START move_smooth for MODE_XY_VERTICAL\n");
   bool ret = move_smooth();
-  printXY();
+  read_print_xy("");
   return ret;
 }
 
@@ -762,8 +750,8 @@ bool cmdMoveXmm(double x_mm) {
   axes.setYGoalMm(kin.getYmm());  // use existing y
   if (!axes.init()) return false;
 
-  if (verboseOn) serial_printf("START move_smooth for MODE_XY_HORIZONTAL\n");
+  serial_printf_verbose("START move_smooth for MODE_XY_HORIZONTAL\n");
   bool ret = move_smooth();
-  printXY();
+  read_print_xy("");
   return ret;
 }

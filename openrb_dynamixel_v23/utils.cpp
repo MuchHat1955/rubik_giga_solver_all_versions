@@ -56,4 +56,4 @@ double constrainf(double val, double min_val, double max_val) {
 }
 
 // Explicit template instantiation (needed for Arduino build)
-template void serial_printf<>(const char *fmt);
+template void serial_printf_verbose<>(const char *fmt);

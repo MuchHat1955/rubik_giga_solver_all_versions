@@ -12,10 +12,10 @@ public:
   VerticalKinematics();
 
   // ---------------- Independent setters ----------------
-  bool solve_a2_y_from_a1_x(double _a1_servo_deg, double _x);
-  bool solve_a2_x_from_a1_y(double _a1_servo_deg, double _y);
-  bool solve_a1_a2_from_x_y(double _x, double _y);
-  bool solve_x_y_from_a1_a2(double _a1_servo_deg, double _a2_servo_deg);
+  bool solve_a2_y_from_a1_x(double _a1_servo_deg, double _x, double _g_servo_deg = 999.0);
+  bool solve_a2_x_from_a1_y(double _a1_servo_deg, double _y, double _g_servo_deg = 999.0);
+  bool solve_a1_a2_from_x_y(double _x, double _y, double _g_servo_deg = 999.0);
+  bool solve_x_y_from_a1_a2(double _a1_servo_deg, double _a2_servo_deg, double _g_servo_deg = 999.0);
 
   // ---------------- XY setters ----------------
   void setXYmm(double x, double y);
@@ -32,8 +32,10 @@ public:
   double getGdeg() const;
   double getGdeg_for_horizontal() const;
   double getGdeg_for_vertical() const;
-  double getGdeg_closest_aligned() const;
+  double getGdeg_closest_aligned();
+  int getGticks_closest_aligned();
   int getGticks() const;
+  bool update_from_present_pos();
 
   // ---------------- Gripper alignment ----------------
   void update_g_alignment();
@@ -54,4 +56,4 @@ private:
 extern VerticalKinematics kin;
 extern double l_mm;
 
-void print_xy_status(bool is_valid);
+void print_xy_status(String txt, bool is_valid);
