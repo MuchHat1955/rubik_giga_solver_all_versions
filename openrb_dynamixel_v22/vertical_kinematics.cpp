@@ -57,7 +57,7 @@ bool x_in_bounds(double _x) {
   return false;
 }
 bool y_in_bounds(double _y) {
-  bool _b = (_y > 0.1 * l_mm + EPS) && (_y < 1.9 * l_mm - EPS);
+  bool _b = (_y > 0.05 * l_mm + EPS) && (_y < 1.95 * l_mm - EPS);
   if (_b) return true;
   serial_printf("ERR y_in_bounds y=%.2f\n", _y);
   return false;

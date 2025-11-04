@@ -591,29 +591,26 @@ bool move_smooth(
       correctionTicks[ax] = 0;
       if (axes.getNudgeFlag(ax)) correctionTicks[ax] = nudgers[ax]->computeNudge(errTicks[ax], currentPhase, samePosCount[ax]);
 
-      // compute the new goal
-      if (ax == 0) {
-        if (step_ticks == 0) {
-          skip2final = true;
-          nextGoalTicks[0] = finalGoalTicks[0];
+      // ---------------- compute next goal ----------------
+      if (ax == 0) {  // master
+        // In FINAL phase, don't jump to finalGoalTicks — just apply correction
+        if (currentPhase == MovePhase::FINAL) {
+          nextGoalTicks[0] = currTicks[0] + correctionTicks[0];
         } else {
-          if (step_ticks == 0) nextGoalTicks[ax] = finalGoalTicks[ax];
+          // Normal accel/coast/decel motion
           nextGoalTicks[0] += dirMaster * step_ticks;
-          // serial_printf("------ dir=%d next=%d final=%d\n", dirMaster, nextGoalTicks[0], finalGoalTicks[0]);
 
-          bool pastFinal = false;
-          bool underFinal = false;
-          if (nextGoalTicks[0] > finalGoalTicks[0]) pastFinal = true;
-          if (nextGoalTicks[0] < finalGoalTicks[0]) underFinal = true;
-
-          if (dirMaster >= 0 && pastFinal) skip2final = true;
-          if (dirMaster < 0 && underFinal) skip2final = true;
+          // Clamp if crossing final
+          if ((dirMaster >= 0 && nextGoalTicks[0] > finalGoalTicks[0]) || (dirMaster < 0 && nextGoalTicks[0] < finalGoalTicks[0])) {
+            nextGoalTicks[0] = finalGoalTicks[0];
+            skip2final = true;  // mark transition, but don't jump later
+          }
         }
       } else {
-        if (step_ticks == 0) nextGoalTicks[ax] = finalGoalTicks[ax];
-        nextGoalTicks[ax] = axes.getSyncGoal(ax, nextGoalTicks[0]);  // 0 is master
+        // slaves follow master, geometry handled in getSyncGoal()
+        nextGoalTicks[ax] = axes.getSyncGoal(ax, nextGoalTicks[0]);
+        nextGoalTicks[ax] += correctionTicks[ax];
       }
-      nextGoalTicks[ax] += correctionTicks[ax];
 
       // do not apply to master in case it reached end goal, but can apply to slaves
       //if (ax == 1) Serial.print("      ");
@@ -655,12 +652,13 @@ bool move_smooth(
 
   // 3. Deceleration phase
   currentPhase = MovePhase::DECEL;
-  for (int i = decelSteps - 1; i >= 0; i--) {
+  for (int i = 0; i < decelSteps; i++) {
     if (all_good || skip2final) break;
-    int step_ticks = map(i, 0, decelSteps - 1, minStep_ticks, maxStep_ticks);
+    int step_ticks = map(decelSteps - 1 - i, 0, decelSteps - 1,
+                         minStep_ticks, maxStep_ticks);
     step_axes("DECEL", i, step_ticks);
   }
-  delay(stepInterval_ms);  // extra delay
+  delay(2 * stepInterval_ms);  // extra delay
 
   // 4. Final nudging & settle
   currentPhase = MovePhase::FINAL;

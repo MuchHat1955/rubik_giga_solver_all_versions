@@ -23,11 +23,11 @@ extern VerticalKinematics kin;
 // ------------------------------------------------------------
 // Default profile configuration
 // ------------------------------------------------------------
-#define SMOOTH_STEP_INTERVAL_MS 25  // was 15
-#define SMOOTH_ACCEL_STEPS 15       // was 20
-#define SMOOTH_DECEL_STEPS 15       // was 20
+#define SMOOTH_STEP_INTERVAL_MS 35  // was 15
+#define SMOOTH_ACCEL_STEPS 20       // was 20
+#define SMOOTH_DECEL_STEPS 20       // was 20
 #define SMOOTH_MIN_STEP_TICKS 1
-#define SMOOTH_MAX_STEP_TICKS 15  // was 25
+#define SMOOTH_MAX_STEP_TICKS 30  // was 25
 #define SMOOTH_TOL_TICKS 4
 
 // ============================================================
