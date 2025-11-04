@@ -26,9 +26,16 @@ static inline double clampd(double v, double lo, double hi) {
 
 #define return_true(fmt, ...) \
   do { \
-    serial_printf("KIN OK  | %s | " fmt "\n", __FUNCTION__, ##__VA_ARGS__); \
     return true; \
   } while (0)
+
+/*
+#define return_true(fmt, ...) \
+  do { \
+    serial_printf("  KIN OK  | %s | " fmt "\n", __FUNCTION__, ##__VA_ARGS__); \
+    return true; \
+  } while (0)
+*/
 
 // Disable compact motion summary
 #undef KIN_SUMMARY

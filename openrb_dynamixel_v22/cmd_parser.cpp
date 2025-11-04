@@ -248,25 +248,25 @@ bool cmd_move_center(int argc, double *argv) {
 }
 
 bool cmd_move_y(int argc, double *argv) {
-  double goal_mm = argv[1];
+  double goal_mm = argv[0];
   if (goal_mm < 40.0 || goal_mm > 110.0) {
     serial_printf("Invalid y mm: %.2f expected range (40 mm to 110 mm)\n", goal_mm);
     return false;
   }
 
   serial_printf("cmd_move_y: y=%.2fmm\n", goal_mm);
-  return cmdMoveYmm(argv[0]);
+  return cmdMoveYmm(goal_mm);
 }
 
 bool cmd_move_x(int argc, double *argv) {
-  double goal_mm = argv[1];
-  if (goal_mm < -40.0 || goal_mm > 40.0) {
+  double goal_mm = argv[0];
+  if (goal_mm < -30.0 || goal_mm > 30.0) {
     serial_printf("Invalid x mm: %.2f expected range (-40 mm to 40 mm)\n", goal_mm);
     return false;
   }
 
   serial_printf("cmd_move_x: x=%.2fmm\n", goal_mm);
-  return cmdMoveXmm(argv[0]);
+  return cmdMoveXmm(goal_mm);
 }
 
 bool cmd_move_gripper(int argc, double *argv) {
