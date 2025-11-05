@@ -665,8 +665,8 @@ bool move_smooth(
 
   for (int nu = 0; nu < maxNudges; nu++) {
     if (all_good) break;
-    step_axes("FINAL", nu, nu < maxNudges / 2 ? 1 : 0);  // step is zero, indicates last 3 nudges
-    delay(nudgeExtraDelay);                              // extra delay
+    step_axes("FINAL", nu, (nu < (maxNudges - 1)) / 2 ? 1 : 0);  // step is zero, indicates last 3 nudges
+    delay(nudgeExtraDelay);                                      // extra delay
   }
   axes.end();
   return true;
