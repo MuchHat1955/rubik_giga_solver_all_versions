@@ -121,8 +121,8 @@ public:
     switch (mode) {
       case MODE_SINGLE_SERVO: return id2name(getId(0));
       case MODE_GRIPPER: return "gripper";
-      case MODE_XY_VERTICAL return "xy vert":
-      case MODE_XY_HORIZONTAL: return "xy horiz":
+      case MODE_XY_VERTICAL: return "xy vert";
+      case MODE_XY_HORIZONTAL: return "xy horiz";
       default: return "na";
     }
   }
@@ -478,16 +478,22 @@ inline NudgeController& getNudgeController(uint8_t id) {
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~START SMOOTH MOVE USING THE AXIS CONTROLLER~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-void logProgress(const char* moveName, int ax, const char* phaseName, int totalSteps, int currStep, int step_ticks) {
-  static int lastLogPercentageTen = -1;
-  if (totalSteps <= 0) return;
+void logProgress(const char* moveName, int startTicks, int crrTicks, int endTicks) {
+  static int lastStartLogged = -1;
+  static int lastEndLogged = -1;
+  static int lastCrrLogged = -1;
 
-  if (currStep <= 5) lastLogPercentageTen = -1;
-  // log evey 10%
-  double percentage = ((double)currStep * 100.0) / (double)totalSteps;
-  int percentageTen = ((int)percentage) / 10;
-  if (percentageTen == lastLogPercentageTen) return;
-  serial_printf("MOVING %s %d/100%", moveName, percentageTen);
+  if (lastStartLogged != startTicks ||  //
+      lastEndLogged != endTicks) lastCrrLogged = -1;
+  lastStartLogged = startTicks;
+  lastEndLogged = endTicks;
+
+  // log every 50 ticks relative to start
+  if (abs(crrTicks - lastCrrLogged) < 50 &&  //
+      lastCrrLogged > 0) return;
+  lastCrrLogged = crrTicks;
+
+  serial_printf("MOVING %s %d%/%d\n", moveName, crrTicks, endTicks);
 }
 
 // ====================================================================================
@@ -550,23 +556,23 @@ bool move_smooth(
   int masterGoal = finalGoalTicks[0];
   int dist = masterGoal - masterStart;
   int dirMaster = (dist >= 0) ? 1 : -1;
-  int totalDiff = abs(dist);
-  if (totalDiff < tol_steps) return true;
+  int total_steps = abs(dist);
+  if (total_steps < tol_ticks) return true;
 
   bool inFinalPosition = false;
 
   int accelSpan = accelSteps * (minStep_ticks + maxStep_ticks) / 2;
   int decelSpan = decelSteps * (minStep_ticks + maxStep_ticks) / 2;
-  int coastSpan = totalDiff - (accelSpan + decelSpan);
+  int coastSpan = total_steps - (accelSpan + decelSpan);
   if (coastSpan < 0) coastSpan = 0;
   int coastSteps = coastSpan / maxStep_ticks;
 
-  serial_printf_verbose("MOVE start=%d goal=%d totalDiff=%d accel=%d coast=%d decel=%d\n\n",
+  serial_printf_verbose("MOVE start=%d goal=%d total_steps=%d accel=%d coast=%d decel=%d\n\n",
                         masterStart, masterGoal, masterGoal - masterStart, accelSteps, coastSteps, decelSteps);
 
   bool all_good = false;
   bool skip2final = false;
-  int currIter = 0;
+  int curr_step = 0;
 
   // Helper: one phase iteration
   auto step_axes = [&](const char* phaseName, int iter, int step_ticks) {
@@ -602,8 +608,8 @@ bool move_smooth(
       prevTicks[ax] = currTicks[ax];
       correctionTicks[ax] = 0;
       if (axes.getNudgeFlag(ax)) correctionTicks[ax] = nudgers[ax]->computeNudge(errTicks[ax], currentPhase, samePosCount[ax]);
-      logProgress(axes.getMoveName(), ax, phaseName, totalDiff, currIter, step_ticks);
-      currIter++;
+      logProgress(axes.getMoveName(), startTicks[0], currTicks[0], finalGoalTicks[0]);
+      curr_step += step_ticks;
 
       // ---------------- compute next goal ----------------
       bool use_final_goal = false;
