@@ -596,9 +596,10 @@ bool move_smooth(
           nextGoalTicks[0] += dirMaster * step_ticks;
 
           // Clamp if crossing final or in the last 3 steps of final
-          if ((dirMaster >= 0 && nextGoalTicks[0] > finalGoalTicks[0]) ||  //
-              (dirMaster < 0 && nextGoalTicks[0] < finalGoalTicks[0]) ||   //
-              step_ticks == 0) {
+          int err_final = abs(currTicks[0] - finalGoalTicks[0]);
+          if ((dirMaster >= 0 && nextGoalTicks[0] > (finalGoalTicks[0] + tol_ticks)) ||  //
+              (dirMaster < 0 && nextGoalTicks[0] < (finalGoalTicks[0] - tol_ticks)) ||   //
+              err_final < tol_ticks) {
             nextGoalTicks[0] = finalGoalTicks[0];
             skip2final = true;  // mark transition, but don't jump later
           }
@@ -612,7 +613,7 @@ bool move_smooth(
       // do not apply to master in case it reached end goal, but can apply to slaves
       //if (ax == 1) Serial.print("      ");
       //if (ax == 2) Serial.print("            ");
-      if (ax == 0) serial_printf_verbose("[%s] axis=%d prev_goal=%d curr= %d err=%d next goal=%d correction=%d same=%d step_ticks=%d x=%.2f y=%.2f skip=%d use_fina;=%d\n",
+      if (ax == 0) serial_printf_verbose("[%s] axis=%d prev_goal=%d curr= %d err=%d next goal=%d correction=%d same=%d step_ticks=%d x=%.2f y=%.2f skip=%d use_final=%d\n",
                                          phaseName, ax, prevGoalTicks[ax], currTicks[ax], errTicks[ax], nextGoalTicks[ax],  //
                                          correctionTicks[ax], samePosCount[ax], step_ticks, kin.getXmm(), kin.getYmm(), skip2final, use_final_goal);
       prevGoalTicks[ax] = nextGoalTicks[ax];
@@ -665,8 +666,8 @@ bool move_smooth(
 
   for (int nu = 0; nu < maxNudges; nu++) {
     if (all_good) break;
-    step_axes("FINAL", nu, (nu < (maxNudges - 1)) / 2 ? 1 : 0);  // step is zero, indicates last 3 nudges
-    delay(nudgeExtraDelay);                                      // extra delay
+    step_axes("FINAL", nu, (nu < ((maxNudges - 1) / 2)) ? 1 : 0);  // step is zero, indicates last 3 nudges
+    delay(nudgeExtraDelay);                                        // extra delay
   }
   axes.end();
   return true;
