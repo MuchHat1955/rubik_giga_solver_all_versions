@@ -117,6 +117,15 @@ public:
     if (index > 2) return 0;
     return goal_ticks[index];
   }
+  const char* getMoveName() {
+    switch (mode) {
+      case MODE_SINGLE_SERVO: return id2name(getId(0));
+      case MODE_GRIPPER: return "gripper";
+      case MODE_XY_VERTICAL return "xy vert":
+      case MODE_XY_HORIZONTAL: return "xy horiz":
+      default: return "na";
+    }
+  }
 
   bool getNudgeFlag(uint8_t index) const {
     if (index > 2) return false;
@@ -469,6 +478,18 @@ inline NudgeController& getNudgeController(uint8_t id) {
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~START SMOOTH MOVE USING THE AXIS CONTROLLER~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+void logProgress(const char* moveName, int ax, const char* phaseName, int totalSteps, int currStep, int step_ticks) {
+  static int lastLogPercentageTen = -1;
+  if (totalSteps <= 0) return;
+
+  if (currStep <= 5) lastLogPercentageTen = -1;
+  // log evey 10%
+  double percentage = ((double)currStep * 100.0) / (double)totalSteps;
+  int percentageTen = ((int)percentage) / 10;
+  if (percentageTen == lastLogPercentageTen) return;
+  serial_printf("MOVING %s %d/100%", moveName, percentageTen);
+}
+
 // ====================================================================================
 //                 move_smooth()
 //  - trajectory and timing kernel (geometry-agnostic)
@@ -530,7 +551,7 @@ bool move_smooth(
   int dist = masterGoal - masterStart;
   int dirMaster = (dist >= 0) ? 1 : -1;
   int totalDiff = abs(dist);
-  if (totalDiff < 3) return true;
+  if (totalDiff < tol_steps) return true;
 
   bool inFinalPosition = false;
 
@@ -545,6 +566,7 @@ bool move_smooth(
 
   bool all_good = false;
   bool skip2final = false;
+  int currIter = 0;
 
   // Helper: one phase iteration
   auto step_axes = [&](const char* phaseName, int iter, int step_ticks) {
@@ -580,6 +602,8 @@ bool move_smooth(
       prevTicks[ax] = currTicks[ax];
       correctionTicks[ax] = 0;
       if (axes.getNudgeFlag(ax)) correctionTicks[ax] = nudgers[ax]->computeNudge(errTicks[ax], currentPhase, samePosCount[ax]);
+      logProgress(axes.getMoveName(), ax, phaseName, totalDiff, currIter, step_ticks);
+      currIter++;
 
       // ---------------- compute next goal ----------------
       bool use_final_goal = false;

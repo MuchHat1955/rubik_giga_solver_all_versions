@@ -86,6 +86,7 @@ public:
   void recordData(int prevGoal, int currPos, int nudge, MovePhase phase);
   int computeNudge(int currErr, MovePhase phase, int samePosCount);
   void printLog();
+  const char* getMoveName();
 
 private:
   uint8_t id;
