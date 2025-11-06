@@ -1,12 +1,5 @@
 #include "rb_interface.h"
-
-/*
-EXAMPLE
-  rb.moveYmm(65.0);
-  double x, y;
-  rb.xyInfoMm(&x, &y);
-  Serial.printf("Final Y=%.2f\n", y);
-  */
+#include "logging.h"
 
 // ============================================================
 // Constructor
@@ -18,11 +11,13 @@ RBInterface::RBInterface(Stream& port)
 // BEGIN - initialize link and disable verbose
 // ============================================================
 bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
+  LOG_SECTION_START_PRINTF("begin", "| baud=%lu timeout=%lu", baud, timeout_ms);
+
   serial.begin(baud);
   serial.setTimeout(timeout_ms);
   clearErrorBuffer();
 
-  Serial.println("[RB] Initializing communication...");
+  LOG_PRINTF("Initializing communication...");
   delay(300);
 
   // Turn verbose OFF to get clean command responses
@@ -39,15 +34,19 @@ bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
   while (millis() - t0 < 2000) {
     if (!serial.available()) continue;
     String line = serial.readStringUntil('\n');
-    if (line.startsWith("STATUS")) { got = true; break; }
+    if (line.startsWith("STATUS")) {
+      got = true;
+      break;
+    }
   }
 
   if (!got) {
-    Serial.println("[RB] No response from RB board!");
+    LOG_PRINTF("⚠ No response from RB board!");
+    LOG_SECTION_END();
     return false;
   }
 
-  Serial.println("[RB] Communication OK, reading servo INFO...");
+  LOG_PRINTF("Communication OK, reading servo INFO...");
 
   // Query INFO for all servos (11–17)
   uint8_t ids[] = { ID_ARM1, ID_ARM2, ID_WRIST, ID_GRIP1, ID_GRIP2, ID_BASE, ID_XM };
@@ -56,7 +55,8 @@ bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
     delay(40);
   }
 
-  Serial.println("[RB] Initialization complete, verbose OFF.");
+  LOG_PRINTF("Initialization complete, verbose OFF.");
+  LOG_SECTION_END();
   return true;
 }
 
@@ -64,6 +64,8 @@ bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
 // Generic command
 // ============================================================
 bool RBInterface::runCommand(const char* name, const float* args, int argCount) {
+  LOG_SECTION_START_PRINTF("runCommand", "| cmd=%s argc=%d", name, argCount);
+
   clearErrorBuffer();
 
   String cmd(name);
@@ -73,14 +75,20 @@ bool RBInterface::runCommand(const char* name, const float* args, int argCount) 
   }
   serial.println(cmd);
 
-  Serial.printf("[GIGA→RB] %s\n", cmd.c_str());
-  return waitForCompletion(name);
+  LOG_PRINTF("[GIGA→RB] %s", cmd.c_str());
+  bool ok = waitForCompletion(name);
+
+  LOG_PRINTF("Command %s result=%s", name, ok ? "OK" : "FAIL");
+  LOG_SECTION_END();
+  return ok;
 }
 
 // ============================================================
 // INFO fetch helper
 // ============================================================
 bool RBInterface::requestServoInfo(uint8_t id) {
+  LOG_SECTION_START_PRINTF("requestServoInfo", "| id=%d", id);
+
   String cmd = "INFO ";
   cmd += String(id);
   serial.println(cmd);
@@ -91,11 +99,13 @@ bool RBInterface::requestServoInfo(uint8_t id) {
     String line = serial.readStringUntil('\n');
     line.trim();
     if (line.startsWith("INFO id=")) {
-      Serial.println(line);
+      LOG_PRINTF("%s", line.c_str());
+      LOG_SECTION_END();
       return true;
     }
   }
-  Serial.printf("[RB] WARN: No INFO response for ID %d\n", id);
+  LOG_PRINTF("⚠ No INFO response for ID %d", id);
+  LOG_SECTION_END();
   return false;
 }
 
@@ -103,11 +113,15 @@ bool RBInterface::requestServoInfo(uint8_t id) {
 // Parsing and verification
 // ============================================================
 void RBInterface::parseStatusLine(const String& line) {
+  if (line.startsWith("STATUS SERVO")) {
+    if (verboseOn) LOG_PRINTF("%s", line.c_str());
+    return;
+  }
+
   int idx = line.indexOf(' ');
   if (idx < 0) return;
   String rest = line.substring(idx + 1);
 
-  char key[20];
   double val;
   for (int p = 0; p < rest.length();) {
     int eq = rest.indexOf('=', p);
@@ -133,39 +147,71 @@ void RBInterface::parseStatusLine(const String& line) {
 }
 
 // ============================================================
+// Stub: updateFooter()
+// Called whenever a "MOVING ..." line is received from RB.
+// You can later update the display, GUI, or telemetry here.
+// ============================================================
+void RBInterface::updateFooter(const char* text) {
+  // TODO: Implement display or UI footer update
+  LOG_PRINTF("[FOOTER] %s\n", text);
+}
+
+
+// ============================================================
 // Wait for START/END/ERR sequence
 // ============================================================
 bool RBInterface::waitForCompletion(const char* commandName) {
+  LOG_SECTION_START_PRINTF("waitForCompletion", "| cmd=%s", commandName);
+
   String startMarker = String(commandName) + " START";
   String endMarker   = String(commandName) + " END";
-  unsigned long t0 = millis();
+  unsigned long t0   = millis();
   bool success = false;
 
   while (millis() - t0 < 8000) {
     if (!serial.available()) continue;
     String line = serial.readStringUntil('\n');
     line.trim();
-    if (line.length() == 0) continue;
+    if (line.isEmpty()) continue;
 
+    // --- Handle ERR lines ---
     if (line.startsWith("ERR")) {
       errorLines.push_back(line);
-      Serial.println(line);
+      LOG_PRINTF("%s", line.c_str());
       continue;
     }
+
+    // --- Handle progress lines ---
+    // Any line starting with "MOVING" is considered progress feedback
+    if (line.startsWith("MOVING")) {
+      if (verboseOn) LOG_PRINTF("%s", line.c_str());
+      updateFooter(line.c_str());  // NEW HOOK
+      continue;
+    }
+
+    // --- Handle START marker ---
     if (line.startsWith(startMarker)) {
       parseStatusLine(line);
-      Serial.printf("[RB] %s started\n", commandName);
+      LOG_PRINTF("%s started", commandName);
+      continue;
     }
+
+    // --- Handle END marker ---
     if (line.startsWith(endMarker)) {
       parseStatusLine(line);
-      Serial.printf("[RB] %s ended completed=%d\n", commandName, last.completed);
+      LOG_PRINTF("%s ended completed=%d", commandName, last.completed);
       success = (last.completed == 1);
       verifyExpected(commandName);
       break;
     }
   }
 
-  if (!success) errorLines.push_back("ERR: Timeout or incomplete command");
+  if (!success) {
+    errorLines.push_back("ERR: Timeout or incomplete command");
+    LOG_PRINTF("⚠ Timeout or incomplete command");
+  }
+
+  LOG_SECTION_END();
   return success;
 }
 
@@ -173,38 +219,163 @@ bool RBInterface::waitForCompletion(const char* commandName) {
 // Verify expected final status for MOVE commands
 // ============================================================
 void RBInterface::verifyExpected(const char* cmd) {
-  double tol = 2.0;
+  LOG_SECTION_START_PRINTF("verifyExpected", "| cmd=%s", cmd);
+
   if (strncmp(cmd, "MOVEYMM", 7) == 0)
-    Serial.printf("[VERIFY] y_mm=%.2f\n", last.y_mm);
+    LOG_PRINTF("y_mm=%.2f", last.y_mm);
   if (strncmp(cmd, "MOVEXMM", 7) == 0)
-    Serial.printf("[VERIFY] x_mm=%.2f\n", last.x_mm);
+    LOG_PRINTF("x_mm=%.2f", last.x_mm);
   if (strncmp(cmd, "MOVEGRIPPER", 11) == 0)
-    Serial.printf("[VERIFY] grip1=%.2f grip2=%.2f\n", last.g1_per, last.g2_per);
+    LOG_PRINTF("grip1=%.2f grip2=%.2f", last.g1_per, last.g2_per);
+
+  LOG_SECTION_END();
+}
+
+// ============================================================
+// UpdateInfo - force RB to send current status (READ 0)
+// ============================================================
+bool RBInterface::updateInfo() {
+  LOG_SECTION_START("updateInfo");
+
+  clearErrorBuffer();
+  serial.println("READ 0");
+  LOG_PRINTF("Requesting READ 0...");
+
+  unsigned long t0 = millis();
+  bool gotAny = false;
+
+  while (millis() - t0 < 2000) {
+    if (!serial.available()) continue;
+
+    String line = serial.readStringUntil('\n');
+    line.trim();
+    if (line.isEmpty()) continue;
+
+    if (line.startsWith("ERR")) {
+      errorLines.push_back(line);
+      LOG_PRINTF("%s", line.c_str());
+      continue;
+    }
+
+    if (line.startsWith("STATUS SERVO")) {
+      gotAny = true;
+      parseStatusLine(line);
+      continue;
+    }
+
+    if (line.startsWith("READ END") || line.indexOf("x_mm=") > 0) {
+      parseStatusLine(line);
+      gotAny = true;
+    }
+  }
+
+  if (!gotAny) {
+    errorLines.push_back("ERR: No READ 0 response received");
+    LOG_PRINTF("⚠ No response for READ 0");
+    LOG_SECTION_END();
+    return false;
+  }
+
+  LOG_PRINTF("READ 0 done | X=%.2f Y=%.2f A1=%.2f A2=%.2f G=%.2f",
+             last.x_mm, last.y_mm, last.a1_deg, last.a2_deg, last.g_vert_deg);
+
+  LOG_SECTION_END();
+  return true;
 }
 
 // ============================================================
 // Simple wrappers
 // ============================================================
-bool RBInterface::updateInfo() { return readUntilEnd(nullptr); }
-bool RBInterface::xyInfoMm(double* x, double* y) { *x=last.x_mm; *y=last.y_mm; return true; }
-bool RBInterface::gripperInfoPer(double* g) { *g=(last.g1_per+last.g2_per)/2.0; return true; }
-bool RBInterface::baseInfoDeg(double* b) { *b=last.base_deg; return true; }
-bool RBInterface::wristVertInfoDeg(double* v) { *v=last.g_vert_deg; return true; }
+bool RBInterface::xyInfoMm(double* x, double* y) {
+  *x = last.x_mm;
+  *y = last.y_mm;
+  return true;
+}
+bool RBInterface::gripperInfoPer(double* g) {
+  *g = (last.g1_per + last.g2_per) / 2.0;
+  return true;
+}
+bool RBInterface::baseInfoDeg(double* b) {
+  *b = last.base_deg;
+  return true;
+}
+bool RBInterface::wristVertInfoDeg(double* v) {
+  *v = last.g_vert_deg;
+  return true;
+}
 
-bool RBInterface::moveYmm(double y) { float a[]={ (float)y }; return runCommand("MOVEYMM", a, 1); }
-bool RBInterface::moveXmm(double x) { float a[]={ (float)x }; return runCommand("MOVEXMM", a, 1); }
-bool RBInterface::moveBaseDeg(double d) { float a[]={ (float)d }; return runCommand("MOVEBASE", a, 1); }
-bool RBInterface::moveWristVertDeg(double d){ float a[]={ (float)d }; return runCommand("MOVEWRISTVERTDEG", a, 1); }
-bool RBInterface::moveGrippersPer(double p){ float a[]={ (float)p }; return runCommand("MOVEGRIPPER", a, 1); }
+bool RBInterface::moveYmm(double y) {
+  LOG_SECTION_START_PRINTF("moveYmm", "| y=%.2f", y);
+  float a[] = { (float)y };
+  bool ok = runCommand("MOVEYMM", a, 1);
+  LOG_SECTION_END();
+  return ok;
+}
+bool RBInterface::moveXmm(double x) {
+  LOG_SECTION_START_PRINTF("moveXmm", "| x=%.2f", x);
+  float a[] = { (float)x };
+  bool ok = runCommand("MOVEXMM", a, 1);
+  LOG_SECTION_END();
+  return ok;
+}
+bool RBInterface::moveBaseDeg(double d) {
+  LOG_SECTION_START_PRINTF("moveBaseDeg", "| deg=%.2f", d);
+  float a[] = { (float)d };
+  bool ok = runCommand("MOVEBASE", a, 1);
+  LOG_SECTION_END();
+  return ok;
+}
+bool RBInterface::moveWristVertDeg(double d) {
+  LOG_SECTION_START_PRINTF("moveWristVertDeg", "| deg=%.2f", d);
+  float a[] = { (float)d };
+  bool ok = runCommand("MOVEWRISTVERTDEG", a, 1);
+  LOG_SECTION_END();
+  return ok;
+}
+bool RBInterface::moveGrippersPer(double p) {
+  LOG_SECTION_START_PRINTF("moveGrippersPer", "| per=%.2f", p);
+  float a[] = { (float)p };
+  bool ok = runCommand("MOVEGRIPPER", a, 1);
+  LOG_SECTION_END();
+  return ok;
+}
 
-const char* RBInterface::getLastErrorLine(){ return errorLines.empty()?"":errorLines.back().c_str(); }
-String RBInterface::getAllErrorLines() const{ String s; for(auto&e:errorLines)s+=e+"\n"; return s; }
-RBStatus RBInterface::getLastStatus() const{ return last; }
+// ============================================================
+// Error & Status helpers
+// ============================================================
+const char* RBInterface::getLastErrorLine() {
+  return errorLines.empty() ? "" : errorLines.back().c_str();
+}
+String RBInterface::getAllErrorLines() const {
+  String s;
+  for (auto& e : errorLines) s += e + "\n";
+  return s;
+}
+RBStatus RBInterface::getLastStatus() const {
+  return last;
+}
 
-bool RBInterface::readUntilEnd(const char* keyword){ unsigned long t0=millis(); while(millis()-t0<2000){ if(!serial.available())continue; String line=serial.readStringUntil('\n'); line.trim(); if(line.startsWith("ERR"))errorLines.push_back(line); if(line.endsWith("END")){ parseStatusLine(line); return true; } } return false; }
+bool RBInterface::readUntilEnd(const char* keyword) {
+  LOG_SECTION_START_PRINTF("readUntilEnd", "| key=%s", keyword);
+  unsigned long t0 = millis();
+  while (millis() - t0 < 2000) {
+    if (!serial.available()) continue;
+    String line = serial.readStringUntil('\n');
+    line.trim();
+    if (line.startsWith("ERR")) errorLines.push_back(line);
+    if (line.endsWith("END")) {
+      parseStatusLine(line);
+      LOG_SECTION_END();
+      return true;
+    }
+  }
+  LOG_SECTION_END();
+  return false;
+}
 
-void RBInterface::clearErrorBuffer(){ errorLines.clear(); }
-
+void RBInterface::clearErrorBuffer() {
+  errorLines.clear();
+}
 
 /* --------------------------------------------------------------------------------------------------------------------------------------------------
 struct CommandEntry {

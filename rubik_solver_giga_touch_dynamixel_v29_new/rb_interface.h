@@ -3,13 +3,13 @@
 #include <vector>
 
 // Servo ID definitions (match RB firmware)
-#define ID_ARM1  11
-#define ID_ARM2  12
+#define ID_ARM1 11
+#define ID_ARM2 12
 #define ID_WRIST 13
 #define ID_GRIP1 14
 #define ID_GRIP2 15
-#define ID_BASE  16
-#define ID_XM    17
+#define ID_BASE 16
+#define ID_XM 17
 
 // -----------------------------------------------------------------------------
 // RBStatus
@@ -76,3 +76,5 @@ private:
   void clearErrorBuffer();
   bool requestServoInfo(uint8_t id);
 };
+
+void updateFooter(const char* text);

@@ -1,14 +1,5 @@
 #include "logging.h"
 
-template<typename... Args>
-inline void serial_printf(const char *fmt, Args... args) {
-  char buf[200];
-  snprintf(buf, sizeof(buf), fmt, args...);
-  Serial.print(buf);
-}
-
-/************************************************/
-
 static String log_section_name[MAX_NESTED_SECTIONS];
 static unsigned long log_section_start_time[MAX_NESTED_SECTIONS];
 static int log_section_index = 0;

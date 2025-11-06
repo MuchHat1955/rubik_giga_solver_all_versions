@@ -53,6 +53,14 @@ void log_indent_reset();
 // Safe, deferred log flush (call periodically in loop)
 void log_flush_buffer();
 
+
+template<typename... Args>
+inline void serial_printf(const char* fmt, Args... args) {
+  char buf[200];
+  snprintf(buf, sizeof(buf), fmt, args...);
+  Serial.print(buf);
+}
+
 // Convenience macros
 #define LOG_SECTION_START(title) \
   do { \
@@ -74,6 +82,30 @@ void log_flush_buffer();
 
 #define LOG_FLUSH() \
   do { log_flush_buffer(); } while (0)
+
+// -----------------------------------------------------------
+// Formatted logging macros using serial_printf
+// -----------------------------------------------------------
+
+#define LOG_PRINTF(fmt, ...) \
+  do { \
+    if (logging_on) { \
+      log_indent(); \
+      serial_printf(fmt, ##__VA_ARGS__); \
+      Serial.println(); \
+    } \
+  } while (0)
+
+#define LOG_SECTION_START_PRINTF(title, fmt, ...) \
+  do { \
+    if (logging_on) { \
+      log_indent(); \
+      serial_printf("---- {%s} start ", title); \
+      serial_printf(fmt, ##__VA_ARGS__); \
+      Serial.println(" ----"); \
+    } \
+  } while (0)
+
 
 // -----------------------------------------------------------
 // Portable variable logging macros (robust for String, char*, bool, numbers)
