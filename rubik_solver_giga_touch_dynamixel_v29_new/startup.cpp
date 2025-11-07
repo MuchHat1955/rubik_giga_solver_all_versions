@@ -26,7 +26,7 @@ bool runStartupTests() {
   LOG_SECTION_START("startup tests");
 
   startupErrors = "";
-  startupOK = true;
+  bool startupOK = true;
   int failCount = 0;
   int total = 0;
 

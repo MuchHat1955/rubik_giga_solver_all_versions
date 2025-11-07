@@ -1,18 +1,18 @@
-// param_store.cpp
+// param_param_store.cpp
 #include <Arduino.h>
 #include <map>
 #include <string>
 #include <algorithm>
-#include <KVStore.h>
+#include <KVparam_store.h>
 #include <kvstore_global_api.h>
 #include "logging.h"
-#include "param_store.h"
-#include "pose_store.h"
+#include "param_param_store.h"
+#include "pose_param_store.h"
 #include "ui_touch.h"
 #include "rb_interface.h"
 
 extern RBInterface rb;
-extern PoseStore store;
+extern PoseStore pose_store;
 
 #ifndef MBED_SUCCESS
 #define MBED_SUCCESS 0
@@ -48,8 +48,8 @@ void runAction(const char* key) {
   }
 
   // --- Pose buttons (e.g., "arm1_0_btn", "v_pose_r1") ---
-  if (store.is_button_for_pose(key)) {
-    bool ok = store.run_pose_by_button(key);
+  if (param_store.is_button_for_pose(key)) {
+    bool ok = pose_store.run_pose_by_button(key);
     // reflectUIForKey(key); TODO
     LOG_VAR2("pose move", poseKey, "", ok ? "OK" : "FAIL");
     LOG_SECTION_END();
@@ -58,7 +58,7 @@ void runAction(const char* key) {
 
   /* TODO
   // --- Sequence buttons ---
-  if (sequencesStore.is_button_for_sequence(key)) {
+  if (sequencesparam_store.is_button_for_sequence(key)) {
     bool ok = moveToSequence(key);
     // reflectUIForKey(String(key) + "_btn"); TODO
     LOG_VAR2("plain pose move", key, "", ok ? "OK" : "FAIL");
@@ -96,7 +96,7 @@ struct Param {
   bool fixed{ false };  // the min and max for the min and max are fixed not changeable in UI
   bool persist{ true };
 };
-static std::map<std::string, Param> store;
+static std::map<std::string, Param> param_store;
 
 static void add(const char* k, int v, bool persist_ = true) {
   store[k] = { v, persist_ };
@@ -188,9 +188,9 @@ void initParamStore() {
 int getParamValue(const char* k) {
   String key(k);  // ✅ use Arduino String, not std::string
 
-  auto it = store.find(std::string(k));  // your map is still std::string-keyed
-  if (it == store.end()) return 0;
-  int val = (it == store.end()) ? 0 : it->second.value;
+  auto it = param_store.find(std::string(k));  // your map is still std::string-keyed
+  if (it == param_store.end()) return 0;
+  int val = (it == param_store.end()) ? 0 : it->second.value;
 
   LOG_VAR2("get param", k, "val", val);
   return val;
@@ -210,8 +210,8 @@ void setParamValue(const char* k, int v) {
 
   LOG_SECTION_START_VAR("setParamValue", "key", k);
 
-  auto it = store.find(k);
-  if (it == store.end()) {
+  auto it = param_store.find(k);
+  if (it == param_store.end()) {
     LOG_SECTION_END();
     return;
   }
@@ -232,4 +232,8 @@ void setParamValue(const char* k, int v) {
 // overload for convenience
 void setParamValue(const std::string& k, int v) {
   setParamValue(k.c_str(), v);
+}
+
+void incrementParam(const char* k, int v){
+  // TODO
 }

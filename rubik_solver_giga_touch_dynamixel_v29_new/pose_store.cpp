@@ -285,8 +285,8 @@ static const Pose default_poses[] = {
 
 static const int DEFAULT_POSE_COUNT = sizeof(default_poses) / sizeof(default_poses[0]);
 
-PoseStore store(rb, params);
+PoseStore pose_store(rb, params);
 
 bool initPoseStore() {
-  return store.init_from_defaults(store, DEFAULT_POSE_COUNT);
+  return pose_store.init_from_defaults(store, DEFAULT_POSE_COUNT);
 }

@@ -19,7 +19,7 @@ void onBuildMenu(const char *menuName) {
 
   if (strcmp(menuName, "poses") == 0) {
     LOG_SECTION_START_VAR("update servos for poses UI", "menu", menuName);
-    startupOk = rb.updateInfo();
+    rb.updateInfo(); //TODO check for error etc
     LOG_SECTION_END();
   }
   LOG_SECTION_END();
@@ -406,9 +406,9 @@ void buildMenu(const char *menuName) {
 
         String errText =
           "#FFA500 build#\n" + getSketchVersionWithDate() + "\n\n" +  //
-          "#FFA500 startup#\n" + rb.getAllErrorLines() + "\n\n" +     //
+          "#FFA500 startup#\n" + rb.getAllErrorLines() + "\n\n");    //
 
-          lv_textarea_set_text(ta, errText.c_str());
+        lv_textarea_set_text(ta, errText.c_str());
         lv_textarea_set_cursor_click_pos(ta, false);
         lv_textarea_set_text_selection(ta, false);
 
