@@ -7,41 +7,31 @@
 #include <kvstore_global_api.h>
 #include "logging.h"
 #include "param_store.h"
-#include "servos.h"
-#include "servo_manager.h"
+#include "pose_store.h"
 #include "ui_touch.h"
+#include "rb_interface.h"
 
-extern ServoManager servoMgr;
+extern RBInterface rb;
+extern PoseStore store;
 
 #ifndef MBED_SUCCESS
 #define MBED_SUCCESS 0
 #endif
 
-int clampServoAbsoluteTicks(int val) {
-  return std::max(SERVO_TICKS_MIN, std::min(SERVO_TICKS_MAX, val));
-}
-int clampServoParamTicks(const char* key, int val) {
-  if (!servoMgr.isServo(key)) return val;  // must return int
-
-  String kmin = String(key) + "_min";
-  String kmax = String(key) + "_max";
-
-  int mn = getParamValue(kmin.c_str());
-  int mx = getParamValue(kmax.c_str());
-
-  if (mn < SERVO_TICKS_MIN) mn = SERVO_TICKS_MIN;
-  if (mx > SERVO_TICKS_MAX) mx = SERVO_TICKS_MAX;
-
-  // Clamp within range
-  if (val < mn) val = mn;
-  else if (val > mx) val = mx;
-
-  return val;
-}
 
 // ----------------------------------------------------------
-//                    STUBS
+//                    RUN ACTION //TODO MOVE IN THE RIGHT FILE
 // ----------------------------------------------------------
+/*
+  bool is_pose(const char *name) const;
+  bool is_button_for_pose(const char *btn_key) const;
+  bool get_pose_params(const char *name, double *p1, double *p2, String *type = nullptr) const;
+  bool set_pose_params(const char *name, double p1, double p2);
+  bool run_pose(const char *name);
+  bool run_pose_by_button(const char *btn_key);
+  bool increment_pose_param(const char *name, int units, double &new_value_ref);
+  bool is_at_pose(const char *name, double tol_mm = 0.5, double tol_deg = 1.0);
+*/
 
 void runAction(const char* key) {
   LOG_SECTION_START_VAR("runAction", "key", key);
@@ -58,45 +48,24 @@ void runAction(const char* key) {
   }
 
   // --- Pose buttons (e.g., "arm1_0_btn", "v_pose_r1") ---
-  if (servoMgr.isBtnForPose(key)) {
-    String poseKey = servoMgr.getPoseFromBtn(key);
-    bool ok = servoMgr.moveServoToPose(poseKey);
-    servoMgr.reflectUIForKey(key);
+  if (store.is_button_for_pose(key)) {
+    bool ok = store.run_pose_by_button(key);
+    // reflectUIForKey(key); TODO
     LOG_VAR2("pose move", poseKey, "", ok ? "OK" : "FAIL");
     LOG_SECTION_END();
     return;
   }
 
-  // --- Servo buttons (e.g., "arm1_btn", "wrist_btn") ---
-  if (servoMgr.isBtnForServo(key)) {
-    String servoKey = servoMgr.getServoFromBtn(key);
-    // Optional: if you want direct centering or test motion
-    int mid = (SERVO_TICKS_MAX + SERVO_TICKS_MIN) / 2;
-    bool ok = servoMgr.moveServoToTicks(servoKey, mid);
-    servoMgr.reflectUIForKey(key);
-    LOG_VAR2("servo move", servoKey, "", ok ? "OK" : "FAIL");
-    LOG_SECTION_END();
-    return;
-  }
-
-  // --- Group pose buttons (e.g., "arms_home", "grip_open_btn") ---
-  if (servoMgr.isBtnForGroupPose(key)) {
-    String groupKey = servoMgr.getGroupPoseFromBtn(key);
-    bool ok = servoMgr.moveServosToGroupPose(groupKey, 800);
-    servoMgr.reflectUIForKey(key);
-    LOG_VAR2("group move", groupKey, "", ok ? "OK" : "FAIL");
-    LOG_SECTION_END();
-    return;
-  }
-
-  // --- Legacy / fallback: check for plain servo pose keys (no _btn) ---
-  if (servoMgr.isServoPose(key)) {
-    bool ok = servoMgr.moveServoToPose(key);
-    servoMgr.reflectUIForKey(String(key) + "_btn");
+  /* TODO
+  // --- Sequence buttons ---
+  if (sequencesStore.is_button_for_sequence(key)) {
+    bool ok = moveToSequence(key);
+    // reflectUIForKey(String(key) + "_btn"); TODO
     LOG_VAR2("plain pose move", key, "", ok ? "OK" : "FAIL");
     LOG_SECTION_END();
     return;
   }
+  */
 
   // --- Fallback for sequences or other custom actions ---
   LOG_VAR("unhandled action key", key);
@@ -108,94 +77,9 @@ void runAction(const std::string& k) {
   runAction(k.c_str());
 }
 
-// Checks if a key ends with "_min" or "_max" AND the prefix is a valid servo key
-bool isServoMinMaxKey(const char* key) {
-  if (!key || !*key) return false;
-
-  size_t len = strlen(key);
-  if (len <= 4) return false;  // too short to contain "_min"/"_max"
-
-  // Check for suffix "_min" or "_max"
-  const char* suffix = nullptr;
-  if (len > 4 && strcmp(key + len - 4, "_min") == 0)
-    suffix = "_min";
-  else if (len > 4 && strcmp(key + len - 4, "_max") == 0)
-    suffix = "_max";
-
-  if (!suffix) return false;
-
-  // Copy prefix (everything before suffix)
-  char base[64];
-  size_t prefixLen = len - strlen(suffix);
-  if (prefixLen >= sizeof(base)) prefixLen = sizeof(base) - 1;
-  strncpy(base, key, prefixLen);
-  base[prefixLen] = '\0';
-
-  // Return true only if the base key is a known servo
-  return servoMgr.isServo(base);
-}
-
-// Extracts the servo base key (e.g. "arm1") from "arm1_min" or "arm1_max"
-String servoKeyFromMinMax(const char* key) {
-  if (!key || !*key) return "";
-
-  size_t len = strlen(key);
-  if (len <= 4) return "";
-
-  const char* suffix = nullptr;
-  if (len > 4 && strcmp(key + len - 4, "_min") == 0)
-    suffix = "_min";
-  else if (len > 4 && strcmp(key + len - 4, "_max") == 0)
-    suffix = "_max";
-
-  if (!suffix) return "";
-
-  size_t prefixLen = len - strlen(suffix);
-  return String(key).substring(0, prefixLen);
-}
-
-// Extracts the servo base key (e.g. "arm1") from a pose key like "arm1_open" or "arm1_pose_1"
-String servoKeyFromPose(const char* key) {
-  if (!key || !*key) return "";
-
-  // Find the first underscore
-  const char* underscore = strchr(key, '_');
-  if (!underscore) return "";  // no underscore found → not a pose key
-
-  // Compute prefix length (everything before first '_')
-  size_t prefixLen = underscore - key;
-
-  // Build and return the prefix
-  return String(key).substring(0, prefixLen);
-}
-
-void incrementParam(const char* key, int delta) {
-
-  int val = getParamValue(key);
-  LOG_VAR_("increment param for key", key);
-  LOG_VAR_CONT_("from val", val);
-  LOG_VAR_CONT("with delta", delta);
-
-  val += delta;
-  val = clampServoParamTicks(key, val);
-  if (servoMgr.isServo(key)) servoMgr.moveServoToTicks(key, val);
-  else if (isServoMinMaxKey(key)) {
-    String servoKey = servoKeyFromMinMax(key);
-    servoMgr.moveServoToTicks(servoKey.c_str(), val);
-  }
-  setParamValue(key, val);
-}
-
-// overload for convenience
-void incrementParam(const std::string& k, int delta) {
-  incrementParam(k.c_str(), delta);
-}
-
 // ----------------------------------------------------------
 //                    PARAM
 // ----------------------------------------------------------
-
-void updateDerived(const std::string& k, int v);
 
 struct ParamRecord {
   char id[24];
@@ -208,17 +92,14 @@ struct ParamStorage {
 };
 
 struct Param {
-  int value{ 0 }, minv{ 0 }, maxv{ 0 };
+  int value{ 0 };
   bool fixed{ false };  // the min and max for the min and max are fixed not changeable in UI
   bool persist{ true };
 };
 static std::map<std::string, Param> store;
 
-static void add(const char* k, int v, int mn, int mx, bool fixed_ = false, bool persist_ = true) {
-  v = clampServoParamTicks(k, v);
-  mn = clampServoAbsoluteTicks(mn);
-  mx = clampServoAbsoluteTicks(mx);
-  store[k] = { v, mn, mx, fixed_, persist_ };
+static void add(const char* k, int v, bool persist_ = true) {
+  store[k] = { v, persist_ };
 }
 
 // ------------------------------------------------------
@@ -255,48 +136,26 @@ static void loadParamsFromFlash() {
 }
 
 // ----------------------------------------------------------
-//                SERVO POSE PARAMETERS
+// SERVO POSE PARAMETERS (TODO THIS NEEDS TO MATCH POSES STORE)
 // ----------------------------------------------------------
-const char* poseKeys[] = {
-  // ------------------ Arm1 poses ------------------
-  "arm1_0",
-  "arm1_90", "arm1_minus90",
-  "arm1_0mm", "arm1_5mm", "arm1_10mm", "arm1_15mm",
+const char* paramKeys[] = {
+  // XY poses
+  "xy_zero", "xy_2nd", "xy_3rd", "xy_c1", "xy_c2", "xy_c3", "xy_c4", "xy_c5", "xy_c6",  //
 
-  // ------------------ Arm2 poses ------------------
-  "arm2_0",
-  "arm2_90", "arm2_minus90",
-  "arm2_0mm", "arm2_5mm", "arm2_10mm", "arm2_15mm",
+  // Combined grippers
+  "grips_open", "grips_close",  //
 
-  // ------------------ Wrist poses ------------------
-  "wrist_0", "wrist_90", "wrist_minus90",
-  "wrist_0mm", "wrist_5mm", "wrist_10mm", "wrist_15mm",
+  // Individual gripper 1
+  "grip1_open", "grip1_close",  //
 
-  // ------------------ Gripper poses ------------------
-  "grip1_open", "grip1_close",
-  "grip2_open", "grip2_close",
+  // Individual gripper 2
+  "grip2_open", "grip2_close",  //
 
-  // ------------------ Base poses ------------------
-  "base_0", "base_90", "base_minus90",
+  // Wrist poses
+  "wrist_horiz", "wrist_vert",  //
 
-  // ------------------ Vertical calibration ------------------
-  "arm1_v_pt1", "arm2_v_pt1", "wrist_v_pt1",
-  "arm1_v_pt2", "arm2_v_pt2", "wrist_v_pt2",
-  "arm1_v_pt3", "arm2_v_pt3", "wrist_v_pt3",
-  "arm1_v_pt4", "arm2_v_pt4", "wrist_v_pt4",
-  "arm1_v_pt5", "arm2_v_pt5", "wrist_v_pt5",
-  "arm1_v_pt6", "arm2_v_pt6", "wrist_v_pt6",
-
-  // ------------------ Vertical poses ------------------
-  "v_pose_0_x", "v_pose_0_y",
-  "v_pose_2nd_x", "v_pose_2nd_y",
-  "v_pose_3rd_x", "v_pose_3rd_y",
-  "v_pose_0_r1", "v_pose_0_r1",
-  "v_pose_0_r2", "v_pose_0_r2",
-  "v_pose_0_r3", "v_pose_0_r3",
-  "v_pose_0_r4", "v_pose_0_r4",
-  "v_pose_0_r5", "v_pose_0_r5",
-  "v_pose_0_r6", "v_pose_0_r6",
+  // Base rotation
+  "base_0", "base_90", "base_90minus",  //
 
   // ------------------ Terminator ------------------
   nullptr
@@ -309,23 +168,10 @@ void initParamStore() {
   LOG_SECTION_START("initParamStore");
 
   // ----------------------------------------------------------
-  //                SERVO CORE LIMITS
+  //                USE THE LIST ABOVE
   // ----------------------------------------------------------
-  for (auto n : { "arm1", "arm2", "wrist", "grip1", "grip2", "base" }) {
-    // Base servo entry (not fixed, not persisted)
-    add(n, SERVO_TICKS_MIN, 0, SERVO_TICKS_MAX, false, false);
-
-    // Servo minimum limit
-    std::string mn = std::string(n) + "_min";
-    add(mn.c_str(), 0, SERVO_TICKS_MIN, SERVO_TICKS_MAX, false, true);
-
-    // Servo maximum limit
-    std::string mx = std::string(n) + "_max";
-    add(mx.c_str(), SERVO_TICKS_MIN, SERVO_TICKS_MAX, SERVO_TICKS_MAX, true, false);
-  }
-
-  for (int i = 0; poseKeys[i] != nullptr; ++i) {
-    add(poseKeys[i], 0, SERVO_TICKS_MIN, SERVO_TICKS_MAX);
+  for (int i = 0; paramKeys[i] != nullptr; ++i) {
+    add(paramKeys[i], 0);
   }
 
   // ----------------------------------------------------------
@@ -345,9 +191,6 @@ int getParamValue(const char* k) {
   auto it = store.find(std::string(k));  // your map is still std::string-keyed
   if (it == store.end()) return 0;
   int val = (it == store.end()) ? 0 : it->second.value;
-
-  if (servoMgr.isServo(key))
-    val = servoMgr.getServoTicks(key);
 
   LOG_VAR2("get param", k, "val", val);
   return val;
@@ -373,73 +216,20 @@ void setParamValue(const char* k, int v) {
     return;
   }
   Param& p = it->second;
-  if (!it->second.fixed) {
-    v = std::max(p.minv, std::min(p.maxv, v));
-    if (p.value != v) {
-      p.value = v;
-      LOG_VAR2("update derived key", k, "val", v);
-      updateDerived(k, v);
-      static unsigned long lastSave = 0;
-      if (millis() - lastSave > 1000) {
-        saveParamsToFlash();
-        lastSave = millis();
-      }
+  if (p.value != v) {
+    p.value = v;
+
+    static unsigned long lastSave = 0;
+    if (millis() - lastSave > 1000) {
+      saveParamsToFlash();
+      lastSave = millis();
+      LOG_VAR2("saving param key", k, "val", v);
     }
-  } else LOG_VAR2("not changing fixed param", k, "to value", v);
+  }
   LOG_SECTION_END();
 }
 
 // overload for convenience
 void setParamValue(const std::string& k, int v) {
   setParamValue(k.c_str(), v);
-}
-
-// ------------------------------------------------------
-// Update derived servo angle parameters
-// ------------------------------------------------------
-void updateDerived(const std::string& k, int v) {
-  LOG_SECTION_START_VAR("updateDerived", "key", k.c_str());
-
-  const int ticks_per_rev = 4096;
-  const int ticks_per_90 = ticks_per_rev / 4;
-
-  size_t pos = k.find('_');
-  if (pos == std::string::npos) {
-    LOG_SECTION_END();
-    return;
-  }
-  std::string base = k.substr(0, pos);
-  std::string suffix = k.substr(pos + 1);
-
-  // update derived only for servost
-  if (!servoMgr.isServo(base.c_str())) return;
-
-  auto safe_set = [&](const std::string& key, int val) {
-    auto it = store.find(key);
-    if (it == store.end()) return;
-    val = std::max(it->second.minv, std::min(it->second.maxv, val));
-    if (it->second.value != val) it->second.value = val;
-    LOG_VAR2("safe set param", key.c_str(), "val", val);
-  };
-
-  if (suffix == "0") {
-    safe_set(base + "_90", v + ticks_per_90);
-    safe_set(base + "_minus90", v - ticks_per_90);
-  } else if (suffix == "90") {
-    safe_set(base + "_0", v - ticks_per_90);
-    safe_set(base + "_minus90", v - 2 * ticks_per_90);
-  } else if (suffix == "minus90") {
-    safe_set(base + "_0", v + ticks_per_90);
-    safe_set(base + "_90", v + 2 * ticks_per_90);
-  }
-
-  for (auto sfx : { "0", "90", "minus90" }) {
-    std::string key = base + "_" + sfx;
-    auto it = store.find(key);
-    if (it != store.end()) {
-      it->second.value = std::max(0, std::min(SERVO_TICKS_MAX, it->second.value));
-    }
-  }
-
-  LOG_SECTION_END();
 }

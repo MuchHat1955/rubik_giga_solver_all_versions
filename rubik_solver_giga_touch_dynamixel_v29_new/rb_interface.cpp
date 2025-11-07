@@ -377,6 +377,8 @@ void RBInterface::clearErrorBuffer() {
   errorLines.clear();
 }
 
+RBInterface rb;
+
 /* --------------------------------------------------------------------------------------------------------------------------------------------------
 struct CommandEntry {
   const char* name;

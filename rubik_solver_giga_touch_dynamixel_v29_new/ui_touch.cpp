@@ -1,7 +1,6 @@
 #include "ui_touch.h"
 #include "logging.h"
 #include "param_store.h"
-#include "servos.h"
 #include "Arduino_H7_Video.h"
 #include <Arduino_GigaDisplayTouch.h>
 #include "ui_theme.h"
@@ -9,12 +8,12 @@
 #include <vector>
 #include <algorithm>
 #include "ui_status.h"
-#include "servo_manager.h"
+#include "rb_interface.h"
 
 // Forward declarations
 void updateButtonStateByPtr(lv_obj_t *btn, bool issue, bool active);
 
-extern ServoManager servoMgr;
+extern RBInterface rb;
 
 // ----------------------------------------------------------
 //                   LVGL GLOBALS

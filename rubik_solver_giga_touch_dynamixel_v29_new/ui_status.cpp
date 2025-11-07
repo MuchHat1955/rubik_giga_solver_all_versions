@@ -3,6 +3,7 @@
 #include "ui_theme.h"
 #include "logging.h"
 #include <lvgl.h>
+#include "rb_interface.h"
 
 static std::map<String, ButtonState> buttonMap;
 
@@ -112,11 +113,10 @@ void updateButtonStateByPtr(lv_obj_t *btn, bool issue, bool active) {
   LOG_SECTION_END();
 }
 
-
 // ----------------------------------------------------------
-// Update state by key (used by ServoManager and UI refresh)
+// Update state by key (used by UI refresh)
 // ----------------------------------------------------------
-void updateButtonStateByKey(const String &buttonKey, bool issue, bool active) {
+void updateButtonStateByKey(const String &buttonKey, bool issue, bool active) { // TODO fix this one and use the new rb interface
   auto it = buttonMap.find(buttonKey);
   if (it == buttonMap.end()) {
     LOG_VAR2("add button with no ptr for key", buttonKey, "issue", issue);

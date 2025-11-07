@@ -2,6 +2,18 @@
  *  Rubik Solver — System Architecture Overview
  *  Target: Arduino GIGA R1 WiFi + GIGA Display Shield (ASX00039)
  * ---------------------------------------------------------------
+ *  Development Environment:
+ *    - Arduino IDE 2.x
+ *    - Board package: Arduino mbed GIGA (>= 4.1.x)
+ *    - Libraries:
+ *        Arduino_H7_Video
+ *        Arduino_GigaDisplayTouch
+ *        Arduino_GigaDisplay_GFX  (LVGL 8.2)
+ *        Dynamixel2Arduino
+ *        Adafruit_TCS34725
+ *        ArduinoJson (optional)
+ *
+ * ---------------------------------------------------------------
  *
  *  Hardware:
  *    - 800x480 LVGL touchscreen (Arduino_H7_Video + GigaDisplayTouch)
@@ -23,17 +35,15 @@
 #include <ArduinoJson.h>
 #include "logging.h"
 #include "param_store.h"
-#include "servos.h"
 #include "ui_theme.h"
 #include "ui_touch.h"
 #include "ui_status.h"
 #include <map>
 #include <vector>
 #include <algorithm>
-#include "servo_manager.h"
-#include "vertical_kinematics.h"
+#include "rb_interface.h"
 
-// TODO still need the vertical move file
+extern RBInterface rb;
 
 // --------------------------------------------------------------------------
 //                  NOTES
@@ -133,19 +143,21 @@ void setup() {
   // ----------------------------------------------------------
   // SERVO SYSTEM INIT
   // ----------------------------------------------------------
-  dynamixel_begin();  // open Dynamixel serial, set baud, etc.
   initParamStore();   // load or create parameter storage
   initPoseStore();    // register servos + group poses
-  vkinInit();
 
   // ----------------------------------------------------------
   // STARTUP SELF TEST
   // ----------------------------------------------------------
-
-  if (runStartupTests()) {
-    setFooter("startup test ok");
+  bool rb_ok = !rb.begin();
+  if (!rb_ok) {
+    setFooter("rb interface issues detected");
   } else {
-    setFooter("startup issues detected");
+    if (!runStartupTests()) {
+      setFooter("startup issues detected");
+    } else {
+      setFooter("startup test ok");
+    }
   }
 
   LOG_SECTION_END();

@@ -1,12 +1,11 @@
 // ------------------ STARTUP DIAGNOSTICS ------------------
 #include <Arduino.h>
-#include "servos.h"
-#include "ui_touch.h"      // for setFooter()
-#include "ui_status.h"     // for updateButtonStateByKey()
-#include "servo_manager.h"
+#include "ui_touch.h"   // for setFooter()
+#include "ui_status.h"  // for updateButtonStateByKey()
 #include "logging.h"
+#include "rb_interface.h"
 
-extern ServoManager servoMgr;
+extern RBInterface rb;
 
 // ----------------------------------------------------------
 //                 STARTUP TEST CONFIG
@@ -31,35 +30,13 @@ bool runStartupTests() {
   int failCount = 0;
   int total = 0;
 
-  for (auto& kv : servoMgr.getServoStore()) {  // we’ll add getServoMap() helper below
-    const String& key = kv.first;
-    total++;
-
-    servoMgr.updateServo(key);
-    if (servoMgr.hasServoErrors(key)) {
-      startupOK = false;
-      failCount++;
-      String err = servoMgr.getErrorString(key);
-      if (err.length()) {
-        startupErrors += key + ": " + err + "\n";
-      } else {
-        startupErrors += key + ": unknown issue\n";
-      }
-
-      updateButtonStateByKey(key, true, false);  // show issue on UI
-    } else {
-      updateButtonStateByKey(key, false, false); // clear any old red overlays
-    }
-  }
+  startupOk = rb.updateInfo();
 
   if (startupOK) {
     setFooter("startup test ok");
     LOG_VAR("startup status", "ok");
   } else {
-    char buf[64];
-    snprintf(buf, sizeof(buf), "startup: %d/%d failed", failCount, total);
-    setFooter(buf);
-    LOG_VAR("startup errors", buf);
+    setFooter(rb.getLastErrorLine());
   }
 
   startupDone = true;
