@@ -13,27 +13,27 @@ RBInterface::RBInterface(Stream& port)
 bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
   LOG_SECTION_START_PRINTF("begin", "| baud=%lu timeout=%lu", baud, timeout_ms);
 
-  serial.begin(baud);
-  serial.setTimeout(timeout_ms);
+  Serial2.begin(baud);
+  Serial2.setTimeout(timeout_ms);
   clearErrorBuffer();
 
   LOG_PRINTF("Initializing communication...");
   delay(300);
 
   // Turn verbose OFF to get clean command responses
-  serial.println("VERBOSEOFF");
+  Serial2.println("VERBOSEOFF");
   delay(100);
 
   // Flush any startup noise
-  while (serial.available()) serial.read();
+  while (Serial2.available()) Serial2.read();
 
   // Confirm RB responds
-  serial.println("READ 0");
+  Serial2.println("READ 0");
   unsigned long t0 = millis();
   bool got = false;
   while (millis() - t0 < 2000) {
-    if (!serial.available()) continue;
-    String line = serial.readStringUntil('\n');
+    if (!Serial2.available()) continue;
+    String line = Serial2.readStringUntil('\n');
     if (line.startsWith("STATUS")) {
       got = true;
       break;
@@ -73,7 +73,7 @@ bool RBInterface::runCommand(const char* name, const float* args, int argCount) 
     cmd += " ";
     cmd += String(args[i], 3);
   }
-  serial.println(cmd);
+  Serial2.println(cmd);
 
   LOG_PRINTF("[GIGA→RB] {%s}", cmd.c_str());
   bool ok = waitForCompletion(name);
@@ -91,12 +91,12 @@ bool RBInterface::requestServoInfo(uint8_t id) {
 
   String cmd = "INFO ";
   cmd += String(id);
-  serial.println(cmd);
+  Serial2.println(cmd);
 
   unsigned long t0 = millis();
   while (millis() - t0 < 1000) {
-    if (!serial.available()) continue;
-    String line = serial.readStringUntil('\n');
+    if (!Serial2.available()) continue;
+    String line = Serial2.readStringUntil('\n');
     line.trim();
     if (line.startsWith("INFO id=")) {
       LOG_PRINTF("{%s}", line.c_str());
@@ -151,7 +151,7 @@ void RBInterface::parseStatusLine(const String& line) {
 // Called whenever a "MOVING ..." line is received from RB.
 // You can later update the display, GUI, or telemetry here.
 // ============================================================
-void RBInterface::updateFooter(const char* text) {
+void updateFooter(const char* text) {
   // TODO: Implement display or UI footer update
   LOG_PRINTF("[FOOTER] {%s}\n", text);
 }
@@ -169,8 +169,8 @@ bool RBInterface::waitForCompletion(const char* commandName) {
   bool success = false;
 
   while (millis() - t0 < 8000) {
-    if (!serial.available()) continue;
-    String line = serial.readStringUntil('\n');
+    if (!Serial2.available()) continue;
+    String line = Serial2.readStringUntil('\n');
     line.trim();
     if (line.isEmpty()) continue;
 
@@ -238,16 +238,16 @@ bool RBInterface::updateInfo() {
   LOG_SECTION_START("updateInfo");
 
   clearErrorBuffer();
-  serial.println("READ 0");
+  Serial2.println("READ 0");
   LOG_PRINTF("Requesting READ 0...");
 
   unsigned long t0 = millis();
   bool gotAny = false;
 
   while (millis() - t0 < 2000) {
-    if (!serial.available()) continue;
+    if (!Serial2.available()) continue;
 
-    String line = serial.readStringUntil('\n');
+    String line = Serial2.readStringUntil('\n');
     line.trim();
     if (line.isEmpty()) continue;
 
@@ -359,8 +359,8 @@ bool RBInterface::readUntilEnd(const char* keyword) {
   LOG_SECTION_START_PRINTF("readUntilEnd", "| key{%s}", keyword);
   unsigned long t0 = millis();
   while (millis() - t0 < 2000) {
-    if (!serial.available()) continue;
-    String line = serial.readStringUntil('\n');
+    if (!Serial2.available()) continue;
+    String line = Serial2.readStringUntil('\n');
     line.trim();
     if (line.startsWith("ERR")) errorLines.push_back(line);
     if (line.endsWith("END")) {

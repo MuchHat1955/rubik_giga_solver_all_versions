@@ -1,4 +1,5 @@
 #pragma once
+#include "utils.h"
 
 // -----------------------------------------------------------
 // Single pose entry
@@ -20,7 +21,7 @@ struct Pose {
 // -----------------------------------------------------------
 class PoseStore {
 public:
-  PoseStore();
+  PoseStore(){};
 
   bool add_pose(const char *name, const char *type, double p1, double p2,
                 const char *btn_key = nullptr, double step = 1.0,
@@ -42,9 +43,8 @@ public:
   void init_from_defaults(const Pose *defaults, int count);
   void list_poses() const;
 
-private:
   static const int MAX_POSES = 64;
-  Pose poses[MAX_POSES];
+  Pose poses_list[MAX_POSES];
   int count = 0;
 
   int find_pose_index(const char *name) const;

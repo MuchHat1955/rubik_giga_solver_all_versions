@@ -37,6 +37,7 @@
 #include <vector>
 #include <algorithm>
 
+#include "utils.h"
 #include "logging.h"
 #include "param_store.h"
 #include "ui_theme.h"

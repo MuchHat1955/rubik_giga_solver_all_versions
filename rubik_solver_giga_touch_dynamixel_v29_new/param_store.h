@@ -1,15 +1,17 @@
 // param_store.h
 #pragma once
+#include "utils.h"
 
 void initParamStore();
 
-int getParamValue(char* k);
+int getParamValue(const char* k);
 int getParamValue(std::string& k);
 
-void setParamValue(char* k, int v);
+void setParamValue(const char* k, int v);
 void setParamValue(std::string& k, int v);
 
-void runAction(char* key);
+void runAction(const char* key);
 void runAction(std::string& key);
 
-void incrementParam(char* k, int v);
+void incrementParam(const char* k, int v);
+

@@ -1,3 +1,4 @@
+#include <arduino.h>
 #include "logging.h"
 
 static String log_section_name[MAX_NESTED_SECTIONS];

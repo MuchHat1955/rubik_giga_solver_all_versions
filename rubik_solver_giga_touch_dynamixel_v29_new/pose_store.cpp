@@ -1,13 +1,9 @@
 #include "pose_store.h"
 #include "param_store.h"
 #include "logging.h"
+#include "rb_interface.h"
 
 extern RBInterface rb;
-
-// -----------------------------------------------------------
-// Constructor
-// -----------------------------------------------------------
-PoseStore::PoseStore() {}
 
 // -----------------------------------------------------------
 // Add or update a pose
@@ -20,7 +16,7 @@ bool PoseStore::add_pose(const char *name, const char *type, double p1, double p
   if (idx < 0 && count >= MAX_POSES) return false;
   if (idx < 0) idx = count++;
 
-  Pose &p = poses[idx];
+  Pose &p = poses_list[idx];
   p.name = name;
   p.move_type = type;
   p.p1 = p1;
@@ -40,14 +36,14 @@ bool PoseStore::add_pose(const char *name, const char *type, double p1, double p
 // -----------------------------------------------------------
 int PoseStore::find_pose_index(const char *name) const {
   for (int i = 0; i < count; i++)
-    if (poses[i].name.equalsIgnoreCase(name))
+    if (poses_list[i].name.equalsIgnoreCase(name))
       return i;
   return -1;
 }
 
 int PoseStore::find_pose_by_button(const char *btn_key) const {
   for (int i = 0; i < count; i++)
-    if (poses[i].button_key.equalsIgnoreCase(btn_key))
+    if (poses_list[i].button_key.equalsIgnoreCase(btn_key))
       return i;
   return -1;
 }
@@ -65,16 +61,16 @@ bool PoseStore::is_button_for_pose(const char *btn_key) const {
 bool PoseStore::get_pose_params(const char *name, double *p1, double *p2, String *type) const {
   int idx = find_pose_index(name);
   if (idx < 0) return false;
-  if (p1) *p1 = poses[idx].p1;
-  if (p2) *p2 = poses[idx].p2;
-  if (type) *type = poses[idx].move_type;
+  if (p1) *p1 = poses_list[idx].p1;
+  if (p2) *p2 = poses_list[idx].p2;
+  if (type) *type = poses_list[idx].move_type;
   return true;
 }
 
 bool PoseStore::set_pose_params(const char *name, double p1, double p2) {
   int idx = find_pose_index(name);
   if (idx < 0) return false;
-  Pose &p = poses[idx];
+  Pose &p = poses_list[idx];
   p.p1 = p1;
   p.p2 = p2;
   setParamValue((String("pose_") + name + "_p1").c_str(), (int)(p1*100.0));
@@ -88,7 +84,7 @@ bool PoseStore::increment_pose_param(const char *name, int units, double &new_va
   int idx = find_pose_index(name);
   if (idx < 0) return false;
 
-  Pose &p = poses[idx];
+  Pose &p = poses_list[idx];
   double new_val = p.p1 + (units * p.step);
   if (new_val < p.min_val) new_val = p.min_val;
   if (new_val > p.max_val) new_val = p.max_val;
@@ -108,28 +104,24 @@ bool setZeroServo(int servo_id, double value) {
   return false;
 }
 
-bool zeroInfoMm(int servo_id, double *val)
-  // TODO
-  return false;
-}
-
 // -----------------------------------------------------------
 // Run a pose
 // -----------------------------------------------------------
-bool PoseStore::run_pose(const char *name) {
-  int idx = find_pose_index(name);
+bool PoseStore::run_pose(const char *pose_name) {
+  int idx = find_pose_index(pose_name);
   if (idx < 0) return false;
-  Pose &pose = poses[idx];
+  Pose &pose = poses_list[idx];
 
   double p1 = pose.p1, p2 = pose.p2;
   String type = pose.move_type;
 
   // Handle SETZERO
   if (pose.servo_id >= 0 && pose.name.endsWith("_0")) {
-    return setZeroServo(pose.servo_id, p1);
+    // return setZeroServo(pose.servo_id, p1); //TODO
+    return false;
   }
 
-  LOG_SECTION_START_PRINTF("pose store run_pose", "| {%s} type{%s}", name, type.c_str());
+  LOG_SECTION_START_PRINTF("pose store run_pose", "| {%s} type{%s}", pose_name, type.c_str());
   bool ok = false;
 
   if (type == "xy") {
@@ -152,7 +144,7 @@ bool PoseStore::run_pose(const char *name) {
 bool PoseStore::run_pose_by_button(const char *btn_key) {
   int idx = find_pose_by_button(btn_key);
   if (idx < 0) return false;
-  return run_pose(poses[idx].name.c_str());
+  return run_pose(poses_list[idx].name.c_str());
 }
 
 // -----------------------------------------------------------
@@ -161,7 +153,7 @@ bool PoseStore::run_pose_by_button(const char *btn_key) {
 bool PoseStore::is_at_pose(const char *name, double tol_mm, double tol_deg) {
   int idx = find_pose_index(name);
   if (idx < 0) return false;
-  Pose &p = poses[idx];
+  Pose &p = poses_list[idx];
   double val1 = 0, val2 = 0;
 
   if (p.move_type == "xy") {
@@ -195,8 +187,8 @@ void PoseStore::init_from_defaults(const Pose *defaults, int def_count) {
     double val_p1 = def.p1, val_p2 = def.p2;
 
     if (def.servo_id >= 0 && def.name.endsWith("_0")) {
-      if (!zeroInfoMm(def.servo_id, &val_p1))
-        LOG_PRINTF("GETZERO failed for{%s}, using default{%.2f}\n", def.name.c_str(), def.p1);
+  //    if (!zeroInfoMm(def.servo_id, &val_p1)) //TODO
+   //     LOG_PRINTF("GETZERO failed for{%s}, using default{%.2f}\n", def.name.c_str(), def.p1);
     } else {
       String key = String("pose_") + def.name + "_p1";
       val_p1 = (double)getParamValue(key.c_str()) / 100.0;
@@ -216,7 +208,7 @@ void PoseStore::init_from_defaults(const Pose *defaults, int def_count) {
 void PoseStore::list_poses() const {
   LOG_SECTION_START("PoseStore::list_poses");
   for (int i = 0; i < count; i++) {
-    const Pose &p = poses[i];
+    const Pose &p = poses_list[i];
     LOG_PRINTF("(%2d) name{%-10s} | typr{%-8s} | p1{%.2f} p2{%.2f} | id{%d} step{%.2f} min{%.2f} max{%.2f} btn{%s}\n",
                i, p.name.c_str(), p.move_type.c_str(), p.p1, p.p2,
                p.servo_id, p.step, p.min_val, p.max_val, p.button_key.c_str());
@@ -231,11 +223,11 @@ void PoseStore::list_poses() const {
 #define SERVO_ID_GRIP2 15
 
 // ============================================================
-// Default poses (auto-generated from menu keys)
+// Default poses_list (auto-generated from menu keys)
 // ============================================================
 Pose default_poses[] = {
 
-  // XY poses
+  // XY poses_list
   { "y_0", "xy", 0.0, 0.0, "xy_0_btn", 0.5, -100.0, 200.0, -1 },
   { "y_2nd", "xy", 10.0, 0.0, "xy_2nd_btn", 0.5, -100.0, 200.0, -1 },
   { "y_3rd", "xy", 20.0, 0.0, "xy_3rd_btn", 0.5, -100.0, 200.0, -1 },
@@ -258,7 +250,7 @@ Pose default_poses[] = {
   { "grip2_open", "grips", 0.0, 0.0, "grip2_open_btn", 1.0, 0.0, 100.0, SERVO_ID_GRIP2 },
   { "grip2_close", "grips", 60.0, 0.0, "grip2_close_btn", 1.0, 0.0, 100.0, SERVO_ID_GRIP2 },
 
-  // Wrist poses
+  // Wrist poses_list
   { "wrist_90", "wrist", 0.0, 0.0, "wrist_90_btn", 1.0, -180.0, 180.0, SERVO_ID_WRIST },
   { "wrist_0", "wrist", 90.0, 0.0, "wrist_0_btn", 1.0, -180.0, 180.0, SERVO_ID_WRIST },
   { "wrist_90minus", "wrist", 90.0, 0.0, "wrist_90minus_btn", 1.0, -180.0, 180.0, SERVO_ID_WRIST },

@@ -1,4 +1,4 @@
-#pregma once
+#pragma once
 
 #include <arduino.h>
 #include <Arduino_H7_Video.h>
