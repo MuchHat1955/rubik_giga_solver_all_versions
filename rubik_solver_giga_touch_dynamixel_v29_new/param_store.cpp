@@ -97,7 +97,7 @@ struct Param {
   bool fixed{ false };  // the min and max for the min and max are fixed not changeable in UI
   bool persist{ true };
 };
-static std::map<std::string, Param> param_store;
+std::map<std::string, Param> param_store;
 
 static void add(const char* k, int v, bool persist_ = true) {
   param_store[k] = { v, persist_ };

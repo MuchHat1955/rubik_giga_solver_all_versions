@@ -24,7 +24,7 @@ struct Pose {
 // -----------------------------------------------------------
 class PoseStore {
 public:
-  PoseStore(RBInterface &rb_ref, ParamStore &param_ref);
+  PoseStore();
 
   bool add_pose(const char *name, const char *type, double p1, double p2,
                 const char *btn_key = nullptr, double step = 1.0,
@@ -51,11 +51,8 @@ private:
   Pose poses[MAX_POSES];
   int count = 0;
 
-  RBInterface &rb;
-  ParamStore &params;
-
   int find_pose_index(const char *name) const;
   int find_pose_by_button(const char *btn_key) const;
 };
 
-void initPoseStore();
+bool initPoseStore();

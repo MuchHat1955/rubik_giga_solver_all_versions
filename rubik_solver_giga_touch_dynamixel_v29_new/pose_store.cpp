@@ -2,13 +2,11 @@
 #include "logging.h"
 
 extern RBInterface rb;
-extern ParamStore params;
 
 // -----------------------------------------------------------
 // Constructor
 // -----------------------------------------------------------
-PoseStore::PoseStore(RBInterface &rb_ref, ParamStore &param_ref)
-  : rb(rb_ref), params(param_ref) {}
+PoseStore::PoseStore() {}
 
 // -----------------------------------------------------------
 // Add or update a pose
@@ -32,8 +30,7 @@ bool PoseStore::add_pose(const char *name, const char *type, double p1, double p
   p.max_val = max_val;
   p.servo_id = servo_id;
 
-  params.set_double((String("pose_") + name + "_p1").c_str(), p1);
-  params.save();
+  setParamValue((String("pose_") + name + "_p1").c_str(), (int)(p1 * 100.0));
   return true;
 }
 
@@ -97,8 +94,7 @@ bool PoseStore::increment_pose_param(const char *name, int units, double &new_va
   if (new_val > p.max_val) new_val = p.max_val;
 
   p.p1 = new_val;
-  params.set_double((String("pose_") + name + "_p1").c_str(), new_val);
-  params.save();
+  setParamValue((String("pose_") + name + "_p1").c_str(), (int)(new_val * 100.0));
   new_value_ref = new_val;
   LOG_PRINTF("pose{%s} adjusted to{%.2f} units{%d}\n", name, new_val, units);
   return true;
@@ -107,25 +103,13 @@ bool PoseStore::increment_pose_param(const char *name, int units, double &new_va
 // -----------------------------------------------------------
 // Stub helpers for RB zero operations
 // -----------------------------------------------------------
-bool setZeroServo(RBInterface &rb, int servo_id, double value) {
-  LOG_PRINTF("[RB] SETZERO servo{%d} val{%.2f}\n", servo_id, value);
-  String cmd = String("SETZERO ") + servo_id + " " + String(value, 2);
-  rb.sendCommand(cmd.c_str());
-  return rb.waitForCompletion("SETZERO");
+bool setZeroServo(int servo_id, double value) {
+  // TODO
+  return false;
 }
 
-bool zeroInfoMm(RBInterface &rb, int servo_id, double *val) {
-  String cmd = String("GETZERO ") + servo_id;
-  rb.sendCommand(cmd.c_str());
-  String reply = rb.readLine(500);
-  if (reply.startsWith("ZERO")) {
-    int id;
-    double v;
-    if (sscanf(reply.c_str(), "ZERO {%d} %lf", &id, &v) == 2) {
-      if (val) *val = v;
-      return true;
-    }
-  }
+bool zeroInfoMm(int servo_id, double *val)
+  // TODO
   return false;
 }
 
@@ -142,7 +126,7 @@ bool PoseStore::run_pose(const char *name) {
 
   // Handle SETZERO
   if (pose.servo_id >= 0 && pose.name.endsWith("_0")) {
-    return setZeroServo(rb, pose.servo_id, p1);
+    return setZeroServo(pose.servo_id, p1);
   }
 
   LOG_SECTION_START_PRINTF("pose store run_pose", "| {%s} type{%s}", name, type.c_str());
@@ -211,11 +195,11 @@ void PoseStore::init_from_defaults(const Pose *defaults, int def_count) {
     double val_p1 = def.p1, val_p2 = def.p2;
 
     if (def.servo_id >= 0 && def.name.endsWith("_0")) {
-      if (!zeroInfoMm(rb, def.servo_id, &val_p1))
+      if (!zeroInfoMm(def.servo_id, &val_p1))
         LOG_PRINTF("GETZERO failed for{%s}, using default{%.2f}\n", def.name.c_str(), def.p1);
     } else {
       String key = String("pose_") + def.name + "_p1";
-      val_p1 = params.get_double(key.c_str(), def.p1);
+      val_p1 = ((double)getParamValue(key.c_str(), def.p1)) / 100.0;
     }
 
     add_pose(def.name.c_str(), def.move_type.c_str(), val_p1, val_p2,
@@ -287,8 +271,8 @@ static const Pose default_poses[] = {
 
 static const int DEFAULT_POSE_COUNT = sizeof(default_poses) / sizeof(default_poses[0]);
 
-PoseStore pose_store(rb, params);
+PoseStore pose_store;
 
 bool initPoseStore() {
-  return pose_store.init_from_defaults(store, DEFAULT_POSE_COUNT);
+  return pose_store.init_from_defaults(default_poses, DEFAULT_POSE_COUNT);
 }
