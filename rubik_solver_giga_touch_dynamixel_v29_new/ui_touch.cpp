@@ -123,7 +123,7 @@ void buttonAction(const char *key) {
 
   // --- Regular action (pose / servo / group / sequence) ---
   setFooter((String("action ") + key).c_str());
-  runAction(key);
+  runAction((char*)key);
 
   LOG_SECTION_END();
 }

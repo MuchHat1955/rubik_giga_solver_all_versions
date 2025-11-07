@@ -1,4 +1,5 @@
 #include "pose_store.h"
+#include "param_store.h"
 #include "logging.h"
 
 extern RBInterface rb;
@@ -76,8 +77,7 @@ bool PoseStore::set_pose_params(const char *name, double p1, double p2) {
   Pose &p = poses[idx];
   p.p1 = p1;
   p.p2 = p2;
-  params.set_double((String("pose_") + name + "_p1").c_str(), p1);
-  params.save();
+  setParamValue((String("pose_") + name + "_p1").c_str(), (int)(p1*100.0));
   return true;
 }
 
@@ -199,7 +199,7 @@ void PoseStore::init_from_defaults(const Pose *defaults, int def_count) {
         LOG_PRINTF("GETZERO failed for{%s}, using default{%.2f}\n", def.name.c_str(), def.p1);
     } else {
       String key = String("pose_") + def.name + "_p1";
-      val_p1 = ((double)getParamValue(key.c_str(), def.p1)) / 100.0;
+      val_p1 = (double)getParamValue(key.c_str()) / 100.0;
     }
 
     add_pose(def.name.c_str(), def.move_type.c_str(), val_p1, val_p2,
@@ -207,7 +207,7 @@ void PoseStore::init_from_defaults(const Pose *defaults, int def_count) {
   }
 
   list_poses();
-  LOG_SECTION_END("PoseStore::init_from_defaults", true);
+  LOG_SECTION_END();
 }
 
 // -----------------------------------------------------------
@@ -221,7 +221,7 @@ void PoseStore::list_poses() const {
                i, p.name.c_str(), p.move_type.c_str(), p.p1, p.p2,
                p.servo_id, p.step, p.min_val, p.max_val, p.button_key.c_str());
   }
-  LOG_SECTION_END("PoseStore::list_poses", true);
+  LOG_SECTION_END();
 }
 
 // Servo IDs (adjust as needed for your setup)
@@ -233,7 +233,7 @@ void PoseStore::list_poses() const {
 // ============================================================
 // Default poses (auto-generated from menu keys)
 // ============================================================
-static const Pose default_poses[] = {
+Pose default_poses[] = {
 
   // XY poses
   { "y_0", "xy", 0.0, 0.0, "xy_0_btn", 0.5, -100.0, 200.0, -1 },
@@ -269,10 +269,11 @@ static const Pose default_poses[] = {
   { "base_90minus", "servo", -90.0, 0.0, "base_90minus_btn", 1.0, -180.0, 180.0, SERVO_ID_BASE }
 };
 
-static const int DEFAULT_POSE_COUNT = sizeof(default_poses) / sizeof(default_poses[0]);
+const int DEFAULT_POSE_COUNT = sizeof(default_poses) / sizeof(default_poses[0]);
 
 PoseStore pose_store;
 
 bool initPoseStore() {
-  return pose_store.init_from_defaults(default_poses, DEFAULT_POSE_COUNT);
+  pose_store.init_from_defaults(default_poses, DEFAULT_POSE_COUNT);
+  return true; //TODO
 }

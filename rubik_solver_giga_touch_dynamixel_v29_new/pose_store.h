@@ -1,8 +1,4 @@
 #pragma once
-#include <arduino.h>
-#include "rb_interface.h"
-#include "param_store.h"
-#include "logging.h"
 
 // -----------------------------------------------------------
 // Single pose entry

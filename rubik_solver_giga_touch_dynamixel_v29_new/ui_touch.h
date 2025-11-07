@@ -1,10 +1,4 @@
 #pragma once
-#include <arduino.h>
-#include <lvgl.h>
-#include <ArduinoJson.h>
-#include <map>
-#include <vector>
-#include "ui_status.h"
 
 // ----------------------------------------------------------
 // CONFIGURATION

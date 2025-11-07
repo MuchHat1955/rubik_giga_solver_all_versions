@@ -1,7 +1,4 @@
 #pragma once
-#include <lvgl.h>
-#include <map>
-#include <arduino.h>
 
 // ----------------------------------------------------------
 //                  UI STATUS MANAGER

@@ -363,7 +363,7 @@ void buildMenu(const char *menuName) {
             const char *keyUD = (const char *)lv_event_get_user_data(e);
             if (!keyUD || !*keyUD) return;
             select_num_pair(lv_obj_get_parent((lv_obj_t *)lv_event_get_target(e)), false);
-            incrementParam(keyUD, -1);
+            incrementParam((char*)keyUD, -1);
             int val = getParamValue(keyUD);
             char b[8];
             snprintf(b, sizeof(b), "%04d", val);
@@ -377,7 +377,7 @@ void buildMenu(const char *menuName) {
             const char *keyUD = (const char *)lv_event_get_user_data(e);
             if (!keyUD || !*keyUD) return;
             select_num_pair(lv_obj_get_parent((lv_obj_t *)lv_event_get_target(e)), false);
-            incrementParam(keyUD, +1);
+            incrementParam((char*)keyUD, +1);
             int val = getParamValue(keyUD);
             char b[8];
             snprintf(b, sizeof(b), "%04d", val);

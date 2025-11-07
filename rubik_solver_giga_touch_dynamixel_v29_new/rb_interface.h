@@ -1,6 +1,4 @@
 #pragma once
-#include <arduino.h>
-#include <vector>
 
 // Servo ID definitions (match RB firmware)
 #define ID_ARM1 11

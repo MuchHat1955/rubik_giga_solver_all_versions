@@ -7,10 +7,9 @@
 #include <kvstore_global_api.h>
 
 #include "logging.h"
-#include "param_store.h"
-#include "pose_store.h"
 #include "ui_touch.h"
 #include "rb_interface.h"
+#include "pose_store.h"
 
 extern RBInterface rb;
 extern PoseStore pose_store;
@@ -34,7 +33,7 @@ extern PoseStore pose_store;
   bool is_at_pose(const char *name, double tol_mm = 0.5, double tol_deg = 1.0);
 */
 
-void runAction(const char* key) {
+void runAction(char* key) {
   LOG_SECTION_START_VAR("runAction", "key", key);
 
   if (!key || !*key) {
@@ -99,7 +98,7 @@ struct Param {
 };
 std::map<std::string, Param> param_store;
 
-static void add(const char* k, int v, bool persist_ = true) {
+static void add(char* k, int v, bool persist_ = true) {
   param_store[k] = { v, persist_ };
 }
 
@@ -111,7 +110,7 @@ static void saveParamsToFlash() {
 
   for (auto& kv : param_store) {
     if (!kv.second.persist) continue;
-    const char* key = kv.first.c_str();
+    char* key = (char*)kv.first.c_str();
     int value_to_save = kv.second.value;
     kv_set(key, &value_to_save, sizeof(value_to_save), 0);
   }
@@ -125,7 +124,7 @@ static void loadParamsFromFlash() {
   LOG_SECTION_START("loadParamsFromFlash");
 
   for (auto& kv : param_store) {
-    const char* key = kv.first.c_str();
+    char* key = (char*)kv.first.c_str();
     int loaded_value = 0;
     size_t actual_size = 0;
     int ret = kv_get(key, &loaded_value, sizeof(loaded_value), &actual_size);
@@ -139,7 +138,7 @@ static void loadParamsFromFlash() {
 // ----------------------------------------------------------
 // SERVO POSE PARAMETERS (TODO THIS NEEDS TO MATCH POSES STORE)
 // ----------------------------------------------------------
-const char* paramKeys[] = {
+char* paramKeys[] = {
   // XY poses
   "xy_zero", "xy_2nd", "xy_3rd", "xy_c1", "xy_c2", "xy_c3", "xy_c4", "xy_c5", "xy_c6",  //
 
@@ -186,7 +185,7 @@ void initParamStore() {
 // ------------------------------------------------------
 // Get parameter
 // ------------------------------------------------------
-int getParamValue(const char* k) {
+int getParamValue(char* k) {
   String key(k);  // ✅ use Arduino String, not std::string
 
   auto it = param_store.find(std::string(k));  // your map is still std::string-keyed
@@ -205,7 +204,7 @@ int getParamValue(const std::string& k) {
 // ------------------------------------------------------
 // Set parameter (auto-saves and updates derived values)
 // ------------------------------------------------------
-void setParamValue(const char* k, int v) {
+void setParamValue(char* k, int v) {
   // Convert to std::string for lookup
   std::string key(k);
 
@@ -231,10 +230,14 @@ void setParamValue(const char* k, int v) {
 }
 
 // overload for convenience
-void setParamValue(const std::string& k, int v) {
+void setParamValue( std::string& k, int v) {
+  setParamValue(k.c_str(), v);
+}
+// overload for convenience
+void setParamValue( String k, int v) {
   setParamValue(k.c_str(), v);
 }
 
-void incrementParam(const char* k, int v) {
+void incrementParam(char* k, int v) {
   // TODO
 }
