@@ -28,19 +28,20 @@
  *    for motion, and Adafruit TCS34725 for color detection.
  *
  * --------------------------------------------------------------- */
-#include <Arduino.h>
-#include "Arduino_H7_Video.h"
+#include <arduino.h>
+#include <Arduino_H7_Video.h>
 #include <lvgl.h>
 #include <Arduino_GigaDisplayTouch.h>
 #include <ArduinoJson.h>
+#include <map>
+#include <vector>
+#include <algorithm>
+
 #include "logging.h"
 #include "param_store.h"
 #include "ui_theme.h"
 #include "ui_touch.h"
 #include "ui_status.h"
-#include <map>
-#include <vector>
-#include <algorithm>
 #include "rb_interface.h"
 
 extern RBInterface rb;

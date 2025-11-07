@@ -1,5 +1,5 @@
 #pragma once
-#include <Arduino.h>
+#include <arduino.h>
 #include <vector>
 
 // Servo ID definitions (match RB firmware)

@@ -1,10 +1,11 @@
+#include <map>
+#include <vector>
+#include <algorithm>
+
 #include "ui_touch.h"
 #include "logging.h"
 #include "ui_theme.h"
 #include "param_store.h"
-#include <map>
-#include <vector>
-#include <algorithm>
 #include "ui_status.h"
 #include "rb_interface.h"
 
@@ -235,7 +236,7 @@ void buildMenu(const char *menuName) {
 
         // --- Skip empty keys entirely ---
         if (!key || !*key) {
-          LOG_VAR("skipping button with empty key", txt);
+          LOG_PRINTF("skipping button with empty key {%s}\n", txt);
           continue;
         }
 
@@ -247,7 +248,7 @@ void buildMenu(const char *menuName) {
 
             const char *keyUD = static_cast<const char *>(lv_event_get_user_data(e));
             if (!keyUD || !*keyUD) {
-              LOG_VAR("click event: empty key", "");
+              LOG_PRINTF("click event: empty key\n");
               return;
             }
 
@@ -406,7 +407,7 @@ void buildMenu(const char *menuName) {
 
         String errText =
           "#FFA500 build#\n" + getSketchVersionWithDate() + "\n\n" +  //
-          "#FFA500 startup#\n" + rb.getAllErrorLines() + "\n\n");    //
+          "#FFA500 startup#\n" + rb.getAllErrorLines() + "\n\n";    //
 
         lv_textarea_set_text(ta, errText.c_str());
         lv_textarea_set_cursor_click_pos(ta, false);

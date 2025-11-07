@@ -1,12 +1,13 @@
+#include <Arduino_GigaDisplayTouch.h>
+#include <map>
+#include <vector>
+#include <algorithm>
+
 #include "ui_touch.h"
 #include "logging.h"
 #include "param_store.h"
 #include "Arduino_H7_Video.h"
-#include <Arduino_GigaDisplayTouch.h>
 #include "ui_theme.h"
-#include <map>
-#include <vector>
-#include <algorithm>
 #include "ui_status.h"
 #include "rb_interface.h"
 
@@ -88,7 +89,7 @@ void buttonAction(const char *key) {
 
   unsigned long now = millis();
   if (key && *key && key == lastClickKey && now - lastClickTime < 500) {
-    LOG_VAR("buttonAction: rapid re-click ignored", key);
+    LOG_PRINTF("button action rapid re-click ignored key{%s}\n", key);
     LOG_SECTION_END();
     return;
   }
@@ -97,7 +98,7 @@ void buttonAction(const char *key) {
 
   // --- Safety: guard against null or empty keys ---
   if (!key || !*key) {
-    LOG_VAR("buttonAction: empty or null key ignored", "");
+    LOG_PRINTF("button action empty or null key ignored\n");
     LOG_SECTION_END();
     return;
   }
@@ -168,7 +169,7 @@ void validateMenuKeys() {
         const char *type = it["type"] | "";
         const char *key = it["key"] | "";
         if ((strcmp(type, "action") == 0 || strcmp(type, "menu") == 0) && (!key || !*key)) {
-          LOG_VAR2("menu missing key", menuName, "type", type);
+          LOG_PRINTF("menu missing key{%s} type{%s}\n", menuName, type);
         }
       }
     }
@@ -192,7 +193,7 @@ void ui_init() {
   // 3. Parse menu JSON AFTER initializing LVGL
   DeserializationError err = deserializeJson(menuDoc, jsonBuffer);
   if (err) {
-    LOG_VAR("error on deserialize json", err.c_str());
+    LOG_PRINTF("error on deserialize json{%s}\n", err.c_str());
     LOG_SECTION_END();
     return;  // avoid using empty doc
   }

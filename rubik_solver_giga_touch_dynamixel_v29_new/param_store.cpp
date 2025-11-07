@@ -1,10 +1,11 @@
 // param_store.cpp
-#include <Arduino.h>
+#include <arduino.h>
 #include <map>
 #include <string>
 #include <algorithm>
-#include <kv_store.h>
+#include <kvstore.h>
 #include <kvstore_global_api.h>
+
 #include "logging.h"
 #include "param_store.h"
 #include "pose_store.h"
@@ -37,21 +38,21 @@ void runAction(const char* key) {
   LOG_SECTION_START_VAR("runAction", "key", key);
 
   if (!key || !*key) {
-    LOG_VAR("runAction: null/empty key ignored", "");
+    LOG_PRINTF("run action null/empty key ignored\n");
     return;
   }
 
   // Defensive: prevent recursive self-call crash
   if (strcmp(key, "runAction") == 0) {
-    LOG_VAR("runAction: recursion guard triggered", "");
+    LOG_PRINTF("run action recursion guard triggered\n");
     return;
   }
 
   // --- Pose buttons (e.g., "arm1_0_btn", "v_pose_r1") ---
-  if (param_store.is_button_for_pose(key)) {
+  if (pose_store.is_button_for_pose(key)) {
     bool ok = pose_store.run_pose_by_button(key);
     // reflectUIForKey(key); TODO
-    LOG_VAR2("pose move", poseKey, "", ok ? "OK" : "FAIL");
+    LOG_PRINTF("pose move{%s} result{%s}", key, ok ? "OK" : "FAIL");
     LOG_SECTION_END();
     return;
   }
@@ -68,7 +69,7 @@ void runAction(const char* key) {
   */
 
   // --- Fallback for sequences or other custom actions ---
-  LOG_VAR("unhandled action key", key);
+  LOG_PRINTF("unhandled action key {%s}\n", key);
   LOG_SECTION_END();
 }
 
@@ -99,7 +100,7 @@ struct Param {
 static std::map<std::string, Param> param_store;
 
 static void add(const char* k, int v, bool persist_ = true) {
-  store[k] = { v, persist_ };
+  param_store[k] = { v, persist_ };
 }
 
 // ------------------------------------------------------
@@ -108,7 +109,7 @@ static void add(const char* k, int v, bool persist_ = true) {
 static void saveParamsToFlash() {
   LOG_SECTION_START("saveParamsToFlash");
 
-  for (auto& kv : store) {
+  for (auto& kv : param_store) {
     if (!kv.second.persist) continue;
     const char* key = kv.first.c_str();
     int value_to_save = kv.second.value;
@@ -123,7 +124,7 @@ static void saveParamsToFlash() {
 static void loadParamsFromFlash() {
   LOG_SECTION_START("loadParamsFromFlash");
 
-  for (auto& kv : store) {
+  for (auto& kv : param_store) {
     const char* key = kv.first.c_str();
     int loaded_value = 0;
     size_t actual_size = 0;
@@ -192,7 +193,7 @@ int getParamValue(const char* k) {
   if (it == param_store.end()) return 0;
   int val = (it == param_store.end()) ? 0 : it->second.value;
 
-  LOG_VAR2("get param", k, "val", val);
+  LOG_PRINTF("get param{%s} val{%d}\n", k, val);
   return val;
 }
 
@@ -223,7 +224,7 @@ void setParamValue(const char* k, int v) {
     if (millis() - lastSave > 1000) {
       saveParamsToFlash();
       lastSave = millis();
-      LOG_VAR2("saving param key", k, "val", v);
+      LOG_PRINTF("saving param key{%s} val{%d}\n", k, v);
     }
   }
   LOG_SECTION_END();

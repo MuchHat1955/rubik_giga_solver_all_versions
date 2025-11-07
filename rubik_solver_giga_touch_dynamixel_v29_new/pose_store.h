@@ -1,5 +1,5 @@
 #pragma once
-#include <Arduino.h>
+#include <arduino.h>
 #include "rb_interface.h"
 #include "param_store.h"
 #include "logging.h"

@@ -1,4 +1,5 @@
 #include "pose_store.h"
+#include "logging.h"
 
 extern RBInterface rb;
 extern ParamStore params;
@@ -99,7 +100,7 @@ bool PoseStore::increment_pose_param(const char *name, int units, double &new_va
   params.set_double((String("pose_") + name + "_p1").c_str(), new_val);
   params.save();
   new_value_ref = new_val;
-  LOG_PRINTF("Pose %s adjusted to %.2f (units=%d)", name, new_val, units);
+  LOG_PRINTF("pose{%s} adjusted to{%.2f} units{%d}\n", name, new_val, units);
   return true;
 }
 
@@ -107,7 +108,7 @@ bool PoseStore::increment_pose_param(const char *name, int units, double &new_va
 // Stub helpers for RB zero operations
 // -----------------------------------------------------------
 bool setZeroServo(RBInterface &rb, int servo_id, double value) {
-  LOG_PRINTF("[RB] SETZERO servo=%d val=%.2f", servo_id, value);
+  LOG_PRINTF("[RB] SETZERO servo{%d} val{%.2f}\n", servo_id, value);
   String cmd = String("SETZERO ") + servo_id + " " + String(value, 2);
   rb.sendCommand(cmd.c_str());
   return rb.waitForCompletion("SETZERO");
@@ -120,7 +121,7 @@ bool zeroInfoMm(RBInterface &rb, int servo_id, double *val) {
   if (reply.startsWith("ZERO")) {
     int id;
     double v;
-    if (sscanf(reply.c_str(), "ZERO %d %lf", &id, &v) == 2) {
+    if (sscanf(reply.c_str(), "ZERO {%d} %lf", &id, &v) == 2) {
       if (val) *val = v;
       return true;
     }
@@ -144,7 +145,7 @@ bool PoseStore::run_pose(const char *name) {
     return setZeroServo(rb, pose.servo_id, p1);
   }
 
-  LOG_SECTION_START_PRINTF("PoseStore::run_pose", "| %s (type=%s)", name, type.c_str());
+  LOG_SECTION_START_PRINTF("pose store run_pose", "| {%s} type{%s}", name, type.c_str());
   bool ok = false;
 
   if (type == "xy") {
@@ -156,10 +157,11 @@ bool PoseStore::run_pose(const char *name) {
   } else if (type == "gripper") {
     ok = rb.moveGrippersPer(p1);
   } else {
-    LOG_PRINTF("Unknown move type: %s", type.c_str());
+    LOG_PRINTF("nnknown move type:{%s}\n", type.c_str());
   }
 
-  LOG_SECTION_END("PoseStore::run_pose", ok);
+  LOG_PRINTF("pose store run pose result {%d}", ok);
+  LOG_SECTION_END();
   return ok;
 }
 
@@ -210,7 +212,7 @@ void PoseStore::init_from_defaults(const Pose *defaults, int def_count) {
 
     if (def.servo_id >= 0 && def.name.endsWith("_0")) {
       if (!zeroInfoMm(rb, def.servo_id, &val_p1))
-        LOG_PRINTF("GETZERO failed for %s, using default %.2f", def.name.c_str(), def.p1);
+        LOG_PRINTF("GETZERO failed for{%s}, using default{%.2f}\n", def.name.c_str(), def.p1);
     } else {
       String key = String("pose_") + def.name + "_p1";
       val_p1 = params.get_double(key.c_str(), def.p1);
@@ -231,7 +233,7 @@ void PoseStore::list_poses() const {
   LOG_SECTION_START("PoseStore::list_poses");
   for (int i = 0; i < count; i++) {
     const Pose &p = poses[i];
-    LOG_PRINTF("%2d) %-10s | %-8s | %.2f,%.2f | id=%d step=%.2f min=%.2f max=%.2f btn=%s",
+    LOG_PRINTF("(%2d) name{%-10s} | typr{%-8s} | p1{%.2f} p2{%.2f} | id{%d} step{%.2f} min{%.2f} max{%.2f} btn{%s}\n",
                i, p.name.c_str(), p.move_type.c_str(), p.p1, p.p2,
                p.servo_id, p.step, p.min_val, p.max_val, p.button_key.c_str());
   }

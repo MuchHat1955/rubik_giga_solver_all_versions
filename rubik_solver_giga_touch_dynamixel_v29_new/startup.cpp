@@ -1,5 +1,6 @@
 // ------------------ STARTUP DIAGNOSTICS ------------------
-#include <Arduino.h>
+#include <arduino.h>
+
 #include "ui_touch.h"   // for setFooter()
 #include "ui_status.h"  // for updateButtonStateByKey()
 #include "logging.h"
@@ -12,7 +13,6 @@ extern RBInterface rb;
 // ----------------------------------------------------------
 static bool startupDone = false;
 static bool startupOK = false;
-static String startupErrors;
 
 // ----------------------------------------------------------
 //               RUN STARTUP TESTS
@@ -25,16 +25,14 @@ bool runStartupTests() {
 
   LOG_SECTION_START("startup tests");
 
-  startupErrors = "";
-  bool startupOK = true;
   int failCount = 0;
   int total = 0;
 
-  startupOk = rb.updateInfo();
+  startupOK = rb.updateInfo();
 
   if (startupOK) {
     setFooter("startup test ok");
-    LOG_VAR("startup status", "ok");
+    LOG_PRINTF("startup status ok\n");
   } else {
     setFooter(rb.getLastErrorLine());
   }

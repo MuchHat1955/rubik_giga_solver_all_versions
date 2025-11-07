@@ -1,7 +1,7 @@
 #pragma once
 #include <lvgl.h>
 #include <map>
-#include <Arduino.h>
+#include <arduino.h>
 
 // ----------------------------------------------------------
 //                  UI STATUS MANAGER
@@ -14,7 +14,7 @@
 #pragma once
 #include <lvgl.h>
 #include <map>
-#include <Arduino.h>
+#include <arduino.h>
 
 struct ButtonState {
   lv_obj_t *btn{ nullptr };

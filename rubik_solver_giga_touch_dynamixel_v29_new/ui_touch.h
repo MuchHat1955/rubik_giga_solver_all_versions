@@ -1,5 +1,5 @@
 #pragma once
-#include <Arduino.h>
+#include <arduino.h>
 #include <lvgl.h>
 #include <ArduinoJson.h>
 #include <map>

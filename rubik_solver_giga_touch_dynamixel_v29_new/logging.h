@@ -1,5 +1,5 @@
 #pragma once
-#include <Arduino.h>
+#include <arduino.h>
 
 /*
 
@@ -11,7 +11,7 @@ void setup() {
   Serial.begin(115200);
 
   LOG_SECTION_START("setup");
-  LOG_VAR("version", "1.2");
+  LOG_PRINTF("version 1.2\n");
   delay(10);
 
   LOG_SECTION_START_VAR("init motor", "ID", "12");
@@ -100,7 +100,7 @@ inline void serial_printf(const char* fmt, Args... args) {
   do { \
     if (logging_on) { \
       log_indent(); \
-      serial_printf("---- {%s} start ", title); \
+      serial_printf("---- {{%s}} start ", title); \
       serial_printf(fmt, ##__VA_ARGS__); \
       Serial.println(" ----"); \
     } \
@@ -152,67 +152,6 @@ inline void log_var(const char* name, const auto& val, bool newline = true, bool
 #define LOG_VAR_(name, val) log_var(name, val, false, false)
 #define LOG_VAR_CONT(name, val) log_var(name, val, true, true)
 #define LOG_VAR_CONT_(name, val) log_var(name, val, false, true)
-
-#define LOG_VAR2(n1, v1, n2, v2) \
-  do { \
-    if (logging_on) { \
-      log_indent(); \
-      Serial.print(n1); \
-      Serial.print(" {"); \
-      log_var_value(v1); \
-      Serial.print("} | "); \
-      Serial.print(n2); \
-      Serial.print(" {"); \
-      log_var_value(v2); \
-      Serial.println("}"); \
-    } \
-  } while (0)
-
-#define LOG_VAR2_(n1, v1, n2, v2) \
-  do { \
-    if (logging_on) { \
-      log_indent(); \
-      Serial.print(n1); \
-      Serial.print(" {"); \
-      log_var_value(v1); \
-      Serial.print("} | "); \
-      Serial.print(n2); \
-      Serial.print(" {"); \
-      log_var_value(v2); \
-      Serial.print("}"); \
-    } \
-  } while (0)
-
-#define LOG_VAR2_CONT(n1, v1, n2, v2) \
-  do { \
-    if (logging_on) { \
-      Serial.print(" | "); \
-      Serial.print(n1); \
-      Serial.print(" {"); \
-      log_var_value(v1); \
-      Serial.print("} | "); \
-      Serial.print(n2); \
-      Serial.print(" {"); \
-      log_var_value(v2); \
-      Serial.println("}"); \
-    } \
-  } while (0)
-
-#define LOG_VAR2_CONT_(n1, v1, n2, v2) \
-  do { \
-    if (logging_on) { \
-      Serial.print(" | "); \
-      Serial.print(n1); \
-      Serial.print(" {"); \
-      log_var_value(v1); \
-      Serial.print("} | "); \
-      Serial.print(n2); \
-      Serial.print(" {"); \
-      log_var_value(v2); \
-      Serial.print("}"); \
-    } \
-  } while (0)
-
 
 // ISR-safe print (queues string)
 void log_enqueue(const char* msg);

@@ -1,8 +1,9 @@
+#include <lvgl.h>
+
 #include "ui_status.h"
 #include "ui_touch.h"
 #include "ui_theme.h"
 #include "logging.h"
-#include <lvgl.h>
 #include "rb_interface.h"
 
 static std::map<String, ButtonState> buttonMap;
@@ -50,12 +51,12 @@ void updateButtonStateByPtr(lv_obj_t *btn, bool issue, bool active) {
   if (!btn) return;
 
   LOG_SECTION_START("updateButtonStateByPtr");
-  LOG_VAR2("issue", issue, "active", active);
+  LOG_PRINTF("issue {%d} active {%d}\n", issue, active);
 
   constexpr int CORNERS = 20;
   constexpr int BORDER_WIDTH_NORMAL = 2;
   constexpr int BORDER_WIDTH_ACTIVE = 2;
-  constexpr int BORDER_WIDTH_ISSUE  = 2;
+  constexpr int BORDER_WIDTH_ISSUE = 2;
 
   // Capture base color (used for normal border)
   lv_color_t baseColor = lv_obj_get_style_border_color(btn, LV_PART_MAIN);
@@ -116,10 +117,10 @@ void updateButtonStateByPtr(lv_obj_t *btn, bool issue, bool active) {
 // ----------------------------------------------------------
 // Update state by key (used by UI refresh)
 // ----------------------------------------------------------
-void updateButtonStateByKey(const String &buttonKey, bool issue, bool active) { // TODO fix this one and use the new rb interface
+void updateButtonStateByKey(const String &buttonKey, bool issue, bool active) {  // TODO fix this one and use the new rb interface
   auto it = buttonMap.find(buttonKey);
   if (it == buttonMap.end()) {
-    LOG_VAR2("add button with no ptr for key", buttonKey, "issue", issue);
+    LOG_PRINTF("add button with no ptr for key{%s} issue {%d}\n", buttonKey, issue);
     return;  // nothing to update
   }
 
@@ -130,7 +131,7 @@ void updateButtonStateByKey(const String &buttonKey, bool issue, bool active) { 
   if (b.btn) {
     updateButtonStateByPtr(b.btn, issue, active);
   } else {
-    LOG_VAR("button entry has null ptr", buttonKey);
+    LOG_PRINTF("button entry has null ptr key{%s}\n", buttonKey);
   }
 }
 
