@@ -1,13 +1,13 @@
-// param_param_store.cpp
+// param_store.cpp
 #include <Arduino.h>
 #include <map>
 #include <string>
 #include <algorithm>
-#include <KVparam_store.h>
+#include <kv_store.h>
 #include <kvstore_global_api.h>
 #include "logging.h"
-#include "param_param_store.h"
-#include "pose_param_store.h"
+#include "param_store.h"
+#include "pose_store.h"
 #include "ui_touch.h"
 #include "rb_interface.h"
 
@@ -20,7 +20,7 @@ extern PoseStore pose_store;
 
 
 // ----------------------------------------------------------
-//                    RUN ACTION //TODO MOVE IN THE RIGHT FILE
+//  RUN ACTION //TODO MOVE IN THE RIGHT FILE
 // ----------------------------------------------------------
 /*
   bool is_pose(const char *name) const;
@@ -234,6 +234,6 @@ void setParamValue(const std::string& k, int v) {
   setParamValue(k.c_str(), v);
 }
 
-void incrementParam(const char* k, int v){
+void incrementParam(const char* k, int v) {
   // TODO
 }
