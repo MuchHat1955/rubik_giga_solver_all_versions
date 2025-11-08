@@ -352,7 +352,7 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
     else if (servo_id == ID_GRIPPER2) actual = last.g2_per;
     else actual = 0;
   } else {
-    LOG_PRINTF("Unknown cmd_name: %s", cmd_name);
+    LOG_PRINTF("⚠ unknown cmd_name: %s", cmd_name);
     return true;
   }
 
@@ -362,8 +362,8 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
 
   if (err <= tol) return true;
 
-  LOG_ERROR("verify expected move{%s} servo{%d} expected{%.2f} actual{%.2f} err{%.2f}",
-            cmd_name, servo_id, val, actual, err);
+  LOG_ERROR_RB("verify expected move{%s} servo{%d} expected{%.2f} actual{%.2f} err{%.2f}",
+               cmd_name, servo_id, val, actual, err);
 
   LOG_SECTION_END();
   return false;
@@ -373,7 +373,7 @@ static int errNo = 0;
 
 void RBInterface::addErrorLine(const String& line) {
   errNo++;
-  char buff[20] String lineToAdd = String(errNo) + ". ⚠ " + line;
+  String lineToAdd = String(errNo) + ". ⚠ " + line;
   errorLines.push_back(lineToAdd);
   if (errorLines.size() > 20) {
     // remove oldest
@@ -389,7 +389,7 @@ bool RBInterface::updateInfo() {
 
   clearErrorBuffer();
   Serial2.println("READ 0");
-  LOG_PRINTF("Requesting READ 0...\n");
+  LOG_PRINTF("requesting READ 0...\n");
 
   unsigned long t0 = millis();
   bool gotAny = false;

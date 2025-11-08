@@ -223,7 +223,7 @@ bool PoseStore::run_pose(const char *pose_name) {
   } else if (type == "gripper2") {
     ok = rb.moveGripper2Per(p1);
   } else {
-    LOG_PRINTF("unknown move type for {%s}\n", type.c_str());
+    LOG_PRINTF("ERR ⚠ unknown move type for {%s}\n", type.c_str());
   }
   pose.last_run_ok = ok;
   LOG_PRINTF("pose store run pose result {%}\n", ok);

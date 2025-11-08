@@ -52,11 +52,16 @@ void log_indent_reset();
 // Safe, deferred log flush (call periodically in loop)
 void log_flush_buffer();
 
-
 template<typename... Args>
 inline void serial_printf(const char* fmt, Args... args) {
   char buf[200];
   snprintf(buf, sizeof(buf), fmt, args...);
+
+  // Convert to lowercase before printing
+  for (char* p = buf; *p; ++p) {
+    *p = tolower(*p);
+  }
+
   Serial.print(buf);
 }
 
@@ -111,7 +116,7 @@ inline void serial_printf(const char* fmt, Args... args) {
   do { \
     char _buf[200]; \
     snprintf(_buf, sizeof(_buf), fmt, ##__VA_ARGS__); \
-    LOG_PRINTF("ERR ⚠ %s", _buf); \
+    LOG_PRINTF("⚠ %s", _buf); \
     rb.addErrorLine(_buf); \
   } while (0)
 
