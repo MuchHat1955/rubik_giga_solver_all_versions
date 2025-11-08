@@ -310,8 +310,8 @@ void buildMenu(const char *menuName) {
         lv_obj_t *lblVal = lv_label_create(numBox);
         char buf[8];
         int val = getParamValue(key);
-        if (val >= 0) snprintf(b, sizeof(b), "%04d", val);
-        else snprintf(b, sizeof(b), "-%03d", -val);
+        if (val >= 0) snprintf(buf, sizeof(buf), "%04d", val);
+        else snprintf(buf, sizeof(buf), "-%03d", -val);
         lv_label_set_text(lblVal, buf);
         lv_obj_set_style_text_font(lblVal, FONT_BTN_SMALL_PTR, 0);
         lv_obj_set_style_text_color(lblVal, COLOR_BTN_TEXT, 0);

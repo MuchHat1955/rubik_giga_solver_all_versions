@@ -6,7 +6,7 @@
 #define ID_ARM2 12
 #define ID_WRIST 13
 #define ID_GRIPPER1 14
-#define ID_GRIPPER1 15
+#define ID_GRIPPER2 15
 #define ID_BASE 16
 
 // -----------------------------------------------------------------------------

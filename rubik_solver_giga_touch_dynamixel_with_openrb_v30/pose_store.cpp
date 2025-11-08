@@ -161,7 +161,7 @@ char *PoseStore::btn_to_pose(const char *btn_name) const {
 // -----------------------------------------------------------
 // Check if a parameter corresponds to a stored pose
 // -----------------------------------------------------------
-int PoseStore::is_param_for_pose(const char *param_name) const {
+bool PoseStore::is_param_for_pose(const char *param_name) const {
   if (!param_name || !*param_name) return 0;
 
   String key = param_name;

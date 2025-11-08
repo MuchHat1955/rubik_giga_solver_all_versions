@@ -224,17 +224,17 @@ void incrementParam(const char* k, int delta) {
   }
   if (!pose_store.is_param_for_pose(k)) {
     LOG_PRINTF("increment param err no pose found{%s}\n", k);
-    return false;
+    return;
   }
   double p1 = 0;
   double p2 = 0;  // not used
-  if (!pose_store.get_pose_params(k, p1, p2)) {
+  if (!pose_store.get_pose_params(k, &p1, &p2)) {
     LOG_PRINTF("increment param err cannot get pose params{%s}\n", k);
-    return false;
+    return;
   }
-  pose_store.increment_pose_param(k, delta, double_current);
-  pose_store.set_pose_value(k, double_current);
+  pose_store.increment_pose_param(k, delta, p1);
+  pose_store.set_pose_params(k, p1,p2);
 
-  LOG_PRINTF("incremented {%s} by {%d -> %d}\n", k, delta, updated);
+  LOG_PRINTF("incremented {%s} by {%d -> %d}\n", k, delta, p1);
   LOG_SECTION_END();
 }

@@ -4,8 +4,7 @@
 // ============================================================
 // Constructor
 // ============================================================
-RBInterface::RBInterface(Stream& port)
-  : serial(port) {}
+RBInterface::RBInterface(){}
 
 // ============================================================
 // BEGIN - initialize link and disable verbose

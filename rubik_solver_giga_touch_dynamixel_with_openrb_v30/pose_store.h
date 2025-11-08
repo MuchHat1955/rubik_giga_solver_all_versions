@@ -33,7 +33,7 @@ public:
   bool is_pose(const char *name) const;
   bool is_button_for_pose(const char *btn_key) const;
 
-  bool get_pose_params(const char *name, double *p1, double *p2, String *type = nullptr) const;
+  bool get_pose_params(const char *name, double *p1, double *p2) const;
   bool set_pose_params(const char *name, double p1, double p2);
 
   bool run_pose(const char *name);
@@ -41,8 +41,8 @@ public:
 
   void set_pose_val(const char *param_name, double val);
   char *btn_to_pose(const char *btn_name) const;
-  int is_btn_for_pose(const char *btn_key) const;
-  int is_param_for_pose(const char *param_name) const;
+  bool is_btn_for_pose(const char *btn_key) const;
+  bool is_param_for_pose(const char *param_name) const;
   char *param_to_pose(const char *param_name) const;
   bool increment_pose_param(const char *param_name, int units, double &new_value_ref);
 
