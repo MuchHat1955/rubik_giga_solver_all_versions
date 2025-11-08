@@ -1,17 +1,51 @@
 #pragma once
 #include "utils.h"
+#include "logging.h"
+#include <Arduino.h>
+#include <vector>
 
 // Servo ID definitions (match RB firmware)
-#define ID_ARM1 11
-#define ID_ARM2 12
-#define ID_WRIST 13
+#define ID_ARM1     11
+#define ID_ARM2     12
+#define ID_WRIST    13
 #define ID_GRIPPER1 14
 #define ID_GRIPPER2 15
-#define ID_BASE 16
+#define ID_BASE     16
+
+#define MAX_SERVOS 20  // adjust for your robot
 
 // -----------------------------------------------------------------------------
-// RBStatus
-//   Represents the current robot state as reported by the RB board.
+// ServoInfo
+// -----------------------------------------------------------------------------
+class ServoInfo {
+public:
+  uint8_t id = 0;
+  uint8_t op_mode = 0;
+  uint8_t drive_mode = 0;
+  bool time_based = false;
+  int profile_vel = 0;
+  int profile_accel = 0;
+  int pos_min = 0;
+  int pos_max = 0;
+  double span_deg = 0;
+  int pos_present = 0;
+  double rpm = 0;
+  double ticks_per_sec = 0;
+
+  void clear() { *this = ServoInfo(); }
+
+  void log() const {
+    LOG_PRINTF("INFO id{%d} op_mode{%d} drive_mode{%d} time_based{%s} "
+               "profile_vel{%d} rpm{%.3f} tps{%.1f} profile_accel{%d} "
+               "pos_min{%d} pos_max{%d} span_deg{%.1f} pos_present{%d}",
+               id, op_mode, drive_mode, time_based ? "TIME" : "VELOCITY",
+               profile_vel, rpm, ticks_per_sec, profile_accel,
+               pos_min, pos_max, span_deg, pos_present);
+  }
+};
+
+// -----------------------------------------------------------------------------
+// RBStatus - current robot state from RB board
 // -----------------------------------------------------------------------------
 struct RBStatus {
   double x_mm = 0.0;
@@ -26,12 +60,11 @@ struct RBStatus {
 };
 
 // -----------------------------------------------------------------------------
-// RBInterface
-//   GIGA-side serial communication interface to the RB controller.
+// RBInterface - GIGA-side serial communication interface to RB controller
 // -----------------------------------------------------------------------------
 class RBInterface {
 public:
-  explicit RBInterface();
+  RBInterface();
 
   // ---- communication setup --------------------------------------------------
   bool begin(unsigned long baud = 115200, uint32_t timeout_ms = 3000);
@@ -64,17 +97,25 @@ public:
   // ---- last known status ---------------------------------------------------
   RBStatus getLastStatus() const;
 
+  // ---- servo info management -----------------------------------------------
+  bool requestServoInfo(uint8_t id);
+  bool requestAllServoInfo();
+  String getAllServoInfoLines() const;
+
 private:
   RBStatus last;
   std::vector<String> errorLines;
   bool verboseOn = false;
+  ServoInfo servo_infos[MAX_SERVOS];
 
   // ---- internal helpers ----------------------------------------------------
   bool waitForCompletion(const char* commandName);
   bool readUntilEnd(const char* keyword);
   void parseStatusLine(const String& line);
-  void verifyExpected(const char* commandName);
+  bool verifyExpected(const char* cmd_name, double val, int servo_id, double tol);
   void clearErrorBuffer();
-  bool requestServoInfo(uint8_t id);
   void addErrorLine(const String& line);
 };
+
+// Optional global instance
+extern RBInterface rb;

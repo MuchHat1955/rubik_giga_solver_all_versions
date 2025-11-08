@@ -215,7 +215,7 @@ static unsigned long lastRefresh = 0;
 
 void ui_refresh() {
   unsigned long now = millis();
-  if (now - lastRefresh < 6000UL) return;  //TODO adjust this
+  if (now - lastRefresh < 11000UL) return;  //TODO adjust this
   lastRefresh = now;
 
   pose_store.reflect_poses_ui();

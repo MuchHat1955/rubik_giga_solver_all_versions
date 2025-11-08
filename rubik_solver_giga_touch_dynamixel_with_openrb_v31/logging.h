@@ -105,6 +105,13 @@ inline void serial_printf(const char* fmt, Args... args) {
     } \
   } while (0)
 
+#define LOG_ERROR(fmt, ...) \
+  do { \
+    char _buf[200]; \
+    snprintf(_buf, sizeof(_buf), "⚠ " fmt, ##__VA_ARGS__); \
+    LOG_PRINTF("%s", _buf); \
+    rb.addErrorLine(_buf); \
+  } while (0)
 
 // -----------------------------------------------------------
 // Portable variable logging macros (robust for String, char*, bool, numbers)

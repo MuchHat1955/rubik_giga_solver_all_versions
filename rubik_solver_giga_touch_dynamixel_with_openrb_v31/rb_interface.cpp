@@ -45,14 +45,14 @@ bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
 
   if (!got) {
     pose_store.set_all_poses_last_run(false);
-    LOG_PRINTF("⚠ No response from RB board!\n");
+    LOG_ERROR("No response from RB board!");
     LOG_SECTION_END();
     return false;
   }
 
   LOG_PRINTF("Communication OK, reading servo INFO...\n");
 
-  // Query INFO for all servos (11–17)
+  // Query INFO for all servos (11–16)
   uint8_t ids[] = { ID_ARM1, ID_ARM2, ID_WRIST, ID_GRIPPER1, ID_GRIPPER2, ID_BASE };
   for (size_t i = 0; i < sizeof(ids) / sizeof(ids[0]); ++i) {
     requestServoInfo(ids[i]);
@@ -63,8 +63,6 @@ bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
   LOG_SECTION_END();
   return true;
 }
-
-// TODO check that RB supports float args for deg and per
 
 // ============================================================
 // Generic command
@@ -77,12 +75,10 @@ bool RBInterface::runCommand(const char* name, const float* args, int argCount) 
   String cmd(name);
   for (int i = 0; i < argCount; i++) {
     cmd += " ";
-
-    // Special case: MOVEPER command expects first arg (servo ID) as integer
     if (strcmp(name, "MOVEPER") == 0 && i == 0)
-      cmd += String((int)args[i]);  // integer formatting (no decimals)
+      cmd += String((int)args[i]);  // integer formatting for servo ID
     else
-      cmd += String(args[i], 3);  // default 3-decimal float formatting
+      cmd += String(args[i], 3);  // 3-decimal float
   }
 
   setFooter(cmd.c_str());
@@ -92,7 +88,7 @@ bool RBInterface::runCommand(const char* name, const float* args, int argCount) 
   bool ok = waitForCompletion(name);
 
   LOG_PRINTF("Command {%s} result{%s}\n", name, ok ? "OK" : "FAIL");
-  String txt = cmd + " " + ok ? "OK" : "FAIL";
+  String txt = cmd + " " + (ok ? "OK" : "FAIL");
   setFooter(txt.c_str());
   LOG_SECTION_END();
   return ok;
@@ -104,8 +100,7 @@ bool RBInterface::runCommand(const char* name, const float* args, int argCount) 
 bool RBInterface::requestServoInfo(uint8_t id) {
   LOG_SECTION_START_PRINTF("requestServoInfo", "| id{%d}", id);
 
-  String cmd = "INFO ";
-  cmd += String(id);
+  String cmd = "INFO " + String(id);
   Serial2.println(cmd);
 
   unsigned long t0 = millis();
@@ -113,21 +108,114 @@ bool RBInterface::requestServoInfo(uint8_t id) {
     if (!Serial2.available()) continue;
     String line = Serial2.readStringUntil('\n');
     line.trim();
-    if (line.startsWith("INFO id=")) {
-      LOG_PRINTF("{%s}", line.c_str());
-      LOG_SECTION_END();
-      return true;
-    }
+    if (!line.startsWith("INFO id=")) continue;
+
+    LOG_PRINTF("{%s}", line.c_str());
+
+    ServoInfo info;
+    info.id = id;
+    sscanf(line.c_str(),
+           "INFO id=%hhu op_mode=%hhu drive_mode=%hhu profile_vel=%d rpm=%lf tps=%lf profile_accel=%d pos_min=%d pos_max=%d span_deg=%lf pos_present=%d",
+           &info.id, &info.op_mode, &info.drive_mode,
+           &info.profile_vel, &info.rpm, &info.ticks_per_sec,
+           &info.profile_accel, &info.pos_min, &info.pos_max,
+           &info.span_deg, &info.pos_present);
+    info.time_based = (info.drive_mode & 0x01);
+
+    if (id < MAX_SERVOS) servo_infos[id] = info;
+    info.log();
+
+    LOG_SECTION_END();
+    return true;
   }
-  String txt = "⚠ No INFO response for ID " + String(id);
-  addErrorLine(txt.c_str());  //TODO find other places to report the error maybe do a LOG_ERROR that also does LOG_PRINTF and starts with ⚠
-  LOG_PRINTF("⚠ No INFO response for ID {%d}\n", id);
+
+  LOG_ERROR("No INFO response for servo ID %d", id);
   LOG_SECTION_END();
   return false;
 }
 
 // ============================================================
-// Parsing and verification
+// Request all servos and cache in array
+// ============================================================
+bool RBInterface::requestAllServoInfo() {
+  LOG_SECTION_START("requestAllServoInfo");
+
+  bool all_ok = true;
+
+  for (auto id : { ID_ARM1, ID_ARM2, ID_WRIST, ID_GRIPPER1, ID_GRIPPER2, ID_BASE }) {
+    String cmd = "INFO " + String(id);
+    Serial2.println(cmd);
+
+    unsigned long t0 = millis();
+    bool got = false;
+
+    while (millis() - t0 < 1000) {
+      if (!Serial2.available()) continue;
+      String line = Serial2.readStringUntil('\n');
+      line.trim();
+      if (!line.startsWith("INFO id=")) continue;
+
+      got = true;
+      LOG_PRINTF("{%s}", line.c_str());
+
+      ServoInfo info;
+      info.id = id;
+
+      sscanf(line.c_str(),
+             "INFO id=%hhu op_mode=%hhu drive_mode=%hhu profile_vel=%d rpm=%lf tps=%lf profile_accel=%d pos_min=%d pos_max=%d span_deg=%lf pos_present=%d",
+             &info.id, &info.op_mode, &info.drive_mode,
+             &info.profile_vel, &info.rpm, &info.ticks_per_sec,
+             &info.profile_accel, &info.pos_min, &info.pos_max,
+             &info.span_deg, &info.pos_present);
+
+      info.time_based = (info.drive_mode & 0x01);
+
+      if (id < MAX_SERVOS) servo_infos[id] = info;
+      break;
+    }
+
+    if (!got) {
+      all_ok = false;
+      LOG_ERROR("No INFO response for servo ID %d", id);
+      if (id < MAX_SERVOS) servo_infos[id].clear();
+    }
+  }
+
+  LOG_SECTION_END();
+  return all_ok;
+}
+
+// ============================================================
+// Return all cached servo info as text lines
+// ============================================================
+String RBInterface::getAllServoInfoLines() const {
+  String out;
+  out.reserve(1024);
+
+  for (auto id : { ID_ARM1, ID_ARM2, ID_WRIST, ID_GRIPPER1, ID_GRIPPER2, ID_BASE }) {
+    if (id >= MAX_SERVOS) continue;
+    const ServoInfo& s = servo_infos[id];
+    if (s.id == 0) continue;  // skip empty slots
+
+    out += String(s.id) + ". info" +                                    //
+           " | op_mode " + String(s.op_mode) +                          //
+           " | drive_mode " + String(s.drive_mode) +                    //
+           " | time_based " + String(s.time_based ? "time" : "velo") +  //
+           " | profile_vel " + String(s.profile_vel) +                  //
+           " | rpm " + String(s.rpm, 3) +                               //
+           " | tps " + String(s.ticks_per_sec, 1) +                     //
+           " | profile_accel " + String(s.profile_accel) +              //
+           " | pos_min " + String(s.pos_min) +                          //
+           " | pos_max " + String(s.pos_max) +                          //
+           " | span_deg " + String(s.span_deg, 1) +                     //
+           " | pos_present " + String(s.pos_present) + "\n";            //
+  }
+
+  return out;
+}
+
+// ============================================================
+// Parsing and verification (rest of your existing code)
 // ============================================================
 void RBInterface::parseStatusLine(const String& line) {
   if (line.startsWith("STATUS SERVO")) {
@@ -210,7 +298,7 @@ bool RBInterface::waitForCompletion(const char* commandName) {
       setFooter(line.c_str());
       LOG_PRINTF("{%s} ended completed{%d}", commandName, last.completed);
       success = (last.completed == 1);
-      verifyExpected(commandName);
+
       break;
     }
   }
@@ -228,28 +316,67 @@ bool RBInterface::waitForCompletion(const char* commandName) {
 // ============================================================
 // Verify expected final status for MOVE commands
 // ============================================================
-void RBInterface::verifyExpected(const char* cmd) {
-  LOG_SECTION_START_PRINTF("verifyExpected", "| cmd{%s}", cmd);
+bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id, double tol) {
+  LOG_SECTION_START_PRINTF("verifyExpected", "| cmd{%s}", cmd_name);
 
-  // TODO on below check against the commmand param eg percentage or mm given
+  double actual = 0.0, err = 0.0;
+  char buff[200];
 
-  if (strncmp(cmd, "MOVEYMM", 7) == 0)
-    LOG_PRINTF("y_mm{%.2f}\n", last.y_mm);
-  if (strncmp(cmd, "MOVEXMM", 7) == 0)
-    LOG_PRINTF("x_mm{%.2f}\n", last.x_mm);
-  if (strncmp(cmd, "MOVEGRIPPERPER", 14) == 0)
-    LOG_PRINTF("grippers per g1{%.2f} g2{%.2f}\n", last.g1_per, last.g2_per);
-  if (strncmp(cmd, "MOVEPER", 7) == 0)  //note this uses the servo ids
-    LOG_PRINTF("servo per{%.2f}\n", last.g1_per);
+  // Handle MOVEGRIPPER separately (two servos)
+  if (strcmp(cmd_name, "MOVEGRIPPER") == 0) {
+    double err1 = fabs(last.g1_per - val);
+    double err2 = fabs(last.g2_per - val);
+
+    LOG_PRINTF("verify expected move{%s} g1_per expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, val, last.g1_per, err1);
+    LOG_PRINTF("verify expected move{%s} g2_per expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, val, last.g2_per, err2);
+
+    if (err1 <= tol && err2 <= tol) return true;
+
+    if (err1 > tol) {
+      snprintf(buff, sizeof(buff), "ERR verify expected move{%s} g1_per expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, val, last.g1_per, err1);
+      addErrorLine(buff);
+    }
+    if (err2 > tol) {
+      snprintf(buff, sizeof(buff), "ERR verify expected move{%s} g2_per expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, val, last.g2_per, err2);
+      addErrorLine(buff);
+    }
+    return false;
+  }
+
+  // For all other commands: pick the actual value
+  if (strcmp(cmd_name, "MOVEYMM") == 0) actual = last.y_mm;
+  else if (strcmp(cmd_name, "MOVEXMM") == 0) actual = last.x_mm;
+  else if (strcmp(cmd_name, "MOVEWRISTVERT") == 0) actual = last.g_vert_deg;
+  else if (strcmp(cmd_name, "MOVEPER") == 0) {
+    if (servo_id == ID_BASE) actual = last.base_deg;
+    else if (servo_id == ID_GRIPPER1) actual = last.g1_per;
+    else if (servo_id == ID_GRIPPER2) actual = last.g2_per;
+    else actual = 0;
+  } else {
+    LOG_PRINTF("Unknown cmd_name: %s", cmd_name);
+    return true;
+  }
+
+  // Common computation and logging
+  err = fabs(actual - val);
+  LOG_PRINTF("verify expected move{%s} servo{%d} expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, servo_id, val, actual, err);
+
+  if (err <= tol) return true;
+
+  snprintf(buff, sizeof(buff),
+           "ERR verify expected move{%s} servo{%d} expected{%.2f} actual{%.2f} err{%.2f}",
+           cmd_name, servo_id, val, actual, err);
+  addErrorLine(buff);
 
   LOG_SECTION_END();
+  return false;
 }
 
 static int errNo = 0;
 
 void RBInterface::addErrorLine(const String& line) {
   errNo++;
-  String lineToAdd = String(errNO) + ") ⚠ " + line;  //TODO add a time stamp or index
+  String lineToAdd = String(errNo) + ". ⚠ " + line;  //TODO add a time stamp or index
   errorLines.push_back(lineToAdd);
   if (errorLines.size() > 20) {
     // remove oldest
@@ -342,49 +469,63 @@ bool RBInterface::wristVertInfoDeg(double* v) {
 bool RBInterface::moveYmm(double y) {
   LOG_SECTION_START_PRINTF("moveYmm", "| y{%.2f}", y);
   float a[] = { (float)y };
-  bool ok = runCommand("MOVEYMM", a, 1);
+  char cmd[] = "MOVEYMM";
+  bool ok = runCommand(cmd, a, 1);
+  if (ok) ok = verifyExpected(cmd, y, -1, 1.0);
   LOG_SECTION_END();
   return ok;
 }
 bool RBInterface::moveXmm(double x) {
   LOG_SECTION_START_PRINTF("moveXmm", "| x{%.2f}", x);
   float a[] = { (float)x };
-  bool ok = runCommand("MOVEXMM", a, 1);
+  char cmd[] = "MOVEXMM";
+  bool ok = runCommand(cmd, a, 1);
+  if (ok) ok = verifyExpected(cmd, x, -1, 1.0);
   LOG_SECTION_END();
   return ok;
 }
 bool RBInterface::moveBaseDeg(double d) {
   LOG_SECTION_START_PRINTF("moveBaseDeg", "| deg{%.2f}", d);
-  float a[] = { (float)d };
-  bool ok = runCommand("MOVEBASE", a, 1);
+  float a[] = { (float)ID_BASE, (float)d };
+  char cmd[] = "MOVEPER";
+  bool ok = runCommand(cmd, a, 2);
+  if (ok) ok = verifyExpected(cmd, d, ID_BASE, 1.0);
   LOG_SECTION_END();
   return ok;
 }
 bool RBInterface::moveWristVertDeg(double d) {
   LOG_SECTION_START_PRINTF("moveWristVertDeg", "| deg{%.2f}", d);
   float a[] = { (float)d };
-  bool ok = runCommand("MOVEWRISTVERTDEG", a, 1);
+  char cmd[] = "MOVEWRISTVERTDEG";
+  bool ok = runCommand(cmd, a, 1);
+  if (ok) ok = verifyExpected(cmd, d, -1, 1.0);
   LOG_SECTION_END();
   return ok;
 }
 bool RBInterface::moveGrippersPer(double p) {
   LOG_SECTION_START_PRINTF("moveGrippersPer", "| per{%.2f}", p);
   float a[] = { (float)p };
-  bool ok = runCommand("MOVEGRIPPERPER", a, 1);
+  char cmd[] = "MOVEGRIPPERPER";
+  bool ok = runCommand(cmd, a, 1);
+  if (ok) ok = verifyExpected(cmd, p, -1, 1.0);
   LOG_SECTION_END();
   return ok;
 }
 bool RBInterface::moveGripper1Per(double p) {
   LOG_SECTION_START_PRINTF("moveGripper1Per", "| per{%.2f}", p);
   float a[] = { (float)ID_GRIPPER1, (float)p };
-  bool ok = runCommand("MOVEPER", a, 2);
+  char cmd[] = "MOVEPER";
+  bool ok = runCommand(cmd, a, 2);
+  if (ok) ok = verifyExpected(cmd, p, ID_GRIPPER1, 1.0);
   LOG_SECTION_END();
   return ok;
 }
 bool RBInterface::moveGripper2Per(double p) {
   LOG_SECTION_START_PRINTF("moveGripper2Per", "| per{%.2f}", p);
   float a[] = { (float)ID_GRIPPER2, (float)p };
-  bool ok = runCommand("MOVEPER", a, 2);
+  char cmd[] = "MOVEPER";
+  bool ok = runCommand(cmd, a, 2);
+  if (ok) ok = verifyExpected(cmd, p, ID_GRIPPER2, 1.0);
   LOG_SECTION_END();
   return ok;
 }

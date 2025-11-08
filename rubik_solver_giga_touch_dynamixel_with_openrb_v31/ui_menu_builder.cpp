@@ -409,11 +409,20 @@ void buildMenu(const char *menuName) {
         lv_obj_clear_flag(ta, LV_OBJ_FLAG_SCROLL_CHAIN);
         lv_obj_add_flag(ta, LV_OBJ_FLAG_SCROLL_ELASTIC);
 
-        String errText =
-          "#FFA500 build#\n" + getSketchVersionWithDate() + "\n\n" +  //
-          "#FFA500 startup#\n" + rb.getAllErrorLines() + "\n\n";      //
+        bool req_ok = rb.requestAllServoInfo();
+        String servoText = "";
+        if (req_ok) {
+          servoText = "#FFA500 servos info#\n" + rb.getAllServoInfoLines() + "\n\n";  //
+        } else {
+          servoText = "#FFA500 servos info#\n" + "⚠ no servos info" + "\n\n";  //
+        }
 
-        lv_textarea_set_text(ta, errText.c_str());
+        String systemText =
+          "#FFA500 build#\n" + getSketchVersionWithDate() + "\n\n" +  //
+          "#FFA500 log lines#\n" + rb.getAllErrorLines() + "\n\n" +   //
+          servoText;                                                  //
+
+        lv_textarea_set_text(ta, systemText.c_str());
         lv_textarea_set_cursor_click_pos(ta, false);
         lv_textarea_set_text_selection(ta, false);
 
@@ -440,9 +449,6 @@ void buildMenu(const char *menuName) {
   lv_obj_invalidate(lv_scr_act());  // safe redraw scheduling
   LOG_SECTION_END();
 }
-
-// TODO add servos info
-// TODO add color levels y
 
 // ----------------------------------------------------------
 //                     MENU JSON DATA

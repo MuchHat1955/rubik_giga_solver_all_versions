@@ -9,9 +9,11 @@
 #include "ui_touch.h"
 #include "rb_interface.h"
 #include "pose_store.h"
+#include "sequence_store.h"
 
 extern RBInterface rb;
 extern PoseStore pose_store;
+extern SequenceStore sequence_store;
 
 #ifndef MBED_SUCCESS
 #define MBED_SUCCESS 0
@@ -43,14 +45,12 @@ void runAction(const char* key) {
     return;
   }
 
-  // --- Sequence buttons ---
-  // TODO
-  // if (pose_store.is_button_for_pose(key)) {
-  //   bool ok = sequence_store.run_sequence_by_button(key);
-  //   LOG_PRINTF("pose move {%s} result {%s}\n", key, ok ? "OK" : "FAIL");
-  //   LOG_SECTION_END();
-  //   return;
-  // }
+   if (pose_store.is_key_for_sequence(key)) {
+     bool ok = sequence_store.run_sequence_by_key(key);
+     LOG_PRINTF("sequence move {%s} result {%s}\n", key, ok ? "OK" : "FAIL");
+     LOG_SECTION_END();
+     return;
+   }
 
   // --- Fallback for unhandled keys ---
   LOG_PRINTF("unhandled action key {%s}\n", key);

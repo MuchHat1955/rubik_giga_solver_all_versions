@@ -1,0 +1,79 @@
+#include "sequence_store.h"
+#include "logging.h"
+
+extern PoseStore pose_store;
+
+SequenceStore sequence_store;
+
+// ---------------------------------------------------------------------------
+// Constructor: define all sequences here
+// ---------------------------------------------------------------------------
+SequenceStore::SequenceStore() {
+  // Example — replace pose names with actual ones from your PoseStore keys
+  sequences = {
+    { "bottom_plus", "bottom+", { "grip1_open", "move_down", "grip1_close" } },
+    { "bottom_minus", "bottom-", { "grip1_open", "move_up", "grip1_close" } },
+
+    { "front_to_base", "front to base", { "front_align", "base_move", "release" } },
+    { "back_to_base", "back to base", { "back_align", "base_move", "release" } },
+
+    { "left_to_base", "left to base", { "left_align", "base_move", "release" } },
+    { "right_to_base", "right to base", { "right_align", "base_move", "release" } },
+
+    { "top_to_base", "top to base", { "top_align", "base_move", "release" } },
+
+    { "rotate_down_90", "rotate down face+", { "down_grip", "rotate_90", "release" } },
+    { "rotate_down_90minus", "rotate down face-", { "down_grip", "rotate_-90", "release" } },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Check if a key corresponds to a valid sequence
+// ---------------------------------------------------------------------------
+bool SequenceStore::isKeyForSequence(const char* key) const {
+  if (!key || !*key) return false;
+  for (auto& seq : sequences)
+    if (strcmp(seq.key, key) == 0)
+      return true;
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// Run a sequence by name
+// ---------------------------------------------------------------------------
+bool SequenceStore::run_sequence_by_key(const char* key) {
+  LOG_SECTION_START_PRINTF("runSequence", "| key{%s}", key);
+
+  for (auto& seq : sequences) {
+    if (strcmp(seq.key, key) != 0) continue;
+
+    LOG_PRINTF("Running sequence: %s (%s)", seq.key, seq.text);
+    for (auto pose : seq.poses) {
+      LOG_PRINTF("  pose: %s", pose);
+      if (!pose_store.runPose(pose)) {
+        LOG_ERROR("Pose failed: %s", pose);
+        LOG_SECTION_END();
+        return false;
+      }
+      delay(100);  // small pause between poses
+    }
+
+    LOG_SECTION_END();
+    return true;
+  }
+
+  LOG_ERROR("Sequence not found: %s", key);
+  LOG_SECTION_END();
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// List all sequences (for menu/debug)
+// ---------------------------------------------------------------------------
+String SequenceStore::listAllSequences() const {
+  String out;
+  for (auto& s : sequences) {
+    out += String(s.key) + " (" + s.text + ")\n";
+  }
+  return out;
+}
