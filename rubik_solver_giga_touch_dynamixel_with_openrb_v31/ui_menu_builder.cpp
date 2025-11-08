@@ -20,7 +20,7 @@ void onBuildMenu(const char *menuName) {
 
   if (strcmp(menuName, "poses") == 0) {
     LOG_SECTION_START_VAR("update servos for poses UI", "menu", menuName);
-    rb.updateInfo();  //TODO check for error etc
+    rb.updateInfo();  //TODO check for error etc, now it checks for pos errors
     LOG_SECTION_END();
   }
   LOG_SECTION_END();
@@ -442,6 +442,7 @@ void buildMenu(const char *menuName) {
 }
 
 // TODO add servos info
+// TODO add color levels y
 
 // ----------------------------------------------------------
 //                     MENU JSON DATA
@@ -626,6 +627,16 @@ const char jsonBuffer[] = R"json(
         { "text": "mm x10", "type": "text", "key": "" }
       ],
       [
+        { "text": "y c2", "type": "action", "key": "y_c2_btn", "status": "yes" },
+        { "text": "+0000-", "type": "num", "key": "y_c2_param" },
+        { "text": "mm x10", "type": "text", "key": "" }
+      ],
+      [
+        { "text": "y c3", "type": "action", "key": "y_c3_btn", "status": "yes" },
+        { "text": "+0000-", "type": "num", "key": "y_c3_param" },
+        { "text": "mm x10", "type": "text", "key": "" }
+      ],
+      [
         { "text": "wrist vert", "type": "action", "key": "wrist_vert_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "wrist_vert_param" },
         { "text": "deg", "type": "text", "key": "" }
@@ -636,7 +647,7 @@ const char jsonBuffer[] = R"json(
         { "text": "deg", "type": "text", "key": "" }
       ],
       [
-        { "text": "wrist h eft", "type": "action", "key": "wrist_horiz_left_btn", "status": "yes" },
+        { "text": "wrist h left", "type": "action", "key": "wrist_horiz_left_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "wrist_horiz_left_param" },
         { "text": "deg", "type": "text", "key": "" }
       ],
@@ -646,22 +657,22 @@ const char jsonBuffer[] = R"json(
         { "text": "per", "type": "text", "key": "" }
       ],
       [
-        { "text": "gripper1 open", "type": "action", "key": "gripper1_open_btn", "status": "yes" },
+        { "text": "gripper 1 open", "type": "action", "key": "gripper1_open_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "gripper1_open_param" },
         { "text": "per", "type": "text", "key": "" }
       ],
       [
-        { "text": "gripper1 close", "type": "action", "key": "gripper1_close_btn", "status": "yes" },
+        { "text": "gripper 1 close", "type": "action", "key": "gripper1_close_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "gripper1_close_param" },
         { "text": "per", "type": "text", "key": "" }
       ],
       [
-        { "text": "gripper2 open", "type": "action", "key": "gripper2_open_btn", "status": "yes" },
+        { "text": "gripper 2 open", "type": "action", "key": "gripper2_open_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "gripper2_open_param" },
         { "text": "per", "type": "text", "key": "" }
       ],
       [
-        { "text": "gripper2 close", "type": "action", "key": "gripper2_close_btn", "status": "yes" },
+        { "text": "gripper 2 close", "type": "action", "key": "gripper2_close_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "gripper2_close_param" },
         { "text": "per", "type": "text", "key": "" }
       ],

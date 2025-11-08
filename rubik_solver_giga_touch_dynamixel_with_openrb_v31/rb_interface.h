@@ -77,5 +77,3 @@ private:
   void clearErrorBuffer();
   bool requestServoInfo(uint8_t id);
 };
-
-void updateFooter(const char* text);

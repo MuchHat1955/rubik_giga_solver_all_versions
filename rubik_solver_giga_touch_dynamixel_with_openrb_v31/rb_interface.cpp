@@ -1,10 +1,14 @@
 #include "rb_interface.h"
 #include "logging.h"
+#include "ui_touch.h"
+#include "pose_store.h"
+
+extern PoseStore pose_store;
 
 // ============================================================
 // Constructor
 // ============================================================
-RBInterface::RBInterface(){}
+RBInterface::RBInterface() {}
 
 // ============================================================
 // BEGIN - initialize link and disable verbose
@@ -40,6 +44,7 @@ bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
   }
 
   if (!got) {
+    pose_store.set_all_poses_last_run(false);
     LOG_PRINTF("⚠ No response from RB board!\n");
     LOG_SECTION_END();
     return false;
@@ -80,12 +85,15 @@ bool RBInterface::runCommand(const char* name, const float* args, int argCount) 
       cmd += String(args[i], 3);  // default 3-decimal float formatting
   }
 
+  setFooter(cmd.c_str());
   Serial2.println(cmd);
 
   LOG_PRINTF("[GIGA→RB] {%s}", cmd.c_str());
   bool ok = waitForCompletion(name);
 
   LOG_PRINTF("Command {%s} result{%s}\n", name, ok ? "OK" : "FAIL");
+  String txt = cmd + " " + ok ? "OK" : "FAIL";
+  setFooter(txt.c_str());
   LOG_SECTION_END();
   return ok;
 }
@@ -154,17 +162,6 @@ void RBInterface::parseStatusLine(const String& line) {
 }
 
 // ============================================================
-// Stub: updateFooter()
-// Called whenever a "MOVING ..." line is received from RB.
-// You can later update the display, GUI, or telemetry here.
-// ============================================================
-void updateFooter(const char* text) {
-  // TODO: Implement display or UI footer update
-  LOG_PRINTF("[FOOTER] {%s}\n", text);
-}
-
-
-// ============================================================
 // Wait for START/END/ERR sequence
 // ============================================================
 bool RBInterface::waitForCompletion(const char* commandName) {
@@ -183,6 +180,7 @@ bool RBInterface::waitForCompletion(const char* commandName) {
 
     // --- Handle ERR lines ---
     if (line.startsWith("ERR")) {
+      setFooter(line.c_str());
       errorLines.push_back(line);
       LOG_PRINTF("{%s}", line.c_str());
       continue;
@@ -192,7 +190,7 @@ bool RBInterface::waitForCompletion(const char* commandName) {
     // Any line starting with "MOVING" is considered progress feedback
     if (line.startsWith("MOVING")) {
       if (verboseOn) LOG_PRINTF("{%s}", line.c_str());
-      updateFooter(line.c_str());  // NEW HOOK
+      setFooter(line.c_str());  // NEW HOOK
       continue;
     }
 
@@ -200,12 +198,14 @@ bool RBInterface::waitForCompletion(const char* commandName) {
     if (line.startsWith(startMarker)) {
       parseStatusLine(line);
       LOG_PRINTF("{%s} started", commandName);
+      setFooter(line.c_str());
       continue;
     }
 
     // --- Handle END marker ---
     if (line.startsWith(endMarker)) {
       parseStatusLine(line);
+      setFooter(line.c_str());
       LOG_PRINTF("{%s} ended completed{%d}", commandName, last.completed);
       success = (last.completed == 1);
       verifyExpected(commandName);
@@ -215,6 +215,7 @@ bool RBInterface::waitForCompletion(const char* commandName) {
 
   if (!success) {
     errorLines.push_back("ERR: Timeout or incomplete command");
+    setFooter("⚠ timeout or incomplete command");
     LOG_PRINTF("⚠ Timeout or incomplete command\n");
   }
 
@@ -283,6 +284,7 @@ bool RBInterface::updateInfo() {
   if (!gotAny) {
     errorLines.push_back("ERR: No READ 0 response received");
     LOG_PRINTF("⚠ No response for READ 0");
+    pose_store.set_all_poses_last_run(false);
     LOG_SECTION_END();
     return false;
   }

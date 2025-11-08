@@ -2,6 +2,7 @@
 #include "param_store.h"
 #include "logging.h"
 #include "rb_interface.h"
+#include "ui_status.h"
 
 extern RBInterface rb;
 
@@ -10,7 +11,7 @@ extern RBInterface rb;
 // -----------------------------------------------------------
 bool PoseStore::add_pose(const char *name, const char *type, double p1, double p2,
                          const char *btn_key, double step, double min_val,
-                         double max_val, int servo_id) {
+                         double max_val) {
   if (!name || !*name || !type || !*type) return false;
   int idx = find_pose_index(name);
   if (idx < 0 && count >= MAX_POSES) return false;
@@ -25,7 +26,7 @@ bool PoseStore::add_pose(const char *name, const char *type, double p1, double p
   p.step = step;
   p.min_val = min_val;
   p.max_val = max_val;
-  p.servo_id = servo_id;
+  p.last_run_ok = true;
 
   setParamValue((String("pose_") + name + "_p1").c_str(), (int)(p1 * 100.0));
   return true;
@@ -224,7 +225,7 @@ bool PoseStore::run_pose(const char *pose_name) {
   } else {
     LOG_PRINTF("unknown move type for {%s}\n", type.c_str());
   }
-
+  pose.last_run_ok = ok;
   LOG_PRINTF("pose store run pose result {%}\n", ok);
   LOG_SECTION_END();
   return ok;
@@ -287,21 +288,39 @@ void PoseStore::init_from_defaults(const Pose *defaults, int def_count) {
     const Pose &def = defaults[i];
     double val_p1 = def.p1, val_p2 = def.p2;
 
-    if (def.servo_id >= 0 && def.name.endsWith("_0")) {
-      //    if (!zeroInfoMm(def.servo_id, &val_p1)) //TODO
-      //     LOG_PRINTF("GETZERO failed for{%s}, using default{%.2f}\n", def.name.c_str(), def.p1);
-    } else {
-      String key = String("pose_") + def.name + "_p1";
-      val_p1 = (double)getParamValue(key.c_str()) / 100.0;
-    }
-
     add_pose(def.name.c_str(), def.move_type.c_str(), val_p1, val_p2,
-             def.button_key.c_str(), def.step, def.min_val, def.max_val, def.servo_id);
+             def.button_key.c_str(), def.step, def.min_val, def.max_val);
   }
 
   list_poses();
   LOG_SECTION_END();
 }
+
+void PoseStore::reflect_poses_ui() {
+  LOG_SECTION_START("PoseStore::reflect_poses_ui");
+  for (int i = 0; i < count; i++) {
+    const Pose &p = poses_list[i];
+    bool issue = p.last_run_ok;  //TODO change this to also reflect is rb is not working at all
+    bool active = is_at_pose(p.button_key.c_str(), 0.5, 1.0);
+    if (!issue) active = false;
+    updateButtonStateByKey(p.button_key.c_str(), issue, active);
+  }
+  LOG_SECTION_END();
+}
+
+void PoseStore::set_all_poses_last_run(bool b) {
+  LOG_SECTION_START("PoseStore::reflect_poses_ui");
+  for (int i = 0; i < count; i++) {
+    const Pose &p = poses_list[i];
+    p.last_run_ok = b;
+    bool issue = b;  //TODO change this to also reflect is rb is not working at all
+    bool active = is_at_pose(p.button_key.c_str(), 0.5, 1.0);
+    if (!issue) active = false;
+    updateButtonStateByKey(p.button_key.c_str(), issue, active);
+  }
+  LOG_SECTION_END();
+}
+
 
 // -----------------------------------------------------------
 // Debug list
@@ -337,36 +356,40 @@ void PoseStore::list_poses() const {
 Pose default_poses[] = {
 
   // XY poses_list
-  { "y_zero", "y", 40.0, 0.0, "y_zero_btn", 0.5, 40.0, 110.0, -1 },
-  { "y_1st", "y", 50.0, 0.0, "y_1st_btn", 0.5, 40.0, 110.0, -1 },
-  { "y_2nd", "y", 60.0, 0.0, "y_2nd_btn", 0.5, 40.0, 110.0, -1 },
-  { "y_3rd", "y", 70.0, 0.0, "y_3rd_btn", 0.5, 40.0, 110.0, -1 },
-  { "x_center", "x", 0.0, 0.0, "x_center_btn", 0.5, -25.0, 25.0, -1 },
-  { "x_left", "x", -25.0, 0.0, "x_left_btn", 0.5, -35.0, 0.0, -1 },
-  { "x_right", "x", 25.0, 0.0, "x_right_btn", 0.5, 0.0, 35.0, -1 },
+  { "y_zero", "y", 40.0, 0.0, "y_zero_btn", 0.5, 40.0, 110.0 },
+  { "y_1st", "y", 50.0, 0.0, "y_1st_btn", 0.5, 40.0, 110.0 },
+  { "y_2nd", "y", 60.0, 0.0, "y_2nd_btn", 0.5, 40.0, 110.0 },
+  { "y_3rd", "y", 70.0, 0.0, "y_3rd_btn", 0.5, 40.0, 110.0 },
+
+  { "y_c2", "y", 50.0, 0.0, "y_c2_btn", 0.5, 40.0, 110.0 },
+  { "y_c3", "y", 60.0, 0.0, "y_c3_btn", 0.5, 40.0, 110.0 },
+
+  { "x_center", "x", 0.0, 0.0, "x_center_btn", 0.5, -25.0, 25.0 },
+  { "x_left", "x", -25.0, 0.0, "x_left_btn", 0.5, -35.0, 0.0 },
+  { "x_right", "x", 25.0, 0.0, "x_right_btn", 0.5, 0.0, 35.0 },
 
 
   // Combined grippers
-  { "grippers_open", "grippers", 80.0, 0.0, "grippers_open_btn", 0.5, 0.0, 100.0, -1 },
-  { "grippers_close", "grippers", 10.0, 0.0, "grippers_close_btn", 0.5, 0.0, 100.0, -1 },
+  { "grippers_open", "grippers", 80.0, 0.0, "grippers_open_btn", 0.5, 0.0, 100.0 },
+  { "grippers_close", "grippers", 10.0, 0.0, "grippers_close_btn", 0.5, 0.0, 100.0 },
 
   // Individual gripper 1
-  { "gripper1_open", "gripper1", 80.0, 0.0, "gripper1_open_btn", 0.5, 0.0, 100.0, -1 },
-  { "gripper1_close", "gripper1", 10.0, 0.0, "gripper1_close_btn", 0.5, 0.0, 100.0, -1 },
+  { "gripper1_open", "gripper1", 80.0, 0.0, "gripper1_open_btn", 0.5, 0.0, 100.0 },
+  { "gripper1_close", "gripper1", 10.0, 0.0, "gripper1_close_btn", 0.5, 0.0, 100.0 },
 
   // Individual gripper 2
-  { "gripper2_open", "gripper2", 80.0, 0.0, "gripper2_open_btn", 0.5, 0.0, 100.0, -1 },
-  { "gripper2_close", "gripper2", 10.0, 0.0, "gripper2_close_btn", 0.5, 0.0, 100.0, -1 },
+  { "gripper2_open", "gripper2", 80.0, 0.0, "gripper2_open_btn", 0.5, 0.0, 100.0 },
+  { "gripper2_close", "gripper2", 10.0, 0.0, "gripper2_close_btn", 0.5, 0.0, 100.0 },
 
   // Wrist poses_list
-  { "wrist_vert", "wrist", 0.0, 0.0, "wrist_vert_btn", 0.5, -45.0, 45.0, -1 },
-  { "wrist_horiz_left", "wrist", -90.0, 0.0, "wrist_horiz_left_btn", 0.5, 45.0, 135.0, -1 },
-  { "wrist_horiz_right", "wrist", 90.0, 0.0, "wrist_horiz_right_btn", 0.5, 135.0, 205.0, -1 },
+  { "wrist_vert", "wrist", 0.0, 0.0, "wrist_vert_btn", 0.5, -45.0, 45.0 },
+  { "wrist_horiz_left", "wrist", -90.0, 0.0, "wrist_horiz_left_btn", 0.5, 45.0, 135.0 },
+  { "wrist_horiz_right", "wrist", 90.0, 0.0, "wrist_horiz_right_btn", 0.5, 135.0, 205.0 },
 
   // Base rotation
-  { "base_front", "base", 0.0, 0.0, "base_front_btn", 0.5, -45.0, 45.0, -1 },
-  { "base_right", "base", 90.0, 0.0, "base_right_btn", 0.5, 45.0, 135.0, -1 },
-  { "base_left", "base", -90.0, 0.0, "base_left_btn", 0.5, 135.0, 205.0, -1 }
+  { "base_front", "base", 0.0, 0.0, "base_front_btn", 0.5, -45.0, 45.0 },
+  { "base_right", "base", 90.0, 0.0, "base_right_btn", 0.5, 45.0, 135.0 },
+  { "base_left", "base", -90.0, 0.0, "base_left_btn", 0.5, 135.0, 205.0 }
 };
 
 const int DEFAULT_POSE_COUNT = sizeof(default_poses) / sizeof(default_poses[0]);

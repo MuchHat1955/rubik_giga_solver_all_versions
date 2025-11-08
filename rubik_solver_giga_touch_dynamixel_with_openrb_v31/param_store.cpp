@@ -120,17 +120,19 @@ static void loadParamsFromFlash() {
 void initParamStore() {
   LOG_SECTION_START("initParamStore");
 
+// TODO below needs to mach the pose store that has to match the UI
+
   const char* keys[] = {
     // XY poses
-    "xy_zero", "xy_2nd", "xy_3rd", "xy_c1", "xy_c2", "xy_c3", "xy_c4", "xy_c5", "xy_c6",
+    "y_zero", "y_1st", "y_2nd", "y_3rd", "x_c2", "x_c3", "x_center", "x_left", "x_right",
     // Combined grippers
     "grippers_open", "grippers_close",
     // Individual grippers
     "gripper1_open", "gripper1_close", "gripper2_open", "gripper2_close",
     // Wrist
-    "wrist_horiz", "wrist_vert",
+    "wrist_vert", "wrist_horiz_left", "wrist_horiz_left",
     // Base
-    "base_0", "base_90", "base_90minus",
+    "base_front", "base_left", "base_right",
     nullptr
   };
 
@@ -233,7 +235,7 @@ void incrementParam(const char* k, int delta) {
     return;
   }
   pose_store.increment_pose_param(k, delta, p1);
-  pose_store.set_pose_params(k, p1,p2);
+  pose_store.set_pose_params(k, p1, p2);
 
   LOG_PRINTF("incremented {%s} by {%d -> %d}\n", k, delta, p1);
   LOG_SECTION_END();

@@ -10,11 +10,13 @@
 #include "ui_theme.h"
 #include "ui_status.h"
 #include "rb_interface.h"
+#include "pose_store.h"
 
 // Forward declarations
 void updateButtonStateByPtr(lv_obj_t *btn, bool issue, bool active);
 
 extern RBInterface rb;
+extern PoseStore pose_store;
 
 // ----------------------------------------------------------
 //                   LVGL GLOBALS
@@ -216,7 +218,7 @@ void ui_refresh() {
   if (now - lastRefresh < 6000UL) return;  //TODO adjust this
   lastRefresh = now;
 
-  // servoMgr.reflectUI();
+  pose_store.reflect_poses_ui();
 }
 
 void ui_loop() {

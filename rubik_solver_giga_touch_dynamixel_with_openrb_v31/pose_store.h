@@ -6,14 +6,14 @@
 // -----------------------------------------------------------
 struct Pose {
   String name;       // e.g. "wrist_0"
-  String move_type;  // "xy", "servo", "gripper", "wrist"
+  String move_type;  // "xy", "gripper", "wrist"
   double p1;
   double p2;
   String button_key;  // LVGL button key
   double step;
   double min_val;
   double max_val;
-  int servo_id;  // servo ID for zero calibration
+  bool last_run_ok;
 };
 
 // -----------------------------------------------------------
@@ -27,8 +27,7 @@ public:
 
   bool add_pose(const char *name, const char *type, double p1, double p2,
                 const char *btn_key = nullptr, double step = 1.0,
-                double min_val = -9999.0, double max_val = 9999.0,
-                int servo_id = -1);
+                double min_val = -9999.0, double max_val = 9999.0);
 
   bool is_pose(const char *name) const;
   bool is_button_for_pose(const char *btn_key) const;
@@ -49,6 +48,8 @@ public:
   bool is_at_pose(const char *name, double tol_mm = 0.5, double tol_deg = 1.0);
 
   void init_from_defaults(const Pose *defaults, int count);
+  void reflect_poses_ui();
+  void set_all_poses_last_run(bool b);
   void list_poses() const;
 
   static const int MAX_POSES = 64;
