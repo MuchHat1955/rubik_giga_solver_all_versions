@@ -45,7 +45,7 @@ bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
 
   if (!got) {
     pose_store.set_all_poses_last_run(false);
-    LOG_ERROR("No response from RB board!");
+    LOG_ERROR_RB("no response from RB board!");
     LOG_SECTION_END();
     return false;
   }
@@ -129,7 +129,7 @@ bool RBInterface::requestServoInfo(uint8_t id) {
     return true;
   }
 
-  LOG_ERROR("No INFO response for servo ID %d", id);
+  LOG_ERROR_RB("no INFO response for servo ID {%d}", id);
   LOG_SECTION_END();
   return false;
 }
@@ -176,7 +176,7 @@ bool RBInterface::requestAllServoInfo() {
 
     if (!got) {
       all_ok = false;
-      LOG_ERROR("No INFO response for servo ID %d", id);
+      LOG_ERROR_RB("no INFO response for servo ID {%d}", id);
       if (id < MAX_SERVOS) servo_infos[id].clear();
     }
   }
@@ -304,9 +304,8 @@ bool RBInterface::waitForCompletion(const char* commandName) {
   }
 
   if (!success) {
-    addErrorLine("ERR: Timeout or incomplete command");
     setFooter("⚠ timeout or incomplete command");
-    LOG_PRINTF("⚠ Timeout or incomplete command\n");
+    LOG_ERROR_RB("timeout or incomplete command {%s}", commandName);
   }
 
   LOG_SECTION_END();
@@ -333,11 +332,11 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
     if (err1 <= tol && err2 <= tol) return true;
 
     if (err1 > tol) {
-      snprintf(buff, sizeof(buff), "ERR verify expected move{%s} g1_per expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, val, last.g1_per, err1);
+      snprintf(buff, sizeof(buff), "verify expected move{%s} g1_per expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, val, last.g1_per, err1);
       addErrorLine(buff);
     }
     if (err2 > tol) {
-      snprintf(buff, sizeof(buff), "ERR verify expected move{%s} g2_per expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, val, last.g2_per, err2);
+      snprintf(buff, sizeof(buff), "verify expected move{%s} g2_per expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, val, last.g2_per, err2);
       addErrorLine(buff);
     }
     return false;
@@ -363,10 +362,8 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
 
   if (err <= tol) return true;
 
-  snprintf(buff, sizeof(buff),
-           "ERR verify expected move{%s} servo{%d} expected{%.2f} actual{%.2f} err{%.2f}",
-           cmd_name, servo_id, val, actual, err);
-  addErrorLine(buff);
+  LOG_ERROR("verify expected move{%s} servo{%d} expected{%.2f} actual{%.2f} err{%.2f}",
+            cmd_name, servo_id, val, actual, err);
 
   LOG_SECTION_END();
   return false;
@@ -376,7 +373,7 @@ static int errNo = 0;
 
 void RBInterface::addErrorLine(const String& line) {
   errNo++;
-  String lineToAdd = String(errNo) + ". ⚠ " + line;  //TODO add a time stamp or index
+  char buff[20] String lineToAdd = String(errNo) + ". ⚠ " + line;
   errorLines.push_back(lineToAdd);
   if (errorLines.size() > 20) {
     // remove oldest
@@ -423,7 +420,7 @@ bool RBInterface::updateInfo() {
   }
 
   if (!gotAny) {
-    addErrorLine("ERR: No READ 0 response received");
+    addErrorLine("no READ 0 response received");
     LOG_PRINTF("⚠ No response for READ 0");
     pose_store.set_all_poses_last_run(false);
     LOG_SECTION_END();

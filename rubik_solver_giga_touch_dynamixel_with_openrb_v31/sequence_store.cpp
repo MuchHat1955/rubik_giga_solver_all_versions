@@ -8,6 +8,8 @@ SequenceStore sequence_store;
 // ---------------------------------------------------------------------------
 // Constructor: define all sequences here
 // ---------------------------------------------------------------------------
+
+//TODO fix below with the actual moves
 SequenceStore::SequenceStore() {
   // Example — replace pose names with actual ones from your PoseStore keys
   sequences = {
@@ -30,7 +32,7 @@ SequenceStore::SequenceStore() {
 // ---------------------------------------------------------------------------
 // Check if a key corresponds to a valid sequence
 // ---------------------------------------------------------------------------
-bool SequenceStore::isKeyForSequence(const char* key) const {
+bool SequenceStore::is_key_for_sequence(const char* key) const {
   if (!key || !*key) return false;
   for (auto& seq : sequences)
     if (strcmp(seq.key, key) == 0)
@@ -50,8 +52,8 @@ bool SequenceStore::run_sequence_by_key(const char* key) {
     LOG_PRINTF("Running sequence: %s (%s)", seq.key, seq.text);
     for (auto pose : seq.poses) {
       LOG_PRINTF("  pose: %s", pose);
-      if (!pose_store.runPose(pose)) {
-        LOG_ERROR("Pose failed: %s", pose);
+      if (!pose_store.run_pose(pose)) {
+        LOG_ERROR_RB("run sequence {%s} pose failed {%s}", key, pose);
         LOG_SECTION_END();
         return false;
       }
@@ -62,7 +64,7 @@ bool SequenceStore::run_sequence_by_key(const char* key) {
     return true;
   }
 
-  LOG_ERROR("Sequence not found: %s", key);
+  LOG_ERROR_RB("Sequence not found: %s", key);
   LOG_SECTION_END();
   return false;
 }

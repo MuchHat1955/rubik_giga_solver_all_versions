@@ -105,11 +105,13 @@ inline void serial_printf(const char* fmt, Args... args) {
     } \
   } while (0)
 
-#define LOG_ERROR(fmt, ...) \
+#include "rb_interface.h"
+
+#define LOG_ERROR_RB(fmt, ...) \
   do { \
     char _buf[200]; \
-    snprintf(_buf, sizeof(_buf), "⚠ " fmt, ##__VA_ARGS__); \
-    LOG_PRINTF("%s", _buf); \
+    snprintf(_buf, sizeof(_buf), fmt, ##__VA_ARGS__); \
+    LOG_PRINTF("ERR ⚠ %s", _buf); \
     rb.addErrorLine(_buf); \
   } while (0)
 

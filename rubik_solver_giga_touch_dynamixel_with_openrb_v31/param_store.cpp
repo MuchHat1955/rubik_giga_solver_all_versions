@@ -45,7 +45,7 @@ void runAction(const char* key) {
     return;
   }
 
-   if (pose_store.is_key_for_sequence(key)) {
+   if (sequence_store.is_key_for_sequence(key)) {
      bool ok = sequence_store.run_sequence_by_key(key);
      LOG_PRINTF("sequence move {%s} result {%s}\n", key, ok ? "OK" : "FAIL");
      LOG_SECTION_END();

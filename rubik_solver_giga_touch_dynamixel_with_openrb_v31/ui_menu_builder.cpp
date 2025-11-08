@@ -412,15 +412,15 @@ void buildMenu(const char *menuName) {
         bool req_ok = rb.requestAllServoInfo();
         String servoText = "";
         if (req_ok) {
-          servoText = "#FFA500 servos info#\n" + rb.getAllServoInfoLines() + "\n\n";  //
+          servoText = String("#FFA500 servos info#\n") + rb.getAllServoInfoLines() + "\n\n";  //
         } else {
-          servoText = "#FFA500 servos info#\n" + "⚠ no servos info" + "\n\n";  //
+          servoText = String("#FFA500 servos info#\n") + String("⚠ no servos info") + "\n\n";  //
         }
 
         String systemText =
-          "#FFA500 build#\n" + getSketchVersionWithDate() + "\n\n" +  //
-          "#FFA500 log lines#\n" + rb.getAllErrorLines() + "\n\n" +   //
-          servoText;                                                  //
+          String("#FFA500 build#\n") + getSketchVersionWithDate() + "\n\n" +  //
+          String("#FFA500 log lines#\n") + rb.getAllErrorLines() + "\n\n" +   //
+          servoText;                                                          //
 
         lv_textarea_set_text(ta, systemText.c_str());
         lv_textarea_set_cursor_click_pos(ta, false);

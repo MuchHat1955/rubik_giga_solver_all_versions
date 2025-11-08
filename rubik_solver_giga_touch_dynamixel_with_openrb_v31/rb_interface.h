@@ -5,12 +5,12 @@
 #include <vector>
 
 // Servo ID definitions (match RB firmware)
-#define ID_ARM1     11
-#define ID_ARM2     12
-#define ID_WRIST    13
+#define ID_ARM1 11
+#define ID_ARM2 12
+#define ID_WRIST 13
 #define ID_GRIPPER1 14
 #define ID_GRIPPER2 15
-#define ID_BASE     16
+#define ID_BASE 16
 
 #define MAX_SERVOS 20  // adjust for your robot
 
@@ -32,7 +32,9 @@ public:
   double rpm = 0;
   double ticks_per_sec = 0;
 
-  void clear() { *this = ServoInfo(); }
+  void clear() {
+    *this = ServoInfo();
+  }
 
   void log() const {
     LOG_PRINTF("INFO id{%d} op_mode{%d} drive_mode{%d} time_based{%s} "
@@ -114,6 +116,8 @@ private:
   void parseStatusLine(const String& line);
   bool verifyExpected(const char* cmd_name, double val, int servo_id, double tol);
   void clearErrorBuffer();
+  
+public:
   void addErrorLine(const String& line);
 };
 
