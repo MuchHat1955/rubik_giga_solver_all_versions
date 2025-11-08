@@ -181,7 +181,7 @@ bool RBInterface::waitForCompletion(const char* commandName) {
     // --- Handle ERR lines ---
     if (line.startsWith("ERR")) {
       setFooter(line.c_str());
-      errorLines.push_back(line);
+      addErrorLine(line);
       LOG_PRINTF("{%s}", line.c_str());
       continue;
     }
@@ -214,7 +214,7 @@ bool RBInterface::waitForCompletion(const char* commandName) {
   }
 
   if (!success) {
-    errorLines.push_back("ERR: Timeout or incomplete command");
+    addErrorLine("ERR: Timeout or incomplete command");
     setFooter("⚠ timeout or incomplete command");
     LOG_PRINTF("⚠ Timeout or incomplete command\n");
   }
@@ -243,6 +243,14 @@ void RBInterface::verifyExpected(const char* cmd) {
   LOG_SECTION_END();
 }
 
+void RBInterface::addErrorLine(const String& line) {
+  errorLines.push_back(line);
+  if (errorLines.size() > 20) {
+    // remove oldest
+    errorLines.erase(errorLines.begin());
+  }
+}
+
 // ============================================================
 // UpdateInfo - force RB to send current status (READ 0)
 // ============================================================
@@ -264,7 +272,7 @@ bool RBInterface::updateInfo() {
     if (line.isEmpty()) continue;
 
     if (line.startsWith("ERR")) {
-      errorLines.push_back(line);
+      addErrorLine(line);
       LOG_PRINTF("{%s}", line.c_str());
       continue;
     }
@@ -282,7 +290,7 @@ bool RBInterface::updateInfo() {
   }
 
   if (!gotAny) {
-    errorLines.push_back("ERR: No READ 0 response received");
+    addErrorLine("ERR: No READ 0 response received");
     LOG_PRINTF("⚠ No response for READ 0");
     pose_store.set_all_poses_last_run(false);
     LOG_SECTION_END();
@@ -397,7 +405,7 @@ bool RBInterface::readUntilEnd(const char* keyword) {
     if (!Serial2.available()) continue;
     String line = Serial2.readStringUntil('\n');
     line.trim();
-    if (line.startsWith("ERR")) errorLines.push_back(line);
+    if (line.startsWith("ERR")) addErrorLine(line);
     if (line.endsWith("END")) {
       parseStatusLine(line);
       LOG_SECTION_END();
@@ -409,7 +417,7 @@ bool RBInterface::readUntilEnd(const char* keyword) {
 }
 
 void RBInterface::clearErrorBuffer() {
-  errorLines.clear();
+  // errorLines.clear();
 }
 
 RBInterface rb;

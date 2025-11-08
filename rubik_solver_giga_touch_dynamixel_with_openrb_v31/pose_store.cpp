@@ -311,7 +311,7 @@ void PoseStore::reflect_poses_ui() {
 void PoseStore::set_all_poses_last_run(bool b) {
   LOG_SECTION_START("PoseStore::reflect_poses_ui");
   for (int i = 0; i < count; i++) {
-    const Pose &p = poses_list[i];
+    Pose &p = poses_list[i];
     p.last_run_ok = b;
     bool issue = b;  //TODO change this to also reflect is rb is not working at all
     bool active = is_at_pose(p.button_key.c_str(), 0.5, 1.0);
@@ -329,9 +329,9 @@ void PoseStore::list_poses() const {
   LOG_SECTION_START("PoseStore::list_poses");
   for (int i = 0; i < count; i++) {
     const Pose &p = poses_list[i];
-    LOG_PRINTF("(%2d) name{%-10s} | type{%-8s} | p1{%.2f} p2{%.2f} | id{%d} step{%.2f} min{%.2f} max{%.2f} btn{%s}\n",
+    LOG_PRINTF("(%2d) name{%-10s} | type{%-8s} | p1{%.2f} p2{%.2f} | step{%.2f} min{%.2f} max{%.2f} btn{%s} last{%d}\n",
                i, p.name.c_str(), p.move_type.c_str(), p.p1, p.p2,
-               p.servo_id, p.step, p.min_val, p.max_val, p.button_key.c_str());
+               p.step, p.min_val, p.max_val, p.button_key.c_str(),p.last_run_ok);
   }
   LOG_SECTION_END();
 }
