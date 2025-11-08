@@ -21,7 +21,9 @@ struct Pose {
 // -----------------------------------------------------------
 class PoseStore {
 public:
-  PoseStore(){};
+  PoseStore() {
+    count = 0;
+  };
 
   bool add_pose(const char *name, const char *type, double p1, double p2,
                 const char *btn_key = nullptr, double step = 1.0,
@@ -37,7 +39,13 @@ public:
   bool run_pose(const char *name);
   bool run_pose_by_button(const char *btn_key);
 
-  bool increment_pose_param(const char *name, int units, double &new_value_ref);
+  void set_pose_val(const char *param_name, double val);
+  char *btn_to_pose(const char *btn_name) const;
+  int is_btn_for_pose(const char *btn_key) const;
+  int is_param_for_pose(const char *param_name) const;
+  char *param_to_pose(const char *param_name) const;
+  bool increment_pose_param(const char *param_name, int units, double &new_value_ref);
+
   bool is_at_pose(const char *name, double tol_mm = 0.5, double tol_deg = 1.0);
 
   void init_from_defaults(const Pose *defaults, int count);

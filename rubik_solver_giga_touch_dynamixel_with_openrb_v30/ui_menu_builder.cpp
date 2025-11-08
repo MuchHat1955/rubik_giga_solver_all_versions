@@ -20,7 +20,7 @@ void onBuildMenu(const char *menuName) {
 
   if (strcmp(menuName, "poses") == 0) {
     LOG_SECTION_START_VAR("update servos for poses UI", "menu", menuName);
-    rb.updateInfo(); //TODO check for error etc
+    rb.updateInfo();  //TODO check for error etc
     LOG_SECTION_END();
   }
   LOG_SECTION_END();
@@ -309,7 +309,9 @@ void buildMenu(const char *menuName) {
 
         lv_obj_t *lblVal = lv_label_create(numBox);
         char buf[8];
-        snprintf(buf, sizeof(buf), "%04d", getParamValue(key));
+        int val = getParamValue(key);
+        if (val >= 0) snprintf(b, sizeof(b), "%04d", val);
+        else snprintf(b, sizeof(b), "-%03d", -val);
         lv_label_set_text(lblVal, buf);
         lv_obj_set_style_text_font(lblVal, FONT_BTN_SMALL_PTR, 0);
         lv_obj_set_style_text_color(lblVal, COLOR_BTN_TEXT, 0);
@@ -363,10 +365,11 @@ void buildMenu(const char *menuName) {
             const char *keyUD = (const char *)lv_event_get_user_data(e);
             if (!keyUD || !*keyUD) return;
             select_num_pair(lv_obj_get_parent((lv_obj_t *)lv_event_get_target(e)), false);
-            incrementParam((char*)keyUD, -1);
+            incrementParam((char *)keyUD, -1);
             int val = getParamValue(keyUD);
             char b[8];
-            snprintf(b, sizeof(b), "%04d", val);
+            if (val >= 0) snprintf(b, sizeof(b), "%04d", val);
+            else snprintf(b, sizeof(b), "-%03d", -val);
             lv_obj_t *lbl = lv_obj_get_child(lv_obj_get_parent((lv_obj_t *)lv_event_get_target(e)), 1);
             lv_label_set_text(lbl, b);
           },
@@ -377,10 +380,11 @@ void buildMenu(const char *menuName) {
             const char *keyUD = (const char *)lv_event_get_user_data(e);
             if (!keyUD || !*keyUD) return;
             select_num_pair(lv_obj_get_parent((lv_obj_t *)lv_event_get_target(e)), false);
-            incrementParam((char*)keyUD, +1);
+            incrementParam((char *)keyUD, +1);
             int val = getParamValue(keyUD);
             char b[8];
-            snprintf(b, sizeof(b), "%04d", val);
+            if (val >= 0) snprintf(b, sizeof(b), "%04d", val);
+            else snprintf(b, sizeof(b), "-%03d", -val);
             lv_obj_t *lbl = lv_obj_get_child(lv_obj_get_parent((lv_obj_t *)lv_event_get_target(e)), 1);
             lv_label_set_text(lbl, b);
           },
@@ -407,7 +411,7 @@ void buildMenu(const char *menuName) {
 
         String errText =
           "#FFA500 build#\n" + getSketchVersionWithDate() + "\n\n" +  //
-          "#FFA500 startup#\n" + rb.getAllErrorLines() + "\n\n";    //
+          "#FFA500 startup#\n" + rb.getAllErrorLines() + "\n\n";      //
 
         lv_textarea_set_text(ta, errText.c_str());
         lv_textarea_set_cursor_click_pos(ta, false);
@@ -587,88 +591,93 @@ const char jsonBuffer[] = R"json(
     "equal_columns": "all",
     "rows": [
       [
-        { "text": "y at 0", "type": "action", "key": "y0_btn", "status": "yes" },
-        { "text": "+0000-", "type": "num", "key": "y0_param" },
+        { "text": "y zero", "type": "action", "key": "y_zero_btn", "status": "yes" },
+        { "text": "+0000-", "type": "num", "key": "y_zero_param" },
         { "text": "mm x10", "type": "text", "key": "" }
       ],
       [
-        { "text": "y at 1st", "type": "action", "key": "y1_btn", "status": "yes" },
-        { "text": "+0000-", "type": "num", "key": "y1_param" },
+        { "text": "y 1st", "type": "action", "key": "y_1st_btn", "status": "yes" },
+        { "text": "+0000-", "type": "num", "key": "y_1st_param" },
         { "text": "mm x10", "type": "text", "key": "" }
       ],
       [
-        { "text": "y at 2nd", "type": "action", "key": "y2_btn", "status": "yes" },
-        { "text": "+0000-", "type": "num", "key": "y2_param" },
+        { "text": "y 2nd", "type": "action", "key": "y_2nd_btn", "status": "yes" },
+        { "text": "+0000-", "type": "num", "key": "y_2nd_param" },
         { "text": "mm x10", "type": "text", "key": "" }
       ],
       [
-        { "text": "y at 3rd", "type": "action", "key": "y3_btn", "status": "yes" },
-        { "text": "+0000-", "type": "num", "key": "y3_param" },
+        { "text": "y 3rd", "type": "action", "key": "y_3rd_btn", "status": "yes" },
+        { "text": "+0000-", "type": "num", "key": "y_3rd_param" },
         { "text": "mm x10", "type": "text", "key": "" }
       ],
       [
-        { "text": "x at 1st", "type": "action", "key": "x1_btn", "status": "yes" },
-        { "text": "+0000-", "type": "num", "key": "x1_param" },
+        { "text": "x center", "type": "action", "key": "x_center_btn", "status": "yes" },
+        { "text": "+0000-", "type": "num", "key": "x_center_param" },
         { "text": "mm x10", "type": "text", "key": "" }
       ],
       [
-        { "text": "x at 2nd", "type": "action", "key": "x2_btn", "status": "yes" },
-        { "text": "+0000-", "type": "num", "key": "x2_param" },
+        { "text": "x right", "type": "action", "key": "x_right_btn", "status": "yes" },
+        { "text": "+0000-", "type": "num", "key": "x_right_param" },
         { "text": "mm x10", "type": "text", "key": "" }
       ],
       [
-        { "text": "x at 3rd", "type": "action", "key": "x3_btn", "status": "yes" },
-        { "text": "+0000-", "type": "num", "key": "x3_param" },
+        { "text": "x left", "type": "action", "key": "x_left_btn", "status": "yes" },
+        { "text": "+0000-", "type": "num", "key": "x_left_param" },
         { "text": "mm x10", "type": "text", "key": "" }
       ],
       [
-        { "text": "wrist 0", "type": "action", "key": "wrist_0_btn", "status": "yes" },
-        { "text": "+0000-", "type": "num", "key": "wrist_0_param" },
+        { "text": "wrist vert", "type": "action", "key": "wrist_vert_btn", "status": "yes" },
+        { "text": "+0000-", "type": "num", "key": "wrist_vert_param" },
         { "text": "deg", "type": "text", "key": "" }
       ],
       [
-        { "text": "wrist 90", "type": "action", "key": "wrist_90_btn", "status": "yes" },
-        { "text": "+0000-", "type": "num", "key": "wrist_90_param" },
+        { "text": "wrist h right", "type": "action", "key": "wrist_horiz_right_btn", "status": "yes" },
+        { "text": "+0000-", "type": "num", "key": "wrist_right_left_param" },
         { "text": "deg", "type": "text", "key": "" }
       ],
       [
-        { "text": "wrist -90", "type": "action", "key": "wrist_90minus_btn", "status": "yes" },
-        { "text": "+0000-", "type": "num", "key": "wrist_90minus_param" },
+        { "text": "wrist h eft", "type": "action", "key": "wrist_horiz_left_btn", "status": "yes" },
+        { "text": "+0000-", "type": "num", "key": "wrist_horiz_left_param" },
         { "text": "deg", "type": "text", "key": "" }
       ],
-      [
-        { "text": "grip1 open", "type": "action", "key": "grip1_open_btn", "status": "yes" },
-        { "text": "+0000-", "type": "num", "key": "grip1_open_param" },
+            [
+        { "text": "grippers open", "type": "action", "key": "grippers_open_btn", "status": "yes" },
+        { "text": "+0000-", "type": "num", "key": "grippers_open_param" },
         { "text": "per", "type": "text", "key": "" }
       ],
       [
-        { "text": "grip1 close", "type": "action", "key": "grip1_close_btn", "status": "yes" },
-        { "text": "+0000-", "type": "num", "key": "grip1_close_param" },
+        { "text": "gripper1 open", "type": "action", "key": "gripper1_open_btn", "status": "yes" },
+        { "text": "+0000-", "type": "num", "key": "gripper1_open_param" },
         { "text": "per", "type": "text", "key": "" }
       ],
       [
-        { "text": "grip2 open", "type": "action", "key": "grip2_open_btn", "status": "yes" },
-        { "text": "+0000-", "type": "num", "key": "grip2_open_param" },
+        { "text": "gripper1 close", "type": "action", "key": "gripper1_close_btn", "status": "yes" },
+        { "text": "+0000-", "type": "num", "key": "gripper1_close_param" },
         { "text": "per", "type": "text", "key": "" }
       ],
       [
-        { "text": "grip2 close", "type": "action", "key": "grip2_close_btn", "status": "yes" },
-        { "text": "+0000-", "type": "num", "key": "grip2_close_param" },
+        { "text": "gripper2 open", "type": "action", "key": "gripper2_open_btn", "status": "yes" },
+        { "text": "+0000-", "type": "num", "key": "gripper2_open_param" },
         { "text": "per", "type": "text", "key": "" }
       ],
       [
-        { "text": "base 0", "type": "action", "key": "base_0_btn", "status": "yes" },
-        { "text": "+0000-", "type": "num", "key": "base_0_param" },
+        { "text": "gripper2 close", "type": "action", "key": "gripper2_close_btn", "status": "yes" },
+        { "text": "+0000-", "type": "num", "key": "gripper2_close_param" },
+        { "text": "per", "type": "text", "key": "" }
+      ],
+      [
+        { "text": "base front", "type": "action", "key": "base_front_btn", "status": "yes" },
+        { "text": "+0000-", "type": "num", "key": "base_front_param" },
         { "text": "deg", "type": "text", "key": "" }
       ],
       [
-        { "text": "base 90", "type": "action", "key": "base_90_btn", "status": "yes" },
-        { "text": "+0000-", "type": "num", "key": "base_90_param" },
+        { "text": "base right", "type": "action", "key": "base_right_btn", "status": "yes" },
+        { "text": "+0000-", "type": "num", "key": "base_right_param" },
         { "text": "deg", "type": "text", "key": "" }
       ],
       [
-        { "text": "base -90", "type": "action", "key": "base_90minus_btn", "status": "yes" },
-        { "text": "+0000-", "type": "num", "key": "base_90minus_param" },
+        { "text": "base left", "type": "action", "key": "base_left_btn", "status": "yes" },
+        { "text": "+0000-", "type": "num", "key": "base_left_param" },
         { "text": "deg", "type": "text", "key": "" }
       ],
       [{ "text": "back", "type": "menu", "key": "tests" }]

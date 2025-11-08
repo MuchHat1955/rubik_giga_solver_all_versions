@@ -5,10 +5,9 @@
 #define ID_ARM1 11
 #define ID_ARM2 12
 #define ID_WRIST 13
-#define ID_GRIP1 14
-#define ID_GRIP2 15
+#define ID_GRIPPER1 14
+#define ID_GRIPPER1 15
 #define ID_BASE 16
-#define ID_XM 17
 
 // -----------------------------------------------------------------------------
 // RBStatus
@@ -32,7 +31,7 @@ struct RBStatus {
 // -----------------------------------------------------------------------------
 class RBInterface {
 public:
-  explicit RBInterface(Stream& port = Serial1);
+  explicit RBInterface();
 
   // ---- communication setup --------------------------------------------------
   bool begin(unsigned long baud = 115200, uint32_t timeout_ms = 3000);
@@ -43,7 +42,9 @@ public:
   // ---- state / info queries -------------------------------------------------
   bool updateInfo();
   bool xyInfoMm(double* x, double* y);
-  bool gripperInfoPer(double* g);
+  bool grippersInfoPer(double* g);
+  bool gripper1InfoPer(double* g);
+  bool gripper2InfoPer(double* g);
   bool baseInfoDeg(double* b);
   bool wristVertInfoDeg(double* v);
 
@@ -53,6 +54,8 @@ public:
   bool moveBaseDeg(double deg);
   bool moveWristVertDeg(double deg);
   bool moveGrippersPer(double per);
+  bool moveGripper1Per(double per);
+  bool moveGripper2Per(double per);
 
   // ---- error retrieval -----------------------------------------------------
   const char* getLastErrorLine();
@@ -62,7 +65,6 @@ public:
   RBStatus getLastStatus() const;
 
 private:
-  Stream& serial;
   RBStatus last;
   std::vector<String> errorLines;
   bool verboseOn = false;

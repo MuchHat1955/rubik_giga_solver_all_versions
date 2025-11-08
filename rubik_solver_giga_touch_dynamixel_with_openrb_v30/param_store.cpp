@@ -43,6 +43,15 @@ void runAction(const char* key) {
     return;
   }
 
+  // --- Sequence buttons ---
+  // TODO
+  // if (pose_store.is_button_for_pose(key)) {
+  //   bool ok = sequence_store.run_sequence_by_button(key);
+  //   LOG_PRINTF("pose move {%s} result {%s}\n", key, ok ? "OK" : "FAIL");
+  //   LOG_SECTION_END();
+  //   return;
+  // }
+
   // --- Fallback for unhandled keys ---
   LOG_PRINTF("unhandled action key {%s}\n", key);
   LOG_SECTION_END();
@@ -115,9 +124,9 @@ void initParamStore() {
     // XY poses
     "xy_zero", "xy_2nd", "xy_3rd", "xy_c1", "xy_c2", "xy_c3", "xy_c4", "xy_c5", "xy_c6",
     // Combined grippers
-    "grips_open", "grips_close",
+    "grippers_open", "grippers_close",
     // Individual grippers
-    "grip1_open", "grip1_close", "grip2_open", "grip2_close",
+    "gripper1_open", "gripper1_close", "gripper2_open", "gripper2_close",
     // Wrist
     "wrist_horiz", "wrist_vert",
     // Base
@@ -200,6 +209,11 @@ void setParamValue(std::string& k, int v) {
 
 // ---------------------------------------------------------------------
 // Increment parameter
+// Use the following from the pose store
+//    bool PoseStore::increment_pose_param(const char* param_name, int units, double& new_value_ref);
+//    void PoseStore::set_pose_val(const char* param_name, double val);
+//    int PoseStore::is_param_for_pose(const char* btn_key) const;
+
 // ---------------------------------------------------------------------
 void incrementParam(const char* k, int delta) {
   LOG_SECTION_START_VAR("incrementParam", "key", k ? k : "(null)");
@@ -208,10 +222,18 @@ void incrementParam(const char* k, int delta) {
     LOG_SECTION_END();
     return;
   }
-
-  int current = getParamValue(k);
-  int updated = current + delta;
-  setParamValue(k, updated);
+  if (!pose_store.is_param_for_pose(k)) {
+    LOG_PRINTF("increment param err no pose found{%s}\n", k);
+    return false;
+  }
+  double p1 = 0;
+  double p2 = 0;  // not used
+  if (!pose_store.get_pose_params(k, p1, p2)) {
+    LOG_PRINTF("increment param err cannot get pose params{%s}\n", k);
+    return false;
+  }
+  pose_store.increment_pose_param(k, delta, double_current);
+  pose_store.set_pose_value(k, double_current);
 
   LOG_PRINTF("incremented {%s} by {%d -> %d}\n", k, delta, updated);
   LOG_SECTION_END();

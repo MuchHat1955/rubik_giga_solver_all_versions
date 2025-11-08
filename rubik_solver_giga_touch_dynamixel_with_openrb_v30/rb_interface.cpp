@@ -41,24 +41,26 @@ bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
   }
 
   if (!got) {
-    LOG_PRINTF("⚠ No response from RB board!");
+    LOG_PRINTF("⚠ No response from RB board!\n");
     LOG_SECTION_END();
     return false;
   }
 
-  LOG_PRINTF("Communication OK, reading servo INFO...");
+  LOG_PRINTF("Communication OK, reading servo INFO...\n");
 
   // Query INFO for all servos (11–17)
-  uint8_t ids[] = { ID_ARM1, ID_ARM2, ID_WRIST, ID_GRIP1, ID_GRIP2, ID_BASE, ID_XM };
-  for (uint8_t i = 0; i < sizeof(ids); i++) {
+  uint8_t ids[] = { ID_ARM1, ID_ARM2, ID_WRIST, ID_GRIPPER1, ID_GRIPPER2, ID_BASE };
+  for (size_t i = 0; i < sizeof(ids) / sizeof(ids[0]); ++i) {
     requestServoInfo(ids[i]);
     delay(40);
   }
 
-  LOG_PRINTF("Initialization complete, verbose OFF.");
+  LOG_PRINTF("Initialization complete, verbose OFF.\n");
   LOG_SECTION_END();
   return true;
 }
+
+// TODO check that RB supports float args for deg and per
 
 // ============================================================
 // Generic command
@@ -71,14 +73,20 @@ bool RBInterface::runCommand(const char* name, const float* args, int argCount) 
   String cmd(name);
   for (int i = 0; i < argCount; i++) {
     cmd += " ";
-    cmd += String(args[i], 3);
+
+    // Special case: MOVEPER command expects first arg (servo ID) as integer
+    if (strcmp(name, "MOVEPER") == 0 && i == 0)
+      cmd += String((int)args[i]);  // integer formatting (no decimals)
+    else
+      cmd += String(args[i], 3);  // default 3-decimal float formatting
   }
+
   Serial2.println(cmd);
 
   LOG_PRINTF("[GIGA→RB] {%s}", cmd.c_str());
   bool ok = waitForCompletion(name);
 
-  LOG_PRINTF("Command {%s} result{%s}", name, ok ? "OK" : "FAIL");
+  LOG_PRINTF("Command {%s} result{%s}\n", name, ok ? "OK" : "FAIL");
   LOG_SECTION_END();
   return ok;
 }
@@ -104,7 +112,7 @@ bool RBInterface::requestServoInfo(uint8_t id) {
       return true;
     }
   }
-  LOG_PRINTF("⚠ No INFO response for ID {%d}", id);
+  LOG_PRINTF("⚠ No INFO response for ID {%d}\n", id);
   LOG_SECTION_END();
   return false;
 }
@@ -164,8 +172,8 @@ bool RBInterface::waitForCompletion(const char* commandName) {
   LOG_SECTION_START_PRINTF("waitForCompletion", "| cmd{%s}", commandName);
 
   String startMarker = String(commandName) + " START";
-  String endMarker   = String(commandName) + " END";
-  unsigned long t0   = millis();
+  String endMarker = String(commandName) + " END";
+  unsigned long t0 = millis();
   bool success = false;
 
   while (millis() - t0 < 8000) {
@@ -208,7 +216,7 @@ bool RBInterface::waitForCompletion(const char* commandName) {
 
   if (!success) {
     errorLines.push_back("ERR: Timeout or incomplete command");
-    LOG_PRINTF("⚠ Timeout or incomplete command");
+    LOG_PRINTF("⚠ Timeout or incomplete command\n");
   }
 
   LOG_SECTION_END();
@@ -221,12 +229,16 @@ bool RBInterface::waitForCompletion(const char* commandName) {
 void RBInterface::verifyExpected(const char* cmd) {
   LOG_SECTION_START_PRINTF("verifyExpected", "| cmd{%s}", cmd);
 
+  // TODO on below check against the commmand param eg percentage or mm given
+
   if (strncmp(cmd, "MOVEYMM", 7) == 0)
-    LOG_PRINTF("y_mm{%.2f}", last.y_mm);
+    LOG_PRINTF("y_mm{%.2f}\n", last.y_mm);
   if (strncmp(cmd, "MOVEXMM", 7) == 0)
-    LOG_PRINTF("x_mm{%.2f}", last.x_mm);
-  if (strncmp(cmd, "MOVEGRIPPER", 11) == 0)
-    LOG_PRINTF("grip1{%.2f} grip2{%.2f}", last.g1_per, last.g2_per);
+    LOG_PRINTF("x_mm{%.2f}\n", last.x_mm);
+  if (strncmp(cmd, "MOVEGRIPPERPER", 14) == 0)
+    LOG_PRINTF("grippers per g1{%.2f} g2{%.2f}\n", last.g1_per, last.g2_per);
+  if (strncmp(cmd, "MOVEPER", 7) == 0)  //note this uses the servo ids
+    LOG_PRINTF("servo per{%.2f}\n", last.g1_per);
 
   LOG_SECTION_END();
 }
@@ -239,7 +251,7 @@ bool RBInterface::updateInfo() {
 
   clearErrorBuffer();
   Serial2.println("READ 0");
-  LOG_PRINTF("Requesting READ 0...");
+  LOG_PRINTF("Requesting READ 0...\n");
 
   unsigned long t0 = millis();
   bool gotAny = false;
@@ -263,7 +275,7 @@ bool RBInterface::updateInfo() {
       continue;
     }
 
-    if (line.startsWith("READ END") || line.indexOf("x_mm=") > 0) {
+    if (line.startsWith("READ END") || line.indexOf("x_mm=") >= 0) {
       parseStatusLine(line);
       gotAny = true;
     }
@@ -276,7 +288,7 @@ bool RBInterface::updateInfo() {
     return false;
   }
 
-  LOG_PRINTF("READ 0 done | X{%.2f} Y{%.2f} A1{%.2f} A2{%.2f} G{%.2f}",
+  LOG_PRINTF("READ 0 done | X{%.2f} Y{%.2f} A1{%.2f} A2{%.2f} G{%.2f}\n",
              last.x_mm, last.y_mm, last.a1_deg, last.a2_deg, last.g_vert_deg);
 
   LOG_SECTION_END();
@@ -291,8 +303,16 @@ bool RBInterface::xyInfoMm(double* x, double* y) {
   *y = last.y_mm;
   return true;
 }
-bool RBInterface::gripperInfoPer(double* g) {
+bool RBInterface::grippersInfoPer(double* g) {
   *g = (last.g1_per + last.g2_per) / 2.0;
+  return true;
+}
+bool RBInterface::gripper1InfoPer(double* g) {
+  *g = last.g1_per;
+  return true;
+}
+bool RBInterface::gripper2InfoPer(double* g) {
+  *g = last.g2_per;
   return true;
 }
 bool RBInterface::baseInfoDeg(double* b) {
@@ -335,7 +355,21 @@ bool RBInterface::moveWristVertDeg(double d) {
 bool RBInterface::moveGrippersPer(double p) {
   LOG_SECTION_START_PRINTF("moveGrippersPer", "| per{%.2f}", p);
   float a[] = { (float)p };
-  bool ok = runCommand("MOVEGRIPPER", a, 1);
+  bool ok = runCommand("MOVEGRIPPERPER", a, 1);
+  LOG_SECTION_END();
+  return ok;
+}
+bool RBInterface::moveGripper1Per(double p) {
+  LOG_SECTION_START_PRINTF("moveGripper1Per", "| per{%.2f}", p);
+  float a[] = { (float)ID_GRIPPER1, (float)p };
+  bool ok = runCommand("MOVEPER", a, 2);
+  LOG_SECTION_END();
+  return ok;
+}
+bool RBInterface::moveGripper2Per(double p) {
+  LOG_SECTION_START_PRINTF("moveGripper2Per", "| per{%.2f}", p);
+  float a[] = { (float)ID_GRIPPER2, (float)p };
+  bool ok = runCommand("MOVEPER", a, 2);
   LOG_SECTION_END();
   return ok;
 }
@@ -404,7 +438,7 @@ static CommandEntry command_table[] = {
   { "MOVEYMM", "%f", cmd_move_y, "MOVEYMM <float mm> - vertical move" },
   { "MOVEXMM", "%f", cmd_move_x, "MOVEXMM <float mm> - lateral move" },
   { "MOVEXYMM", "%f %f", cmd_move_xy, "MOVEXYMM <float mm> <float mm> - lateral then vertical move" },
-  { "MOVEGRIPPER", "%f", cmd_move_gripper, "MOVEGRIPPER <percentage> - move both grips to percentage" },
+  { "MOVEgripperPER", "%f", cmd_move_gripper, "MOVEgripperPER <percentage> - move both grippers to percentage" },
   { "MOVEWRISTVERTDEG", "%f", cmd_move_wrist_vert, "MOVEWRISTVERTDEG <deg> - move wrist relative to vertical" },
 
   { "READ", "{%d}", cmd_read, "READ <id> - show servo summary status" },

@@ -203,7 +203,7 @@ void loop() {
  *  1. Hardware Control Layer
  *     - servos.cpp/.h:
  *         Controls 6 Dynamixel servos (arm1, arm2, wrist,
- *         grip1, grip2, base).  Provides tick <-> angle
+ *         gripper1, gripper2, base).  Provides tick <-> angle
  *         helpers and goal position movement.
  *     - color_sensor.cpp/.h:
  *         Reads RGB data from TCS34725, converts to HSV,
