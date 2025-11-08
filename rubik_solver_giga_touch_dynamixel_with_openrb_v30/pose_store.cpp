@@ -88,30 +88,40 @@ char *PoseStore::param_to_pose(const char *param_name) const {
 // -----------------------------------------------------------
 // Increment / Decrement
 // -----------------------------------------------------------
-bool PoseStore::increment_pose_param(const char *param, int units, double &new_value_ref) {
-  char *name = param_to_pose(param);
-  if (name == nullptr) return false;
+bool PoseStore::increment_pose_param(const char *param_name, int units, double &new_value_ref) {
+  if (!param_name || !*param_name) return false;
 
-  int idx = find_pose_index(name);
+  String key = param_name;
+  if (!key.endsWith("_param")) return false;
+
+  // Extract pose name: everything before "_param"
+  String pose_name = key.substring(0, key.length() - 6);
+
+  int idx = find_pose_index(pose_name.c_str());
   if (idx < 0) return false;
 
   Pose &p = poses_list[idx];
   double new_val = p.p1 + (units * p.step);
+
   if (new_val < p.min_val) new_val = p.min_val;
   if (new_val > p.max_val) new_val = p.max_val;
 
   p.p1 = new_val;
-  setParamValue((String("pose_") + name + "_p1").c_str(), (int)(new_val * 100.0));
+  setParamValue(param_name, (int)(new_val * 100.0));
   new_value_ref = new_val;
-  LOG_PRINTF("pose{%s} adjusted to{%.2f} units{%d}\n", name, new_val, units);
+
+  LOG_PRINTF("running pose{%s} with new val {%d}\n", pose_name.c_str(), new_val);
+  run_pose(pose_name.c_str());
+
+  LOG_PRINTF("pose{%s} adjusted to %.2f units{%d}\n", pose_name.c_str(), new_val, units);
   return true;
 }
 
 // -----------------------------------------------------------
 // Map UI / param names to internal pose records
 // -----------------------------------------------------------
-void PoseStore::set_pose_val(const char *param_name, double val) {
-  LOG_SECTION_START_VAR("set_pose_val", "param", param_name ? param_name : "(null)");
+void PoseStore::set_pose_val_from_param(const char *param_name, double val) {
+  LOG_SECTION_START_VAR("set_pose_val_from_param", "param", param_name ? param_name : "(null)");
 
   if (!param_name || !*param_name) {
     LOG_PRINTF("invalid or empty param name\n");
@@ -119,18 +129,17 @@ void PoseStore::set_pose_val(const char *param_name, double val) {
     return;
   }
 
-  // Expect keys like "pose_<name>_p1"
   String key = param_name;
-  if (!key.startsWith("pose_") || !key.endsWith("_p1")) {
+  if (!key.endsWith("_param")) {
     LOG_PRINTF("not a pose param {%s}\n", param_name);
     LOG_SECTION_END();
     return;
   }
 
-  // Extract pose name
-  String pose_name = key.substring(5, key.length() - 3);
+  // Extract pose name: everything before "_param"
+  String pose_name = key.substring(0, key.length() - 6);  // remove "_param"
 
-  // Find and update
+  // Find pose by name
   int idx = find_pose_index(pose_name.c_str());
   if (idx < 0) {
     LOG_PRINTF("pose {%s} not found\n", pose_name.c_str());
@@ -140,7 +149,10 @@ void PoseStore::set_pose_val(const char *param_name, double val) {
 
   Pose &p = poses_list[idx];
   p.p1 = val;
+
+  // Save the integer-scaled version (for persistent param store)
   setParamValue(param_name, (int)(val * 100.0));
+
   LOG_PRINTF("updated pose {%s} p1=%.2f\n", pose_name.c_str(), val);
   LOG_SECTION_END();
 }
@@ -162,14 +174,18 @@ char *PoseStore::btn_to_pose(const char *btn_name) const {
 // Check if a parameter corresponds to a stored pose
 // -----------------------------------------------------------
 bool PoseStore::is_param_for_pose(const char *param_name) const {
-  if (!param_name || !*param_name) return 0;
+  if (!param_name || !*param_name) return false;
 
   String key = param_name;
-  if (!key.startsWith("pose_") || !key.endsWith("_p1"))
-    return 0;
+  if (!key.endsWith("_param"))
+    return false;
 
-  String pose_name = key.substring(5, key.length() - 3);
-  return (find_pose_index(pose_name.c_str()) >= 0) ? 1 : 0;
+  // Replace "_param" with "_btn" to get the corresponding button key
+  String btn_key = key;
+  btn_key.replace("_param", "_btn");
+
+  // Check if any pose has this button key
+  return is_button_for_pose(btn_key.c_str());
 }
 
 bool PoseStore::is_btn_for_pose(const char *btn_key) const {
@@ -187,12 +203,6 @@ bool PoseStore::run_pose(const char *pose_name) {
 
   double p1 = pose.p1, p2 = pose.p2;
   String type = pose.move_type;
-
-  // Handle SETZERO
-  if (pose.servo_id >= 0 && pose.name.endsWith("_0")) {
-    // return setZeroServo(pose.servo_id, p1); //TODO
-    return false;
-  }
 
   LOG_SECTION_START_PRINTF("pose store run_pose", "| {%s} type{%s}", pose_name, type.c_str());
   bool ok = false;
@@ -215,7 +225,7 @@ bool PoseStore::run_pose(const char *pose_name) {
     LOG_PRINTF("unknown move type for {%s}\n", type.c_str());
   }
 
-  LOG_PRINTF("pose store run pose result {%d}\n", ok);
+  LOG_PRINTF("pose store run pose result {%}\n", ok);
   LOG_SECTION_END();
   return ok;
 }

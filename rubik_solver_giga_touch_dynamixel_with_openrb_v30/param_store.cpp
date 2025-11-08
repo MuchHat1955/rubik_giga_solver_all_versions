@@ -211,7 +211,7 @@ void setParamValue(std::string& k, int v) {
 // Increment parameter
 // Use the following from the pose store
 //    bool PoseStore::increment_pose_param(const char* param_name, int units, double& new_value_ref);
-//    void PoseStore::set_pose_val(const char* param_name, double val);
+//    void PoseStore::set_pose_val_from_param(const char* param_name, double val);
 //    int PoseStore::is_param_for_pose(const char* btn_key) const;
 
 // ---------------------------------------------------------------------
