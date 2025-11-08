@@ -133,6 +133,7 @@ void initParamStore() {
     "wrist_vert", "wrist_horiz_left", "wrist_horiz_left",
     // Base
     "base_front", "base_left", "base_right",
+    // end
     nullptr
   };
 
