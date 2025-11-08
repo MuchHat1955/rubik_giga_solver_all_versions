@@ -119,6 +119,8 @@ bool RBInterface::requestServoInfo(uint8_t id) {
       return true;
     }
   }
+  String txt = "⚠ No INFO response for ID " + String(id);
+  addErrorLine(txt.c_str());  //TODO find other places to report the error maybe do a LOG_ERROR that also does LOG_PRINTF and starts with ⚠
   LOG_PRINTF("⚠ No INFO response for ID {%d}\n", id);
   LOG_SECTION_END();
   return false;
@@ -243,8 +245,12 @@ void RBInterface::verifyExpected(const char* cmd) {
   LOG_SECTION_END();
 }
 
+static int errNo = 0;
+
 void RBInterface::addErrorLine(const String& line) {
-  errorLines.push_back(line);
+  errNo++;
+  String lineToAdd = String(errNO) + ") ⚠ " + line;  //TODO add a time stamp or index
+  errorLines.push_back(lineToAdd);
   if (errorLines.size() > 20) {
     // remove oldest
     errorLines.erase(errorLines.begin());
@@ -417,7 +423,7 @@ bool RBInterface::readUntilEnd(const char* keyword) {
 }
 
 void RBInterface::clearErrorBuffer() {
-  // errorLines.clear();
+  // errorLines.clear(); //TODO should see if this needs to be ever cleared
 }
 
 RBInterface rb;

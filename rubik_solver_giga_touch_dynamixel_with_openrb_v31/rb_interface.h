@@ -76,5 +76,5 @@ private:
   void verifyExpected(const char* commandName);
   void clearErrorBuffer();
   bool requestServoInfo(uint8_t id);
-  addErrorLine(const String& line);
+  void addErrorLine(const String& line);
 };
