@@ -319,7 +319,7 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
   LOG_SECTION_START_PRINTF("verifyExpected", "| cmd{%s}", cmd_name);
 
   double actual = 0.0, err = 0.0;
-  char buff[200];
+  char buf[200];
 
   // Handle MOVEGRIPPER separately (two servos)
   if (strcmp(cmd_name, "MOVEGRIPPER") == 0) {
@@ -332,12 +332,12 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
     if (err1 <= tol && err2 <= tol) return true;
 
     if (err1 > tol) {
-      snprintf(buff, sizeof(buff), "verify expected move{%s} g1_per expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, val, last.g1_per, err1);
-      addErrorLine(buff);
+      snprintf(buf, sizeof(buf), "verify expected move{%s} g1_per expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, val, last.g1_per, err1);
+      addErrorLine(buf);
     }
     if (err2 > tol) {
-      snprintf(buff, sizeof(buff), "verify expected move{%s} g2_per expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, val, last.g2_per, err2);
-      addErrorLine(buff);
+      snprintf(buf, sizeof(buf), "verify expected move{%s} g2_per expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, val, last.g2_per, err2);
+      addErrorLine(buf);
     }
     return false;
   }
