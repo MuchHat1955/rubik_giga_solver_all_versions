@@ -10,6 +10,7 @@
 #include "rb_interface.h"
 #include "pose_store.h"
 #include "sequence_store.h"
+#include "param_store.h"
 
 extern RBInterface rb;
 extern PoseStore pose_store;
@@ -45,12 +46,12 @@ void runAction(const char* key) {
     return;
   }
 
-   if (sequence_store.is_key_for_sequence(key)) {
-     bool ok = sequence_store.run_sequence_by_key(key);
-     LOG_PRINTF("sequence move {%s} result {%s}\n", key, ok ? "OK" : "FAIL");
-     LOG_SECTION_END();
-     return;
-   }
+  if (sequence_store.is_key_for_sequence(key)) {
+    bool ok = sequence_store.run_sequence_by_key(key);
+    LOG_PRINTF("sequence move {%s} result {%s}\n", key, ok ? "OK" : "FAIL");
+    LOG_SECTION_END();
+    return;
+  }
 
   // --- Fallback for unhandled keys ---
   LOG_PRINTF("unhandled action key {%s}\n", key);
@@ -73,7 +74,7 @@ struct Param {
 
 static std::map<std::string, Param> param_store;
 
-static void add(const char* k, int v, bool persist_ = true) {
+static void add(const char* k, double v, bool persist_ = true) {
   param_store[k] = { v, false, persist_ };
 }
 
@@ -86,9 +87,9 @@ static void saveParamsToFlash() {
   for (auto& kv : param_store) {
     if (!kv.second.persist) continue;
     const char* key = kv.first.c_str();
-    int val = kv.second.value;
+    double val = kv.second.value;
     kv_set(key, &val, sizeof(val), 0);
-    LOG_PRINTF("saved {%s} = %d\n", key, val);
+    LOG_PRINTF("saved {%s} = %.2f\n", key, val);
   }
 
   LOG_SECTION_END();
@@ -102,12 +103,12 @@ static void loadParamsFromFlash() {
 
   for (auto& kv : param_store) {
     const char* key = kv.first.c_str();
-    int loaded = 0;
+    double loaded = 0;
     size_t actual = 0;
     int ret = kv_get(key, &loaded, sizeof(loaded), &actual);
     if (ret == MBED_SUCCESS) {
       kv.second.value = loaded;
-      LOG_PRINTF("loaded {%s} = %d\n", key, loaded);
+      LOG_PRINTF("loaded {%s} = %.2f\n", key, loaded);
     }
   }
 
@@ -120,7 +121,7 @@ static void loadParamsFromFlash() {
 void initParamStore() {
   LOG_SECTION_START("initParamStore");
 
-// TODO below needs to mach the pose store that has to match the UI
+  // TODO below needs to mach the pose store that has to match the UI
 
   const char* keys[] = {
     // XY poses
@@ -147,35 +148,36 @@ void initParamStore() {
 // ---------------------------------------------------------------------
 // Get parameter
 // ---------------------------------------------------------------------
-int getParamValue(const char* k) {
-  LOG_SECTION_START_VAR("getParamValue", "key", k ? k : "(null)");
+
+double getParamValue(const char* k) {
+  //LOG_SECTION_START_VAR("getParamValue", "key", k ? k : "(null)");
 
   if (!k || !*k) {
-    LOG_SECTION_END();
-    return 0;
+    //LOG_SECTION_END();
+    return PARAM_VAL_NA;
   }
 
   auto it = param_store.find(std::string(k));
   if (it == param_store.end()) {
-    LOG_PRINTF("not found -> 0\n");
-    LOG_SECTION_END();
-    return 0;
+    LOG_PRINTF("[!] param {%s} not found in the store\n", k);
+    //LOG_SECTION_END();
+    return PARAM_VAL_NA;
   }
 
   int val = it->second.value;
-  LOG_PRINTF("get param {%s} = %d\n", k, val);
-  LOG_SECTION_END();
+  LOG_PRINTF("param {%s} result from the store {%.2f}\n", k, val);
+  //LOG_SECTION_END();
   return val;
 }
 
-int getParamValue(std::string& k) {
+double getParamValue(std::string& k) {
   return getParamValue(k.c_str());
 }
 
 // ---------------------------------------------------------------------
 // Set parameter
 // ---------------------------------------------------------------------
-void setParamValue(const char* k, int v) {
+void setParamValue(const char* k, double v) {
   LOG_SECTION_START_VAR("setParamValue", "key", k ? k : "(null)");
 
   if (!k || !*k) {
@@ -206,7 +208,7 @@ void setParamValue(const char* k, int v) {
   LOG_SECTION_END();
 }
 
-void setParamValue(std::string& k, int v) {
+void setParamValue(std::string& k, double v) {
   setParamValue(k.c_str(), v);
 }
 
@@ -230,13 +232,12 @@ void incrementParam(const char* k, int delta) {
     return;
   }
   double p1 = 0;
-  double p2 = 0;  // not used
-  if (!pose_store.get_pose_params(k, &p1, &p2)) {
+  if (!pose_store.get_pose_params(k, &p1)) {
     LOG_PRINTF("[!] increment param err cannot get pose params{%s}\n", k);
     return;
   }
   pose_store.increment_pose_param(k, delta, p1);
-  pose_store.set_pose_params(k, p1, p2);
+  pose_store.set_pose_params(k, p1);
 
   LOG_PRINTF("incremented {%s} by {%d -> %d}\n", k, delta, p1);
   LOG_SECTION_END();

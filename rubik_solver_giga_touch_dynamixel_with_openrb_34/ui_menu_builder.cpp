@@ -308,10 +308,12 @@ void buildMenu(const char *menuName) {
         lv_obj_center(lblMinus);
 
         lv_obj_t *lblVal = lv_label_create(numBox);
+
         char buf[8];
-        int val = getParamValue(key);
-        if (val >= 0) snprintf(buf, sizeof(buf), "%04d", val);
-        else snprintf(buf, sizeof(buf), "-%03d", -val);
+        double val = getParamValue(key);
+        if (val >= 0) snprintf(buf, sizeof(buf), "%04d", (int)(val * 10.0));
+        else snprintf(buf, sizeof(buf), "-%03d", -(int)(val * 10.0));
+
         lv_label_set_text(lblVal, buf);
         lv_obj_set_style_text_font(lblVal, FONT_BTN_SMALL_PTR, 0);
         lv_obj_set_style_text_color(lblVal, COLOR_BTN_TEXT, 0);
@@ -366,10 +368,12 @@ void buildMenu(const char *menuName) {
             if (!keyUD || !*keyUD) return;
             select_num_pair(lv_obj_get_parent((lv_obj_t *)lv_event_get_target(e)), false);
             incrementParam((char *)keyUD, -1);
-            int val = getParamValue(keyUD);
+            double val = getParamValue(keyUD);
+
             char b[8];
-            if (val >= 0) snprintf(b, sizeof(b), "%04d", val);
-            else snprintf(b, sizeof(b), "-%03d", -val);
+            if (val >= 0) snprintf(b, sizeof(b), "%04d", (int)(val*10.0));
+            else snprintf(b, sizeof(b), "-%03d", -(int)(val*10.0));
+
             lv_obj_t *lbl = lv_obj_get_child(lv_obj_get_parent((lv_obj_t *)lv_event_get_target(e)), 1);
             lv_label_set_text(lbl, b);
           },
@@ -381,10 +385,12 @@ void buildMenu(const char *menuName) {
             if (!keyUD || !*keyUD) return;
             select_num_pair(lv_obj_get_parent((lv_obj_t *)lv_event_get_target(e)), false);
             incrementParam((char *)keyUD, +1);
-            int val = getParamValue(keyUD);
+            double val = getParamValue(keyUD);
+            
             char b[8];
-            if (val >= 0) snprintf(b, sizeof(b), "%04d", val);
-            else snprintf(b, sizeof(b), "-%03d", -val);
+            if (val >= 0) snprintf(b, sizeof(b), "%04d", (int)(val*10.0));
+            else snprintf(b, sizeof(b), "-%03d", -(int)(val*10.0));
+
             lv_obj_t *lbl = lv_obj_get_child(lv_obj_get_parent((lv_obj_t *)lv_event_get_target(e)), 1);
             lv_label_set_text(lbl, b);
           },

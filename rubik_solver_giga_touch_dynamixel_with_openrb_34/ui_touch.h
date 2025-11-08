@@ -19,8 +19,8 @@ void updateButtonStateByPtr(lv_obj_t* btn, bool issue, bool active);
 
 // utility functions
 void setFooter(const char *msg);
-int getParamValue(const char *name);
-void setParamValue(const char *name, int val);
+double getParamValue(const char *name);
+void setParamValue(const char *name, double val);
 const char *getStatusText(const char *name);
 const char *getStatusColor(const char *name);
 void select_num_pair(lv_obj_t *numBox, bool toggle);

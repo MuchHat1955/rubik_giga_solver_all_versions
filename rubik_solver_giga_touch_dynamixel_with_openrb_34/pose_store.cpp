@@ -9,7 +9,7 @@ extern RBInterface rb;
 // -----------------------------------------------------------
 // Add or update a pose
 // -----------------------------------------------------------
-bool PoseStore::add_pose(const char *name, const char *type, double p1, double p2,
+bool PoseStore::add_pose(const char *name, const char *type, double p1,
                          const char *btn_key, double step, double min_val,
                          double max_val) {
   if (!name || !*name || !type || !*type) return false;
@@ -21,14 +21,13 @@ bool PoseStore::add_pose(const char *name, const char *type, double p1, double p
   p.name = name;
   p.move_type = type;
   p.p1 = p1;
-  p.p2 = p2;
   p.button_key = btn_key ? btn_key : "";
   p.step = step;
   p.min_val = min_val;
   p.max_val = max_val;
   p.last_run_ok = true;
 
-  setParamValue((String("pose_") + name + "_p1").c_str(), (int)(p1 * 100.0));
+  setParamValue(name, p1);
   return true;
 }
 
@@ -59,30 +58,86 @@ bool PoseStore::is_button_for_pose(const char *btn_key) const {
 // -----------------------------------------------------------
 // Accessors
 // -----------------------------------------------------------
-bool PoseStore::get_pose_params(const char *name, double *p1, double *p2) const {
-  int idx = find_pose_index(name);
+bool PoseStore::get_pose_params(const char *name, double *p1) const {
+
+  // make a mutable local copy of the name
+  char base_name[64];
+  strncpy(base_name, name, sizeof(base_name));
+  base_name[sizeof(base_name) - 1] = '\0';
+
+  // if the name ends with "_param", remove it
+  const char suffix[] = "_param";
+  size_t len = strlen(base_name);
+  size_t suf_len = strlen(suffix);
+  if (len > suf_len && strcmp(base_name + len - suf_len, suffix) == 0) {
+    base_name[len - suf_len] = '\0';
+  }
+
+  int idx = find_pose_index(base_name);
   if (idx < 0) return false;
   if (p1) *p1 = poses_list[idx].p1;
-  if (p2) *p2 = poses_list[idx].p2;
   return true;
 }
 
-bool PoseStore::set_pose_params(const char *name, double p1, double p2) {
-  int idx = find_pose_index(name);
+bool PoseStore::set_pose_params(const char *name, double p1) {
+  // --- Make a mutable copy of the input name
+  char base_name[64];
+  strncpy(base_name, name, sizeof(base_name));
+  base_name[sizeof(base_name) - 1] = '\0';
+
+  // --- If name ends with "_param", remove it for pose lookup
+  const char suffix[] = "_param";
+  size_t len = strlen(base_name);
+  size_t suf_len = strlen(suffix);
+  if (len > suf_len && strcmp(base_name + len - suf_len, suffix) == 0) {
+    base_name[len - suf_len] = '\0';
+  }
+
+  // --- Lookup pose by base name (without "_param")
+  int idx = find_pose_index(base_name);
   if (idx < 0) return false;
+
   Pose &p = poses_list[idx];
   p.p1 = p1;
-  p.p2 = p2;
-  setParamValue((String("pose_") + name + "_p1").c_str(), (int)(p1 * 100.0));
+
+  // --- Build key for saving parameter (ensure single "_param")
+  char key_buf[64];
+  if (strstr(base_name, "_param_param")) {
+    // Defensive fix in case of malformed names
+    strncpy(key_buf, base_name, sizeof(key_buf));
+    key_buf[sizeof(key_buf) - 1] = '\0';
+  } else if (strstr(base_name, "_param")) {
+    // Already contains one _param
+    strncpy(key_buf, base_name, sizeof(key_buf));
+    key_buf[sizeof(key_buf) - 1] = '\0';
+  } else {
+    // Append _param
+    snprintf(key_buf, sizeof(key_buf), "%s_param", base_name);
+  }
+
+  // --- Save to persistent storage
+  setParamValue(key_buf, p1);
+
   return true;
 }
 
 char *PoseStore::param_to_pose(const char *param_name) const {
   if (!param_name || !*param_name) return nullptr;
+
   String key = param_name;
-  if (!key.startsWith("pose_") || !key.endsWith("_p1")) return nullptr;
+  if (!key.endsWith("_param")) return nullptr;
+
+  // Extract the middle part between "pose_" and "_p1"
   static String name;
   name = key.substring(5, key.length() - 3);
+
+  // If the extracted name ends with "_param", remove it
+  const char suffix[] = "_param";
+  int suf_len = strlen(suffix);
+  if (name.length() > suf_len && name.endsWith(suffix)) {
+    name.remove(name.length() - suf_len);
+  }
+
   return (char *)name.c_str();
 }
 
@@ -93,28 +148,41 @@ bool PoseStore::increment_pose_param(const char *param_name, int units, double &
   if (!param_name || !*param_name) return false;
 
   String key = param_name;
-  if (!key.endsWith("_param")) return false;
 
-  // Extract pose name: everything before "_param"
+  // --- Normalize key to ensure it ends with "_param"
+  if (!key.endsWith("_param")) key += "_param";
+
+  // --- Extract base pose name (without "_param")
   String pose_name = key.substring(0, key.length() - 6);
 
+  // --- Find pose by base name
   int idx = find_pose_index(pose_name.c_str());
-  if (idx < 0) return false;
+  if (idx < 0) {
+    LOG_PRINTF("pose not found for %s", pose_name.c_str());
+    return false;
+  }
 
   Pose &p = poses_list[idx];
-  double new_val = p.p1 + (units * p.step);
 
+  // --- Compute new value within limits
+  double new_val = p.p1 + (units * p.step);
   if (new_val < p.min_val) new_val = p.min_val;
   if (new_val > p.max_val) new_val = p.max_val;
 
   p.p1 = new_val;
-  setParamValue(param_name, (int)(new_val * 100.0));
   new_value_ref = new_val;
 
-  LOG_PRINTF("running pose{%s} with new val {%d}\n", pose_name, new_val);
+  // --- Build consistent param key for persistence
+  String save_key = String(pose_name) + "_param";
+
+  // --- Store new parameter value (x100)
+  setParamValue(save_key.c_str(), new_val);
+
+  // --- Execute updated pose
+  LOG_PRINTF("running pose{%s} new val{%.2f} units{%d}\n", pose_name.c_str(), new_val, units);
   run_pose(pose_name.c_str());
 
-  LOG_PRINTF("pose{%s} adjusted to %.2f units{%d}\n", pose_name, new_val, units);
+  LOG_PRINTF("pose{%s} adjusted to %.2f (units %d)\n", pose_name.c_str(), new_val, units);
   return true;
 }
 
@@ -151,8 +219,8 @@ void PoseStore::set_pose_val_from_param(const char *param_name, double val) {
   Pose &p = poses_list[idx];
   p.p1 = val;
 
-  // Save the integer-scaled version (for persistent param store)
-  setParamValue(param_name, (int)(val * 100.0));
+  // for persistent param store
+  setParamValue(param_name, val);
 
   LOG_PRINTF("updated pose {%s} p1=%.2f\n", pose_name.c_str(), val);
   LOG_SECTION_END();
@@ -202,7 +270,7 @@ bool PoseStore::run_pose(const char *pose_name) {
   if (idx < 0) return false;
   Pose &pose = poses_list[idx];
 
-  double p1 = pose.p1, p2 = pose.p2;
+  double p1 = pose.p1;
   String type = pose.move_type;
 
   LOG_SECTION_START_PRINTF("pose store run_pose", "| {%s} type{%s}", pose_name, type.c_str());
@@ -281,14 +349,15 @@ bool PoseStore::is_at_pose(const char *name, double tol_mm, double tol_deg) {
 // -----------------------------------------------------------
 // Init from defaults (use RB zero for _0 servos)
 // -----------------------------------------------------------
+
 void PoseStore::init_from_defaults(const Pose *defaults, int def_count) {
   LOG_SECTION_START("PoseStore::init_from_defaults");
 
   for (int i = 0; i < def_count; i++) {
     const Pose &def = defaults[i];
-    double val_p1 = def.p1, val_p2 = def.p2;
+    double val_p1 = def.p1;
 
-    add_pose(def.name.c_str(), def.move_type.c_str(), val_p1, val_p2,
+    add_pose(def.name.c_str(), def.move_type.c_str(), val_p1,
              def.button_key.c_str(), def.step, def.min_val, def.max_val);
   }
 
@@ -297,7 +366,7 @@ void PoseStore::init_from_defaults(const Pose *defaults, int def_count) {
 }
 
 void PoseStore::reflect_poses_ui() {
-  LOG_SECTION_START("PoseStore::reflect_poses_ui");
+  //LOG_SECTION_START("PoseStore::reflect_poses_ui");
   for (int i = 0; i < count; i++) {
     const Pose &p = poses_list[i];
     bool issue = p.last_run_ok;  //TODO change this to also reflect is rb is not working at all
@@ -305,11 +374,11 @@ void PoseStore::reflect_poses_ui() {
     if (!issue) active = false;
     updateButtonStateByKey(p.button_key.c_str(), issue, active);
   }
-  LOG_SECTION_END();
+  //LOG_SECTION_END();
 }
 
 void PoseStore::set_all_poses_last_run(bool b) {
-  LOG_SECTION_START("PoseStore::reflect_poses_ui");
+  //LOG_SECTION_START("PoseStore::reflect_poses_ui");
   for (int i = 0; i < count; i++) {
     Pose &p = poses_list[i];
     p.last_run_ok = b;
@@ -318,9 +387,47 @@ void PoseStore::set_all_poses_last_run(bool b) {
     if (!issue) active = false;
     updateButtonStateByKey(p.button_key.c_str(), issue, active);
   }
-  LOG_SECTION_END();
+  //LOG_SECTION_END();
 }
 
+void PoseStore::update_pose_store_from_param_store(const Pose *defaults, int def_count) {
+  LOG_SECTION_START("PoseStore::update_pose_store_from_param_store");
+
+  for (int i = 0; i < def_count; i++) {
+    const Pose &def = defaults[i];
+
+    // --- Build the key used in ParamStore: "pose_param"
+    String key = def.name;
+    if (!key.endsWith("_param")) {
+      key += "_param";
+    }
+
+    // --- Read from param store
+    double stored_val = getParamValue(key.c_str());
+
+    // --- getParamValue() returns PARAM_VAL_NA if not found,
+    // so we’ll only apply if it’s non-zero and different from default
+    if (stored_val < PARAM_VAL_NA && stored_val != 0.0) {  //TODO for now given the storage has many 0.0
+      double restored_p1 = stored_val;                     // convert back from scaled int
+      int idx = find_pose_index(def.name.c_str());
+
+      if (idx >= 0) {
+        Pose &p = poses_list[idx];
+        p.p1 = restored_p1;
+
+        LOG_PRINTF("Restored pose{%s} from param_store val{%.2f}\n",
+                   def.name.c_str(), restored_p1);
+      } else {
+        LOG_ERROR_RB("pose not found for default {%s}", def.name.c_str());
+      }
+    } else {
+      LOG_PRINTF("No saved param for pose{%s}, keeping default {%.2f}\n",
+                 def.name.c_str(), def.p1);
+    }
+  }
+
+  LOG_SECTION_END();
+}
 
 // -----------------------------------------------------------
 // Debug list
@@ -329,9 +436,9 @@ void PoseStore::list_poses() const {
   LOG_SECTION_START("PoseStore::list_poses");
   for (int i = 0; i < count; i++) {
     const Pose &p = poses_list[i];
-    LOG_PRINTF("(%2d) name{%-10s} | type{%-8s} | p1{%.2f} p2{%.2f} | step{%.2f} min{%.2f} max{%.2f} btn{%s} last{%d}\n",
-               i, p.name.c_str(), p.move_type.c_str(), p.p1, p.p2,
-               p.step, p.min_val, p.max_val, p.button_key.c_str(),p.last_run_ok);
+    LOG_PRINTF("(%2d) name{%-10s} | type{%-8s} | p1{%.2f} | step{%.2f} min{%.2f} max{%.2f} btn{%s} last{%d}\n",
+               i, p.name.c_str(), p.move_type.c_str(), p.p1,
+               p.step, p.min_val, p.max_val, p.button_key.c_str(), p.last_run_ok);
   }
   LOG_SECTION_END();
 }
@@ -343,7 +450,6 @@ void PoseStore::list_poses() const {
   p.name = name;
   p.move_type = type;
   p.p1 = p1;
-  p.p2 = p2;
   p.button_key = btn_key ? btn_key : "";
   p.step = step;
   p.min_val = min_val;
@@ -356,40 +462,40 @@ void PoseStore::list_poses() const {
 Pose default_poses[] = {
 
   // XY poses_list
-  { "y_zero", "y", 40.0, 0.0, "y_zero_btn", 0.5, 40.0, 110.0 },
-  { "y_1st", "y", 50.0, 0.0, "y_1st_btn", 0.5, 40.0, 110.0 },
-  { "y_2nd", "y", 60.0, 0.0, "y_2nd_btn", 0.5, 40.0, 110.0 },
-  { "y_3rd", "y", 70.0, 0.0, "y_3rd_btn", 0.5, 40.0, 110.0 },
+  { "y_zero", "y", 40.0, "y_zero_btn", 0.5, 40.0, 110.0 },
+  { "y_1st", "y", 50.0, "y_1st_btn", 0.5, 40.0, 110.0 },
+  { "y_2nd", "y", 60.0, "y_2nd_btn", 0.5, 40.0, 110.0 },
+  { "y_3rd", "y", 70.0, "y_3rd_btn", 0.5, 40.0, 110.0 },
 
-  { "y_c2", "y", 50.0, 0.0, "y_c2_btn", 0.5, 40.0, 110.0 },
-  { "y_c3", "y", 60.0, 0.0, "y_c3_btn", 0.5, 40.0, 110.0 },
+  { "y_c2", "y", 50.0, "y_c2_btn", 0.5, 40.0, 110.0 },
+  { "y_c3", "y", 60.0, "y_c3_btn", 0.5, 40.0, 110.0 },
 
-  { "x_center", "x", 0.0, 0.0, "x_center_btn", 0.5, -25.0, 25.0 },
-  { "x_left", "x", -25.0, 0.0, "x_left_btn", 0.5, -35.0, 0.0 },
-  { "x_right", "x", 25.0, 0.0, "x_right_btn", 0.5, 0.0, 35.0 },
+  { "x_center", "x", 0.1, "x_center_btn", 0.5, -25.0, 25.0 },  // 0.1 to avoid the 0.0 meaning the value in the storage
+  { "x_left", "x", -25.0, "x_left_btn", 0.5, -35.0, 0.0 },
+  { "x_right", "x", 25.0, "x_right_btn", 0.5, 0.0, 35.0 },
 
 
   // Combined grippers
-  { "grippers_open", "grippers", 80.0, 0.0, "grippers_open_btn", 0.5, 0.0, 100.0 },
-  { "grippers_close", "grippers", 10.0, 0.0, "grippers_close_btn", 0.5, 0.0, 100.0 },
+  { "grippers_open", "grippers", 80.0, "grippers_open_btn", 0.5, 0.0, 100.0 },
+  { "grippers_close", "grippers", 10.0, "grippers_close_btn", 0.5, 0.0, 100.0 },
 
   // Individual gripper 1
-  { "gripper1_open", "gripper1", 80.0, 0.0, "gripper1_open_btn", 0.5, 0.0, 100.0 },
-  { "gripper1_close", "gripper1", 10.0, 0.0, "gripper1_close_btn", 0.5, 0.0, 100.0 },
+  { "gripper1_open", "gripper1", 80.0, "gripper1_open_btn", 0.5, 0.0, 100.0 },
+  { "gripper1_close", "gripper1", 10.0, "gripper1_close_btn", 0.5, 0.0, 100.0 },
 
   // Individual gripper 2
-  { "gripper2_open", "gripper2", 80.0, 0.0, "gripper2_open_btn", 0.5, 0.0, 100.0 },
-  { "gripper2_close", "gripper2", 10.0, 0.0, "gripper2_close_btn", 0.5, 0.0, 100.0 },
+  { "gripper2_open", "gripper2", 80.0, "gripper2_open_btn", 0.5, 0.0, 100.0 },
+  { "gripper2_close", "gripper2", 10.0, "gripper2_close_btn", 0.5, 0.0, 100.0 },
 
   // Wrist poses_list
-  { "wrist_vert", "wrist", 0.0, 0.0, "wrist_vert_btn", 0.5, -45.0, 45.0 },
-  { "wrist_horiz_left", "wrist", -90.0, 0.0, "wrist_horiz_left_btn", 0.5, 45.0, 135.0 },
-  { "wrist_horiz_right", "wrist", 90.0, 0.0, "wrist_horiz_right_btn", 0.5, 135.0, 205.0 },
+  { "wrist_vert", "wrist", 0.1, "wrist_vert_btn", 0.5, -45.0, 45.0 },  // 0.1 to avoid the 0.0 meaning the value in the storage
+  { "wrist_horiz_left", "wrist", -90.0, "wrist_horiz_left_btn", 0.5, 45.0, 135.0 },
+  { "wrist_horiz_right", "wrist", 90.0, "wrist_horiz_right_btn", 0.5, 135.0, 205.0 },
 
   // Base rotation
-  { "base_front", "base", 0.0, 0.0, "base_front_btn", 0.5, -45.0, 45.0 },
-  { "base_right", "base", 90.0, 0.0, "base_right_btn", 0.5, 45.0, 135.0 },
-  { "base_left", "base", -90.0, 0.0, "base_left_btn", 0.5, 135.0, 205.0 }
+  { "base_front", "base", 0.1, "base_front_btn", 0.5, -45.0, 45.0 },  // 0.1 to avoid the 0.0 meaning the value in the storage
+  { "base_right", "base", 90.0, "base_right_btn", 0.5, 45.0, 135.0 },
+  { "base_left", "base", -90.0, "base_left_btn", 0.5, 135.0, 205.0 }
 };
 
 const int DEFAULT_POSE_COUNT = sizeof(default_poses) / sizeof(default_poses[0]);
@@ -398,5 +504,6 @@ PoseStore pose_store;
 
 bool initPoseStore() {
   pose_store.init_from_defaults(default_poses, DEFAULT_POSE_COUNT);
+  pose_store.update_pose_store_from_param_store(default_poses, DEFAULT_POSE_COUNT);
   return true;
 }

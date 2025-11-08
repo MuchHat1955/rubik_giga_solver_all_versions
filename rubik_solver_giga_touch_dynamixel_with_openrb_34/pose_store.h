@@ -8,7 +8,6 @@ struct Pose {
   String name;       // e.g. "wrist_0"
   String move_type;  // "xy", "gripper", "wrist"
   double p1;
-  double p2;
   String button_key;  // LVGL button key
   double step;
   double min_val;
@@ -25,15 +24,15 @@ public:
     count = 0;
   };
 
-  bool add_pose(const char *name, const char *type, double p1, double p2,
+  bool add_pose(const char *name, const char *type, double p1,
                 const char *btn_key = nullptr, double step = 1.0,
                 double min_val = -9999.0, double max_val = 9999.0);
 
   bool is_pose(const char *name) const;
   bool is_button_for_pose(const char *btn_key) const;
 
-  bool get_pose_params(const char *name, double *p1, double *p2) const;
-  bool set_pose_params(const char *name, double p1, double p2);
+  bool get_pose_params(const char *name, double *p1) const;
+  bool set_pose_params(const char *name, double p1);
 
   bool run_pose(const char *name);
   bool run_pose_by_button(const char *btn_key);
@@ -48,6 +47,7 @@ public:
   bool is_at_pose(const char *name, double tol_mm = 0.5, double tol_deg = 1.0);
 
   void init_from_defaults(const Pose *defaults, int count);
+  void update_pose_store_from_param_store(const Pose *defaults, int def_count);
   void reflect_poses_ui();
   void set_all_poses_last_run(bool b);
   void list_poses() const;

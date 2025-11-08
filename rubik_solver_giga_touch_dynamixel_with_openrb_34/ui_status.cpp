@@ -50,8 +50,8 @@ void uiStatusRegisterButtonByKey(const String &buttonKey, bool issue) {
 void updateButtonStateByPtr(lv_obj_t *btn, bool issue, bool active) {
   if (!btn) return;
 
-  LOG_SECTION_START("updateButtonStateByPtr");
-  LOG_PRINTF("issue {%d} active {%d}\n", issue, active);
+  //LOG_SECTION_START("updateButtonStateByPtr");
+  //LOG_PRINTF("issue {%d} active {%d}\n", issue, active);
 
   constexpr int CORNERS = 20;
   constexpr int BORDER_WIDTH_NORMAL = 2;
@@ -111,7 +111,7 @@ void updateButtonStateByPtr(lv_obj_t *btn, bool issue, bool active) {
   }
 
   lv_obj_invalidate(btn);
-  LOG_SECTION_END();
+  //LOG_SECTION_END();
 }
 
 // ----------------------------------------------------------
