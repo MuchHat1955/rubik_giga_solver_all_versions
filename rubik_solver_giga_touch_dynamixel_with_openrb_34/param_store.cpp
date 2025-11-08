@@ -124,15 +124,15 @@ void initParamStore() {
 
   const char* keys[] = {
     // XY poses
-    "y_zero", "y_1st", "y_2nd", "y_3rd", "x_c2", "x_c3", "x_center", "x_left", "x_right",
+    "y_zero_param", "y_1st_param", "y_2nd_param", "y_3rd_param", "x_c2_param", "x_c3_param", "x_center_param", "x_left_param", "x_right_param",
     // Combined grippers
-    "grippers_open", "grippers_close",
+    "grippers_open_param", "grippers_close_param",
     // Individual grippers
-    "gripper1_open", "gripper1_close", "gripper2_open", "gripper2_close",
+    "gripper1_open_param", "gripper1_close_param", "gripper2_open_param", "gripper2_close_param",
     // Wrist
-    "wrist_vert", "wrist_horiz_left", "wrist_horiz_left",
+    "wrist_vert_param", "wrist_horiz_left_param", "wrist_horiz_left_param",
     // Base
-    "base_front", "base_left", "base_right",
+    "base_front_param", "base_left_param", "base_right_param",
     // end
     nullptr
   };
