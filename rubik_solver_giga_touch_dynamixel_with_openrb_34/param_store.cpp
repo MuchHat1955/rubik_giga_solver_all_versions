@@ -200,9 +200,9 @@ void setParamValue(const char* k, double v) {
       saveParamsToFlash();
       lastSave = millis();
     }
-    LOG_PRINTF("updated param {%s} = %d\n", k, v);
+    LOG_PRINTF("updated param {%s} = %.2f\n", k, v);
   } else {
-    LOG_PRINTF("no change for {%s} (still %d)\n", k, v);
+    LOG_PRINTF("no change for {%s} (still %.2f)\n", k, v);
   }
 
   LOG_SECTION_END();
@@ -239,6 +239,6 @@ void incrementParam(const char* k, int delta) {
   pose_store.increment_pose_param(k, delta, p1);
   pose_store.set_pose_params(k, p1);
 
-  LOG_PRINTF("incremented {%s} by {%d -> %d}\n", k, delta, p1);
+  LOG_PRINTF("incremented {%s} by {%d} to {%.2f}\n", k, delta, p1);
   LOG_SECTION_END();
 }

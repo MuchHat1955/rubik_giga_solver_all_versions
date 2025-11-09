@@ -58,7 +58,7 @@ bool PoseStore::is_button_for_pose(const char *btn_key) const {
 // -----------------------------------------------------------
 // Accessors
 // -----------------------------------------------------------
-bool PoseStore::get_pose_params(const char *name, double *p1) const {
+bool PoseStore::get_pose_params(const char *name, double *p1) {
 
   // make a mutable local copy of the name
   char base_name[64];
@@ -180,7 +180,8 @@ bool PoseStore::increment_pose_param(const char *param_name, int units, double &
 
   // --- Execute updated pose
   LOG_PRINTF("running pose{%s} new val{%.2f} units{%d}\n", pose_name.c_str(), new_val, units);
-  run_pose(pose_name.c_str());
+  // run_pose(pose_name.c_str()); do not run here, has to click, but reflect in UI somehow is changed eg is_at_pose?
+  // TODO reflect UI
 
   LOG_PRINTF("pose{%s} adjusted to %.2f (units %d)\n", pose_name.c_str(), new_val, units);
   return true;
@@ -200,7 +201,7 @@ void PoseStore::set_pose_val_from_param(const char *param_name, double val) {
 
   String key = param_name;
   if (!key.endsWith("_param")) {
-    LOG_PRINTF("ERR [!] not a pose param {%s}\n", param_name);
+    LOG_PRINTF("[!] not a pose param {%s}\n", param_name);
     LOG_SECTION_END();
     return;
   }
@@ -291,16 +292,17 @@ bool PoseStore::run_pose(const char *pose_name) {
   } else if (type == "gripper2") {
     ok = rb.moveGripper2Per(p1);
   } else {
-    LOG_PRINTF("ERR [!] unknown move type for {%s}\n", type.c_str());
+    LOG_PRINTF("[!] unknown move type for {%s}\n", type.c_str());
   }
   pose.last_run_ok = ok;
-  LOG_PRINTF("pose store run pose result {%}\n", ok);
+  LOG_PRINTF("pose store run pose last run set to {%}\n", ok);
   LOG_SECTION_END();
   return ok;
 }
 
 bool PoseStore::run_pose_by_button(const char *btn_key) {
   int idx = find_pose_by_button(btn_key);
+  if (idx < 0) idx = find_pose_index(btn_key);
   if (idx < 0) return false;
   return run_pose(poses_list[idx].name.c_str());
 }

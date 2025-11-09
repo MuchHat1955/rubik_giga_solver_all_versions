@@ -31,7 +31,7 @@ public:
   bool is_pose(const char *name) const;
   bool is_button_for_pose(const char *btn_key) const;
 
-  bool get_pose_params(const char *name, double *p1) const;
+  bool get_pose_params(const char *name, double *p1);
   bool set_pose_params(const char *name, double p1);
 
   bool run_pose(const char *name);

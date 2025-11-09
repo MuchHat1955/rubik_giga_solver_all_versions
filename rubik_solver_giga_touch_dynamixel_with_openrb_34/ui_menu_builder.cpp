@@ -6,13 +6,16 @@
 #include "logging.h"
 #include "ui_theme.h"
 #include "param_store.h"
+#include "pose_store.h"
 #include "ui_status.h"
 #include "rb_interface.h"
 
 String getSketchVersion();
 String getSketchVersionWithDate();
 void buildMenu(const char *menuName);
+
 extern RBInterface rb;
+extern PoseStore pose_store;
 
 // ---- below is for actions to be done when a menu is displayed ---
 void onBuildMenu(const char *menuName) {
@@ -26,9 +29,64 @@ void onBuildMenu(const char *menuName) {
   LOG_SECTION_END();
 }
 
-// ----------------------------------------------------------
-//                     MENU BUILDER (safe version)
-// ----------------------------------------------------------
+// ===========================================================
+//  Static LVGL-compatible callbacks for numeric widgets
+// ===========================================================
+static void on_num_value_clicked(lv_event_t *e) {
+  if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+
+  lv_obj_t *target = (lv_obj_t *)lv_event_get_target(e);
+  lv_obj_t *parent = lv_obj_get_parent((const lv_obj_t *)target);
+
+  // highlight/select this numeric pair
+  select_num_pair(parent, true);
+}
+
+static void on_num_minus_clicked(lv_event_t *e) {
+  const char *key = static_cast<const char *>(lv_event_get_user_data(e));
+  if (!key || !*key) return;
+
+  lv_obj_t *target = (lv_obj_t *)lv_event_get_target(e);
+  lv_obj_t *parent = lv_obj_get_parent((const lv_obj_t *)target);
+
+  select_num_pair(parent, false);
+  incrementParam(key, -1);
+
+  double val = PARAM_VAL_NA;
+  pose_store.get_pose_params(key, &val);
+
+  char buf[8];
+  if (val >= 0) snprintf(buf, sizeof(buf), "+%.1f", val);
+  else snprintf(buf, sizeof(buf), "-%.1f", -val);
+
+  lv_obj_t *lbl = lv_obj_get_child(parent, 1);
+  lv_label_set_text(lbl, buf);
+}
+
+static void on_num_plus_clicked(lv_event_t *e) {
+  const char *key = static_cast<const char *>(lv_event_get_user_data(e));
+  if (!key || !*key) return;
+
+  lv_obj_t *target = (lv_obj_t *)lv_event_get_target(e);
+  lv_obj_t *parent = lv_obj_get_parent((const lv_obj_t *)target);
+
+  select_num_pair(parent, false);
+  incrementParam(key, +1);
+
+  double val = PARAM_VAL_NA;
+  pose_store.get_pose_params(key, &val);
+
+  char buf[8];
+  if (val >= 0) snprintf(buf, sizeof(buf), "+%.1f", val);
+  else snprintf(buf, sizeof(buf), "-%.1f", -val);
+
+  lv_obj_t *lbl = lv_obj_get_child(parent, 1);
+  lv_label_set_text(lbl, buf);
+}
+
+// ===========================================================
+//  MAIN BUILD MENU FUNCTION
+// ===========================================================
 void buildMenu(const char *menuName) {
 
   LOG_SECTION_START_VAR("build menu", "menu", menuName);
@@ -192,25 +250,19 @@ void buildMenu(const char *menuName) {
         lv_obj_set_style_text_opa(lbl, LV_OPA_COVER, 0);
         lv_obj_center(lbl);
 
-        // register for status updates if has key
-        if (strlen(key)) {
-          statusWidgets[key] = lbl;
-        }
+        if (strlen(key)) statusWidgets[key] = lbl;
         if (strcmp(it["status"] | "", "yes") == 0 && strlen(key))
           uiStatusRegisterButton(key, cell);
-
       }
 
       // ---------- ACTION / MENU ----------
       else if (strcmp(type, "action") == 0 || strcmp(type, "menu") == 0) {
-        // Pick base color depending on type and label
         lv_color_t colorBtn = COLOR_BTN_ACTION;
         if (strcmp(type, "menu") == 0) colorBtn = COLOR_BTN_MENU;
         if (strcasecmp(txt, "back") == 0) colorBtn = COLOR_BTN_BACK;
 
-        // --- Create the button ---
         lv_obj_t *btn = lv_btn_create(cont);
-        lv_obj_remove_style_all(btn);  // clear any theme defaults
+        lv_obj_remove_style_all(btn);
         lv_obj_set_size(btn, colW, 48);
         lv_obj_set_pos(btn, x, y);
 
@@ -218,42 +270,33 @@ void buildMenu(const char *menuName) {
         lv_obj_set_style_radius(btn, CORNERS, 0);
         lv_obj_set_style_border_width(btn, 2, 0);
         lv_obj_set_style_border_color(btn, colorBtn, 0);
-
-        // mirror “active” / “issue” fill logic so color consistency is exact
         lv_obj_set_style_bg_color(btn, colorBtn, LV_PART_MAIN);
         lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, LV_PART_MAIN);
 
-        // --- Label setup ---
         lv_obj_t *lbl = lv_label_create(btn);
         lv_label_set_text(lbl, txt);
         lv_obj_center(lbl);
         lv_obj_set_style_text_font(lbl, btnFont, 0);
         lv_obj_set_style_text_color(lbl, COLOR_BTN_TEXT, 0);
 
-        // --- Register persistent status tracking if needed ---
         if (strcmp(it["status"] | "", "yes") == 0 && strlen(key))
           uiStatusRegisterButton(key, btn);
 
-        // --- Skip empty keys entirely ---
         if (!key || !*key) {
           LOG_PRINTF("skipping button with empty key {%s}\n", txt);
           continue;
         }
 
-        // --- Attach event callback directly without heap copies ---
         lv_obj_add_event_cb(
           btn,
           [](lv_event_t *e) {
             if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
-
             const char *keyUD = static_cast<const char *>(lv_event_get_user_data(e));
             if (!keyUD || !*keyUD) {
               LOG_PRINTF("click event: empty key\n");
               return;
             }
-
 #if LV_USE_ASYNC_CALL
-            // Safe async call, no free, key pointer is stable (JSON lives until menu rebuilt)
             lv_async_call(
               [](void *ud) {
                 const char *k = static_cast<const char *>(ud);
@@ -261,17 +304,14 @@ void buildMenu(const char *menuName) {
               },
               (void *)keyUD);
 #else
-            // Direct call if async not enabled
             buttonAction(keyUD);
 #endif
           },
           LV_EVENT_CLICKED, (void *)key);
-
       }
 
       // ---------- NUMERIC ----------
       else if (strcmp(type, "num") == 0) {
-
         lv_obj_t *numBox = lv_obj_create(cont);
         lv_obj_remove_style_all(numBox);
         lv_obj_set_size(numBox, colW - 2, 44);
@@ -287,7 +327,6 @@ void buildMenu(const char *menuName) {
         lv_obj_set_style_radius(numBox, CORNERS, 0);
         lv_obj_set_style_bg_opa(numBox, LV_OPA_TRANSP, 0);
         lv_obj_clear_flag(numBox, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_clear_flag(numBox, LV_OBJ_FLAG_SCROLL_CHAIN);
         lv_obj_add_flag(numBox, LV_OBJ_FLAG_CLICKABLE);
 
         lv_obj_t *btnMinus = lv_btn_create(numBox);
@@ -298,7 +337,6 @@ void buildMenu(const char *menuName) {
         lv_obj_set_style_border_color(btnMinus, COLOR_BTN_NUM, 0);
         lv_obj_set_style_bg_opa(btnMinus, LV_OPA_TRANSP, 0);
         lv_obj_add_flag(btnMinus, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_flag(btnMinus, LV_OBJ_FLAG_EVENT_BUBBLE);
         lv_obj_add_style(btnMinus, &style_num_btn_pressed, LV_STATE_PRESSED);
 
         lv_obj_t *lblMinus = lv_label_create(btnMinus);
@@ -308,26 +346,20 @@ void buildMenu(const char *menuName) {
         lv_obj_center(lblMinus);
 
         lv_obj_t *lblVal = lv_label_create(numBox);
-
         char buf[8];
-        double val = getParamValue(key);
-        if (val >= 0) snprintf(buf, sizeof(buf), "%04d", (int)(val * 10.0));
-        else snprintf(buf, sizeof(buf), "-%03d", -(int)(val * 10.0));
+        double val = PARAM_VAL_NA;
+        pose_store.get_pose_params(key, &val);
+        if (val >= 0) snprintf(buf, sizeof(buf), "+%.1f", val);
+        else snprintf(buf, sizeof(buf), "-%.1f", -val);
 
         lv_label_set_text(lblVal, buf);
         lv_obj_set_style_text_font(lblVal, FONT_BTN_SMALL_PTR, 0);
         lv_obj_set_style_text_color(lblVal, COLOR_BTN_TEXT, 0);
         lv_obj_set_style_text_align(lblVal, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_add_flag(lblVal, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_flag(lblVal, LV_OBJ_FLAG_EVENT_BUBBLE);
-        lv_obj_clear_flag(lblVal, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_clear_flag(lblVal, LV_OBJ_FLAG_SCROLL_CHAIN);
         lv_obj_center(lblVal);
 
-        // register numeric label by key for external updates
-        if (strlen(key)) {
-          numLabels[key] = lblVal;
-        }
+        if (strlen(key)) numLabels[key] = lblVal;
 
         lv_obj_t *btnPlus = lv_btn_create(numBox);
         lv_obj_remove_style_all(btnPlus);
@@ -337,7 +369,6 @@ void buildMenu(const char *menuName) {
         lv_obj_set_style_border_color(btnPlus, COLOR_BTN_NUM, 0);
         lv_obj_set_style_bg_opa(btnPlus, LV_OPA_TRANSP, 0);
         lv_obj_add_flag(btnPlus, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_flag(btnPlus, LV_OBJ_FLAG_EVENT_BUBBLE);
         lv_obj_add_style(btnPlus, &style_num_btn_pressed, LV_STATE_PRESSED);
 
         lv_obj_t *lblPlus = lv_label_create(btnPlus);
@@ -349,52 +380,11 @@ void buildMenu(const char *menuName) {
         lv_obj_set_style_pad_left(numBox, 4, 0);
         lv_obj_set_style_pad_right(numBox, 4, 0);
         lv_obj_set_style_pad_gap(numBox, 8, 0);
-        lv_obj_set_style_translate_x(btnMinus, -4, 0);
-        lv_obj_set_style_translate_x(btnPlus, 4, 0);
 
-        lv_obj_add_event_cb(
-          lblVal, [](lv_event_t *e) {
-            if (lv_event_get_code(e) == LV_EVENT_CLICKED) {
-              lv_obj_t *val = (lv_obj_t *)lv_event_get_target(e);
-              lv_obj_t *numBoxP = lv_obj_get_parent(val);
-              select_num_pair(numBoxP, true);
-            }
-          },
-          LV_EVENT_CLICKED, nullptr);
-
-        lv_obj_add_event_cb(
-          btnMinus, [](lv_event_t *e) {
-            const char *keyUD = (const char *)lv_event_get_user_data(e);
-            if (!keyUD || !*keyUD) return;
-            select_num_pair(lv_obj_get_parent((lv_obj_t *)lv_event_get_target(e)), false);
-            incrementParam((char *)keyUD, -1);
-            double val = getParamValue(keyUD);
-
-            char b[8];
-            if (val >= 0) snprintf(b, sizeof(b), "%04d", (int)(val*10.0));
-            else snprintf(b, sizeof(b), "-%03d", -(int)(val*10.0));
-
-            lv_obj_t *lbl = lv_obj_get_child(lv_obj_get_parent((lv_obj_t *)lv_event_get_target(e)), 1);
-            lv_label_set_text(lbl, b);
-          },
-          LV_EVENT_CLICKED, (void *)key);
-
-        lv_obj_add_event_cb(
-          btnPlus, [](lv_event_t *e) {
-            const char *keyUD = (const char *)lv_event_get_user_data(e);
-            if (!keyUD || !*keyUD) return;
-            select_num_pair(lv_obj_get_parent((lv_obj_t *)lv_event_get_target(e)), false);
-            incrementParam((char *)keyUD, +1);
-            double val = getParamValue(keyUD);
-            
-            char b[8];
-            if (val >= 0) snprintf(b, sizeof(b), "%04d", (int)(val*10.0));
-            else snprintf(b, sizeof(b), "-%03d", -(int)(val*10.0));
-
-            lv_obj_t *lbl = lv_obj_get_child(lv_obj_get_parent((lv_obj_t *)lv_event_get_target(e)), 1);
-            lv_label_set_text(lbl, b);
-          },
-          LV_EVENT_CLICKED, (void *)key);
+        // attach proper C-style callbacks
+        lv_obj_add_event_cb(lblVal, on_num_value_clicked, LV_EVENT_CLICKED, nullptr);
+        lv_obj_add_event_cb(btnMinus, on_num_minus_clicked, LV_EVENT_CLICKED, (void *)key);
+        lv_obj_add_event_cb(btnPlus, on_num_plus_clicked, LV_EVENT_CLICKED, (void *)key);
       }
 
       // ---------- ERROR STATUS ----------
@@ -405,28 +395,15 @@ void buildMenu(const char *menuName) {
         lv_obj_t *ta = lv_textarea_create(cont);
         lv_obj_set_size(ta, colW, textH);
         lv_obj_set_pos(ta, x, y);
-
-        lv_obj_set_style_height(ta, textH, 0);
-        lv_obj_clear_flag(ta, LV_OBJ_FLAG_FLEX_IN_NEW_TRACK);
-        lv_obj_set_style_flex_grow(ta, 0, 0);
-
         lv_obj_set_scrollbar_mode(ta, LV_SCROLLBAR_MODE_AUTO);
-        lv_obj_set_scroll_dir(ta, LV_DIR_VER);
-        lv_obj_clear_flag(ta, LV_OBJ_FLAG_SCROLL_CHAIN);
-        lv_obj_add_flag(ta, LV_OBJ_FLAG_SCROLL_ELASTIC);
 
         bool req_ok = rb.requestAllServoInfo();
         String servoText = "";
-        if (req_ok) {
-          servoText = String("#FFA500 servos info#\n") + rb.getAllServoInfoLines() + "\n\n";  //
-        } else {
-          servoText = String("#FFA500 servos info#\n") + String("[!] no servos info") + "\n\n";  //
-        }
+        if (req_ok) servoText = String("#FFA500 servos info#\n") + rb.getAllServoInfoLines() + "\n\n";
+        else servoText = String("#FFA500 servos info#\n") + String("[!] no servos info\n\n");
 
         String systemText =
-          String("#FFA500 build#\n") + getSketchVersionWithDate() + "\n\n" +  //
-          String("#FFA500 log lines#\n") + rb.getAllErrorLines() + "\n\n" +   //
-          servoText;                                                          //
+          String("#FFA500 build#\n") + getSketchVersionWithDate() + "\n\n" + String("#FFA500 log lines#\n") + rb.getAllErrorLines() + "\n\n" + servoText;
 
         lv_textarea_set_text(ta, systemText.c_str());
         lv_textarea_set_cursor_click_pos(ta, false);
@@ -436,7 +413,6 @@ void buildMenu(const char *menuName) {
         if (label) {
           lv_label_set_recolor(label, true);
           lv_obj_set_style_text_color(label, lv_color_white(), 0);
-          lv_obj_set_style_text_opa(label, LV_OPA_COVER, 0);
           lv_obj_set_style_text_line_space(label, 4, 0);
         }
 
@@ -446,13 +422,14 @@ void buildMenu(const char *menuName) {
 
         adjustedRowH = textH + 20;
       }
+
       x += colW + 8;
     }
     y += adjustedRowH;
   }
 
   onBuildMenu(menuName);
-  lv_obj_invalidate(lv_scr_act());  // safe redraw scheduling
+  lv_obj_invalidate(lv_scr_act());
   LOG_SECTION_END();
 }
 
@@ -606,47 +583,47 @@ const char jsonBuffer[] = R"json(
       [
         { "text": "y zero", "type": "action", "key": "y_zero_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "y_zero_param" },
-        { "text": "mm x10", "type": "text", "key": "" }
+        { "text": "mm", "type": "text", "key": "" }
       ],
       [
         { "text": "y 1st", "type": "action", "key": "y_1st_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "y_1st_param" },
-        { "text": "mm x10", "type": "text", "key": "" }
+        { "text": "mm", "type": "text", "key": "" }
       ],
       [
         { "text": "y 2nd", "type": "action", "key": "y_2nd_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "y_2nd_param" },
-        { "text": "mm x10", "type": "text", "key": "" }
+        { "text": "mm", "type": "text", "key": "" }
       ],
       [
         { "text": "y 3rd", "type": "action", "key": "y_3rd_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "y_3rd_param" },
-        { "text": "mm x10", "type": "text", "key": "" }
+        { "text": "mm", "type": "text", "key": "" }
       ],
       [
         { "text": "x center", "type": "action", "key": "x_center_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "x_center_param" },
-        { "text": "mm x10", "type": "text", "key": "" }
+        { "text": "mm", "type": "text", "key": "" }
       ],
       [
         { "text": "x right", "type": "action", "key": "x_right_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "x_right_param" },
-        { "text": "mm x10", "type": "text", "key": "" }
+        { "text": "mm", "type": "text", "key": "" }
       ],
       [
         { "text": "x left", "type": "action", "key": "x_left_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "x_left_param" },
-        { "text": "mm x10", "type": "text", "key": "" }
+        { "text": "mm", "type": "text", "key": "" }
       ],
       [
         { "text": "y c2", "type": "action", "key": "y_c2_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "y_c2_param" },
-        { "text": "mm x10", "type": "text", "key": "" }
+        { "text": "mm", "type": "text", "key": "" }
       ],
       [
         { "text": "y c3", "type": "action", "key": "y_c3_btn", "status": "yes" },
         { "text": "+0000-", "type": "num", "key": "y_c3_param" },
-        { "text": "mm x10", "type": "text", "key": "" }
+        { "text": "mm", "type": "text", "key": "" }
       ],
       [
         { "text": "wrist vert", "type": "action", "key": "wrist_vert_btn", "status": "yes" },
