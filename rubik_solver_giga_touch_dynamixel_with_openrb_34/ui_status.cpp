@@ -6,7 +6,7 @@
 #include "logging.h"
 #include "rb_interface.h"
 
-static std::map<String, ButtonState> buttonMap;
+std::map<String, ButtonState> buttonMap;
 
 // Color definitions
 static const lv_color_t COLOR_OK = lv_color_hex(0x40C040);      // green
@@ -103,6 +103,7 @@ void logButtonMap(bool alwaysLog) {
                (void *)st.btn,
                st.active ? "yes" : "no",
                st.issue ? "yes" : "no");
+    log_lv_obj_info(st.btn, key.c_str());
     count++;
   }
 
@@ -236,7 +237,7 @@ void log_lv_obj_info(const lv_obj_t *obj, const char *prefix) {
     focused = true;
 #endif
 
-  LOG_PRINTF("    log for btn{%s} type{%s} pos{%d,%d} size{%d,%d} hidden{%s} focused{%s}\n",
+  LOG_PRINTF("     ----log for btn{%s} type{%s} pos{%d,%d} size{%d,%d} hidden{%s} focused{%s}\n",
              prefix ? prefix : "",
              name ? name : "(unknown)",
              coords.x1, coords.y1,

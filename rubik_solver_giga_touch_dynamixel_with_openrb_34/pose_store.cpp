@@ -371,7 +371,7 @@ void PoseStore::reflect_poses_ui() {
   //LOG_SECTION_START("PoseStore::reflect_poses_ui");
   for (int i = 0; i < count; i++) {
     const Pose &p = poses_list[i];
-    bool issue = p.last_run_ok;  //TODO change this to also reflect is rb is not working at all
+    bool issue = !p.last_run_ok;  //TODO change this to also reflect is rb is not working at all
     bool active = is_at_pose(p.button_key.c_str(), 0.5, 1.0);
     if (!issue) active = 0;
     if (issue) LOG_PRINTF("--- reflect UI for %s with issue {1}\n", p.button_key.c_str());
