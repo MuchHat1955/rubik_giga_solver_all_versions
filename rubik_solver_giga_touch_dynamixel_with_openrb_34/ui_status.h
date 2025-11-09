@@ -23,5 +23,7 @@ struct ButtonState {
 void uiStatusClear();
 void uiStatusRegisterButton(const String &buttonKey, lv_obj_t *btn);
 void updateButtonStateByKey(const String &buttonKey, bool issue, bool active);
-void updateButtonStateByPtr(lv_obj_t* btn, bool issue, bool active);
-
+void setButtonOverlayByPtr(lv_obj_t *btn, bool issue, bool active);
+void logButtonMap(bool alwaysLog);
+int countOfButtonIssues();
+int countOfButtonActive();

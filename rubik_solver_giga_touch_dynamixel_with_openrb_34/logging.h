@@ -96,7 +96,6 @@ inline void serial_printf(const char* fmt, Args... args) {
     if (logging_on) { \
       log_indent(); \
       serial_printf(fmt, ##__VA_ARGS__); \
-      Serial.println(); \
     } \
   } while (0)
 

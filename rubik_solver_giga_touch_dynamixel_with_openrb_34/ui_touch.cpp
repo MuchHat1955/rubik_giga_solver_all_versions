@@ -13,7 +13,7 @@
 #include "pose_store.h"
 
 // Forward declarations
-void updateButtonStateByPtr(lv_obj_t *btn, bool issue, bool active);
+void setButtonOverlayByPtr(lv_obj_t *btn, bool issue, bool active);
 
 extern RBInterface rb;
 extern PoseStore pose_store;
@@ -125,7 +125,7 @@ void buttonAction(const char *key) {
 
   // --- Regular action (pose / servo / group / sequence) ---
   setFooter((String("action ") + key).c_str());
-  runAction((char*)key);
+  runAction((char *)key);
 
   LOG_SECTION_END();
 }
@@ -215,10 +215,14 @@ static unsigned long lastRefresh = 0;
 
 void ui_refresh() {
   unsigned long now = millis();
-  if (now - lastRefresh < 11000UL) return;  //TODO adjust this
+  logButtonMap(false);
+  if (now - lastRefresh < 30000UL) return;  //TODO adjust this
   lastRefresh = now;
 
+  LOG_SECTION_START("refresh ui");
   pose_store.reflect_poses_ui();
+  logButtonMap(true);
+  LOG_SECTION_END();
 }
 
 void ui_loop() {

@@ -15,7 +15,7 @@ void buildMenu(const char *menuName);
 void buttonAction(const char *key);
 
 // to change UI status
-void updateButtonStateByPtr(lv_obj_t* btn, bool issue, bool active);
+void setButtonOverlayByPtr(lv_obj_t* btn, bool issue, bool active);
 
 // utility functions
 void setFooter(const char *msg);

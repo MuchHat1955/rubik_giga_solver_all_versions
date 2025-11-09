@@ -295,7 +295,7 @@ bool PoseStore::run_pose(const char *pose_name) {
     LOG_PRINTF("[!] unknown move type for {%s}\n", type.c_str());
   }
   pose.last_run_ok = ok;
-  LOG_PRINTF("pose store run pose last run set to {%}\n", ok);
+  LOG_PRINTF("pose store run pose last run set to {%s}\n", pose.last_run_ok ? "true" : "false");
   LOG_SECTION_END();
   return ok;
 }
@@ -373,7 +373,8 @@ void PoseStore::reflect_poses_ui() {
     const Pose &p = poses_list[i];
     bool issue = p.last_run_ok;  //TODO change this to also reflect is rb is not working at all
     bool active = is_at_pose(p.button_key.c_str(), 0.5, 1.0);
-    if (!issue) active = false;
+    if (!issue) active = 0;
+    if (issue) LOG_PRINTF("--- reflect UI for %s with issue {1}\n", p.button_key.c_str());
     updateButtonStateByKey(p.button_key.c_str(), issue, active);
   }
   //LOG_SECTION_END();
@@ -423,7 +424,7 @@ void PoseStore::update_pose_store_from_param_store(const Pose *defaults, int def
         LOG_ERROR_RB("pose not found for default {%s}", def.name.c_str());
       }
     } else {
-      LOG_PRINTF("No saved param for pose{%s}, keeping default {%.2f}\n",
+      LOG_PRINTF("    No saved param for pose{%s}, keeping default {%.2f}\n",
                  def.name.c_str(), def.p1);
     }
   }
@@ -438,9 +439,9 @@ void PoseStore::list_poses() const {
   LOG_SECTION_START("PoseStore::list_poses");
   for (int i = 0; i < count; i++) {
     const Pose &p = poses_list[i];
-    LOG_PRINTF("(%2d) name{%-10s} | type{%-8s} | p1{%.2f} | step{%.2f} min{%.2f} max{%.2f} btn{%s} last{%d}\n",
+    LOG_PRINTF("(%2d) name{%-10s} | type{%-8s} | p1{%.2f} | step{%.2f} min{%.2f} max{%.2f} btn{%s} last{%s}\n",
                i, p.name.c_str(), p.move_type.c_str(), p.p1,
-               p.step, p.min_val, p.max_val, p.button_key.c_str(), p.last_run_ok);
+               p.step, p.min_val, p.max_val, p.button_key.c_str(), p.last_run_ok ? "true" : "false");
   }
   LOG_SECTION_END();
 }

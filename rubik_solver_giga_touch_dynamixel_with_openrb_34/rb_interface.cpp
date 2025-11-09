@@ -421,7 +421,7 @@ bool RBInterface::updateInfo() {
 
   if (!gotAny) {
     addErrorLine("no READ 0 response received");
-    LOG_PRINTF("[!] No response for READ 0");
+    LOG_PRINTF("[!] No response for READ 0\n");
     pose_store.set_all_poses_last_run(false);
     LOG_SECTION_END();
     return false;
