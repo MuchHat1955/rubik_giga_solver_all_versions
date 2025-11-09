@@ -61,7 +61,7 @@ unsigned long millisLastLog = 0;
 
 void logButtonMap(bool alwaysLog) {
 
-  if (millis() < millisLastLog + 6000) return;
+  if (millis() < millisLastLog + 500) return;
   millisLastLog = millis();
 
   int countIssues = 0;
@@ -97,7 +97,7 @@ void logButtonMap(bool alwaysLog) {
   for (const auto &entry : buttonMap) {
     const String &key = entry.first;
     const ButtonState &st = entry.second;
-    LOG_PRINTF("%02d.  key{%s} btn_ptr{%p} active{%s} issue{%s}\n",
+    LOG_PRINTF("    ---- {%02d} key{%s} btn_ptr{%p} active{%s} issue{%s}\n",
                count,
                key.c_str(),
                (void *)st.btn,
@@ -237,7 +237,7 @@ void log_lv_obj_info(const lv_obj_t *obj, const char *prefix) {
     focused = true;
 #endif
 
-  LOG_PRINTF("     ----log for btn{%s} type{%s} pos{%d,%d} size{%d,%d} hidden{%s} focused{%s}\n",
+  LOG_PRINTF("     ---- log for btn{%s} type{%s} pos{%d,%d} size{%d,%d} hidden{%s} focused{%s}\n",
              prefix ? prefix : "",
              name ? name : "(unknown)",
              coords.x1, coords.y1,
@@ -251,8 +251,9 @@ void log_lv_obj_info(const lv_obj_t *obj, const char *prefix) {
 void updateButtonStateByKey(const String &buttonKey, bool issue, bool active) {
   auto it = buttonMap.find(buttonKey);
   if (it == buttonMap.end()) {
-    if (issue) LOG_PRINTF("[!] button key{%s} not found for reflect UI issue {%d}\n", buttonKey.c_str(), issue);  //TODO too noisy logging
-    return;                                                                                                       // nothing to update
+    if (issue) LOG_PRINTF("[!] button key{%s} not found for reflect UI issue {%s}\n",  //
+                          buttonKey.c_str(), issue ? "yes" : "no");                    //TODO too noisy logging
+    return;                                                                            // nothing to update
   }
 
   ButtonState &b = it->second;
@@ -262,10 +263,12 @@ void updateButtonStateByKey(const String &buttonKey, bool issue, bool active) {
   if (b.btn) {
     setButtonOverlayByPtr(b.btn, issue, active);
     if (issue || active) {
-      LOG_PRINTF("[!] updating button WITH PTR for key {%s} issue {%d}\n", buttonKey.c_str(), issue);
+      LOG_PRINTF("[!] updating button WITH PTR for key {%s} issue {%s}\n",  //
+                 buttonKey.c_str(), issue ? "true" : "false");
       log_lv_obj_info(b.btn, buttonKey.c_str());
     }
   } else {
-    if (issue || active) LOG_PRINTF("[!] updating button WITH NO PTR for key{%s} issue {%d}\n", buttonKey.c_str(), issue);
+    if (issue || active) LOG_PRINTF("[!] updating button WITH NO PTR for key{%s} issue {%s}\n",  //
+                                    buttonKey.c_str(), issue ? "true" : "false");
   }
 }

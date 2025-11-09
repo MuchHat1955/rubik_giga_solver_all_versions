@@ -20,12 +20,15 @@ extern PoseStore pose_store;
 // ---- below is for actions to be done when a menu is displayed ---
 void onBuildMenu(const char *menuName) {
   LOG_SECTION_START_VAR("on build menu", "for menu", menuName);
+    logButtonMap(true);
 
   if (strcmp(menuName, "poses") == 0) {
     LOG_SECTION_START_VAR("update servos for poses UI", "menu", menuName);
     rb.updateInfo();  //TODO check for error etc, now it checks for pos errors
     LOG_SECTION_END();
   }
+
+  logButtonMap(true);
   LOG_SECTION_END();
 }
 

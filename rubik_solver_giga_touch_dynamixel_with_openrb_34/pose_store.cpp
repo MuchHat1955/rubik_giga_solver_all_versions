@@ -374,7 +374,7 @@ void PoseStore::reflect_poses_ui() {
     bool issue = !p.last_run_ok;  //TODO change this to also reflect is rb is not working at all
     bool active = is_at_pose(p.button_key.c_str(), 0.5, 1.0);
     if (!issue) active = 0;
-    if (issue) LOG_PRINTF("--- reflect UI for %s with issue {1}\n", p.button_key.c_str());
+    if (issue) LOG_PRINTF("    ---- reflect UI for {%s} with issue {true}\n", p.button_key.c_str());
     updateButtonStateByKey(p.button_key.c_str(), issue, active);
   }
   //LOG_SECTION_END();
@@ -424,7 +424,7 @@ void PoseStore::update_pose_store_from_param_store(const Pose *defaults, int def
         LOG_ERROR_RB("pose not found for default {%s}", def.name.c_str());
       }
     } else {
-      LOG_PRINTF("    No saved param for pose{%s}, keeping default {%.2f}\n",
+      LOG_PRINTF("    ---- No saved param for pose{%s}, keeping default {%.2f}\n",
                  def.name.c_str(), def.p1);
     }
   }
