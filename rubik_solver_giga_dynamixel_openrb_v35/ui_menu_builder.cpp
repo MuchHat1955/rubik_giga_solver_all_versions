@@ -17,34 +17,6 @@ void buildMenu(const char *menuName);
 extern RBInterface rb;
 extern PoseStore pose_store;
 
-// ---- below is for actions to be done when a menu is displayed ---
-void onBuildMenu(const char *menuName) {
-  LOG_SECTION_START_VAR("on build menu", "for menu", menuName);
-  logButtonMap(true);
-
-  if (strcmp(menuName, "poses") == 0) {
-    LOG_SECTION_START_VAR("update servos for poses UI", "menu", menuName);
-    setFooter("update servos");
-    updateButtonStateByKey("poses", false, false, true);
-    rb.updateInfo();
-    updateButtonStateByKey("poses", false, false, false);
-    lv_timer_handler();
-    LOG_SECTION_END();
-  }
-  if (strcmp(menuName, "system") == 0) {
-    LOG_SECTION_START_VAR("update servos for poses UI", "menu", menuName);
-    setFooter("update servos");
-    updateButtonStateByKey("system", false, false, true);
-    rb.updateInfo();
-    updateButtonStateByKey("system", false, false, false);
-    lv_timer_handler();
-    LOG_SECTION_END();
-  }
-
-  logButtonMap(true);
-  LOG_SECTION_END();
-}
-
 // ===========================================================
 //  Static LVGL-compatible callbacks for numeric widgets
 // ===========================================================
@@ -444,7 +416,6 @@ void buildMenu(const char *menuName) {
     y += adjustedRowH;
   }
 
-  onBuildMenu(menuName);
   lv_obj_invalidate(lv_scr_act());
   LOG_SECTION_END();
 }
@@ -463,7 +434,7 @@ const char jsonBuffer[] = R"json(
       [{ "text": "read cube", "type": "menu", "key": "read" }],
       [{ "text": "scramble cube", "type": "menu", "key": "random" }],
       [{ "text": "tests", "type": "menu", "key": "tests" }],
-      [{ "text": "system", "type": "menu", "key": "system" }]
+      [{ "text": "system", "type": "menu", "key": "system","status": "yes" }]
     ]
   },
   "solve": {

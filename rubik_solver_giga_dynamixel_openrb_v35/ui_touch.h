@@ -15,7 +15,8 @@ void buildMenu(const char *menuName);
 void buttonAction(const char *key);
 
 // to change UI status
-void setButtonOverlayByPtr(lv_obj_t *btn, bool is_menu, bool issue, bool active, bool busy);
+void drawButtonOverlayByPtr(lv_obj_t *btn, bool is_menu, bool issue, bool active, bool busy);
+void updateButtonAndRefreshServosOnClick(const char *key);
 
 // utility functions
 void setFooter(const char *msg);
@@ -24,7 +25,6 @@ void setParamValue(const char *name, double val);
 const char *getStatusText(const char *name);
 const char *getStatusColor(const char *name);
 void select_num_pair(lv_obj_t *numBox, bool toggle);
-lv_color_t colorFromName(const char *name);
 
 // ----------------------------------------------------------
 // EXTERNALLY USED OBJECTS

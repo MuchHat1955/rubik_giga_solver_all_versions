@@ -13,7 +13,7 @@
 #include "pose_store.h"
 
 // Forward declarations
-void setButtonOverlayByPtr(lv_obj_t *btn, bool is_menu, bool issue, bool active, bool busy);
+void drawButtonOverlayByPtr(lv_obj_t *btn, const char *key, bool is_menu, bool issue, bool active, bool busy);
 
 extern RBInterface rb;
 extern PoseStore pose_store;
@@ -50,38 +50,59 @@ struct ServoButtonInfo {
 
 static std::map<String, ServoButtonInfo> stateButtons;  // key → info
 
-// color scheme
-static const lv_color_t COLOR_SERVO_OK = lv_color_hex(0x40C040);     // green
-static const lv_color_t COLOR_SERVO_ATPOS = lv_color_hex(0x4040FF);  // blue
-static const lv_color_t COLOR_SERVO_ERR = lv_color_hex(0xC02020);    // red
-
 // ----------------------------------------------------------
 //                   UTILITY HELPERS
 // ----------------------------------------------------------
-lv_color_t colorFromName(const char *name) {
-  if (!name) return lv_color_hex(0xE0E0E0);
-  if (!strcasecmp(name, "green")) return lv_color_hex(0x00FF00);
-  if (!strcasecmp(name, "red")) return lv_color_hex(0xFF4040);
-  if (!strcasecmp(name, "yellow")) return lv_color_hex(0xFFFF00);
-  if (!strcasecmp(name, "orange")) return lv_color_hex(0xFFA000);
-  if (!strcasecmp(name, "gray")) return lv_color_hex(0xE0E0E0);
-  return lv_color_hex(0xE0E0E0);
-}
-
 void setFooter(const char *msg) {
-  if (footLbl) {
-    lv_label_set_text(footLbl, msg);
+  if (footLbl && msg) {
+    char b[200];
+    char *l = b;
+
+    // Convert to lowercase before printing
+    for (const char *p = msg; *p && (l - b) < (int)sizeof(b) - 1; ++p) {
+      *l++ = tolower((unsigned char)*p);
+    }
+    *l = '\0';  // ✅ null-terminate correctly
+
+    LOG_PRINTF("set footer {%s}\n", b);
+
+    lv_label_set_text(footLbl, b);
     lv_obj_invalidate(footLbl);
-    lv_timer_handler();
+    lv_timer_handler();  // ✅ force redraw immediately
   }
 }
 
-void updateStatus(const char *key, const char *value, const char *colorName) {
-  if (!statusWidgets.count(key)) return;
-  lv_obj_t *obj = statusWidgets[key];
-  lv_color_t col = colorFromName(colorName);
-  lv_label_set_text(obj, value);
-  lv_obj_set_style_text_color(obj, col, 0);
+// ---- below is for actions to be done when a menu is displayed ---
+void updateButtonAndRefreshServosOnClick(const char *key) {
+  LOG_SECTION_START_VAR("update buttons on click", "for menu", key);
+  // logButtonMap(true);
+  if (!key) {
+    LOG_PRINTF("invalik key {null}\n");
+    LOG_SECTION_END();
+    return;
+  }
+
+  if (strcmp(key, "poses") == 0) {
+    LOG_SECTION_START_VAR("update servos for poses UI", "btn", key);
+    setFooter("update servos");
+    updateButtonStateByKey("poses", false, false, true);
+    rb.updateInfo();
+    updateButtonStateByKey("poses", false, false, false);
+    lv_timer_handler();
+    LOG_SECTION_END();
+  }
+  if (strcmp(key, "system") == 0) {
+    LOG_SECTION_START_VAR("update servos for poses UI", "btn", key);
+    setFooter("update servos");
+    updateButtonStateByKey("system", false, false, true);
+    rb.updateInfo();
+    updateButtonStateByKey("system", false, false, false);
+    lv_timer_handler();
+    LOG_SECTION_END();
+  }
+
+  logButtonMap(true);
+  LOG_SECTION_END();
 }
 
 // ----------------------------------------------------------
@@ -108,6 +129,8 @@ void buttonAction(const char *key) {
     LOG_SECTION_END();
     return;
   }
+
+  updateButtonAndRefreshServosOnClick(key);
 
   // --- Navigate to a submenu if the key matches a menu name ---
   if (menuDoc.containsKey(key)) {
