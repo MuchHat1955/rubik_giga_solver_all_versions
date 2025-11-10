@@ -25,8 +25,15 @@ void onBuildMenu(const char *menuName) {
   if (strcmp(menuName, "poses") == 0) {
     LOG_SECTION_START_VAR("update servos for poses UI", "menu", menuName);
     updateButtonStateByKey("poses", false, false, true);
-    rb.updateInfo();  //TODO check for error etc, now it checks for pos errors
+    rb.updateInfo();
     updateButtonStateByKey("poses", false, false, false);
+    LOG_SECTION_END();
+  }
+    if (strcmp(menuName, "system") == 0) {
+    LOG_SECTION_START_VAR("update servos for poses UI", "menu", menuName);
+    updateButtonStateByKey("system", false, false, true);
+    rb.updateInfo();
+    updateButtonStateByKey("system", false, false, false);
     LOG_SECTION_END();
   }
 
