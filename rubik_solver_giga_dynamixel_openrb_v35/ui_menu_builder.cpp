@@ -24,16 +24,20 @@ void onBuildMenu(const char *menuName) {
 
   if (strcmp(menuName, "poses") == 0) {
     LOG_SECTION_START_VAR("update servos for poses UI", "menu", menuName);
+    setFooter("update servos");
     updateButtonStateByKey("poses", false, false, true);
     rb.updateInfo();
     updateButtonStateByKey("poses", false, false, false);
+    lv_timer_handler();
     LOG_SECTION_END();
   }
-    if (strcmp(menuName, "system") == 0) {
+  if (strcmp(menuName, "system") == 0) {
     LOG_SECTION_START_VAR("update servos for poses UI", "menu", menuName);
+    setFooter("update servos");
     updateButtonStateByKey("system", false, false, true);
     rb.updateInfo();
     updateButtonStateByKey("system", false, false, false);
+    lv_timer_handler();
     LOG_SECTION_END();
   }
 

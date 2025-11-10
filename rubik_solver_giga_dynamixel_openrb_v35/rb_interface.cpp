@@ -129,7 +129,7 @@ bool RBInterface::requestServoInfo(uint8_t id) {
     return true;
   }
 
-  LOG_ERROR_RB("no INFO response for servo ID {%d}", id);
+  LOG_ERROR_RB("no INFO response for servo ID {%d}\n", id);
   LOG_SECTION_END();
   return false;
 }
@@ -176,7 +176,7 @@ bool RBInterface::requestAllServoInfo() {
 
     if (!got) {
       all_ok = false;
-      LOG_ERROR_RB("no INFO response for servo ID {%d}", id);
+      LOG_ERROR_RB("no INFO response for servo ID {%d}\n", id);
       if (id < MAX_SERVOS) servo_infos[id].clear();
     }
   }

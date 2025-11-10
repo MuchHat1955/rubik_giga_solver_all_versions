@@ -275,6 +275,8 @@ bool PoseStore::run_pose(const char *pose_name) {
   String type = pose.move_type;
 
   updateButtonStateByKey(pose.button_key.c_str(), false, false, true);
+  String text = "rus pose " + String(pose_name);
+  setFooter(text.c_str());
 
   LOG_SECTION_START_PRINTF("pose store run_pose", "| {%s} type{%s}", pose_name, type.c_str());
   bool ok = false;

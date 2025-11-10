@@ -69,7 +69,11 @@ lv_color_t colorFromName(const char *name) {
 }
 
 void setFooter(const char *msg) {
-  if (footLbl) lv_label_set_text(footLbl, msg);
+  if (footLbl) {
+    lv_label_set_text(footLbl, msg);
+    lv_obj_invalidate(footLbl);
+    lv_timer_handler();
+  }
 }
 
 void updateStatus(const char *key, const char *value, const char *colorName) {
