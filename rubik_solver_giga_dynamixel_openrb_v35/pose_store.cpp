@@ -3,6 +3,8 @@
 #include "logging.h"
 #include "rb_interface.h"
 #include "ui_status.h"
+#include "ui_touch.h"
+
 
 extern RBInterface rb;
 
