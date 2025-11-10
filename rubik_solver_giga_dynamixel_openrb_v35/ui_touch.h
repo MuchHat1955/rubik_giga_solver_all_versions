@@ -15,7 +15,7 @@ void buildMenu(const char *menuName);
 void buttonAction(const char *key);
 
 // to change UI status
-void setButtonOverlayByPtr(lv_obj_t* btn, bool issue, bool active);
+void setButtonOverlayByPtr(lv_obj_t *btn, bool is_menu, bool issue, bool active, bool busy);
 
 // utility functions
 void setFooter(const char *msg);
@@ -46,6 +46,5 @@ String getSketchVersion();
 String getSketchVersionWithDate();
 
 // Declare shared widget maps (no definitions here)
-extern std::map<String, lv_obj_t*> statusWidgets;
-extern std::map<String, lv_obj_t*> numLabels;
-
+extern std::map<String, lv_obj_t *> statusWidgets;
+extern std::map<String, lv_obj_t *> numLabels;

@@ -13,7 +13,7 @@
 #include "pose_store.h"
 
 // Forward declarations
-void setButtonOverlayByPtr(lv_obj_t *btn, bool issue, bool active);
+void setButtonOverlayByPtr(lv_obj_t *btn, bool is_menu, bool issue, bool active, bool busy);
 
 extern RBInterface rb;
 extern PoseStore pose_store;

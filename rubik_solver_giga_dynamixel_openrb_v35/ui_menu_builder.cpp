@@ -20,11 +20,13 @@ extern PoseStore pose_store;
 // ---- below is for actions to be done when a menu is displayed ---
 void onBuildMenu(const char *menuName) {
   LOG_SECTION_START_VAR("on build menu", "for menu", menuName);
-    logButtonMap(true);
+  logButtonMap(true);
 
   if (strcmp(menuName, "poses") == 0) {
     LOG_SECTION_START_VAR("update servos for poses UI", "menu", menuName);
+    updateButtonStateByKey("poses", false, false, true);
     rb.updateInfo();  //TODO check for error etc, now it checks for pos errors
+    updateButtonStateByKey("poses", false, false, false);
     LOG_SECTION_END();
   }
 
@@ -498,7 +500,7 @@ const char jsonBuffer[] = R"json(
     "equal_columns": "all",
     "rows": [
       [
-        { "text": "poses", "type": "menu", "key": "poses" }
+        { "text": "poses", "type": "menu", "key": "poses", "status": "yes" }
       ],
       [
         { "text": "sequences", "type": "menu", "key": "sequences" }

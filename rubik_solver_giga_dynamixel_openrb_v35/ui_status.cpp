@@ -124,7 +124,7 @@ void uiStatusRegisterButton(const String &buttonKey, lv_obj_t *btn) {
                buttonKey.c_str(),
                it->second.issue ? "yes" : "no",
                it->second.active ? "yes" : "no");
-    setButtonOverlayByPtr(btn, it->second.issue, it->second.active);
+    setButtonOverlayByPtr(btn, buttonKey == "poses", it->second.issue, it->second.active, false);
     return;
   }
 
@@ -140,7 +140,7 @@ void uiStatusRegisterButton(const String &buttonKey, lv_obj_t *btn) {
 // ----------------------------------------------------------
 // Update button visuals by pointer (error + active)
 // ----------------------------------------------------------
-void setButtonOverlayByPtr(lv_obj_t *btn, bool issue, bool active) {
+void setButtonOverlayByPtr(lv_obj_t *btn, bool is_menu, bool issue, bool active, bool busy) {
   if (!btn) return;
 
   //LOG_SECTION_START("setButtonOverlayByPtr");
@@ -152,9 +152,10 @@ void setButtonOverlayByPtr(lv_obj_t *btn, bool issue, bool active) {
   constexpr int BORDER_WIDTH_ISSUE = 2;
 
   // Capture base color (used for normal border)
-  lv_color_t baseColor = lv_obj_get_style_border_color(btn, LV_PART_MAIN);
+  lv_color_t baseColor = COLOR_BTN_ACTION;  // color for action buttons
+  if (is_menu) baseColor = COLOR_BTN_MENU;
 
-  // Remove any overlay children (skip if LV_USE_USER_DATA disabled)
+    // Remove any overlay children (skip if LV_USE_USER_DATA disabled)
 #if LV_USE_USER_DATA
   uint32_t child_cnt = lv_obj_get_child_cnt(btn);
   for (int i = child_cnt - 1; i >= 0; --i) {
@@ -177,18 +178,27 @@ void setButtonOverlayByPtr(lv_obj_t *btn, bool issue, bool active) {
 
   lv_obj_add_flag(btn, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
 
-  // --- ISSUE: solid red fill, no white border ---
-  if (issue) {
-    lv_obj_set_style_bg_color(btn, lv_color_hex(0xC0392B), LV_PART_MAIN);
+  // --- BUSY: solid gray fill, light border ---
+  if (busy) {
+    lv_obj_set_style_bg_color(btn, lv_color_hex(0x505050), LV_PART_MAIN);  // dark gray
     lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_style_border_color(btn, lv_color_hex(0xC0392B), LV_PART_MAIN);
+    lv_obj_set_style_border_color(btn, lv_color_hex(0xDDDDDD), LV_PART_MAIN);  // off-white border
+    lv_obj_set_style_border_width(btn, BORDER_WIDTH_ISSUE, LV_PART_MAIN);
+    lv_obj_set_style_radius(btn, CORNERS, LV_PART_MAIN);
+  }
+
+  // --- ISSUE: solid red fill, no white border ---
+  else if (issue) {
+    lv_obj_set_style_bg_color(btn, lv_color_hex(0xC0392B), LV_PART_MAIN);  // red
+    lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_border_color(btn, lv_color_hex(0xC0392B), LV_PART_MAIN);  // same as fill
     lv_obj_set_style_border_width(btn, BORDER_WIDTH_ISSUE, LV_PART_MAIN);
     lv_obj_set_style_radius(btn, CORNERS, LV_PART_MAIN);
   }
 
   // --- ACTIVE: solid blue fill, no white border ---
   else if (active) {
-    lv_obj_set_style_bg_color(btn, lv_color_hex(0x4040FF), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(btn, lv_color_hex(0x4040FF), LV_PART_MAIN);  // blue
     lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_border_color(btn, lv_color_hex(0x4040FF), LV_PART_MAIN);
     lv_obj_set_style_border_width(btn, BORDER_WIDTH_ACTIVE, LV_PART_MAIN);
@@ -198,12 +208,15 @@ void setButtonOverlayByPtr(lv_obj_t *btn, bool issue, bool active) {
   // --- NORMAL: transparent background, restore base border ---
   else {
     lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, LV_PART_MAIN);
-    lv_obj_set_style_border_color(btn, baseColor, LV_PART_MAIN);
+    lv_obj_set_style_border_color(btn, baseColor, LV_PART_MAIN);  // ✅ correct parameter
     lv_obj_set_style_border_width(btn, BORDER_WIDTH_NORMAL, LV_PART_MAIN);
     lv_obj_set_style_radius(btn, CORNERS, LV_PART_MAIN);
   }
 
   lv_obj_invalidate(btn);
+    delay(15);
+  lv_timer_handler();
+  delay(15);
   //LOG_SECTION_END();
 }
 
@@ -248,27 +261,34 @@ void log_lv_obj_info(const lv_obj_t *obj, const char *prefix) {
 // ----------------------------------------------------------
 // Update state by key (used by UI refresh)
 // ----------------------------------------------------------
-void updateButtonStateByKey(const String &buttonKey, bool issue, bool active) {
+void updateButtonStateByKey(const String &buttonKey, bool issue, bool active, bool busy) {
   auto it = buttonMap.find(buttonKey);
   if (it == buttonMap.end()) {
     if (issue) LOG_PRINTF("[!] button key {%s} not found for reflect UI issue {%s}\n",  //
-                          buttonKey.c_str(), issue ? "yes" : "no");                    //TODO too noisy logging
-    return;                                                                            // nothing to update
+                          buttonKey.c_str(), issue ? "yes" : "no");                     //TODO too noisy logging
+    return;                                                                             // nothing to update
   }
+
+  bool is_menu = false;
+  if (strcmp(buttonKey.c_str(), "poses") == 0) is_menu = true;
 
   ButtonState &b = it->second;
   b.issue = issue;
   b.active = active;
 
   if (b.btn) {
-    setButtonOverlayByPtr(b.btn, issue, active);
+    setButtonOverlayByPtr(b.btn, is_menu, issue, active, busy);
     if (issue || active) {
       LOG_PRINTF("[!] updating button WITH PTR for key {%s} issue {%s}\n",  //
                  buttonKey.c_str(), issue ? "yes" : "no");
       log_lv_obj_info(b.btn, buttonKey.c_str());
     }
   } else {
-    if (issue || active) LOG_PRINTF("[!] updating button WITH NO PTR for key {%s} active {%s} issue {%s}\n",  //
-                                    buttonKey.c_str(), active ? "yes" : "no", issue ? "yes" : "no");
+    if (issue || active) LOG_PRINTF("[!] updating button WITH NO PTR for key {%s} menu {%s} active {%s} issue {%s}\n",  //
+                                    buttonKey.c_str(),                                                                  //
+                                    is_menu ? "menu" : "no menu",                                                       //
+                                    active ? "yes" : "no",                                                              //
+                                    issue ? "yes" : "no",                                                               //
+                                    busy ? "yes" : "no");
   }
 }
