@@ -269,6 +269,6 @@ void updateButtonStateByKey(const String &buttonKey, bool issue, bool active) {
     }
   } else {
     if (issue || active) LOG_PRINTF("[!] updating button WITH NO PTR for key {%s} active {%s} issue {%s}\n",  //
-                                    buttonKey.c_str(), , active ? "yes" : "no", issue ? "yes" : "no");
+                                    buttonKey.c_str(), active ? "yes" : "no", issue ? "yes" : "no");
   }
 }
