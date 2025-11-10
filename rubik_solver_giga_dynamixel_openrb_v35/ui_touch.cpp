@@ -91,7 +91,7 @@ void buttonAction(const char *key) {
 
   unsigned long now = millis();
   if (key && *key && key == lastClickKey && now - lastClickTime < 500) {
-    LOG_PRINTF("button action rapid re-click ignored key{%s}\n", key);
+    LOG_PRINTF("button action rapid re-click ignored key {%s}\n", key);
     LOG_SECTION_END();
     return;
   }
@@ -171,7 +171,7 @@ void validateMenuKeys() {
         const char *type = it["type"] | "";
         const char *key = it["key"] | "";
         if ((strcmp(type, "action") == 0 || strcmp(type, "menu") == 0) && (!key || !*key)) {
-          LOG_PRINTF("menu missing key{%s} type{%s}\n", menuName, type);
+          LOG_PRINTF("menu missing key {%s} type {%s}\n", menuName, type);
         }
       }
     }
@@ -195,7 +195,7 @@ void ui_init() {
   // 3. Parse menu JSON AFTER initializing LVGL
   DeserializationError err = deserializeJson(menuDoc, jsonBuffer);
   if (err) {
-    LOG_PRINTF("error on deserialize json{%s}\n", err.c_str());
+    LOG_PRINTF("error on deserialize json {%s}\n", err.c_str());
     LOG_SECTION_END();
     return;  // avoid using empty doc
   }

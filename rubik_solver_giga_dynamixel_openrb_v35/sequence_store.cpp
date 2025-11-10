@@ -87,7 +87,7 @@ bool SequenceStore::run_sequence_by_key(const char* key) {
     return true;
   }
 
-  LOG_ERROR_RB("Sequence not found: %s", key);
+  LOG_ERROR_RB("Sequence not found {%s}", key);
   LOG_SECTION_END();
   return false;
 }

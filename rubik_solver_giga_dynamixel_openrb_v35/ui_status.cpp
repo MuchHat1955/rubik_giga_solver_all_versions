@@ -97,7 +97,7 @@ void logButtonMap(bool alwaysLog) {
   for (const auto &entry : buttonMap) {
     const String &key = entry.first;
     const ButtonState &st = entry.second;
-    LOG_PRINTF("    ---- {%02d} key{%s} btn_ptr{%p} active{%s} issue{%s}\n",
+    LOG_PRINTF("    ---- {%02d} key {%s} btn_ptr {%p} active {%s} issue {%s}\n",
                count,
                key.c_str(),
                (void *)st.btn,
@@ -120,10 +120,10 @@ void uiStatusRegisterButton(const String &buttonKey, lv_obj_t *btn) {
   if (it != buttonMap.end()) {
     // already exists → only update pointer
     it->second.btn = btn;
-    LOG_PRINTF("existing button {%s} reused (issue=%d active=%d)\n",
+    LOG_PRINTF("existing button {%s} reused with issue {%s} active {%s}\n",
                buttonKey.c_str(),
-               it->second.issue,
-               it->second.active);
+               it->second.issue ? "yes" : "no",
+               it->second.active ? "yes" : "no");
     setButtonOverlayByPtr(btn, it->second.issue, it->second.active);
     return;
   }
@@ -212,7 +212,7 @@ void setButtonOverlayByPtr(lv_obj_t *btn, bool issue, bool active) {
 // ----------------------------------------------------------
 void log_lv_obj_info(const lv_obj_t *obj, const char *prefix) {
   if (!obj) {
-    LOG_PRINTF("key{%s} lv_obj: (null)\n", prefix ? prefix : "");
+    LOG_PRINTF("key {%s} lv_obj {null}\n", prefix ? prefix : "");
     return;
   }
 
@@ -237,7 +237,7 @@ void log_lv_obj_info(const lv_obj_t *obj, const char *prefix) {
     focused = true;
 #endif
 
-  LOG_PRINTF("     ---- log for btn{%s} type{%s} pos{%d,%d} size{%d,%d} hidden{%s} focused{%s}\n",
+  LOG_PRINTF("     ---- log for btn {%s} typ {%s} pos {%d,%d} size {%d,%d} hidden {%s} focused {%s}\n",
              prefix ? prefix : "",
              name ? name : "(unknown)",
              coords.x1, coords.y1,
@@ -251,7 +251,7 @@ void log_lv_obj_info(const lv_obj_t *obj, const char *prefix) {
 void updateButtonStateByKey(const String &buttonKey, bool issue, bool active) {
   auto it = buttonMap.find(buttonKey);
   if (it == buttonMap.end()) {
-    if (issue) LOG_PRINTF("[!] button key{%s} not found for reflect UI issue {%s}\n",  //
+    if (issue) LOG_PRINTF("[!] button key {%s} not found for reflect UI issue {%s}\n",  //
                           buttonKey.c_str(), issue ? "yes" : "no");                    //TODO too noisy logging
     return;                                                                            // nothing to update
   }
@@ -264,11 +264,11 @@ void updateButtonStateByKey(const String &buttonKey, bool issue, bool active) {
     setButtonOverlayByPtr(b.btn, issue, active);
     if (issue || active) {
       LOG_PRINTF("[!] updating button WITH PTR for key {%s} issue {%s}\n",  //
-                 buttonKey.c_str(), issue ? "true" : "false");
+                 buttonKey.c_str(), issue ? "yes" : "no");
       log_lv_obj_info(b.btn, buttonKey.c_str());
     }
   } else {
-    if (issue || active) LOG_PRINTF("[!] updating button WITH NO PTR for key{%s} issue {%s}\n",  //
-                                    buttonKey.c_str(), issue ? "true" : "false");
+    if (issue || active) LOG_PRINTF("[!] updating button WITH NO PTR for key {%s} active {%s} issue {%s}\n",  //
+                                    buttonKey.c_str(), , active ? "yes" : "no", issue ? "yes" : "no");
   }
 }

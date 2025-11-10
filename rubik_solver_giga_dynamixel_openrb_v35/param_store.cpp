@@ -108,7 +108,7 @@ static void loadParamsFromFlash() {
     int ret = kv_get(key, &loaded, sizeof(loaded), &actual);
     if (ret == MBED_SUCCESS) {
       kv.second.value = loaded;
-      LOG_PRINTF("loaded {%s} = %.2f\n", key, loaded);
+      LOG_PRINTF("loaded {%s} = {%.2f}\n", key, loaded);
     }
   }
 
@@ -200,9 +200,9 @@ void setParamValue(const char* k, double v) {
       saveParamsToFlash();
       lastSave = millis();
     }
-    LOG_PRINTF("updated param {%s} = %.2f\n", k, v);
+    LOG_PRINTF("updated param {%s} = {%.2f}\n", k, v);
   } else {
-    LOG_PRINTF("no change for {%s} (still %.2f)\n", k, v);
+    LOG_PRINTF("no change for {%s} still {%.2f}\n", k, v);
   }
 
   LOG_SECTION_END();
@@ -228,12 +228,12 @@ void incrementParam(const char* k, int delta) {
     return;
   }
   if (!pose_store.is_param_for_pose(k)) {
-    LOG_PRINTF("[!] increment param err no pose found{%s}\n", k);
+    LOG_PRINTF("[!] increment param err no pose found {%s}\n", k);
     return;
   }
   double p1 = 0;
   if (!pose_store.get_pose_params(k, &p1)) {
-    LOG_PRINTF("[!] increment param err cannot get pose params{%s}\n", k);
+    LOG_PRINTF("[!] increment param err cannot get pose params {%s}\n", k);
     return;
   }
   pose_store.increment_pose_param(k, delta, p1);

@@ -295,7 +295,14 @@ bool PoseStore::run_pose(const char *pose_name) {
     LOG_PRINTF("[!] unknown move type for {%s}\n", type.c_str());
   }
   pose.last_run_ok = ok;
-  LOG_PRINTF("pose store run pose last run set to {%s}\n", pose.last_run_ok ? "true" : "false");
+  LOG_PRINTF("pose store last run set for {%} to {%s}\n", pose.button_key.c_str(), pose.last_run_ok ? "true" : "false");
+
+  bool active = is_at_pose(pose.button_key.c_str(), 0.5, 1.0);
+  bool issue = !ok;
+  LOG_PRINTF("    ---- reflect UI after {%s} run with issue {%s} active{%s}\n",  //
+             issue ? "yes" : "no", active ? "yes" : "no");
+  updateButtonStateByKey(pose.button_key.c_str(), issue, active);
+
   LOG_SECTION_END();
   return ok;
 }
@@ -371,7 +378,7 @@ void PoseStore::reflect_poses_ui() {
   //LOG_SECTION_START("PoseStore::reflect_poses_ui");
   for (int i = 0; i < count; i++) {
     const Pose &p = poses_list[i];
-    bool issue = !p.last_run_ok;  //TODO change this to also reflect is rb is not working at all
+    bool issue = !p.last_run_ok;
     bool active = is_at_pose(p.button_key.c_str(), 0.5, 1.0);
     if (!issue) active = 0;
     if (issue) LOG_PRINTF("    ---- reflect UI for {%s} with issue {true}\n", p.button_key.c_str());
@@ -381,16 +388,16 @@ void PoseStore::reflect_poses_ui() {
 }
 
 void PoseStore::set_all_poses_last_run(bool b) {
-  //LOG_SECTION_START("PoseStore::reflect_poses_ui");
+  LOG_SECTION_START("PoseStore::reflect_poses_ui");
   for (int i = 0; i < count; i++) {
     Pose &p = poses_list[i];
     p.last_run_ok = b;
-    bool issue = b;  //TODO change this to also reflect is rb is not working at all
+    bool issue = !b;
     bool active = is_at_pose(p.button_key.c_str(), 0.5, 1.0);
     if (!issue) active = false;
     updateButtonStateByKey(p.button_key.c_str(), issue, active);
   }
-  //LOG_SECTION_END();
+  LOG_SECTION_END();
 }
 
 void PoseStore::update_pose_store_from_param_store(const Pose *defaults, int def_count) {
