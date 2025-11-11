@@ -45,7 +45,7 @@ bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
 
   if (!got) {
     pose_store.set_all_poses_last_run(false);
-    LOG_ERROR_RB("no response from rb");
+    LOG_ERROR("no response from rb");
     LOG_SECTION_END();
     return false;
   }
@@ -129,7 +129,7 @@ bool RBInterface::requestServoInfo(uint8_t id) {
     return true;
   }
 
-  LOG_ERROR_RB("no INFO for servo ID {%d}\n", id);
+  LOG_ERROR("no INFO for servo ID {%d}\n", id);
   LOG_SECTION_END();
   return false;
 }
@@ -176,7 +176,7 @@ bool RBInterface::requestAllServoInfo() {
 
     if (!got) {
       all_ok = false;
-      LOG_ERROR_RB("no INFO for servo ID {%d}\n", id);
+      LOG_ERROR("no INFO for servo ID {%d}\n", id);
       if (id < MAX_SERVOS) servo_infos[id].clear();
     }
   }
@@ -305,7 +305,7 @@ bool RBInterface::waitForCompletion(const char* commandName) {
 
   if (!success) {
     setFooter("[!] timeout or incomplete command");
-    LOG_ERROR_RB("timeout or incomplete command {%s}", commandName);
+    LOG_ERROR("timeout or incomplete command {%s}", commandName);
   }
 
   LOG_SECTION_END();
@@ -362,48 +362,11 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
 
   if (err <= tol) return true;
 
-  LOG_ERROR_RB("verify expected move{%s} servo{%d} expected{%.2f} actual{%.2f} err{%.2f}",
+  LOG_ERROR("verify expected move{%s} servo{%d} expected{%.2f} actual{%.2f} err{%.2f}",
                cmd_name, servo_id, val, actual, err);
 
   LOG_SECTION_END();
   return false;
-}
-
-static int errNo = 0;
-
-void RBInterface::addErrorLine(const String &line) {
-  static unsigned long lastErrorMillis = 0;
-  unsigned long now = millis();
-
-  // Compute time delta since last error or since boot
-  unsigned long delta = (lastErrorMillis == 0) ? now : (now - lastErrorMillis);
-  lastErrorMillis = now;
-
-  // Format time text
-  String timeText;
-  unsigned long secs = delta / 1000;
-  if (secs < 60) {
-    timeText = String(secs) + "s";
-  } else {
-    unsigned long mins = secs / 60;
-    unsigned long rems = secs % 60;
-    timeText = String(mins) + "m" + String(rems) + "s";
-  }
-
-  // Trim any trailing newline or carriage return before appending timing info
-  String cleanLine = line;
-  cleanLine.trim();   // removes spaces, \n, \r from both ends
-
-  // Build full error entry
-  errNo++;
-  String lineToAdd = String(errNo) + ". [!] " + cleanLine + " (" +
-                     (errNo == 1 ? "since boot " : "+") + timeText + ")";
-
-  // Push and prune
-  errorLines.push_back(lineToAdd);
-  if (errorLines.size() > 20) {
-    errorLines.erase(errorLines.begin());
-  }
 }
 
 // ============================================================

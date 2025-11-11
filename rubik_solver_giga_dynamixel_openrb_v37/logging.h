@@ -8,10 +8,11 @@
 #define LOG_BUFFER_SIZE 1024  // ring buffer for deferred logging from ISRs
 
 // CATEGORY ENABLES (comment out to disable compile-time)
-// #define LOG_REFLECT
+
+// #define LOG_MENU
 #define LOG_RB_COMMANDS
 #define LOG_PARAM
-// #define LOG_MENU
+#define LOG_POSE
 #define LOG_SEQUENCES
 #define LOG_CUBE
 
@@ -23,10 +24,10 @@ extern RBInterface rb;
 // GLOBAL FLAGS / STATE
 // ============================================================================
 extern bool logging_on;
-extern bool log_reflect_enabled;
-extern bool log_rb_enabled;
-extern bool log_persist_enabled;
 extern bool log_menu_enabled;
+extern bool log_rb_enabled;
+extern bool log_param_enabled;
+extern bool log_pose_enabled;
 extern bool log_seq_enabled;
 extern bool log_cube_enabled;
 
@@ -47,10 +48,12 @@ inline void update_bee_logging() {
   if (bee_logging_enabled && millis() - bee_logging_start_ms > BEE_LOGGING_DURATION_MS)
     bee_logging_enabled = false;
 }
-inline void on_system_menu_opened() {
+inline void on_system_pose_opened() {
   bee_logging_enabled = true;
   bee_logging_start_ms = millis();
 }
+
+void addErrorLine(const String& line);
 
 #define SHOULD_LOG(flag) (bee_logging_enabled && (flag))
 
@@ -114,12 +117,12 @@ inline void serial_printf(const char* fmt, Args... args) {
   } while (0)
 
 // Error helper (ties to RBInterface)
-#define LOG_ERROR_RB(fmt, ...) \
+#define LOG_ERROR(fmt, ...) \
   do { \
     char _buf[200]; \
     snprintf(_buf, sizeof(_buf), fmt, ##__VA_ARGS__); \
     LOG_PRINTF("[!] %s", _buf); \
-    rb.addErrorLine(_buf); \
+    addErrorLine(_buf); \
   } while (0)
 
 // ============================================================================
@@ -171,10 +174,10 @@ inline void serial_printf(const char* fmt, Args... args) {
 // ============================================================================
 // CATEGORY SECTION SHORTCUTS
 // ============================================================================
-#ifdef LOG_REFLECT
-#define LOG_SECTION_START_REFLECT(fmt, ...) LOG_SECTION_START_IF(log_reflect_enabled, "REFLECT", fmt, ##__VA_ARGS__)
+#ifdef LOG_MENU
+#define LOG_SECTION_START_MENU(fmt, ...) LOG_SECTION_START_IF(log_menu_enabled, "MENU", fmt, ##__VA_ARGS__)
 #else
-#define LOG_SECTION_START_REFLECT(fmt, ...) ((void)0)
+#define LOG_SECTION_START_MENU(fmt, ...) ((void)0)
 #endif
 
 #ifdef LOG_RB_COMMANDS
@@ -184,15 +187,15 @@ inline void serial_printf(const char* fmt, Args... args) {
 #endif
 
 #ifdef LOG_PARAM
-#define LOG_SECTION_START_PARAM(fmt, ...) LOG_SECTION_START_IF(log_persist_enabled, "PERSIST", fmt, ##__VA_ARGS__)
+#define LOG_SECTION_START_PARAM(fmt, ...) LOG_SECTION_START_IF(log_param_enabled, "PARAM", fmt, ##__VA_ARGS__)
 #else
 #define LOG_SECTION_START_PARAM(fmt, ...) ((void)0)
 #endif
 
-#ifdef LOG_MENU
-#define LOG_SECTION_START_MENU(fmt, ...) LOG_SECTION_START_IF(log_menu_enabled, "MENU", fmt, ##__VA_ARGS__)
+#ifdef LOG_POSE
+#define LOG_SECTION_START_POSE(fmt, ...) LOG_SECTION_START_IF(log_pose_enabled, "POSE", fmt, ##__VA_ARGS__)
 #else
-#define LOG_SECTION_START_MENU(fmt, ...) ((void)0)
+#define LOG_SECTION_START_POSE(fmt, ...) ((void)0)
 #endif
 
 #ifdef LOG_SEQUENCES
@@ -218,16 +221,16 @@ inline void serial_printf(const char* fmt, Args... args) {
 #define LOG_SHOULD_PRINT(tag, enabled_flag) \
   (logging_on && bee_logging_enabled && (enabled_flag || (current_log_prefix && strcmp(current_log_prefix, tag) == 0)))
 
-// ---------------------------------------------------------------- REFLECT --
-#ifdef LOG_REFLECT
-#define LOG_PRINTF_REFLECT(fmt, ...) \
+// ---------------------------------------------------------------- MENU --
+#ifdef LOG_MENU
+#define LOG_PRINTF_MENU(fmt, ...) \
   do { \
-    if (LOG_SHOULD_PRINT("REFLECT", log_reflect_enabled)) { \
+    if (LOG_SHOULD_PRINT("MENU", log_menu_enabled)) { \
       LOG_PRINTF("[REFLECT] " fmt, ##__VA_ARGS__); \
     } \
   } while (0)
 #else
-#define LOG_PRINTF_REFLECT(fmt, ...) ((void)0)
+#define LOG_PRINTF_MENU(fmt, ...) ((void)0)
 #endif
 
 // ------------------------------------------------------------------ RB -----
@@ -242,12 +245,12 @@ inline void serial_printf(const char* fmt, Args... args) {
 #define LOG_PRINTF_RB(fmt, ...) ((void)0)
 #endif
 
-// ---------------------------------------------------------------- PERSIST --
+// ---------------------------------------------------------------- PARAM --
 #ifdef LOG_PARAM
 #define LOG_PRINTF_PARAM(fmt, ...) \
   do { \
-    if (LOG_SHOULD_PRINT("PERSIST", log_persist_enabled)) { \
-      LOG_PRINTF("[PERSIST] " fmt, ##__VA_ARGS__); \
+    if (LOG_SHOULD_PRINT("PARAM", log_param_enabled)) { \
+      LOG_PRINTF("[PARAM] " fmt, ##__VA_ARGS__); \
     } \
   } while (0)
 #else
@@ -258,7 +261,7 @@ inline void serial_printf(const char* fmt, Args... args) {
 #ifdef LOG_MENU
 #define LOG_PRINTF_MENU(fmt, ...) \
   do { \
-    if (LOG_SHOULD_PRINT("MENU", log_menu_enabled)) { \
+    if (LOG_SHOULD_PRINT("MENU", log_pose_enabled)) { \
       LOG_PRINTF("[MENU] " fmt, ##__VA_ARGS__); \
     } \
   } while (0)

@@ -12,10 +12,10 @@ static volatile int log_buffer_tail = 0;
 
 bool logging_on = true;
 
-bool log_reflect_enabled = true;
-bool log_rb_enabled = true;
-bool log_persist_enabled = true;
 bool log_menu_enabled = true;
+bool log_rb_enabled = true;
+bool log_param_enabled = true;
+bool log_pose_enabled = true;
 bool log_seq_enabled = true;
 bool log_cube_enabled = true;
 
@@ -150,4 +150,43 @@ void log_section_end() {
 // ----- Reset -----
 void log_indent_reset() {
   log_section_index = 0;
+}
+
+// ----- Error List -----
+static int errNo = 0;
+
+std::vector<String> errorLines;
+
+void addErrorLine(const String& line) {
+  static unsigned long lastErrorMillis = 0;
+  unsigned long now = millis();
+
+  // Compute time delta since last error or since boot
+  unsigned long delta = (lastErrorMillis == 0) ? now : (now - lastErrorMillis);
+  lastErrorMillis = now;
+
+  // Format time text
+  String timeText;
+  unsigned long secs = delta / 1000;
+  if (secs < 60) {
+    timeText = String(secs) + "s";
+  } else {
+    unsigned long mins = secs / 60;
+    unsigned long rems = secs % 60;
+    timeText = String(mins) + "m" + String(rems) + "s";
+  }
+
+  // Trim any trailing newline or carriage return before appending timing info
+  String cleanLine = line;
+  cleanLine.trim();  // removes spaces, \n, \r from both ends
+
+  // Build full error entry
+  errNo++;
+  String lineToAdd = String(errNo) + ". [!] " + cleanLine + " (" + (errNo == 1 ? "since boot " : "+") + timeText + ")";
+
+  // Push and prune
+  errorLines.push_back(lineToAdd);
+  if (errorLines.size() > 20) {
+    errorLines.erase(errorLines.begin());
+  }
 }

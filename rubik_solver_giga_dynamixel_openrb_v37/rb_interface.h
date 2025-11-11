@@ -104,7 +104,6 @@ public:
 
 private:
   RBStatus last;
-  std::vector<String> errorLines;
   bool verboseOn = false;
   ServoInfo servo_infos[MAX_SERVOS];
 
@@ -114,9 +113,6 @@ private:
   void parseStatusLine(const String& line);
   bool verifyExpected(const char* cmd_name, double val, int servo_id, double tol);
   void clearErrorBuffer();
-  
-public:
-  void addErrorLine(const String& line);
 };
 
 // Optional global instance

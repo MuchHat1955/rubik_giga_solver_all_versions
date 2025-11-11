@@ -401,7 +401,7 @@ void PoseStore::reflect_poses_ui() {
 }
 
 void PoseStore::set_all_poses_last_run(bool b) {
-  LOG_SECTION_START_REFLECT("PoseStore::reflect_poses_ui", "");
+  LOG_SECTION_START_MENU("PoseStore::reflect_poses_ui", "");
   for (int i = 0; i < count; i++) {
     Pose &p = poses_list[i];
     p.last_run_ok = b;
@@ -441,7 +441,7 @@ void PoseStore::update_pose_store_from_param_store(const Pose *defaults, int def
         LOG_PRINTF("Restored pose {%s} from param_store val{%.2f}\n",
                    def.name.c_str(), restored_p1);
       } else {
-        LOG_ERROR_RB("pose not found for default {%s}", def.name.c_str());
+        LOG_ERROR("pose not found for default {%s}", def.name.c_str());
       }
     } else {
       LOG_PRINTF("    ---- No saved param for pose{%s}, keeping default {%.2f}\n",

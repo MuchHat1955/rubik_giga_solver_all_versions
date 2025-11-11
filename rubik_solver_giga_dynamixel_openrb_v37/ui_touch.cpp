@@ -130,7 +130,7 @@ void buttonAction(const char *key) {
     return;
   }
 
-  if (strcmp(key, "system") == 0) on_system_menu_opened();
+  if (strcmp(key, "system") == 0) on_system_pose_opened();
 
   updateButtonAndRefreshServosOnClick(key);
 
