@@ -10,7 +10,7 @@
 // CATEGORY ENABLES (comment out to disable compile-time)
 // #define LOG_REFLECT
 #define LOG_RB_COMMANDS
-#define LOG_PERSIST
+#define LOG_PARAM
 // #define LOG_MENU
 #define LOG_SEQUENCES
 #define LOG_CUBE
@@ -183,10 +183,10 @@ inline void serial_printf(const char* fmt, Args... args) {
 #define LOG_SECTION_START_RB(fmt, ...) ((void)0)
 #endif
 
-#ifdef LOG_PERSIST
-#define LOG_SECTION_START_PERSIST(fmt, ...) LOG_SECTION_START_IF(log_persist_enabled, "PERSIST", fmt, ##__VA_ARGS__)
+#ifdef LOG_PARAM
+#define LOG_SECTION_START_PARAM(fmt, ...) LOG_SECTION_START_IF(log_persist_enabled, "PERSIST", fmt, ##__VA_ARGS__)
 #else
-#define LOG_SECTION_START_PERSIST(fmt, ...) ((void)0)
+#define LOG_SECTION_START_PARAM(fmt, ...) ((void)0)
 #endif
 
 #ifdef LOG_MENU
@@ -243,15 +243,15 @@ inline void serial_printf(const char* fmt, Args... args) {
 #endif
 
 // ---------------------------------------------------------------- PERSIST --
-#ifdef LOG_PERSIST
-#define LOG_PRINTF_PERSIST(fmt, ...) \
+#ifdef LOG_PARAM
+#define LOG_PRINTF_PARAM(fmt, ...) \
   do { \
     if (LOG_SHOULD_PRINT("PERSIST", log_persist_enabled)) { \
       LOG_PRINTF("[PERSIST] " fmt, ##__VA_ARGS__); \
     } \
   } while (0)
 #else
-#define LOG_PRINTF_PERSIST(fmt, ...) ((void)0)
+#define LOG_PRINTF_PARAM(fmt, ...) ((void)0)
 #endif
 
 // ------------------------------------------------------------------ MENU ---

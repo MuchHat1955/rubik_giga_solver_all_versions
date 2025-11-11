@@ -150,10 +150,10 @@ void initParamStore() {
 // ---------------------------------------------------------------------
 
 double getParamValue(const char* k) {
-  //LOG_SECTION_START("getParamValue", "key", k ? k : "(null)");
+  LOG_SECTION_START_PARAM("param", "key {%s}", k ? k : "(null)");
 
   if (!k || !*k) {
-    //LOG_SECTION_END();
+    LOG_SECTION_END();
     return PARAM_VAL_NA;
   }
 
@@ -166,7 +166,7 @@ double getParamValue(const char* k) {
 
   int val = it->second.value;
   LOG_PRINTF("param {%s} result from the store {%.2f}\n", k, val);
-  //LOG_SECTION_END();
+  LOG_SECTION_END();
   return val;
 }
 
@@ -221,7 +221,7 @@ void setParamValue(std::string& k, double v) {
 
 // ---------------------------------------------------------------------
 void incrementParam(const char* k, int delta) {
-  LOG_SECTION_START("incrementParam", "key {%s}", k ? k : "(null)");
+  LOG_SECTION_START_PARAM("incrementParam", "key {%s}", k ? k : "(null)");
 
   if (!k || !*k) {
     LOG_SECTION_END();
@@ -229,11 +229,13 @@ void incrementParam(const char* k, int delta) {
   }
   if (!pose_store.is_param_for_pose(k)) {
     LOG_PRINTF("[!] increment param err no pose found {%s}\n", k);
+    LOG_SECTION_END();
     return;
   }
   double p1 = 0;
   if (!pose_store.get_pose_params(k, &p1)) {
     LOG_PRINTF("[!] increment param err cannot get pose params {%s}\n", k);
+    LOG_SECTION_END();
     return;
   }
   pose_store.increment_pose_param(k, delta, p1);

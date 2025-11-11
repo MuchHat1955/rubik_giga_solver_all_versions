@@ -149,6 +149,8 @@ char *PoseStore::param_to_pose(const char *param_name) const {
 bool PoseStore::increment_pose_param(const char *param_name, int units, double &new_value_ref) {
   if (!param_name || !*param_name) return false;
 
+  LOG_SECTION_START_PARAM("increment pose param", "name  {%s}", param_name);
+
   String key = param_name;
 
   // --- Normalize key to ensure it ends with "_param"
@@ -161,6 +163,7 @@ bool PoseStore::increment_pose_param(const char *param_name, int units, double &
   int idx = find_pose_index(pose_name.c_str());
   if (idx < 0) {
     LOG_PRINTF("pose not found for %s", pose_name.c_str());
+    LOG_SECTION_END();
     return false;
   }
 
@@ -178,6 +181,7 @@ bool PoseStore::increment_pose_param(const char *param_name, int units, double &
   String save_key = String(pose_name) + "_param";
 
   // --- Store new parameter value (x100)
+  LOG_PRINTF("calling set param value for pose {%s} val {%.2f}\n", pose_name.c_str(), new_val);
   setParamValue(save_key.c_str(), new_val);
 
   // --- Execute updated pose
@@ -186,6 +190,7 @@ bool PoseStore::increment_pose_param(const char *param_name, int units, double &
   // TODO reflect UI
 
   LOG_PRINTF("pose{%s} adjusted to %.2f (units %d)\n", pose_name.c_str(), new_val, units);
+  LOG_SECTION_END();
   return true;
 }
 
@@ -306,9 +311,9 @@ bool PoseStore::run_pose(const char *pose_name) {
   bool active = is_at_pose(pose.button_key.c_str(), 0.5, 1.0);
   bool issue = !ok;
   LOG_PRINTF("    ---- reflect UI after pose run {%s} run with issue {%s} active{%s}\n",  //
-                     pose.button_key.c_str(),                                                     //
-                     issue ? "yes" : "no",                                                        //
-                     active ? "yes" : "no");
+             pose.button_key.c_str(),                                                     //
+             issue ? "yes" : "no",                                                        //
+             active ? "yes" : "no");
   updateButtonStateByKey(pose.button_key.c_str(), issue, active, false);
 
   LOG_SECTION_END();
@@ -368,7 +373,7 @@ bool PoseStore::is_at_pose(const char *name, double tol_mm, double tol_deg) {
 // -----------------------------------------------------------
 
 void PoseStore::init_from_defaults(const Pose *defaults, int def_count) {
-  LOG_SECTION_START("PoseStore::init_from_defaults","");
+  LOG_SECTION_START("PoseStore::init_from_defaults", "");
 
   for (int i = 0; i < def_count; i++) {
     const Pose &def = defaults[i];
@@ -396,7 +401,7 @@ void PoseStore::reflect_poses_ui() {
 }
 
 void PoseStore::set_all_poses_last_run(bool b) {
-  LOG_SECTION_START_REFLECT("PoseStore::reflect_poses_ui","");
+  LOG_SECTION_START_REFLECT("PoseStore::reflect_poses_ui", "");
   for (int i = 0; i < count; i++) {
     Pose &p = poses_list[i];
     p.last_run_ok = b;
@@ -409,7 +414,7 @@ void PoseStore::set_all_poses_last_run(bool b) {
 }
 
 void PoseStore::update_pose_store_from_param_store(const Pose *defaults, int def_count) {
-  LOG_SECTION_START("PoseStore::update_pose_store_from_param_store","");
+  LOG_SECTION_START("PoseStore::update_pose_store_from_param_store", "");
 
   for (int i = 0; i < def_count; i++) {
     const Pose &def = defaults[i];
@@ -433,7 +438,7 @@ void PoseStore::update_pose_store_from_param_store(const Pose *defaults, int def
         Pose &p = poses_list[idx];
         p.p1 = restored_p1;
 
-        LOG_PRINTF("Restored pose{%s} from param_store val{%.2f}\n",
+        LOG_PRINTF("Restored pose {%s} from param_store val{%.2f}\n",
                    def.name.c_str(), restored_p1);
       } else {
         LOG_ERROR_RB("pose not found for default {%s}", def.name.c_str());
@@ -451,7 +456,7 @@ void PoseStore::update_pose_store_from_param_store(const Pose *defaults, int def
 // Debug list
 // -----------------------------------------------------------
 void PoseStore::list_poses() const {
-  LOG_SECTION_START("PoseStore::list_poses","");
+  LOG_SECTION_START("PoseStore::list_poses", "");
   for (int i = 0; i < count; i++) {
     const Pose &p = poses_list[i];
     LOG_PRINTF("(%2d) name{%-10s} | type{%-8s} | p1{%.2f} | step{%.2f} min{%.2f} max{%.2f} btn{%s} last{%s}\n",
