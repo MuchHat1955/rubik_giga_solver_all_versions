@@ -90,17 +90,13 @@ public:
   bool moveGripper1Per(double per);
   bool moveGripper2Per(double per);
 
-  // ---- error retrieval -----------------------------------------------------
-  const char* getLastErrorLine();
-  String getAllErrorLines() const;
-
-  // ---- last known status ---------------------------------------------------
-  RBStatus getLastStatus() const;
-
   // ---- servo info management -----------------------------------------------
   bool requestServoInfo(uint8_t id);
   bool requestAllServoInfo();
   String getAllServoInfoLines() const;
+  
+    // ---- last known status ---------------------------------------------------
+  RBStatus getLastStatus() const;
 
 private:
   RBStatus last;

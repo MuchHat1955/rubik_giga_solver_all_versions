@@ -53,14 +53,18 @@ inline void on_system_pose_opened() {
   bee_logging_start_ms = millis();
 }
 
+// ---- error retrieval -----------------------------------------------------
 void addErrorLine(const String& line);
+const char* getLastErrorLine();
+String getAllErrorLines() const;
+void clearErrorBuffer()
 
 #define SHOULD_LOG(flag) (bee_logging_enabled && (flag))
 
-// ============================================================================
-// CORE LOGGING INTERFACE
-// ============================================================================
-void log_indent();
+  // ============================================================================
+  // CORE LOGGING INTERFACE
+  // ============================================================================
+  void log_indent();
 void log_section_start(const String& section_name);
 void log_section_start_var(const String& title, const String& var_name, const String& var_val);
 void log_section_end();

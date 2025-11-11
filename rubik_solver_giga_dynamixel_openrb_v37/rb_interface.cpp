@@ -515,25 +515,6 @@ bool RBInterface::moveGripper2Per(double p) {
   return ok;
 }
 
-// ============================================================
-// Error & Status helpers
-// ============================================================
-const char* RBInterface::getLastErrorLine() {
-  return errorLines.empty() ? "" : errorLines.back().c_str();
-}
-String RBInterface::getAllErrorLines() const {
-  String s;
-  for (auto& e : errorLines) {
-    String line = e;
-    line.trim();  // removes \n, \r, and spaces at ends
-    s += line + "\n";
-  }
-  return s;
-}
-RBStatus RBInterface::getLastStatus() const {
-  return last;
-}
-
 bool RBInterface::readUntilEnd(const char* keyword) {
   LOG_SECTION_START("readUntilEnd", "| key{%s}", keyword);
   unsigned long t0 = millis();
@@ -552,8 +533,8 @@ bool RBInterface::readUntilEnd(const char* keyword) {
   return false;
 }
 
-void RBInterface::clearErrorBuffer() {
-  // errorLines.clear(); //TODO should see if this needs to be ever cleared
+RBStatus RBInterface::getLastStatus() const {
+  return last;
 }
 
 RBInterface rb;

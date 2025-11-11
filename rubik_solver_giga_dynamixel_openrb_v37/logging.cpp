@@ -1,4 +1,6 @@
 #include <Arduino.h>
+#include <map>
+#include <vector>
 #include "logging.h"
 
 static String log_section_name[MAX_NESTED_SECTIONS];
@@ -190,3 +192,26 @@ void addErrorLine(const String& line) {
     errorLines.erase(errorLines.begin());
   }
 }
+
+
+// ============================================================
+// Error & Status helpers
+// ============================================================
+const char* getLastErrorLine() {
+  return errorLines.empty() ? "" : errorLines.back().c_str();
+}
+
+String getAllErrorLines() const {
+  String s;
+  for (auto& e : errorLines) {
+    String line = e;
+    line.trim();  // removes \n, \r, and spaces at ends
+    s += line + "\n";
+  }
+  return s;
+}
+
+void clearErrorBuffer() {
+  // errorLines.clear(); //TODO should see if this needs to be ever cleared
+}
+
