@@ -302,7 +302,7 @@ void updateButtonStateByKey(const String &buttonKey, bool issue, bool active, bo
   auto it = buttonMap.find(buttonKey);
   if (it == buttonMap.end()) {
     if (issue || active || busy) {
-      LOG_PRINTF("[!] updating button by KEY, button not found in the map {%s} | active {%s} | issue {%s} | busy {%s}\n",  //
+      LOG_PRINTF_MENU("[!] updating button by KEY, button not found in the map {%s} | active {%s} | issue {%s} | busy {%s}\n",  //
                  buttonKey.c_str(),                                                                                  //
                  active ? "yes" : "no",                                                                              //
                  issue ? "yes" : "no",                                                                               //

@@ -177,17 +177,28 @@ double getParamValue(std::string& k) {
 // ---------------------------------------------------------------------
 // Set parameter
 // ---------------------------------------------------------------------
-void setParamValue(const char* k, double v) {
-  LOG_SECTION_START_PARAM("setParamValue key {%s}", k ? k : "(null)");
+void setParamValue(const char* key, double v) {
+  LOG_SECTION_START_PARAM("setParamValue | key {%s}", key ? key : "(null)");
 
-  if (!k || !*k) {
+  if (!key || !*key) {
     LOG_SECTION_END();
     return;
   }
 
-  auto it = param_store.find(std::string(k));
+  // Convert to String for safe manipulation
+  String key_str = key;
+
+  // Check if key ends with "_param"
+  if (!key_str.endsWith("_param")) {
+    key_str += "_param";
+    LOG_PRINTF_PARAM("added param {%s}", key_str.c_str());
+  }
+
+  const char* key_final = key_str.c_str();
+
+  auto it = param_store.find(std::string(key_final));
   if (it == param_store.end()) {
-    LOG_PRINTF_AUTO("param not found {%s}\n", k);
+    LOG_PRINTF_AUTO("param not found {%s}\n", key_final);
     LOG_SECTION_END();
     return;
   }
@@ -200,9 +211,9 @@ void setParamValue(const char* k, double v) {
       saveParamsToFlash();
       lastSave = millis();
     }
-    LOG_PRINTF_AUTO("updated param {%s} | val {%.2f}\n", k, v);
+    LOG_PRINTF_AUTO("updated param {%s} | val {%.2f}\n", key_final, v);
   } else {
-    LOG_PRINTF_AUTO("no change for param {%s} | val {%.2f}\n", k, v);
+    LOG_PRINTF_AUTO("no change for param {%s} | val {%.2f}\n", key_final, v);
   }
   LOG_SECTION_END();
 }

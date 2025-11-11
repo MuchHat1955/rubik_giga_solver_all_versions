@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <map>
 #include <vector>
 #include "logging.h"
 
@@ -14,7 +13,6 @@ static volatile int log_buffer_tail = 0;
 
 bool logging_on = true;
 
-bool log_menu_enabled = true;
 bool log_rb_enabled = true;
 bool log_param_enabled = true;
 bool log_pose_enabled = true;
@@ -51,11 +49,6 @@ static bool in_isr_context() {
 #endif
 }
 
-static void safe_print(const char* msg) {
-  if (in_isr_context()) log_enqueue(msg);
-  else Serial.print(msg);
-}
-
 static void safe_println(const char* msg) {
   if (in_isr_context()) {
     log_enqueue(msg);
@@ -71,7 +64,6 @@ void log_enqueue(const char* msg) {
   while (*msg) {
     int next_head = (log_buffer_head + 1) % LOG_BUFFER_SIZE;
     if (next_head == log_buffer_tail) {
-      // ✅ tweak: mark truncation
       log_buffer[log_buffer_head] = '~';
       log_buffer_head = (log_buffer_head + 1) % LOG_BUFFER_SIZE;
       break;
@@ -85,7 +77,6 @@ void log_flush_buffer() {
   while (log_buffer_tail != log_buffer_head) {
     Serial.write(log_buffer[log_buffer_tail]);
     log_buffer_tail = (log_buffer_tail + 1) % LOG_BUFFER_SIZE;
-    // ✅ tweak: optional cooperative yield
     if ((log_buffer_tail % 128) == 0) yield();
   }
 }
@@ -130,7 +121,6 @@ void log_section_end() {
   if (!logging_on) return;
 
   if (log_section_index < 1) {
-    // ✅ clearer warning
     safe_println("[log] warning: section_end called with no active section");
     return;
   }
@@ -154,49 +144,37 @@ void log_indent_reset() {
   log_section_index = 0;
 }
 
-// ----- Error List -----
+// ----- Error tracking -----
 static int errNo = 0;
-
-std::vector<String> errorLines;
+static std::vector<String> errorLines;
 
 void addErrorLine(const String& line) {
   static unsigned long lastErrorMillis = 0;
   unsigned long now = millis();
-
-  // Compute time delta since last error or since boot
   unsigned long delta = (lastErrorMillis == 0) ? now : (now - lastErrorMillis);
   lastErrorMillis = now;
 
-  // Format time text
   String timeText;
   unsigned long secs = delta / 1000;
-  if (secs < 60) {
+  if (secs < 60)
     timeText = String(secs) + "s";
-  } else {
+  else {
     unsigned long mins = secs / 60;
     unsigned long rems = secs % 60;
     timeText = String(mins) + "m" + String(rems) + "s";
   }
 
-  // Trim any trailing newline or carriage return before appending timing info
   String cleanLine = line;
-  cleanLine.trim();  // removes spaces, \n, \r from both ends
+  cleanLine.trim();
 
-  // Build full error entry
   errNo++;
-  String lineToAdd = String(errNo) + ". [!] " + cleanLine + " (" + (errNo == 1 ? "since boot " : "+") + timeText + ")";
-
-  // Push and prune
+  String lineToAdd = String(errNo) + ". [!] " + cleanLine + " (" +
+                     (errNo == 1 ? "since boot " : "+") + timeText + ")";
   errorLines.push_back(lineToAdd);
-  if (errorLines.size() > 20) {
+  if (errorLines.size() > 20)
     errorLines.erase(errorLines.begin());
-  }
 }
 
-
-// ============================================================
-// Error & Status helpers
-// ============================================================
 const char* getLastErrorLine() {
   return errorLines.empty() ? "" : errorLines.back().c_str();
 }
@@ -205,13 +183,12 @@ String getAllErrorLines() {
   String s;
   for (auto& e : errorLines) {
     String line = e;
-    line.trim();  // removes \n, \r, and spaces at ends
+    line.trim();
     s += line + "\n";
   }
   return s;
 }
 
 void clearErrorBuffer() {
-  // errorLines.clear(); //TODO should see if this needs to be ever cleared
+  // Optionally clear if needed
 }
-

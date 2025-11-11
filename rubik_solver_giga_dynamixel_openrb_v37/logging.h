@@ -8,8 +8,6 @@
 #define LOG_BUFFER_SIZE 1024  // ring buffer for deferred logging from ISRs
 
 // CATEGORY ENABLES (comment out to disable compile-time)
-
-// #define LOG_MENU
 #define LOG_RB_COMMANDS
 #define LOG_PARAM
 #define LOG_POSE
@@ -24,7 +22,6 @@ extern RBInterface rb;
 // GLOBAL FLAGS / STATE
 // ============================================================================
 extern bool logging_on;
-extern bool log_menu_enabled;
 extern bool log_rb_enabled;
 extern bool log_param_enabled;
 extern bool log_pose_enabled;
@@ -53,12 +50,6 @@ inline void on_system_pose_opened() {
   bee_logging_start_ms = millis();
 }
 
-// ---- error retrieval -----------------------------------------------------
-void addErrorLine(const String& line);
-const char* getLastErrorLine();
-String getAllErrorLines();
-void clearErrorBuffer();
-
 #define SHOULD_LOG(flag) (bee_logging_enabled && (flag))
 
 // ============================================================================
@@ -79,25 +70,8 @@ template<typename... Args>
 inline void serial_printf(const char* fmt, Args... args) {
   char buf[200];
   snprintf(buf, sizeof(buf), fmt, args...);
-  for (char* p = buf; *p; ++p) *p = tolower(*p);  // convert to lowercase
   Serial.print(buf);
 }
-
-// ============================================================================
-// BASE MACROS
-// ============================================================================
-#define LOG_SECTION_START(title) \
-  do { \
-    if (logging_on) log_section_start(title); \
-  } while (0)
-#define LOG_SECTION_END() \
-  do { \
-    if (logging_on) log_section_end(); \
-  } while (0)
-#define LOG_RESET() \
-  do { log_indent_reset(); } while (0)
-#define LOG_FLUSH() \
-  do { log_flush_buffer(); } while (0)
 
 // ============================================================================
 // FORMATTED LOGGING
@@ -110,17 +84,6 @@ inline void serial_printf(const char* fmt, Args... args) {
     } \
   } while (0)
 
-#define LOG_SECTION_START(title, fmt, ...) \
-  do { \
-    if (logging_on) { \
-      log_indent(); \
-      serial_printf("---- {{%s}} start ", title); \
-      serial_printf(fmt, ##__VA_ARGS__); \
-      Serial.println(" ----"); \
-    } \
-  } while (0)
-
-// Error helper (ties to RBInterface)
 #define LOG_ERROR(fmt, ...) \
   do { \
     char _buf[200]; \
@@ -143,17 +106,17 @@ inline void serial_printf(const char* fmt, Args... args) {
   } while (0)
 
 // ============================================================================
-// SECTION MACROS
+// SECTION MACROS (with true nesting)
 // ============================================================================
 #define LOG_SECTION_START_TAG(tag, fmt, ...) \
   do { \
     current_section_enabled = true; \
     current_log_prefix = tag; \
     if (bee_logging_enabled && logging_on) { \
-      if (tag && tag[0]) \
-        LOG_SECTION_START(tag, "| [%s] " fmt, tag, ##__VA_ARGS__); \
-      else \
-        LOG_SECTION_START(tag, fmt, ##__VA_ARGS__); \
+      char _tmp[128]; \
+      snprintf(_tmp, sizeof(_tmp), fmt, ##__VA_ARGS__); \
+      String secname = String(tag) + " | " + String(_tmp); \
+      log_section_start(secname); \
     } \
   } while (0)
 
@@ -162,15 +125,16 @@ inline void serial_printf(const char* fmt, Args... args) {
     current_section_enabled = SHOULD_LOG(flag) && logging_on; \
     current_log_prefix = (current_section_enabled) ? tag : ""; \
     if (current_section_enabled) { \
-      if (tag && tag[0]) \
-        LOG_SECTION_START(tag, "| [%s] " fmt, tag, ##__VA_ARGS__); \
-      else \
-        LOG_SECTION_START(tag, fmt, ##__VA_ARGS__); \
+      char _tmp[128]; \
+      snprintf(_tmp, sizeof(_tmp), fmt, ##__VA_ARGS__); \
+      String secname = String(_tmp); /* ✅ no tag repetition here */ \
+      log_section_start(secname); \
     } \
   } while (0)
 
 #define LOG_SECTION_END_TAG() \
   do { \
+    if (logging_on) log_section_end(); \
     current_section_enabled = true; \
     current_log_prefix = ""; \
   } while (0)
@@ -178,12 +142,6 @@ inline void serial_printf(const char* fmt, Args... args) {
 // ============================================================================
 // CATEGORY SECTION SHORTCUTS
 // ============================================================================
-#ifdef LOG_MENU
-#define LOG_SECTION_START_MENU(fmt, ...) LOG_SECTION_START_IF(log_menu_enabled, "MENU", fmt, ##__VA_ARGS__)
-#else
-#define LOG_SECTION_START_MENU(fmt, ...) ((void)0)
-#endif
-
 #ifdef LOG_RB_COMMANDS
 #define LOG_SECTION_START_RB(fmt, ...) LOG_SECTION_START_IF(log_rb_enabled, "RB", fmt, ##__VA_ARGS__)
 #else
@@ -212,87 +170,4 @@ inline void serial_printf(const char* fmt, Args... args) {
 #define LOG_SECTION_START_CUBE(fmt, ...) LOG_SECTION_START_IF(log_cube_enabled, "CUBE", fmt, ##__VA_ARGS__)
 #else
 #define LOG_SECTION_START_CUBE(fmt, ...) ((void)0)
-#endif
-
-// ============================================================================
-// CATEGORY PRINTF MACROS (independent or inside a section)
-// ============================================================================
-// Each one checks if (a) its own runtime flag is on, or (b) the current section
-// prefix matches the same tag (e.g. inside a REFLECT section).
-// This way, standalone logs obey the per-category flag, while
-// nested ones follow the section’s active state automatically.
-
-#define LOG_SHOULD_PRINT(tag, enabled_flag) \
-  (logging_on && bee_logging_enabled && (enabled_flag || (current_log_prefix && strcmp(current_log_prefix, tag) == 0)))
-
-// ---------------------------------------------------------------- MENU --
-#ifdef LOG_MENU
-#define LOG_PRINTF_MENU(fmt, ...) \
-  do { \
-    if (LOG_SHOULD_PRINT("MENU", log_menu_enabled)) { \
-      LOG_PRINTF("[REFLECT] " fmt, ##__VA_ARGS__); \
-    } \
-  } while (0)
-#else
-#define LOG_PRINTF_MENU(fmt, ...) ((void)0)
-#endif
-
-// ------------------------------------------------------------------ RB -----
-#ifdef LOG_RB_COMMANDS
-#define LOG_PRINTF_RB(fmt, ...) \
-  do { \
-    if (LOG_SHOULD_PRINT("RB", log_rb_enabled)) { \
-      LOG_PRINTF("[RB] " fmt, ##__VA_ARGS__); \
-    } \
-  } while (0)
-#else
-#define LOG_PRINTF_RB(fmt, ...) ((void)0)
-#endif
-
-// ---------------------------------------------------------------- PARAM --
-#ifdef LOG_PARAM
-#define LOG_PRINTF_PARAM(fmt, ...) \
-  do { \
-    if (LOG_SHOULD_PRINT("PARAM", log_param_enabled)) { \
-      LOG_PRINTF("[PARAM] " fmt, ##__VA_ARGS__); \
-    } \
-  } while (0)
-#else
-#define LOG_PRINTF_PARAM(fmt, ...) ((void)0)
-#endif
-
-// ------------------------------------------------------------------ MENU ---
-#ifdef LOG_MENU
-#define LOG_PRINTF_MENU(fmt, ...) \
-  do { \
-    if (LOG_SHOULD_PRINT("MENU", log_pose_enabled)) { \
-      LOG_PRINTF("[MENU] " fmt, ##__VA_ARGS__); \
-    } \
-  } while (0)
-#else
-#define LOG_PRINTF_MENU(fmt, ...) ((void)0)
-#endif
-
-// --------------------------------------------------------------- SEQUENCES --
-#ifdef LOG_SEQUENCES
-#define LOG_PRINTF_SEQ(fmt, ...) \
-  do { \
-    if (LOG_SHOULD_PRINT("SEQ", log_seq_enabled)) { \
-      LOG_PRINTF("[SEQ] " fmt, ##__VA_ARGS__); \
-    } \
-  } while (0)
-#else
-#define LOG_PRINTF_SEQ(fmt, ...) ((void)0)
-#endif
-
-// ------------------------------------------------------------------ CUBE ---
-#ifdef LOG_CUBE
-#define LOG_PRINTF_CUBE(fmt, ...) \
-  do { \
-    if (LOG_SHOULD_PRINT("CUBE", log_cube_enabled)) { \
-      LOG_PRINTF("[CUBE] " fmt, ##__VA_ARGS__); \
-    } \
-  } while (0)
-#else
-#define LOG_PRINTF_CUBE(fmt, ...) ((void)0)
 #endif
