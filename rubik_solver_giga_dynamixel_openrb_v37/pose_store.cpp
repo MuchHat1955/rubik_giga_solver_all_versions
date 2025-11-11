@@ -1,7 +1,7 @@
 #include "pose_store.h"
 #include "param_store.h"
-#include "logging.h"
 #include "rb_interface.h"
+#include "logging.h"
 #include "ui_status.h"
 #include "ui_touch.h"
 

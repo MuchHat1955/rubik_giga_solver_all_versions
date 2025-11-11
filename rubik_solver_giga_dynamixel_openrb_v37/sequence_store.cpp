@@ -1,4 +1,5 @@
 #include "sequence_store.h"
+#include "rb_interface.h"
 #include "logging.h"
 
 extern PoseStore pose_store;
