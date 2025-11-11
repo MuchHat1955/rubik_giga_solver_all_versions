@@ -137,18 +137,6 @@ inline void serial_printf(const char* fmt, Args... args) {
     } \
   } while (0)
 
-#define LOG_SECTION_END() \
-  do { \
-    if (logging_on && log_section_index > 0) { \
-      log_section_end_internal(__FILE__, __LINE__); \
-    } else { \
-      serial_printf("[log] warning: redundant LOG_SECTION_END at {%s:%d} depth {%d}\n", __FILE__, __LINE__, log_section_index); \
-    } \
-    current_section_enabled = true; \
-    current_log_prefix = ""; \
-  } while (0)
-
-
 #define LOG_SECTION_START_IF(flag, tag, fmt, ...) \
   do { \
     current_section_enabled = SHOULD_LOG(flag) && logging_on; \
@@ -159,6 +147,18 @@ inline void serial_printf(const char* fmt, Args... args) {
       String secname = (strlen(_tmp) > 0) ? String(tag) + " | " + String(_tmp) : String(tag); \
       log_section_start(secname); \
     } \
+  } while (0)
+
+// Backward compatibility alias
+#define LOG_SECTION_END() \
+  do { \
+    if (logging_on && log_section_index > 0) \
+      log_section_end_internal(__FILE__, __LINE__); \
+    else if (logging_on) \
+      serial_printf("[log] warning: redundant LOG_SECTION_END at {%s:%d} depth {%d}\n", \
+                    __FILE__, __LINE__, log_section_index); \
+    current_section_enabled = true; \
+    current_log_prefix = ""; \
   } while (0)
 
 // ============================================================================
@@ -264,4 +264,43 @@ inline void serial_printf(const char* fmt, Args... args) {
   } while (0)
 #else
 #define LOG_PRINTF_CUBE(fmt, ...) ((void)0)
+#endif
+
+// ============================================================================
+// SAFE SECTION END MACROS (compile-balanced with their STARTs)
+// ============================================================================
+#ifdef LOG_MENU
+#define LOG_SECTION_END_MENU() LOG_SECTION_END()
+#else
+#define LOG_SECTION_END_MENU() ((void)0)
+#endif
+
+#ifdef LOG_RB
+#define LOG_SECTION_END_RB() LOG_SECTION_END()
+#else
+#define LOG_SECTION_END_RB() ((void)0)
+#endif
+
+#ifdef LOG_PARAM
+#define LOG_SECTION_END_PARAM() LOG_SECTION_END()
+#else
+#define LOG_SECTION_END_PARAM() ((void)0)
+#endif
+
+#ifdef LOG_POSE
+#define LOG_SECTION_END_POSE() LOG_SECTION_END()
+#else
+#define LOG_SECTION_END_POSE() ((void)0)
+#endif
+
+#ifdef LOG_SEQUENCES
+#define LOG_SECTION_END_SEQ() LOG_SECTION_END()
+#else
+#define LOG_SECTION_END_SEQ() ((void)0)
+#endif
+
+#ifdef LOG_CUBE
+#define LOG_SECTION_END_CUBE() LOG_SECTION_END()
+#else
+#define LOG_SECTION_END_CUBE() ((void)0)
 #endif

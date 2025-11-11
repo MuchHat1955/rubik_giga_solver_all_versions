@@ -78,7 +78,7 @@ void updateButtonAndRefreshServosOnClick(const char *key) {
   // logButtonMap(true);
   if (!key) {
     LOG_PRINTF_MENU("invalik key {null}\n");
-    LOG_SECTION_END();
+    LOG_SECTION_END_MENU();
     return;
   }
 
@@ -89,7 +89,7 @@ void updateButtonAndRefreshServosOnClick(const char *key) {
     rb.updateInfo();
     updateButtonStateByKey("poses", false, false, false);
     lv_timer_handler();
-    LOG_SECTION_END();
+    LOG_SECTION_END_MENU();
   }
   if (strcmp(key, "system") == 0) {
     LOG_SECTION_START_MENU("update servos for poses UI btn {%s}", key);
@@ -98,11 +98,11 @@ void updateButtonAndRefreshServosOnClick(const char *key) {
     rb.updateInfo();
     updateButtonStateByKey("system", true, false, false);
     lv_timer_handler();
-    LOG_SECTION_END();
+    LOG_SECTION_END_MENU();
   }
 
   logButtonMap(true);
-  LOG_SECTION_END();
+  LOG_SECTION_END_MENU();
 }
 
 // ----------------------------------------------------------
@@ -117,7 +117,7 @@ void buttonAction(const char *key) {
   unsigned long now = millis();
   if (key && *key && key == lastClickKey && now - lastClickTime < 500) {
     LOG_PRINTF_MENU("button action rapid re-click ignored key {%s}\n", key);
-    LOG_SECTION_END();
+    LOG_SECTION_END_MENU();
     return;
   }
   lastClickTime = now;
@@ -126,7 +126,7 @@ void buttonAction(const char *key) {
   // --- Safety: guard against null or empty keys ---
   if (!key || !*key) {
     LOG_PRINTF_MENU("button action empty or null key ignored\n");
-    LOG_SECTION_END();
+    LOG_SECTION_END_MENU();
     return;
   }
 
@@ -139,7 +139,7 @@ void buttonAction(const char *key) {
     currentMenu = key;
     setFooter((String("switch menu ") + key).c_str());
     buildMenu(currentMenu.c_str());
-    LOG_SECTION_END();
+    LOG_SECTION_END_MENU();
     return;
   }
 
@@ -148,7 +148,7 @@ void buttonAction(const char *key) {
     currentMenu = "main";
     setFooter("back to main menu");
     buildMenu(currentMenu.c_str());
-    LOG_SECTION_END();
+    LOG_SECTION_END_MENU();
     return;
   }
 
@@ -156,7 +156,7 @@ void buttonAction(const char *key) {
   setFooter((String("action ") + key).c_str());
   runAction((char *)key);
 
-  LOG_SECTION_END();
+  LOG_SECTION_END_MENU();
 }
 
 static void apply_pair_selected_styles(lv_obj_t *numBox, bool on) {
@@ -225,7 +225,7 @@ void ui_init() {
   DeserializationError err = deserializeJson(menuDoc, jsonBuffer);
   if (err) {
     LOG_PRINTF_MENU("error on deserialize json {%s}\n", err.c_str());
-    LOG_SECTION_END();
+    LOG_SECTION_END_MENU();
     return;  // avoid using empty doc
   }
 
@@ -234,7 +234,7 @@ void ui_init() {
   // 4. Build the initial main menu screen
   buildMenu("main");
 
-  LOG_SECTION_END();
+  LOG_SECTION_END_MENU();
 }
 
 // ----------------------------------------------------------
@@ -251,7 +251,7 @@ void ui_refresh() {
   LOG_SECTION_START_MENU("refresh ui");
   pose_store.reflect_poses_ui();
   logButtonMap(true);
-  LOG_SECTION_END();
+  LOG_SECTION_END_MENU();
 }
 
 void ui_loop() {

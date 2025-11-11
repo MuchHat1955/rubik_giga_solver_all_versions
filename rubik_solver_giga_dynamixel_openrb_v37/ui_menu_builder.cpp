@@ -81,7 +81,7 @@ void buildMenu(const char *menuName) {
 
   lv_obj_t *scr = lv_scr_act();
   if (!scr || !menuDoc.containsKey(menuName)) {
-    LOG_SECTION_END();
+    LOG_SECTION_END_MENU();
     return;
   }
 
@@ -94,7 +94,7 @@ void buildMenu(const char *menuName) {
 
   JsonObject root = menuDoc[menuName];
   if (root.isNull()) {
-    LOG_SECTION_END();
+    LOG_SECTION_END_MENU();
     return;
   }
 
@@ -418,7 +418,7 @@ void buildMenu(const char *menuName) {
   }
 
   lv_obj_invalidate(lv_scr_act());
-  LOG_SECTION_END();
+  LOG_SECTION_END_MENU();
 }
 
 // ----------------------------------------------------------

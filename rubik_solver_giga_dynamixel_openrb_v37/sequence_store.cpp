@@ -78,18 +78,18 @@ bool SequenceStore::run_sequence_by_key(const char* key) {
       LOG_PRINTF_SEQ("  pose: %s", pose);
       if (!pose_store.run_pose(pose)) {
         LOG_ERROR("run sequence {%s} pose failed {%s}", key, pose);
-        LOG_SECTION_END();
+        LOG_SECTION_END_SEQ();
         return false;
       }
       delay(100);  // small pause between poses
     }
 
-    LOG_SECTION_END();
+    LOG_SECTION_END_SEQ();
     return true;
   }
 
   LOG_ERROR("Sequence not found {%s}", key);
-  LOG_SECTION_END();
+  LOG_SECTION_END_SEQ();
   return false;
 }
 

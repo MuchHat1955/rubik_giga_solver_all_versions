@@ -88,7 +88,7 @@ void logButtonMap(bool alwaysLog) {
 
   if (buttonMap.empty()) {
     LOG_PRINTF_MENU("buttonMap is empty\n");
-    LOG_SECTION_END();
+    LOG_SECTION_END_MENU();
     return;
   }
   int count = 1;
@@ -107,7 +107,7 @@ void logButtonMap(bool alwaysLog) {
     count++;
   }
 
-  LOG_SECTION_END();
+  LOG_SECTION_END_MENU();
 }
 
 // ----------------------------------------------------------

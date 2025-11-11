@@ -46,7 +46,7 @@ bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
   if (!got) {
     pose_store.set_all_poses_last_run(false);
     LOG_ERROR("no response from rb\n");
-    LOG_SECTION_END();
+    LOG_SECTION_END_RB();
     return false;
   }
 
@@ -60,7 +60,7 @@ bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
   }
 
   LOG_PRINTF_RB("Initialization complete, verbose OFF.\n");
-  LOG_SECTION_END();
+  LOG_SECTION_END_RB();
   return true;
 }
 
@@ -88,7 +88,7 @@ bool RBInterface::runCommand(const char* name, const float* args, int argCount) 
   LOG_PRINTF_RB("[RB → GIGA] | command {%s} result {%s}\n", name, ok ? "OK" : "FAIL");
   String txt = cmd + " " + (ok ? "OK" : "FAIL");
   setFooter(txt.c_str());
-  LOG_SECTION_END();
+  LOG_SECTION_END_RB();
   return ok;
 }
 
@@ -123,12 +123,12 @@ bool RBInterface::requestServoInfo(uint8_t id) {
     if (id < MAX_SERVOS) servo_infos[id] = info;
     info.log();
 
-    LOG_SECTION_END();
+    LOG_SECTION_END_RB();
     return true;
   }
 
   LOG_ERROR("no INFO for servo ID {%d}\n", id);
-  LOG_SECTION_END();
+  LOG_SECTION_END_RB();
   return false;
 }
 
@@ -179,7 +179,7 @@ bool RBInterface::requestAllServoInfo() {
     }
   }
 
-  LOG_SECTION_END();
+  LOG_SECTION_END_RB();
   return all_ok;
 }
 
@@ -306,7 +306,7 @@ bool RBInterface::waitForCompletion(const char* commandName) {
     LOG_ERROR("timeout or incomplete command {%s}", commandName);
   }
 
-  LOG_SECTION_END();
+  LOG_SECTION_END_RB();
   return success;
 }
 
@@ -328,7 +328,7 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
     LOG_PRINTF_RB("verify expected move{%s} g2_per expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, val, last.g2_per, err2);
 
     if (err1 <= tol && err2 <= tol) {
-      LOG_SECTION_END();
+      LOG_SECTION_END_RB();
       return true;
     }
 
@@ -340,7 +340,7 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
       snprintf(buf, sizeof(buf), "verify expected move{%s} g2_per expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, val, last.g2_per, err2);
       addErrorLine(buf);
     }
-    LOG_SECTION_END();
+    LOG_SECTION_END_RB();
     return false;
   }
 
@@ -355,7 +355,7 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
     else actual = 0;
   } else {
     LOG_PRINTF_RB("[!] unknown cmd_name: %s", cmd_name);
-    LOG_SECTION_END();
+    LOG_SECTION_END_RB();
     return true;
   }
 
@@ -364,14 +364,14 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
   LOG_PRINTF_RB("verify expected move{%s} servo{%d} expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, servo_id, val, actual, err);
 
   if (err <= tol) {
-    LOG_SECTION_END();
+    LOG_SECTION_END_RB();
     return true;
   }
 
   LOG_ERROR("verify expected move{%s} servo{%d} expected{%.2f} actual{%.2f} err{%.2f}",
             cmd_name, servo_id, val, actual, err);
 
-  LOG_SECTION_END();
+  LOG_SECTION_END_RB();
   return false;
 }
 
@@ -416,14 +416,14 @@ bool RBInterface::updateInfo() {
     addErrorLine("no read 0 received");
     LOG_PRINTF_RB("[!] no response for read 0\n");
     pose_store.set_all_poses_last_run(false);
-    LOG_SECTION_END();
+    LOG_SECTION_END_RB();
     return false;
   }
 
   LOG_PRINTF_RB("READ 0 done | X{%.2f} Y{%.2f} A1{%.2f} A2{%.2f} G{%.2f}\n",
                 last.x_mm, last.y_mm, last.a1_deg, last.a2_deg, last.g_vert_deg);
 
-  LOG_SECTION_END();
+  LOG_SECTION_END_RB();
   return true;
 }
 
@@ -462,7 +462,7 @@ bool RBInterface::moveYmm(double y) {
   char cmd[] = "MOVEYMM";
   bool ok = runCommand(cmd, a, 1);
   if (ok) ok = verifyExpected(cmd, y, -1, 1.0);
-  LOG_SECTION_END();
+  LOG_SECTION_END_RB();
   return ok;
 }
 bool RBInterface::moveXmm(double x) {
@@ -471,7 +471,7 @@ bool RBInterface::moveXmm(double x) {
   char cmd[] = "MOVEXMM";
   bool ok = runCommand(cmd, a, 1);
   if (ok) ok = verifyExpected(cmd, x, -1, 1.0);
-  LOG_SECTION_END();
+  LOG_SECTION_END_RB();
   return ok;
 }
 bool RBInterface::moveBaseDeg(double d) {
@@ -480,7 +480,7 @@ bool RBInterface::moveBaseDeg(double d) {
   char cmd[] = "MOVEPER";
   bool ok = runCommand(cmd, a, 2);
   if (ok) ok = verifyExpected(cmd, d, ID_BASE, 1.0);
-  LOG_SECTION_END();
+  LOG_SECTION_END_RB();
   return ok;
 }
 bool RBInterface::moveWristVertDeg(double d) {
@@ -489,7 +489,7 @@ bool RBInterface::moveWristVertDeg(double d) {
   char cmd[] = "MOVEWRISTVERTDEG";
   bool ok = runCommand(cmd, a, 1);
   if (ok) ok = verifyExpected(cmd, d, -1, 1.0);
-  LOG_SECTION_END();
+  LOG_SECTION_END_RB();
   return ok;
 }
 bool RBInterface::moveGrippersPer(double p) {
@@ -498,7 +498,7 @@ bool RBInterface::moveGrippersPer(double p) {
   char cmd[] = "MOVEGRIPPERPER";
   bool ok = runCommand(cmd, a, 1);
   if (ok) ok = verifyExpected(cmd, p, -1, 1.0);
-  LOG_SECTION_END();
+  LOG_SECTION_END_RB();
   return ok;
 }
 bool RBInterface::moveGripper1Per(double p) {
@@ -507,7 +507,7 @@ bool RBInterface::moveGripper1Per(double p) {
   char cmd[] = "MOVEPER";
   bool ok = runCommand(cmd, a, 2);
   if (ok) ok = verifyExpected(cmd, p, ID_GRIPPER1, 1.0);
-  LOG_SECTION_END();
+  LOG_SECTION_END_RB();
   return ok;
 }
 bool RBInterface::moveGripper2Per(double p) {
@@ -516,7 +516,7 @@ bool RBInterface::moveGripper2Per(double p) {
   char cmd[] = "MOVEPER";
   bool ok = runCommand(cmd, a, 2);
   if (ok) ok = verifyExpected(cmd, p, ID_GRIPPER2, 1.0);
-  LOG_SECTION_END();
+  LOG_SECTION_END_RB();
   return ok;
 }
 
@@ -530,11 +530,11 @@ bool RBInterface::readUntilEnd(const char* keyword) {
     if (line.startsWith("ERR")) addErrorLine(line);
     if (line.endsWith("END")) {
       parseStatusLine(line);
-      LOG_SECTION_END();
+      LOG_SECTION_END_RB();
       return true;
     }
   }
-  LOG_SECTION_END();
+  LOG_SECTION_END_RB();
   return false;
 }
 

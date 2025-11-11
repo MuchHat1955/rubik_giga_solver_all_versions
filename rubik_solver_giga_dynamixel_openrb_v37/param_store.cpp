@@ -28,13 +28,13 @@ void runAction(const char* key) {
 
   if (!key || !*key) {
     LOG_PRINTF_POSE("run action null/empty key ignored\n");
-    LOG_SECTION_END();
+    LOG_SECTION_END_POSE();
     return;
   }
 
   if (strcmp(key, "runAction") == 0) {  // recursion guard
     LOG_PRINTF_POSE("run action recursion guard triggered\n");
-    LOG_SECTION_END();
+    LOG_SECTION_END_POSE();
     return;
   }
 
@@ -42,20 +42,20 @@ void runAction(const char* key) {
   if (pose_store.is_button_for_pose(key)) {
     bool ok = pose_store.run_pose_by_button(key);
     LOG_PRINTF_POSE("pose | move {%s} | result {%s}\n", key, ok ? "OK" : "FAIL");
-    LOG_SECTION_END();
+    LOG_SECTION_END_POSE();
     return;
   }
 
   if (sequence_store.is_key_for_sequence(key)) {
     bool ok = sequence_store.run_sequence_by_key(key);
     LOG_PRINTF_POSE("sequence | move {%s} | result {%s}\n", key, ok ? "OK" : "FAIL");
-    LOG_SECTION_END();
+    LOG_SECTION_END_POSE();
     return;
   }
 
   // --- Fallback for unhandled keys ---
   LOG_PRINTF_POSE("unhandled action key {%s}\n", key);
-  LOG_SECTION_END();
+  LOG_SECTION_END_POSE();
 }
 
 // overload for std::string
@@ -92,7 +92,7 @@ static void saveParamsToFlash() {
     LOG_PRINTF_PARAM("saving to flash | key {%s} | val {%.2f}\n", key, val);
   }
 
-  LOG_SECTION_END();
+  LOG_SECTION_END_PARAM();
 }
 
 // ---------------------------------------------------------------------
@@ -111,7 +111,7 @@ static void loadParamsFromFlash() {
       LOG_PRINTF_PARAM("loading from flash | key {%s} | val {%.2f}\n", key, loaded);
     }
   }
-  LOG_SECTION_END();
+  LOG_SECTION_END_PARAM();
 }
 
 // ---------------------------------------------------------------------
@@ -140,7 +140,7 @@ void initParamStore() {
     add(keys[i], 0);
 
   loadParamsFromFlash();
-  LOG_SECTION_END();
+  LOG_SECTION_END_PARAM();
 }
 
 // ---------------------------------------------------------------------
@@ -176,7 +176,6 @@ void setParamValue(const char* key, double v) {
   LOG_PRINTF_PARAM("setParamValue | key {%s} | val {%.2f}\n", key ? key : "(null)", v);
 
   if (!key || !*key) {
-    LOG_SECTION_END();
     return;
   }
 
@@ -231,7 +230,6 @@ void incrementParam(const char* k, int delta) {
   }
   if (!pose_store.is_param_for_pose(k)) {
     LOG_PRINTF_PARAM("[!] increment param err no pose found {%s}\n", k);
-    LOG_SECTION_END();
     return;
   }
   double p1 = 0;
