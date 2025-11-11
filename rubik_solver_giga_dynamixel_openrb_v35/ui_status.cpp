@@ -123,7 +123,7 @@ void uiStatusRegisterButton(const String &buttonKey, lv_obj_t *btn) {
     //LOG_PRINTF("existing button {%s} reused with issue {%s} active {%s}\n",
     //           buttonKey.c_str(),
     //           it->second.issue ? "yes" : "no",
-     //          it->second.active ? "yes" : "no");
+    //          it->second.active ? "yes" : "no");
     drawButtonOverlayByPtr(btn, buttonKey.c_str(), buttonKey == "poses", it->second.issue, it->second.active, false);
     return;
   }
@@ -144,7 +144,7 @@ void drawButtonOverlayByPtr(lv_obj_t *btn, const char *key, bool is_menu, bool i
   if (!btn) return;
 
   //LOG_SECTION_START("drawButtonOverlayByPtr");
-  LOG_PRINTF("draw button overlay by PTR for key{%s}  issue {%s} active {%s} busy {%s}\n",  //
+  LOG_PRINTF("draw button overlay by PTR for key {%s}  issue {%s} active {%s} busy {%s}\n",  //
              key,
              issue ? "yes" : "no",   //
              active ? "yes" : "no",  //
@@ -190,7 +190,19 @@ void drawButtonOverlayByPtr(lv_obj_t *btn, const char *key, bool is_menu, bool i
     lv_obj_set_style_border_color(btn, baseColor, LV_PART_MAIN);  // off-white border
     lv_obj_set_style_border_width(btn, BORDER_WIDTH_ISSUE, LV_PART_MAIN);
     lv_obj_set_style_radius(btn, CORNERS, LV_PART_MAIN);
-    lv_label_set_text(btn, "busy...");
+
+    lv_obj_t *lbl = lv_obj_get_child(btn, 0);
+    if (lbl) lv_label_set_text(lbl, "busy...");
+
+    // force a visible redraw
+    lv_obj_invalidate(btn);
+    lv_refr_now(NULL);
+    lv_timer_handler();
+
+    uint32_t color32 = lv_color_to_u32(lv_obj_get_style_bg_color(btn, LV_PART_MAIN));
+    LOG_PRINTF("opa %d color %#08X\n",
+               lv_obj_get_style_bg_opa(btn, LV_PART_MAIN),
+               color32);
   }
 
   // --- ISSUE: solid red fill, no white border ---
@@ -206,9 +218,9 @@ void drawButtonOverlayByPtr(lv_obj_t *btn, const char *key, bool is_menu, bool i
   // --- ACTIVE: solid blue fill, no white border ---
   else if (active) {
     LOG_PRINTF("overlay ACTIVE\n");
-    lv_obj_set_style_bg_color(btn, lv_color_hex(0x4040FF), LV_PART_MAIN);  // blue
+    lv_obj_set_style_bg_color(btn, baseColor, LV_PART_MAIN);  // blue
     lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_style_border_color(btn, lv_color_hex(0x4040FF), LV_PART_MAIN);
+    lv_obj_set_style_border_color(btn, baseColor, LV_PART_MAIN);
     lv_obj_set_style_border_width(btn, BORDER_WIDTH_ACTIVE, LV_PART_MAIN);
     lv_obj_set_style_radius(btn, CORNERS, LV_PART_MAIN);
   }
@@ -223,9 +235,14 @@ void drawButtonOverlayByPtr(lv_obj_t *btn, const char *key, bool is_menu, bool i
   }
 
   lv_obj_invalidate(btn);
+  lv_refr_now(NULL);
   delay(15);
-  LOG_PRINTF("calling lv timer handler\n");
-  lv_timer_handler();
+
+  for (int i = 0; i < 10; ++i) {
+    LOG_PRINTF("calling lv timer handler\n");
+    lv_timer_handler();
+    delay(5);
+  }
   delay(15);
   //LOG_SECTION_END();
 }
@@ -278,9 +295,9 @@ void updateButtonStateByKey(const String &buttonKey, bool issue, bool active, bo
   if (it == buttonMap.end()) {
     if (issue || active || busy) {
       LOG_PRINTF("[!] updating button by KEY, button not found in the map {%s} active {%s} issue {%s} busy {%s}\n",  //
-                 buttonKey.c_str(),                                                                                     //
-                 active ? "yes" : "no",                                                                                 //
-                 issue ? "yes" : "no",                                                                                  //
+                 buttonKey.c_str(),                                                                                  //
+                 active ? "yes" : "no",                                                                              //
+                 issue ? "yes" : "no",                                                                               //
                  busy ? "yes" : "no");
     } else {
       LOG_PRINTF("\n");
@@ -309,10 +326,10 @@ void updateButtonStateByKey(const String &buttonKey, bool issue, bool active, bo
   } else {
     if (issue || active || busy) {
       LOG_PRINTF("[!] updating button NO PTR for key {%s} menu {%s} active {%s} issue {%s} busy {%s}\n",  //
-                 buttonKey.c_str(),                                                                            //
-                 is_menu ? "menu" : "no menu",                                                                 //
-                 active ? "yes" : "no",                                                                        //
-                 issue ? "yes" : "no",                                                                         //
+                 buttonKey.c_str(),                                                                       //
+                 is_menu ? "menu" : "no menu",                                                            //
+                 active ? "yes" : "no",                                                                   //
+                 issue ? "yes" : "no",                                                                    //
                  busy ? "yes" : "no");
     }
   }

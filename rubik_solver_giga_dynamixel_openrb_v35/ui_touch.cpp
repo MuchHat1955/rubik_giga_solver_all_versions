@@ -94,9 +94,9 @@ void updateButtonAndRefreshServosOnClick(const char *key) {
   if (strcmp(key, "system") == 0) {
     LOG_SECTION_START_VAR("update servos for poses UI", "btn", key);
     setFooter("update servos");
-    updateButtonStateByKey("system", false, false, true);
+    updateButtonStateByKey("true", false, false, true);
     rb.updateInfo();
-    updateButtonStateByKey("system", false, false, false);
+    updateButtonStateByKey("true", false, false, false);
     lv_timer_handler();
     LOG_SECTION_END();
   }

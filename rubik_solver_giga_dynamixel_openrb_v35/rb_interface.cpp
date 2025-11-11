@@ -535,7 +535,11 @@ const char* RBInterface::getLastErrorLine() {
 }
 String RBInterface::getAllErrorLines() const {
   String s;
-  for (auto& e : errorLines) s += e + "\n";
+  for (auto &e : errorLines) {
+    String line = e;
+    line.trim();          // removes \n, \r, and spaces at ends
+    s += line + "\n";
+  }
   return s;
 }
 RBStatus RBInterface::getLastStatus() const {
