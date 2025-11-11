@@ -9,10 +9,10 @@
 #define LOG_BUFFER_SIZE 1024  // ring buffer for deferred logging from ISRs
 
 // CATEGORY ENABLES (comment out to disable compile-time)
-#define LOG_REFLECT
+// #define LOG_REFLECT
 #define LOG_RB_COMMANDS
 #define LOG_PERSIST
-#define LOG_MENU
+// #define LOG_MENU
 #define LOG_SEQUENCES
 #define LOG_CUBE
 
