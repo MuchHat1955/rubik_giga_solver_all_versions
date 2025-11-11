@@ -82,14 +82,14 @@ static void add(const char* k, double v, bool persist_ = true) {
 // Save parameters to non-volatile KVStore
 // ---------------------------------------------------------------------
 static void saveParamsToFlash() {
-  LOG_SECTION_START("saveParamsToFlash", "");
+  LOG_SECTION_START_PARAM("saveParamsToFlash", "");
 
   for (auto& kv : param_store) {
     if (!kv.second.persist) continue;
     const char* key = kv.first.c_str();
     double val = kv.second.value;
     kv_set(key, &val, sizeof(val), 0);
-    LOG_PRINTF("saved {%s} = %.2f\n", key, val);
+    LOG_PRINTF_AUTO("saving {%s} = %.2f\n", key, val);
   }
 
   LOG_SECTION_END();
@@ -159,13 +159,13 @@ double getParamValue(const char* k) {
 
   auto it = param_store.find(std::string(k));
   if (it == param_store.end()) {
-    LOG_PRINTF("[!] param {%s} not found in the store\n", k);
-    //LOG_SECTION_END();
+    LOG_PRINTF_AUTO("[!] param {%s} not found in the store\n", k);
+    LOG_SECTION_END();
     return PARAM_VAL_NA;
   }
 
   int val = it->second.value;
-  LOG_PRINTF("param {%s} result from the store {%.2f}\n", k, val);
+  LOG_PRINTF_AUTO("param {%s} result from the store {%.2f}\n", k, val);
   LOG_SECTION_END();
   return val;
 }
@@ -178,7 +178,7 @@ double getParamValue(std::string& k) {
 // Set parameter
 // ---------------------------------------------------------------------
 void setParamValue(const char* k, double v) {
-  LOG_SECTION_START("setParamValue", "key {%s}", k ? k : "(null)");
+  LOG_SECTION_START_PARAM("setParamValue", "key {%s}", k ? k : "(null)");
 
   if (!k || !*k) {
     LOG_SECTION_END();
@@ -187,7 +187,7 @@ void setParamValue(const char* k, double v) {
 
   auto it = param_store.find(std::string(k));
   if (it == param_store.end()) {
-    LOG_PRINTF("param not found {%s}\n", k);
+    LOG_PRINTF_AUTO("param not found {%s}\n", k);
     LOG_SECTION_END();
     return;
   }
@@ -200,11 +200,10 @@ void setParamValue(const char* k, double v) {
       saveParamsToFlash();
       lastSave = millis();
     }
-    LOG_PRINTF("updated param {%s} = {%.2f}\n", k, v);
+    LOG_PRINTF_AUTO("updated param {%s} = {%.2f}\n", k, v);
   } else {
-    LOG_PRINTF("no change for {%s} still {%.2f}\n", k, v);
+    LOG_PRINTF_AUTO("no change for {%s} still {%.2f}\n", k, v);
   }
-
   LOG_SECTION_END();
 }
 
