@@ -27,13 +27,13 @@ void runAction(const char* key) {
   LOG_SECTION_START_POSE("runAction key {%s}", key);
 
   if (!key || !*key) {
-    LOG_PRINTF("run action null/empty key ignored\n");
+    LOG_PRINTF_POSE("run action null/empty key ignored\n");
     LOG_SECTION_END();
     return;
   }
 
   if (strcmp(key, "runAction") == 0) {  // recursion guard
-    LOG_PRINTF("run action recursion guard triggered\n");
+    LOG_PRINTF_POSE("run action recursion guard triggered\n");
     LOG_SECTION_END();
     return;
   }
@@ -41,20 +41,20 @@ void runAction(const char* key) {
   // --- Pose buttons ---
   if (pose_store.is_button_for_pose(key)) {
     bool ok = pose_store.run_pose_by_button(key);
-    LOG_PRINTF("pose | move {%s} | result {%s}\n", key, ok ? "OK" : "FAIL");
+    LOG_PRINTF_POSE("pose | move {%s} | result {%s}\n", key, ok ? "OK" : "FAIL");
     LOG_SECTION_END();
     return;
   }
 
   if (sequence_store.is_key_for_sequence(key)) {
     bool ok = sequence_store.run_sequence_by_key(key);
-    LOG_PRINTF("sequence | move {%s} | result {%s}\n", key, ok ? "OK" : "FAIL");
+    LOG_PRINTF_POSE("sequence | move {%s} | result {%s}\n", key, ok ? "OK" : "FAIL");
     LOG_SECTION_END();
     return;
   }
 
   // --- Fallback for unhandled keys ---
-  LOG_PRINTF("unhandled action key {%s}\n", key);
+  LOG_PRINTF_POSE("unhandled action key {%s}\n", key);
   LOG_SECTION_END();
 }
 
@@ -89,7 +89,7 @@ static void saveParamsToFlash() {
     const char* key = kv.first.c_str();
     double val = kv.second.value;
     kv_set(key, &val, sizeof(val), 0);
-    LOG_PRINTF_PARAM("saving | key {%s} | val {%.2f}\n", key, val);
+    LOG_PRINTF_PARAM("saving to flash | key {%s} | val {%.2f}\n", key, val);
   }
 
   LOG_SECTION_END();
@@ -108,10 +108,9 @@ static void loadParamsFromFlash() {
     int ret = kv_get(key, &loaded, sizeof(loaded), &actual);
     if (ret == MBED_SUCCESS) {
       kv.second.value = loaded;
-      LOG_PRINTF("loading | key {%s} | val {%.2f}\n", key, loaded);
+      LOG_PRINTF_PARAM("loading from flash | key {%s} | val {%.2f}\n", key, loaded);
     }
   }
-
   LOG_SECTION_END();
 }
 
@@ -121,8 +120,7 @@ static void loadParamsFromFlash() {
 void initParamStore() {
   LOG_SECTION_START_PARAM("initParamStore");
 
-  // TODO below needs to mach the pose store that has to match the UI
-
+  // TODO below MUST mach the pose store that has to MATCH the UI
   const char* keys[] = {
     // XY poses
     "y_zero_param", "y_1st_param", "y_2nd_param", "y_3rd_param", "y_c2_param", "y_c3_param", "x_c2_param", "x_c3_param", "x_center_param", "x_left_param", "x_right_param",
@@ -150,7 +148,7 @@ void initParamStore() {
 // ---------------------------------------------------------------------
 
 double getParamValue(const char* k) {
-  LOG_PRINTF_PARAM("get param value for | key {%s}\n", k ? k : "(null)");
+  // LOG_PRINTF_PARAM("get param value for | key {%s}\n", k ? k : "(null)");
 
   if (!k || !*k) {
     return PARAM_VAL_NA;
@@ -158,12 +156,12 @@ double getParamValue(const char* k) {
 
   auto it = param_store.find(std::string(k));
   if (it == param_store.end()) {
-    LOG_PRINTF_PARAM("[!] param {%s} not found in the param store\n", k);
+    LOG_PRINTF_PARAM("[!] param not found in the param store | key {%s} \n", k);
     return PARAM_VAL_NA;
   }
 
-  int val = it->second.value;
-  LOG_PRINTF_PARAM("param found in the param store | key {%s} | val {%.2f}\n", k, val);
+  double val = it->second.value;
+  LOG_PRINTF_PARAM("param was found in the param store | key {%s} | val {%.2f}\n", k, val);
   return val;
 }
 
@@ -175,7 +173,7 @@ double getParamValue(std::string& k) {
 // Set parameter
 // ---------------------------------------------------------------------
 void setParamValue(const char* key, double v) {
-  LOG_PRINTF_PARAM("setParamValue | key {%s}\n", key ? key : "(null)");
+  LOG_PRINTF_PARAM("setParamValue | key {%s} | val {%.2f}\n", key ? key : "(null)", v);
 
   if (!key || !*key) {
     LOG_SECTION_END();

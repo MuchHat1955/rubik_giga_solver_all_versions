@@ -124,6 +124,7 @@ void setup() {
   // ----------------------------------------------------------
   init_logging();
 
+  LOG_RESET();
   LOG_SECTION_START("setup", "start");
 
   ui_init();  // sets up LVGL + touch + draws initial menu
@@ -166,7 +167,6 @@ void setup() {
       setFooter("startup test ok");
     }
   }
-
   LOG_SECTION_END();
 }
 

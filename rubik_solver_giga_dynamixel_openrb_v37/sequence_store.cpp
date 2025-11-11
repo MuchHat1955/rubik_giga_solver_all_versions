@@ -73,9 +73,9 @@ bool SequenceStore::run_sequence_by_key(const char* key) {
   for (auto& seq : sequences) {
     if (strcmp(seq.key, key) != 0) continue;
 
-    LOG_PRINTF("Running sequence: %s (%s)", seq.key, seq.text);
+    LOG_PRINTF_SEQ("Running sequence: %s (%s)", seq.key, seq.text);
     for (auto pose : seq.poses) {
-      LOG_PRINTF("  pose: %s", pose);
+      LOG_PRINTF_SEQ("  pose: %s", pose);
       if (!pose_store.run_pose(pose)) {
         LOG_ERROR("run sequence {%s} pose failed {%s}", key, pose);
         LOG_SECTION_END();

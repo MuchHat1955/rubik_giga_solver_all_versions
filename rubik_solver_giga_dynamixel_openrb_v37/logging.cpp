@@ -2,9 +2,9 @@
 #include <vector>
 #include "logging.h"
 
-static String log_section_name[MAX_NESTED_SECTIONS];
-static unsigned long log_section_start_time[MAX_NESTED_SECTIONS];
-static int log_section_index = 0;
+String log_section_name[MAX_NESTED_SECTIONS];
+unsigned long log_section_start_time[MAX_NESTED_SECTIONS];
+int log_section_index = 0;
 
 // Ring buffer for deferred logging (ISR safe)
 static char log_buffer[LOG_BUFFER_SIZE];
@@ -118,11 +118,11 @@ void log_section_start_var(const String& title, const String& var_name, const St
 }
 
 // ----- Section End -----
-void log_section_end() {
+void log_section_end_internal(const char* file, int line) {
   if (!logging_on) return;
 
   if (log_section_index < 1) {
-    safe_println("[log] warning: section_end called with no active section");
+    serial_printf("[log] warning: section_end called with no active section at %s:%d\n", file, line);
     return;
   }
 
@@ -169,8 +169,7 @@ void addErrorLine(const String& line) {
   cleanLine.trim();
 
   errNo++;
-  String lineToAdd = String(errNo) + ". [!] " + cleanLine + " (" +
-                     (errNo == 1 ? "since boot " : "+") + timeText + ")";
+  String lineToAdd = String(errNo) + ". [!] " + cleanLine + " (" + (errNo == 1 ? "since boot " : "+") + timeText + ")";
   errorLines.push_back(lineToAdd);
   if (errorLines.size() > 20)
     errorLines.erase(errorLines.begin());

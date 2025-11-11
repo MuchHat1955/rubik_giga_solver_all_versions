@@ -271,7 +271,7 @@ void buildMenu(const char *menuName) {
           uiStatusRegisterButton(key, btn);
 
         if (!key || !*key) {
-          LOG_PRINTF("skipping button with empty key {%s}\n", txt);
+          LOG_PRINTF_MENU("skipping button with empty key {%s}\n", txt);
           continue;
         }
 
@@ -281,7 +281,7 @@ void buildMenu(const char *menuName) {
             if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
             const char *keyUD = static_cast<const char *>(lv_event_get_user_data(e));
             if (!keyUD || !*keyUD) {
-              LOG_PRINTF("click event: empty key\n");
+              LOG_PRINTF_MENU("click event: empty key\n");
               return;
             }
 #if LV_USE_ASYNC_CALL

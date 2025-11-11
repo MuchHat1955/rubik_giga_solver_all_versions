@@ -37,10 +37,10 @@ public:
   }
 
   void log() const {
-    LOG_PRINTF("INFO id {%d} op_mode {%d} drive_mode {%d} time_based {%s} profile_vel {%d} rpm {%.3f} tps {%.1f} profile_accel {%d} pos_min {%d} pos_max {%d} span_deg {%.1f} pos_present {%d}",
-               id, op_mode, drive_mode, time_based ? "time" : "velocity",
-               profile_vel, rpm, ticks_per_sec, profile_accel,
-               pos_min, pos_max, span_deg, pos_present);
+    LOG_PRINTF_RB("INFO id {%d} op_mode {%d} drive_mode {%d} time_based {%s} profile_vel {%d} rpm {%.3f} tps {%.1f} profile_accel {%d} pos_min {%d} pos_max {%d} span_deg {%.1f} pos_present {%d}",
+                  id, op_mode, drive_mode, time_based ? "time" : "velocity",
+                  profile_vel, rpm, ticks_per_sec, profile_accel,
+                  pos_min, pos_max, span_deg, pos_present);
   }
 };
 
@@ -95,7 +95,7 @@ public:
   bool requestAllServoInfo();
   String getAllServoInfoLines() const;
 
-    // ---- last known status ---------------------------------------------------
+  // ---- last known status ---------------------------------------------------
   RBStatus getLastStatus() const;
 
 private:

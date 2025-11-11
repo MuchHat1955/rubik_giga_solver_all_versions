@@ -64,7 +64,7 @@ void setFooter(const char *msg) {
     }
     *l = '\0';  // ✅ null-terminate correctly
 
-    LOG_PRINTF("set footer {%s}\n", b);
+    LOG_PRINTF_MENU("set footer {%s}\n", b);
 
     lv_label_set_text(footLbl, b);
     lv_obj_invalidate(footLbl);
@@ -77,7 +77,7 @@ void updateButtonAndRefreshServosOnClick(const char *key) {
   LOG_SECTION_START_MENU("update buttons on click for menu {%s}", key);
   // logButtonMap(true);
   if (!key) {
-    LOG_PRINTF("invalik key {null}\n");
+    LOG_PRINTF_MENU("invalik key {null}\n");
     LOG_SECTION_END();
     return;
   }
@@ -116,7 +116,7 @@ void buttonAction(const char *key) {
 
   unsigned long now = millis();
   if (key && *key && key == lastClickKey && now - lastClickTime < 500) {
-    LOG_PRINTF("button action rapid re-click ignored key {%s}\n", key);
+    LOG_PRINTF_MENU("button action rapid re-click ignored key {%s}\n", key);
     LOG_SECTION_END();
     return;
   }
@@ -125,7 +125,7 @@ void buttonAction(const char *key) {
 
   // --- Safety: guard against null or empty keys ---
   if (!key || !*key) {
-    LOG_PRINTF("button action empty or null key ignored\n");
+    LOG_PRINTF_MENU("button action empty or null key ignored\n");
     LOG_SECTION_END();
     return;
   }
@@ -200,7 +200,7 @@ void validateMenuKeys() {
         const char *type = it["type"] | "";
         const char *key = it["key"] | "";
         if ((strcmp(type, "action") == 0 || strcmp(type, "menu") == 0) && (!key || !*key)) {
-          LOG_PRINTF("menu missing key {%s} type {%s}\n", menuName, type);
+          LOG_PRINTF_MENU("menu missing key {%s} type {%s}\n", menuName, type);
         }
       }
     }
@@ -224,7 +224,7 @@ void ui_init() {
   // 3. Parse menu JSON AFTER initializing LVGL
   DeserializationError err = deserializeJson(menuDoc, jsonBuffer);
   if (err) {
-    LOG_PRINTF("error on deserialize json {%s}\n", err.c_str());
+    LOG_PRINTF_MENU("error on deserialize json {%s}\n", err.c_str());
     LOG_SECTION_END();
     return;  // avoid using empty doc
   }

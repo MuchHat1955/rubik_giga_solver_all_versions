@@ -20,7 +20,7 @@ bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
   Serial2.setTimeout(timeout_ms);
   clearErrorBuffer();
 
-  LOG_PRINTF("Initializing communication...");
+  LOG_PRINTF_RB("Initializing communication...\n");
   delay(300);
 
   // Turn verbose OFF to get clean command responses
@@ -45,12 +45,12 @@ bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
 
   if (!got) {
     pose_store.set_all_poses_last_run(false);
-    LOG_ERROR("no response from rb");
+    LOG_ERROR("no response from rb\n");
     LOG_SECTION_END();
     return false;
   }
 
-  LOG_PRINTF("Communication OK, reading servo INFO...\n");
+  LOG_PRINTF_RB("Communication OK, reading servo INFO...\n");
 
   // Query INFO for all servos (11–16)
   uint8_t ids[] = { ID_ARM1, ID_ARM2, ID_WRIST, ID_GRIPPER1, ID_GRIPPER2, ID_BASE };
@@ -59,7 +59,7 @@ bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
     delay(40);
   }
 
-  LOG_PRINTF("Initialization complete, verbose OFF.\n");
+  LOG_PRINTF_RB("Initialization complete, verbose OFF.\n");
   LOG_SECTION_END();
   return true;
 }
@@ -82,10 +82,10 @@ bool RBInterface::runCommand(const char* name, const float* args, int argCount) 
   setFooter(cmd.c_str());
   Serial2.println(cmd);
 
-  LOG_PRINTF("[GIGA→RB] {%s}", cmd.c_str());
+  LOG_PRINTF_RB("[GIGA → RB] | command {%s}", cmd.c_str());
   bool ok = waitForCompletion(name);
 
-  LOG_PRINTF("Command {%s} result{%s}\n", name, ok ? "OK" : "FAIL");
+  LOG_PRINTF_RB("[RB → GIGA] | command {%s} result {%s}\n", name, ok ? "OK" : "FAIL");
   String txt = cmd + " " + (ok ? "OK" : "FAIL");
   setFooter(txt.c_str());
   LOG_SECTION_END();
@@ -108,7 +108,7 @@ bool RBInterface::requestServoInfo(uint8_t id) {
     line.trim();
     if (!line.startsWith("INFO id=")) continue;
 
-    LOG_PRINTF("{%s}", line.c_str());
+    LOG_PRINTF_RB("{%s}", line.c_str());
 
     ServoInfo info;
     info.id = id;
@@ -154,7 +154,7 @@ bool RBInterface::requestAllServoInfo() {
       if (!line.startsWith("INFO id=")) continue;
 
       got = true;
-      LOG_PRINTF("{%s}", line.c_str());
+      LOG_PRINTF_RB("{%s}", line.c_str());
 
       ServoInfo info;
       info.id = id;
@@ -217,7 +217,7 @@ String RBInterface::getAllServoInfoLines() const {
 // ============================================================
 void RBInterface::parseStatusLine(const String& line) {
   if (line.startsWith("STATUS SERVO")) {
-    if (verboseOn) LOG_PRINTF("{%s}", line.c_str());
+    if (verboseOn) LOG_PRINTF_RB("{%s}", line.c_str());
     return;
   }
 
@@ -270,14 +270,14 @@ bool RBInterface::waitForCompletion(const char* commandName) {
     if (line.startsWith("ERR")) {
       setFooter(line.c_str());
       addErrorLine(line);
-      LOG_PRINTF("{%s}", line.c_str());
+      LOG_PRINTF_RB("{%s}", line.c_str());
       continue;
     }
 
     // --- Handle progress lines ---
     // Any line starting with "MOVING" is considered progress feedback
     if (line.startsWith("MOVING")) {
-      if (verboseOn) LOG_PRINTF("{%s}", line.c_str());
+      if (verboseOn) LOG_PRINTF_RB("{%s}", line.c_str());
       setFooter(line.c_str());  // NEW HOOK
       continue;
     }
@@ -285,7 +285,7 @@ bool RBInterface::waitForCompletion(const char* commandName) {
     // --- Handle START marker ---
     if (line.startsWith(startMarker)) {
       parseStatusLine(line);
-      LOG_PRINTF("{%s} started", commandName);
+      LOG_PRINTF_RB("{%s} started", commandName);
       setFooter(line.c_str());
       continue;
     }
@@ -294,7 +294,7 @@ bool RBInterface::waitForCompletion(const char* commandName) {
     if (line.startsWith(endMarker)) {
       parseStatusLine(line);
       setFooter(line.c_str());
-      LOG_PRINTF("{%s} ended completed{%d}", commandName, last.completed);
+      LOG_PRINTF_RB("{%s} ended completed{%d}", commandName, last.completed);
       success = (last.completed == 1);
 
       break;
@@ -324,10 +324,13 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
     double err1 = fabs(last.g1_per - val);
     double err2 = fabs(last.g2_per - val);
 
-    LOG_PRINTF("verify expected move{%s} g1_per expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, val, last.g1_per, err1);
-    LOG_PRINTF("verify expected move{%s} g2_per expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, val, last.g2_per, err2);
+    LOG_PRINTF_RB("verify expected move{%s} g1_per expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, val, last.g1_per, err1);
+    LOG_PRINTF_RB("verify expected move{%s} g2_per expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, val, last.g2_per, err2);
 
-    if (err1 <= tol && err2 <= tol) return true;
+    if (err1 <= tol && err2 <= tol) {
+      LOG_SECTION_END();
+      return true;
+    }
 
     if (err1 > tol) {
       snprintf(buf, sizeof(buf), "verify expected move{%s} g1_per expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, val, last.g1_per, err1);
@@ -337,6 +340,7 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
       snprintf(buf, sizeof(buf), "verify expected move{%s} g2_per expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, val, last.g2_per, err2);
       addErrorLine(buf);
     }
+    LOG_SECTION_END();
     return false;
   }
 
@@ -350,15 +354,19 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
     else if (servo_id == ID_GRIPPER2) actual = last.g2_per;
     else actual = 0;
   } else {
-    LOG_PRINTF("[!] unknown cmd_name: %s", cmd_name);
+    LOG_PRINTF_RB("[!] unknown cmd_name: %s", cmd_name);
+    LOG_SECTION_END();
     return true;
   }
 
   // Common computation and logging
   err = fabs(actual - val);
-  LOG_PRINTF("verify expected move{%s} servo{%d} expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, servo_id, val, actual, err);
+  LOG_PRINTF_RB("verify expected move{%s} servo{%d} expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, servo_id, val, actual, err);
 
-  if (err <= tol) return true;
+  if (err <= tol) {
+    LOG_SECTION_END();
+    return true;
+  }
 
   LOG_ERROR("verify expected move{%s} servo{%d} expected{%.2f} actual{%.2f} err{%.2f}",
             cmd_name, servo_id, val, actual, err);
@@ -374,7 +382,7 @@ bool RBInterface::updateInfo() {
   LOG_SECTION_START_RB("updateInfo");
 
   Serial2.println("READ 0");
-  LOG_PRINTF("requesting READ 0...\n");
+  LOG_PRINTF_RB("requesting READ 0...\n");
 
   unsigned long t0 = millis();
   bool gotAny = false;
@@ -388,7 +396,7 @@ bool RBInterface::updateInfo() {
 
     if (line.startsWith("ERR")) {
       addErrorLine(line);
-      LOG_PRINTF("{%s}", line.c_str());
+      LOG_PRINTF_RB("{%s}", line.c_str());
       continue;
     }
 
@@ -406,14 +414,14 @@ bool RBInterface::updateInfo() {
 
   if (!gotAny) {
     addErrorLine("no read 0 received");
-    LOG_PRINTF("[!] no response for read 0\n");
+    LOG_PRINTF_RB("[!] no response for read 0\n");
     pose_store.set_all_poses_last_run(false);
     LOG_SECTION_END();
     return false;
   }
 
-  LOG_PRINTF("READ 0 done | X{%.2f} Y{%.2f} A1{%.2f} A2{%.2f} G{%.2f}\n",
-             last.x_mm, last.y_mm, last.a1_deg, last.a2_deg, last.g_vert_deg);
+  LOG_PRINTF_RB("READ 0 done | X{%.2f} Y{%.2f} A1{%.2f} A2{%.2f} G{%.2f}\n",
+                last.x_mm, last.y_mm, last.a1_deg, last.a2_deg, last.g_vert_deg);
 
   LOG_SECTION_END();
   return true;
@@ -597,7 +605,7 @@ READ
 USAGE EXAMPLE
   // Example: move to Y = 65 mm
   if (rb.moveYmm(65.0))
-    Serial.printf("Move done, y{%.2f}\n", rb.getLastStatus().y_mm);
+    serial_printf("Move done, y{%.2f}\n", rb.getLastStatus().y_mm);
   else
     Serial.println(rb.getAllErrorLines());
 }

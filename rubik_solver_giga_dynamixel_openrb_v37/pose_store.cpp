@@ -162,7 +162,7 @@ bool PoseStore::increment_pose_param(const char *param_name, int units, double &
   // --- Find pose by base name
   int idx = find_pose_index(pose_name.c_str());
   if (idx < 0) {
-    LOG_PRINTF("pose not found for %s", pose_name.c_str());
+    LOG_PRINTF_POSE("pose not found for %s", pose_name.c_str());
     LOG_SECTION_END();
     return false;
   }
@@ -181,15 +181,15 @@ bool PoseStore::increment_pose_param(const char *param_name, int units, double &
   String save_key = String(pose_name) + "_param";
 
   // --- Store new parameter value (x100)
-  LOG_PRINTF("calling set param value for pose {%s} val {%.2f}\n", pose_name.c_str(), new_val);
+  LOG_PRINTF_POSE("calling set param value for pose {%s} val {%.2f}\n", pose_name.c_str(), new_val);
   setParamValue(save_key.c_str(), new_val);
 
   // --- Execute updated pose
-  LOG_PRINTF("running pose{%s} new val{%.2f} units{%d}\n", pose_name.c_str(), new_val, units);
+  LOG_PRINTF_POSE("running pose{%s} new val{%.2f} units{%d}\n", pose_name.c_str(), new_val, units);
   // run_pose(pose_name.c_str()); do not run here, has to click, but reflect in UI somehow is changed eg is_at_pose?
   // TODO reflect UI
 
-  LOG_PRINTF("pose{%s} adjusted to %.2f (units %d)\n", pose_name.c_str(), new_val, units);
+  LOG_PRINTF_POSE("pose{%s} adjusted to %.2f (units %d)\n", pose_name.c_str(), new_val, units);
   LOG_SECTION_END();
   return true;
 }
@@ -201,14 +201,14 @@ void PoseStore::set_pose_val_from_param(const char *param_name, double val) {
   LOG_SECTION_START_POSE("set_pose_val_from_param | param {%s}", param_name ? param_name : "(null)");
 
   if (!param_name || !*param_name) {
-    LOG_PRINTF("invalid or empty param name\n");
+    LOG_PRINTF_POSE("invalid or empty param name\n");
     LOG_SECTION_END();
     return;
   }
 
   String key = param_name;
   if (!key.endsWith("_param")) {
-    LOG_PRINTF("[!] not a pose param {%s}\n", param_name);
+    LOG_PRINTF_POSE("[!] not a pose param {%s}\n", param_name);
     LOG_SECTION_END();
     return;
   }
@@ -219,7 +219,7 @@ void PoseStore::set_pose_val_from_param(const char *param_name, double val) {
   // Find pose by name
   int idx = find_pose_index(pose_name.c_str());
   if (idx < 0) {
-    LOG_PRINTF("pose {%s} not found\n", pose_name.c_str());
+    LOG_PRINTF_POSE("pose {%s} not found\n", pose_name.c_str());
     LOG_SECTION_END();
     return;
   }
@@ -230,7 +230,7 @@ void PoseStore::set_pose_val_from_param(const char *param_name, double val) {
   // for persistent param store
   setParamValue(param_name, val);
 
-  LOG_PRINTF("updated pose {%s} p1=%.2f\n", pose_name.c_str(), val);
+  LOG_PRINTF_POSE("updated pose {%s} p1=%.2f\n", pose_name.c_str(), val);
   LOG_SECTION_END();
 }
 
@@ -303,14 +303,14 @@ bool PoseStore::run_pose(const char *pose_name) {
   } else if (type == "gripper2") {
     ok = rb.moveGripper2Per(p1);
   } else {
-    LOG_PRINTF("[!] unknown move type for {%s}\n", type.c_str());
+    LOG_PRINTF_POSE("[!] unknown move type for {%s}\n", type.c_str());
   }
   pose.last_run_ok = ok;
-  LOG_PRINTF("pose store last run set for {%} to {%s}\n", pose.button_key.c_str(), pose.last_run_ok ? "true" : "false");
+  LOG_PRINTF_POSE("pose store last run set for {%} to {%s}\n", pose.button_key.c_str(), pose.last_run_ok ? "true" : "false");
 
   bool active = is_at_pose(pose.button_key.c_str(), 0.5, 1.0);
   bool issue = !ok;
-  LOG_PRINTF("    ---- reflect UI after pose run {%s} run with issue {%s} active{%s}\n",  //
+  LOG_PRINTF_POSE("    ---- reflect UI after pose run {%s} run with issue {%s} active{%s}\n",  //
              pose.button_key.c_str(),                                                     //
              issue ? "yes" : "no",                                                        //
              active ? "yes" : "no");
@@ -438,13 +438,13 @@ void PoseStore::update_pose_store_from_param_store(const Pose *defaults, int def
         Pose &p = poses_list[idx];
         p.p1 = restored_p1;
 
-        LOG_PRINTF_PARAM("updated pose from from paramstore | pose {%s} | val{%.2f}\n",
+        LOG_PRINTF_PARAM("value from flash | pose {%s} | val {%.2f}\n",
                    def.name.c_str(), restored_p1);
       } else {
-        LOG_ERROR("pose not found for default {%s}", def.name.c_str());
+        LOG_ERROR("pose not found in flash {%s}", def.name.c_str());
       }
     } else {
-      LOG_PRINTF_PARAM("not found in param store, keeping default | pose{%s} | default {%.2f}\n",
+      LOG_PRINTF_PARAM("keeping default | pose {%s} | default {%.2f}\n",
                  def.name.c_str(), def.p1);
     }
   }
