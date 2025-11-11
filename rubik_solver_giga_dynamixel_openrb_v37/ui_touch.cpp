@@ -74,7 +74,7 @@ void setFooter(const char *msg) {
 
 // ---- below is for actions to be done when a menu is displayed ---
 void updateButtonAndRefreshServosOnClick(const char *key) {
-  LOG_SECTION_START("update buttons on click", "for menu {%s}", key);
+  LOG_SECTION_START_MENU("update buttons on click for menu {%s}", key);
   // logButtonMap(true);
   if (!key) {
     LOG_PRINTF("invalik key {null}\n");
@@ -83,7 +83,7 @@ void updateButtonAndRefreshServosOnClick(const char *key) {
   }
 
   if (strcmp(key, "poses") == 0) {
-    LOG_SECTION_START("update servos for poses UI", "btn {%s}", key);
+    LOG_SECTION_START_MENU("update servos for poses UI btn {%s}", key);
     setFooter("reading servos...");
     updateButtonStateByKey("poses", false, false, true);
     rb.updateInfo();
@@ -92,7 +92,7 @@ void updateButtonAndRefreshServosOnClick(const char *key) {
     LOG_SECTION_END();
   }
   if (strcmp(key, "system") == 0) {
-    LOG_SECTION_START("update servos for poses UI", "btn {%s}", key);
+    LOG_SECTION_START_MENU("update servos for poses UI btn {%s}", key);
     setFooter("reading servos...");
     updateButtonStateByKey("system", true, false, true);
     rb.updateInfo();
@@ -109,7 +109,7 @@ void updateButtonAndRefreshServosOnClick(const char *key) {
 //                   BUTTON ACTION LOGIC
 // ----------------------------------------------------------
 void buttonAction(const char *key) {
-  LOG_SECTION_START("buttonAction", "key {%s}", key ? key : "(null)");
+  LOG_SECTION_START_MENU("buttonAction key {%s}", key ? key : "(null)");
 
   static unsigned long lastClickTime = 0;
   static String lastClickKey;
@@ -210,7 +210,7 @@ void validateMenuKeys() {
 extern const char jsonBuffer[];
 
 void ui_init() {
-  LOG_SECTION_START("ui_init","");
+  LOG_SECTION_START_MENU("ui_init");
 
   // 1. Initialize LVGL core
   lv_init();
@@ -248,7 +248,7 @@ void ui_refresh() {
   if (now - lastRefresh < 30000UL) return;  //TODO adjust this
   lastRefresh = now;
 
-  LOG_SECTION_START("refresh ui","");
+  LOG_SECTION_START_MENU("refresh ui");
   pose_store.reflect_poses_ui();
   logButtonMap(true);
   LOG_SECTION_END();

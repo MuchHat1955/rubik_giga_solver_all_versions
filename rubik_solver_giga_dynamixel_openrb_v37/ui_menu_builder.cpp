@@ -77,7 +77,7 @@ static void on_num_plus_clicked(lv_event_t *e) {
 // ===========================================================
 void buildMenu(const char *menuName) {
 
-  LOG_SECTION_START("build menu", "menu {%s}", menuName);
+  LOG_SECTION_START_MENU("build menu {%s}", menuName);
 
   lv_obj_t *scr = lv_scr_act();
   if (!scr || !menuDoc.containsKey(menuName)) {
@@ -391,7 +391,8 @@ void buildMenu(const char *menuName) {
         else servoText = String("#FFA500 servos info#\n") + String("[!] no servos info\n\n");
 
         String systemText =
-          String("#FFA500 build#\n") + getSketchVersionWithDate() + "\n\n" + String("#FFA500 log lines#\n") + rb.getAllErrorLines() + "\n\n" + servoText;
+          String("#FFA500 build#\n") + getSketchVersionWithDate() + "\n\n" + //
+          String("#FFA500 log lines#\n") + getAllErrorLines() + "\n\n" + servoText;
 
         lv_textarea_set_text(ta, systemText.c_str());
         lv_textarea_set_cursor_click_pos(ta, false);

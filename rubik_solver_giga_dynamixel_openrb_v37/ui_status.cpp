@@ -30,7 +30,7 @@ void uiStatusClear() {
     if (st.issue) countIssue++;
     if (st.active) countActive++;
   }
-  LOG_PRINTF("END clear button map with size {%d} issues {%d} active {%d}\n", count, countIssue, countActive);
+  LOG_PRINTF("END clear button map with size {%d} | issues {%d} | active {%d}\n", count, countIssue, countActive);
 }
 
 int countOfButtonIssues() {
@@ -84,7 +84,7 @@ void logButtonMap(bool alwaysLog) {
   countActiveLastLog = countActive;
   millisLastLog = millis();
 
-  LOG_SECTION_START("log button map","");
+  LOG_SECTION_START_MENU("log button map");
 
   if (buttonMap.empty()) {
     LOG_PRINTF("buttonMap is empty\n");
@@ -97,7 +97,7 @@ void logButtonMap(bool alwaysLog) {
   for (const auto &entry : buttonMap) {
     const String &key = entry.first;
     const ButtonState &st = entry.second;
-    LOG_PRINTF("    ---- {%02d} key {%s} btn_ptr {%p} active {%s} issue {%s}\n",
+    LOG_PRINTF("    ---- {%02d} | key {%s} | btn_ptr {%p} | active {%s} | issue {%s}\n",
                count,
                key.c_str(),
                (void *)st.btn,
@@ -151,8 +151,8 @@ void drawButtonOverlayByPtr(lv_obj_t *btn, const char *key, bool is_menu, bool i
   }
   if (issue) active = false;
 
-  //LOG_SECTION_START("drawButtonOverlayByPtr");
-  LOG_PRINTF("draw button overlay by PTR for key {%s}  issue {%s} active {%s} busy {%s}\n",  //
+  //LOG_SECTION_START_MENU("drawButtonOverlayByPtr");
+  LOG_PRINTF_MENU("draw button overlay by PTR | key {%s} | issue {%s} | active {%s} | busy {%s}\n",  //
              key,
              issue ? "yes" : "no",   //
              active ? "yes" : "no",  //
@@ -285,7 +285,7 @@ void log_lv_obj_info(const lv_obj_t *obj, const char *prefix) {
     focused = true;
 #endif
 
-  LOG_PRINTF("     ---- log for btn {%s} type {%s} pos {%d,%d} size {%d,%d} hidden {%s} focused {%s}\n",
+  LOG_PRINTF("     ---- log for btn {%s} | type {%s} | pos {%d,%d} | size {%d,%d} | hidden {%s} | focused {%s}\n",
              prefix ? prefix : "",
              name ? name : "(unknown)",
              coords.x1, coords.y1,
@@ -302,7 +302,7 @@ void updateButtonStateByKey(const String &buttonKey, bool issue, bool active, bo
   auto it = buttonMap.find(buttonKey);
   if (it == buttonMap.end()) {
     if (issue || active || busy) {
-      LOG_PRINTF("[!] updating button by KEY, button not found in the map {%s} active {%s} issue {%s} busy {%s}\n",  //
+      LOG_PRINTF("[!] updating button by KEY, button not found in the map {%s} | active {%s} | issue {%s} | busy {%s}\n",  //
                  buttonKey.c_str(),                                                                                  //
                  active ? "yes" : "no",                                                                              //
                  issue ? "yes" : "no",                                                                               //
@@ -325,7 +325,7 @@ void updateButtonStateByKey(const String &buttonKey, bool issue, bool active, bo
 
   if (b.btn) {
     if (issue || active || busy) {
-      LOG_PRINTF("[!] updating button with PTR for key {%s} menu {%s} active {%s} issue {%s} busy {%s}\n",  //
+      LOG_PRINTF("[!] updating button with PTR for key {%s} | menu {%s} | active {%s} | issue {%s} | busy {%s}\n",  //
                  buttonKey.c_str(),                                                                         //
                  is_menu ? "menu" : "no menu",                                                              //
                  active ? "yes" : "no",                                                                     //
@@ -336,7 +336,7 @@ void updateButtonStateByKey(const String &buttonKey, bool issue, bool active, bo
     }
   } else {
     if (issue || active || busy) {
-      LOG_PRINTF("[!] updating button NO PTR for key {%s} menu {%s} active {%s} issue {%s} busy {%s}\n",  //
+      LOG_PRINTF("[!] updating button NO PTR for key {%s} | menu {%s}|  active {%s} | issue {%s} | busy {%s}\n",  //
                  buttonKey.c_str(),                                                                       //
                  is_menu ? "menu" : "no menu",                                                            //
                  active ? "yes" : "no",                                                                   //

@@ -94,7 +94,7 @@ public:
   bool requestServoInfo(uint8_t id);
   bool requestAllServoInfo();
   String getAllServoInfoLines() const;
-  
+
     // ---- last known status ---------------------------------------------------
   RBStatus getLastStatus() const;
 
@@ -108,7 +108,6 @@ private:
   bool readUntilEnd(const char* keyword);
   void parseStatusLine(const String& line);
   bool verifyExpected(const char* cmd_name, double val, int servo_id, double tol);
-  void clearErrorBuffer();
 };
 
 // Optional global instance

@@ -111,8 +111,6 @@ String getSketchVersionWithDate() {
 }
 
 void setup() {
-  LOG_SECTION_START("setup","");
-
   // ----------------------------------------------------------
   // SERIAL INIT (for logs)
   // ----------------------------------------------------------
@@ -125,6 +123,9 @@ void setup() {
   // UI + DISPLAY INIT
   // ----------------------------------------------------------
   init_logging();
+
+  LOG_SECTION_START("setup", "start");
+
   ui_init();  // sets up LVGL + touch + draws initial menu
 
   // ----------------------------------------------------------
@@ -145,6 +146,10 @@ void setup() {
   // ----------------------------------------------------------
   // SERVO SYSTEM INIT
   // ----------------------------------------------------------
+  for (int i = 0; i < 10; i++) {
+    lv_timer_handler();
+    delay(20);
+  }
   initParamStore();  // load or create parameter storage
   initPoseStore();   // register servos + group poses
 

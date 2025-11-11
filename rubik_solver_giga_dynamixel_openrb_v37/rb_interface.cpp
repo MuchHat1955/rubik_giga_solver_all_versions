@@ -14,7 +14,7 @@ RBInterface::RBInterface() {}
 // BEGIN - initialize link and disable verbose
 // ============================================================
 bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
-  LOG_SECTION_START("begin", "| baud=%lu timeout=%lu", baud, timeout_ms);
+  LOG_SECTION_START_RB("begin | baud {%lu} | timeout {%lu}", baud, timeout_ms);
 
   Serial2.begin(baud);
   Serial2.setTimeout(timeout_ms);
@@ -68,7 +68,7 @@ bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
 // Generic command
 // ============================================================
 bool RBInterface::runCommand(const char* name, const float* args, int argCount) {
-  LOG_SECTION_START("runCommand", "| cmd{%s} argc{%d}", name, argCount);
+  LOG_SECTION_START_RB("runCommand | cmd {%s} | argc {%d}", name, argCount);
 
   clearErrorBuffer();
 
@@ -98,7 +98,7 @@ bool RBInterface::runCommand(const char* name, const float* args, int argCount) 
 // INFO fetch helper
 // ============================================================
 bool RBInterface::requestServoInfo(uint8_t id) {
-  LOG_SECTION_START("requestServoInfo", "| id{%d}", id);
+  LOG_SECTION_START_RB("requestServoInfo | id {%d}", id);
 
   String cmd = "INFO " + String(id);
   Serial2.println(cmd);
@@ -138,7 +138,7 @@ bool RBInterface::requestServoInfo(uint8_t id) {
 // Request all servos and cache in array
 // ============================================================
 bool RBInterface::requestAllServoInfo() {
-  LOG_SECTION_START("requestAllServoInfo","");
+  LOG_SECTION_START_RB("requestAllServoInfo");
 
   bool all_ok = true;
 
@@ -255,7 +255,7 @@ void RBInterface::parseStatusLine(const String& line) {
 // Wait for START/END/ERR sequence
 // ============================================================
 bool RBInterface::waitForCompletion(const char* commandName) {
-  LOG_SECTION_START("waitForCompletion", "| cmd{%s}", commandName);
+  LOG_SECTION_START_RB("waitForCompletion | cmd {%s}", commandName);
 
   String startMarker = String(commandName) + " START";
   String endMarker = String(commandName) + " END";
@@ -316,7 +316,7 @@ bool RBInterface::waitForCompletion(const char* commandName) {
 // Verify expected final status for MOVE commands
 // ============================================================
 bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id, double tol) {
-  LOG_SECTION_START("verifyExpected", "| cmd{%s}", cmd_name);
+  LOG_SECTION_START_RB("verifyExpected | cmd {%s}", cmd_name);
 
   double actual = 0.0, err = 0.0;
   char buf[200];
@@ -363,7 +363,7 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
   if (err <= tol) return true;
 
   LOG_ERROR("verify expected move{%s} servo{%d} expected{%.2f} actual{%.2f} err{%.2f}",
-               cmd_name, servo_id, val, actual, err);
+            cmd_name, servo_id, val, actual, err);
 
   LOG_SECTION_END();
   return false;
@@ -373,7 +373,7 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
 // UpdateInfo - force RB to send current status (READ 0)
 // ============================================================
 bool RBInterface::updateInfo() {
-  LOG_SECTION_START("updateInfo","");
+  LOG_SECTION_START_RB("updateInfo");
 
   clearErrorBuffer();
   Serial2.println("READ 0");
@@ -452,7 +452,7 @@ bool RBInterface::wristVertInfoDeg(double* v) {
 }
 
 bool RBInterface::moveYmm(double y) {
-  LOG_SECTION_START("moveYmm", "| y{%.2f}", y);
+  LOG_SECTION_START_RB("moveYmm | y {%.2f}", y);
   float a[] = { (float)y };
   char cmd[] = "MOVEYMM";
   bool ok = runCommand(cmd, a, 1);
@@ -461,7 +461,7 @@ bool RBInterface::moveYmm(double y) {
   return ok;
 }
 bool RBInterface::moveXmm(double x) {
-  LOG_SECTION_START("moveXmm", "| x{%.2f}", x);
+  LOG_SECTION_START_RB("moveXmm | x {%.2f}", x);
   float a[] = { (float)x };
   char cmd[] = "MOVEXMM";
   bool ok = runCommand(cmd, a, 1);
@@ -470,7 +470,7 @@ bool RBInterface::moveXmm(double x) {
   return ok;
 }
 bool RBInterface::moveBaseDeg(double d) {
-  LOG_SECTION_START("moveBaseDeg", "| deg{%.2f}", d);
+  LOG_SECTION_START_RB("moveBaseDeg | deg {%.2f}", d);
   float a[] = { (float)ID_BASE, (float)d };
   char cmd[] = "MOVEPER";
   bool ok = runCommand(cmd, a, 2);
@@ -479,7 +479,7 @@ bool RBInterface::moveBaseDeg(double d) {
   return ok;
 }
 bool RBInterface::moveWristVertDeg(double d) {
-  LOG_SECTION_START("moveWristVertDeg", "| deg{%.2f}", d);
+  LOG_SECTION_START_RB("moveWristVertDeg | deg {%.2f}", d);
   float a[] = { (float)d };
   char cmd[] = "MOVEWRISTVERTDEG";
   bool ok = runCommand(cmd, a, 1);
@@ -488,7 +488,7 @@ bool RBInterface::moveWristVertDeg(double d) {
   return ok;
 }
 bool RBInterface::moveGrippersPer(double p) {
-  LOG_SECTION_START("moveGrippersPer", "| per{%.2f}", p);
+  LOG_SECTION_START_RB("moveGrippersPer | per {%.2f}", p);
   float a[] = { (float)p };
   char cmd[] = "MOVEGRIPPERPER";
   bool ok = runCommand(cmd, a, 1);
@@ -497,7 +497,7 @@ bool RBInterface::moveGrippersPer(double p) {
   return ok;
 }
 bool RBInterface::moveGripper1Per(double p) {
-  LOG_SECTION_START("moveGripper1Per", "| per{%.2f}", p);
+  LOG_SECTION_START_RB("moveGripper1Per | per {%.2f}", p);
   float a[] = { (float)ID_GRIPPER1, (float)p };
   char cmd[] = "MOVEPER";
   bool ok = runCommand(cmd, a, 2);
@@ -506,7 +506,7 @@ bool RBInterface::moveGripper1Per(double p) {
   return ok;
 }
 bool RBInterface::moveGripper2Per(double p) {
-  LOG_SECTION_START("moveGripper2Per", "| per{%.2f}", p);
+  LOG_SECTION_START_RB("moveGripper2Per | per {%.2f}", p);
   float a[] = { (float)ID_GRIPPER2, (float)p };
   char cmd[] = "MOVEPER";
   bool ok = runCommand(cmd, a, 2);
@@ -516,7 +516,7 @@ bool RBInterface::moveGripper2Per(double p) {
 }
 
 bool RBInterface::readUntilEnd(const char* keyword) {
-  LOG_SECTION_START("readUntilEnd", "| key{%s}", keyword);
+  LOG_SECTION_START_RB("readUntilEnd | key {%s}", keyword);
   unsigned long t0 = millis();
   while (millis() - t0 < 2000) {
     if (!Serial2.available()) continue;

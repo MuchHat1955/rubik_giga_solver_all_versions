@@ -24,7 +24,7 @@ extern SequenceStore sequence_store;
 //                           RUN ACTION
 // =====================================================================
 void runAction(const char* key) {
-  LOG_SECTION_START_PARAM("runAction key {%s}", key);
+  LOG_SECTION_START_POSE("runAction key {%s}", key);
 
   if (!key || !*key) {
     LOG_PRINTF("run action null/empty key ignored\n");
@@ -41,14 +41,14 @@ void runAction(const char* key) {
   // --- Pose buttons ---
   if (pose_store.is_button_for_pose(key)) {
     bool ok = pose_store.run_pose_by_button(key);
-    LOG_PRINTF("pose move {%s} result {%s}\n", key, ok ? "OK" : "FAIL");
+    LOG_PRINTF("pose | move {%s} | result {%s}\n", key, ok ? "OK" : "FAIL");
     LOG_SECTION_END();
     return;
   }
 
   if (sequence_store.is_key_for_sequence(key)) {
     bool ok = sequence_store.run_sequence_by_key(key);
-    LOG_PRINTF("sequence move {%s} result {%s}\n", key, ok ? "OK" : "FAIL");
+    LOG_PRINTF("sequence | move {%s} | result {%s}\n", key, ok ? "OK" : "FAIL");
     LOG_SECTION_END();
     return;
   }
@@ -89,7 +89,7 @@ static void saveParamsToFlash() {
     const char* key = kv.first.c_str();
     double val = kv.second.value;
     kv_set(key, &val, sizeof(val), 0);
-    LOG_PRINTF_AUTO("saving {%s} = %.2f\n", key, val);
+    LOG_PRINTF_AUTO("saving | key {%s} | val {%.2f}\n", key, val);
   }
 
   LOG_SECTION_END();
@@ -99,7 +99,7 @@ static void saveParamsToFlash() {
 // Load parameters from non-volatile KVStore
 // ---------------------------------------------------------------------
 static void loadParamsFromFlash() {
-  LOG_SECTION_START("loadParamsFromFlash");
+  LOG_SECTION_START_PARAM("loadParamsFromFlash");
 
   for (auto& kv : param_store) {
     const char* key = kv.first.c_str();
@@ -108,7 +108,7 @@ static void loadParamsFromFlash() {
     int ret = kv_get(key, &loaded, sizeof(loaded), &actual);
     if (ret == MBED_SUCCESS) {
       kv.second.value = loaded;
-      LOG_PRINTF("loaded {%s} = {%.2f}\n", key, loaded);
+      LOG_PRINTF("loading | key {%s} | val {%.2f}\n", key, loaded);
     }
   }
 
@@ -200,9 +200,9 @@ void setParamValue(const char* k, double v) {
       saveParamsToFlash();
       lastSave = millis();
     }
-    LOG_PRINTF_AUTO("updated param {%s} = {%.2f}\n", k, v);
+    LOG_PRINTF_AUTO("updated param {%s} | val {%.2f}\n", k, v);
   } else {
-    LOG_PRINTF_AUTO("no change for {%s} still {%.2f}\n", k, v);
+    LOG_PRINTF_AUTO("no change for param {%s} | val {%.2f}\n", k, v);
   }
   LOG_SECTION_END();
 }
@@ -240,6 +240,6 @@ void incrementParam(const char* k, int delta) {
   pose_store.increment_pose_param(k, delta, p1);
   pose_store.set_pose_params(k, p1);
 
-  LOG_PRINTF("incremented {%s} by {%d} to {%.2f}\n", k, delta, p1);
+  LOG_PRINTF("incremented {%s} | by {%d} | to {%.2f}\n", k, delta, p1);
   LOG_SECTION_END();
 }

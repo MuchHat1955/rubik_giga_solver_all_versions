@@ -23,7 +23,7 @@ static bool startupOK = false;
 bool runStartupTests() {
   if (startupDone) return startupOK;
 
-  LOG_SECTION_START("startup tests","");
+  LOG_SECTION_START("start","run tests");
 
   int failCount = 0;
   int total = 0;
@@ -34,7 +34,7 @@ bool runStartupTests() {
     setFooter("startup test ok");
     LOG_PRINTF("startup status ok\n");
   } else {
-    setFooter(rb.getLastErrorLine());
+    setFooter(getLastErrorLine());
   }
 
   startupDone = true;
@@ -47,5 +47,5 @@ bool runStartupTests() {
 // ----------------------------------------------------------
 String getStartupTestErrorString() {
   if (startupOK) return "all servos responded OK.";
-  return rb.getAllErrorLines();
+  getAllErrorLines();
 }

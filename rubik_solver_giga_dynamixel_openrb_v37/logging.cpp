@@ -201,7 +201,7 @@ const char* getLastErrorLine() {
   return errorLines.empty() ? "" : errorLines.back().c_str();
 }
 
-String getAllErrorLines() const {
+String getAllErrorLines() {
   String s;
   for (auto& e : errorLines) {
     String line = e;
