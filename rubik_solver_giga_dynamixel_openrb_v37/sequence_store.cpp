@@ -67,7 +67,7 @@ bool SequenceStore::is_key_for_sequence(const char* key) const {
 // Run a sequence by name
 // ---------------------------------------------------------------------------
 bool SequenceStore::run_sequence_by_key(const char* key) {
-  LOG_SECTION_START_PRINTF("runSequence", "| key{%s}", key);
+  LOG_SECTION_START("runSequence", "| key{%s}", key);
 
   for (auto& seq : sequences) {
     if (strcmp(seq.key, key) != 0) continue;

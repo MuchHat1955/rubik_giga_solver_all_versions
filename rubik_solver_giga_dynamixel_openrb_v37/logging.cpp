@@ -1,4 +1,4 @@
-#include <arduino.h>
+#include <Arduino.h>
 #include "logging.h"
 
 static String log_section_name[MAX_NESTED_SECTIONS];
@@ -11,6 +11,19 @@ static volatile int log_buffer_head = 0;
 static volatile int log_buffer_tail = 0;
 
 bool logging_on = true;
+
+bool log_reflect_enabled = true;
+bool log_rb_enabled = true;
+bool log_persist_enabled = true;
+bool log_menu_enabled = true;
+bool log_seq_enabled = true;
+bool log_cube_enabled = true;
+
+bool current_section_enabled = true;
+const char* current_log_prefix = "";
+
+bool bee_logging_enabled = true;
+unsigned long bee_logging_start_ms = 0;
 
 // ----- Internal Helpers -----
 static String format_time(unsigned long ms) {
@@ -27,7 +40,7 @@ static String format_time(unsigned long ms) {
     return String(millis_part) + "ms";
 }
 
-// --- Portable safe print helpers (no xPortInIsrContext on GIGA) ---
+// --- Portable safe print helpers ---
 static bool in_isr_context() {
 #ifdef ARDUINO_ARCH_ESP32
   return xPortInIsrContext();
@@ -37,11 +50,8 @@ static bool in_isr_context() {
 }
 
 static void safe_print(const char* msg) {
-  if (in_isr_context()) {
-    log_enqueue(msg);
-  } else {
-    Serial.print(msg);
-  }
+  if (in_isr_context()) log_enqueue(msg);
+  else Serial.print(msg);
 }
 
 static void safe_println(const char* msg) {
@@ -58,7 +68,12 @@ void log_enqueue(const char* msg) {
   if (!msg) return;
   while (*msg) {
     int next_head = (log_buffer_head + 1) % LOG_BUFFER_SIZE;
-    if (next_head == log_buffer_tail) break;  // full
+    if (next_head == log_buffer_tail) {
+      // ✅ tweak: mark truncation
+      log_buffer[log_buffer_head] = '~';
+      log_buffer_head = (log_buffer_head + 1) % LOG_BUFFER_SIZE;
+      break;
+    }
     log_buffer[log_buffer_head] = *msg++;
     log_buffer_head = next_head;
   }
@@ -68,13 +83,14 @@ void log_flush_buffer() {
   while (log_buffer_tail != log_buffer_head) {
     Serial.write(log_buffer[log_buffer_tail]);
     log_buffer_tail = (log_buffer_tail + 1) % LOG_BUFFER_SIZE;
+    // ✅ tweak: optional cooperative yield
+    if ((log_buffer_tail % 128) == 0) yield();
   }
 }
 
 // ----- Indentation -----
 void log_indent() {
   if (!logging_on) return;
-  // Serial.println();
   for (int i = 0; i < log_section_index && i < MAX_NESTED_SECTIONS; i++) {
     Serial.print("   ");
   }
@@ -112,7 +128,8 @@ void log_section_end() {
   if (!logging_on) return;
 
   if (log_section_index < 1) {
-    safe_println("");
+    // ✅ clearer warning
+    safe_println("[log] warning: section_end called with no active section");
     return;
   }
 

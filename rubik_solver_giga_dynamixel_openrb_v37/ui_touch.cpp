@@ -74,7 +74,7 @@ void setFooter(const char *msg) {
 
 // ---- below is for actions to be done when a menu is displayed ---
 void updateButtonAndRefreshServosOnClick(const char *key) {
-  LOG_SECTION_START_VAR("update buttons on click", "for menu", key);
+  LOG_SECTION_START("update buttons on click", "for menu {%s}", key);
   // logButtonMap(true);
   if (!key) {
     LOG_PRINTF("invalik key {null}\n");
@@ -83,7 +83,7 @@ void updateButtonAndRefreshServosOnClick(const char *key) {
   }
 
   if (strcmp(key, "poses") == 0) {
-    LOG_SECTION_START_VAR("update servos for poses UI", "btn", key);
+    LOG_SECTION_START("update servos for poses UI", "btn {%s}", key);
     setFooter("reading servos...");
     updateButtonStateByKey("poses", false, false, true);
     rb.updateInfo();
@@ -92,7 +92,7 @@ void updateButtonAndRefreshServosOnClick(const char *key) {
     LOG_SECTION_END();
   }
   if (strcmp(key, "system") == 0) {
-    LOG_SECTION_START_VAR("update servos for poses UI", "btn", key);
+    LOG_SECTION_START("update servos for poses UI", "btn {%s}", key);
     setFooter("reading servos...");
     updateButtonStateByKey("system", true, false, true);
     rb.updateInfo();
@@ -109,7 +109,7 @@ void updateButtonAndRefreshServosOnClick(const char *key) {
 //                   BUTTON ACTION LOGIC
 // ----------------------------------------------------------
 void buttonAction(const char *key) {
-  LOG_SECTION_START_VAR("buttonAction", "key", key ? key : "(null)");
+  LOG_SECTION_START("buttonAction", "key {%s}", key ? key : "(null)");
 
   static unsigned long lastClickTime = 0;
   static String lastClickKey;
@@ -129,6 +129,8 @@ void buttonAction(const char *key) {
     LOG_SECTION_END();
     return;
   }
+
+  if (strcmp(key, "system") == 0) on_system_menu_opened();
 
   updateButtonAndRefreshServosOnClick(key);
 

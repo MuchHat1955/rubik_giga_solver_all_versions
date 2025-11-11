@@ -1,96 +1,97 @@
 #pragma once
+#include <Arduino.h>
+#include "rb_interface.h"
 
-/*
-
-EXAMPLE USAGE
-
-#include "logging.h"
-
-void setup() {
-  Serial.begin(115200);
-
-  LOG_SECTION_START("setup");
-  LOG_PRINTF("version 1.2\n");
-  delay(10);
-
-  LOG_SECTION_START_VAR("init motor", "ID", "12");
-  delay(42);
-  LOG_SECTION_END(); // end init motor
-
-  delay(15);
-  LOG_SECTION_END(); // end setup
-}
-
-void loop() {
-  LOG_FLUSH();   // flush buffered logs (important if using ISRs)
-  delay(1000);
-}
-
-EXAMPLE OUTPUT
-
----- {setup} start <12ms> ----
-   version {1.2}
-   ---- {init motor | ID {12}} start <23ms> ----
-   ---- {init motor | ID {12}} end <65ms, Δ42ms> ----
----- {setup} end <80ms, Δ68ms> ----
-
-*/
-
-// ----- CONFIG -----
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
 #define MAX_NESTED_SECTIONS 24
 #define LOG_BUFFER_SIZE 1024  // ring buffer for deferred logging from ISRs
-// ------------------
 
+// CATEGORY ENABLES (comment out to disable compile-time)
+#define LOG_REFLECT
+#define LOG_RB_COMMANDS
+#define LOG_PERSIST
+#define LOG_MENU
+#define LOG_SEQUENCES
+#define LOG_CUBE
+
+// ============================================================================
+// GLOBAL FLAGS / STATE
+// ============================================================================
 extern bool logging_on;
+extern bool log_reflect_enabled;
+extern bool log_rb_enabled;
+extern bool log_persist_enabled;
+extern bool log_menu_enabled;
+extern bool log_seq_enabled;
+extern bool log_cube_enabled;
 
+// section context
+extern bool current_section_enabled;
+extern const char* current_log_prefix;
+
+// bee logging (auto-off after 6 min)
+extern bool bee_logging_enabled;
+extern unsigned long bee_logging_start_ms;
+#define BEE_LOGGING_DURATION_MS (6UL * 60UL * 1000UL)
+
+inline void init_logging() {
+  bee_logging_enabled = true;
+  bee_logging_start_ms = millis();
+}
+inline void update_bee_logging() {
+  if (bee_logging_enabled && millis() - bee_logging_start_ms > BEE_LOGGING_DURATION_MS)
+    bee_logging_enabled = false;
+}
+inline void on_system_menu_opened() {
+  bee_logging_enabled = true;
+  bee_logging_start_ms = millis();
+}
+
+#define SHOULD_LOG(flag) (bee_logging_enabled && (flag))
+
+// ============================================================================
+// CORE LOGGING INTERFACE
+// ============================================================================
 void log_indent();
 void log_section_start(const String& section_name);
 void log_section_start_var(const String& title, const String& var_name, const String& var_val);
 void log_section_end();
 void log_indent_reset();
+void log_flush_buffer();            // periodic flush
+void log_enqueue(const char* msg);  // ISR-safe enqueue
 
-// Safe, deferred log flush (call periodically in loop)
-void log_flush_buffer();
-
+// ============================================================================
+// LOW-LEVEL PRINT HELPERS
+// ============================================================================
 template<typename... Args>
 inline void serial_printf(const char* fmt, Args... args) {
   char buf[200];
   snprintf(buf, sizeof(buf), fmt, args...);
-
-  // Convert to lowercase before printing
-  for (char* p = buf; *p; ++p) {
-    *p = tolower(*p);
-  }
-
+  for (char* p = buf; *p; ++p) *p = tolower(*p);  // convert to lowercase
   Serial.print(buf);
 }
 
-// Convenience macros
+// ============================================================================
+// BASE MACROS
+// ============================================================================
 #define LOG_SECTION_START(title) \
   do { \
     if (logging_on) log_section_start(title); \
   } while (0)
-
-#define LOG_SECTION_START_VAR(title, name, val) \
-  do { \
-    if (logging_on) log_section_start_var(title, name, val); \
-  } while (0)
-
 #define LOG_SECTION_END() \
   do { \
     if (logging_on) log_section_end(); \
   } while (0)
-
 #define LOG_RESET() \
   do { log_indent_reset(); } while (0)
-
 #define LOG_FLUSH() \
   do { log_flush_buffer(); } while (0)
 
-// -----------------------------------------------------------
-// Formatted logging macros using serial_printf
-// -----------------------------------------------------------
-
+// ============================================================================
+// FORMATTED LOGGING
+// ============================================================================
 #define LOG_PRINTF(fmt, ...) \
   do { \
     if (logging_on) { \
@@ -99,7 +100,7 @@ inline void serial_printf(const char* fmt, Args... args) {
     } \
   } while (0)
 
-#define LOG_SECTION_START_PRINTF(title, fmt, ...) \
+#define LOG_SECTION_START(title, fmt, ...) \
   do { \
     if (logging_on) { \
       log_indent(); \
@@ -109,8 +110,7 @@ inline void serial_printf(const char* fmt, Args... args) {
     } \
   } while (0)
 
-#include "rb_interface.h"
-
+// Error helper (ties to RBInterface)
 #define LOG_ERROR_RB(fmt, ...) \
   do { \
     char _buf[200]; \
@@ -119,51 +119,173 @@ inline void serial_printf(const char* fmt, Args... args) {
     rb.addErrorLine(_buf); \
   } while (0)
 
-// -----------------------------------------------------------
-// Portable variable logging macros (robust for String, char*, bool, numbers)
-// -----------------------------------------------------------
+// ============================================================================
+// AUTO-PREFIXED LOGGING
+// ============================================================================
+#define LOG_PRINTF_AUTO(fmt, ...) \
+  do { \
+    if (current_section_enabled && bee_logging_enabled && logging_on) { \
+      if (current_log_prefix && current_log_prefix[0]) \
+        LOG_PRINTF("[%s] " fmt, current_log_prefix, ##__VA_ARGS__); \
+      else \
+        LOG_PRINTF(fmt, ##__VA_ARGS__); \
+    } \
+  } while (0)
 
-// ---------- generic helpers ----------
+// ============================================================================
+// SECTION MACROS
+// ============================================================================
+#define LOG_SECTION_START_TAG(tag, fmt, ...) \
+  do { \
+    current_section_enabled = true; \
+    current_log_prefix = tag; \
+    if (bee_logging_enabled && logging_on) { \
+      if (tag && tag[0]) \
+        LOG_SECTION_START(tag, "| [%s] " fmt, tag, ##__VA_ARGS__); \
+      else \
+        LOG_SECTION_START(tag, fmt, ##__VA_ARGS__); \
+    } \
+  } while (0)
 
-// Overload for Arduino String
-inline void log_var_value(const String& val) {
-  Serial.print(val);
-}
+#define LOG_SECTION_START_IF(flag, tag, fmt, ...) \
+  do { \
+    current_section_enabled = SHOULD_LOG(flag) && logging_on; \
+    current_log_prefix = (current_section_enabled) ? tag : ""; \
+    if (current_section_enabled) { \
+      if (tag && tag[0]) \
+        LOG_SECTION_START(tag, "| [%s] " fmt, tag, ##__VA_ARGS__); \
+      else \
+        LOG_SECTION_START(tag, fmt, ##__VA_ARGS__); \
+    } \
+  } while (0)
 
-// Overload for const char*
-inline void log_var_value(const char* val) {
-  Serial.print(val ? val : "(null)");
-}
+#define LOG_SECTION_END_TAG() \
+  do { \
+    current_section_enabled = true; \
+    current_log_prefix = ""; \
+  } while (0)
 
-// Overload for bool
-inline void log_var_value(bool val) {
-  Serial.print(val ? "true" : "false");
-}
+// ============================================================================
+// CATEGORY SECTION SHORTCUTS
+// ============================================================================
+#ifdef LOG_REFLECT
+#define LOG_SECTION_START_REFLECT(fmt, ...) LOG_SECTION_START_IF(log_reflect_enabled, "REFLECT", fmt, ##__VA_ARGS__)
+#else
+#define LOG_SECTION_START_REFLECT(fmt, ...) ((void)0)
+#endif
 
-// Template for all other types (int, float, etc.)
-template<typename T>
-inline void log_var_value(const T& val) {
-  Serial.print(val);
-}
+#ifdef LOG_RB_COMMANDS
+#define LOG_SECTION_START_RB(fmt, ...) LOG_SECTION_START_IF(log_rb_enabled, "RB", fmt, ##__VA_ARGS__)
+#else
+#define LOG_SECTION_START_RB(fmt, ...) ((void)0)
+#endif
 
-// ---------- core logging function ----------
-inline void log_var(const char* name, const auto& val, bool newline = true, bool cont = false) {
-  if (!logging_on) return;
-  if (!cont) log_indent();
+#ifdef LOG_PERSIST
+#define LOG_SECTION_START_PERSIST(fmt, ...) LOG_SECTION_START_IF(log_persist_enabled, "PERSIST", fmt, ##__VA_ARGS__)
+#else
+#define LOG_SECTION_START_PERSIST(fmt, ...) ((void)0)
+#endif
 
-  if (cont) Serial.print(" | ");
-  Serial.print(name);
-  Serial.print(" {");
-  log_var_value(val);
-  Serial.print("}");
-  if (newline) Serial.println();
-}
+#ifdef LOG_MENU
+#define LOG_SECTION_START_MENU(fmt, ...) LOG_SECTION_START_IF(log_menu_enabled, "MENU", fmt, ##__VA_ARGS__)
+#else
+#define LOG_SECTION_START_MENU(fmt, ...) ((void)0)
+#endif
 
-// ---------- user macros ----------
-#define LOG_VAR(name, val) log_var(name, val, true, false)
-#define LOG_VAR_(name, val) log_var(name, val, false, false)
-#define LOG_VAR_CONT(name, val) log_var(name, val, true, true)
-#define LOG_VAR_CONT_(name, val) log_var(name, val, false, true)
+#ifdef LOG_SEQUENCES
+#define LOG_SECTION_START_SEQ(fmt, ...) LOG_SECTION_START_IF(log_seq_enabled, "SEQ", fmt, ##__VA_ARGS__)
+#else
+#define LOG_SECTION_START_SEQ(fmt, ...) ((void)0)
+#endif
 
-// ISR-safe print (queues string)
-void log_enqueue(const char* msg);
+#ifdef LOG_CUBE
+#define LOG_SECTION_START_CUBE(fmt, ...) LOG_SECTION_START_IF(log_cube_enabled, "CUBE", fmt, ##__VA_ARGS__)
+#else
+#define LOG_SECTION_START_CUBE(fmt, ...) ((void)0)
+#endif
+
+// ============================================================================
+// CATEGORY PRINTF MACROS (independent or inside a section)
+// ============================================================================
+// Each one checks if (a) its own runtime flag is on, or (b) the current section
+// prefix matches the same tag (e.g. inside a REFLECT section).
+// This way, standalone logs obey the per-category flag, while
+// nested ones follow the section’s active state automatically.
+
+#define LOG_SHOULD_PRINT(tag, enabled_flag) \
+  (logging_on && bee_logging_enabled && (enabled_flag || \
+   (current_log_prefix && strcmp(current_log_prefix, tag) == 0)))
+
+// ---------------------------------------------------------------- REFLECT --
+#ifdef LOG_REFLECT
+  #define LOG_PRINTF_REFLECT(fmt, ...) \
+    do { \
+      if (LOG_SHOULD_PRINT("REFLECT", log_reflect_enabled)) { \
+        LOG_PRINTF("[REFLECT] " fmt, ##__VA_ARGS__); \
+      } \
+    } while (0)
+#else
+  #define LOG_PRINTF_REFLECT(fmt, ...) ((void)0)
+#endif
+
+// ------------------------------------------------------------------ RB -----
+#ifdef LOG_RB_COMMANDS
+  #define LOG_PRINTF_RB(fmt, ...) \
+    do { \
+      if (LOG_SHOULD_PRINT("RB", log_rb_enabled)) { \
+        LOG_PRINTF("[RB] " fmt, ##__VA_ARGS__); \
+      } \
+    } while (0)
+#else
+  #define LOG_PRINTF_RB(fmt, ...) ((void)0)
+#endif
+
+// ---------------------------------------------------------------- PERSIST --
+#ifdef LOG_PERSIST
+  #define LOG_PRINTF_PERSIST(fmt, ...) \
+    do { \
+      if (LOG_SHOULD_PRINT("PERSIST", log_persist_enabled)) { \
+        LOG_PRINTF("[PERSIST] " fmt, ##__VA_ARGS__); \
+      } \
+    } while (0)
+#else
+  #define LOG_PRINTF_PERSIST(fmt, ...) ((void)0)
+#endif
+
+// ------------------------------------------------------------------ MENU ---
+#ifdef LOG_MENU
+  #define LOG_PRINTF_MENU(fmt, ...) \
+    do { \
+      if (LOG_SHOULD_PRINT("MENU", log_menu_enabled)) { \
+        LOG_PRINTF("[MENU] " fmt, ##__VA_ARGS__); \
+      } \
+    } while (0)
+#else
+  #define LOG_PRINTF_MENU(fmt, ...) ((void)0)
+#endif
+
+// --------------------------------------------------------------- SEQUENCES --
+#ifdef LOG_SEQUENCES
+  #define LOG_PRINTF_SEQ(fmt, ...) \
+    do { \
+      if (LOG_SHOULD_PRINT("SEQ", log_seq_enabled)) { \
+        LOG_PRINTF("[SEQ] " fmt, ##__VA_ARGS__); \
+      } \
+    } while (0)
+#else
+  #define LOG_PRINTF_SEQ(fmt, ...) ((void)0)
+#endif
+
+// ------------------------------------------------------------------ CUBE ---
+#ifdef LOG_CUBE
+  #define LOG_PRINTF_CUBE(fmt, ...) \
+    do { \
+      if (LOG_SHOULD_PRINT("CUBE", log_cube_enabled)) { \
+        LOG_PRINTF("[CUBE] " fmt, ##__VA_ARGS__); \
+      } \
+    } while (0)
+#else
+  #define LOG_PRINTF_CUBE(fmt, ...) ((void)0)
+#endif
+
+

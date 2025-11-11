@@ -193,7 +193,7 @@ bool PoseStore::increment_pose_param(const char *param_name, int units, double &
 // Map UI / param names to internal pose records
 // -----------------------------------------------------------
 void PoseStore::set_pose_val_from_param(const char *param_name, double val) {
-  LOG_SECTION_START_VAR("set_pose_val_from_param", "param", param_name ? param_name : "(null)");
+  LOG_SECTION_START("set_pose_val_from_param", "param {%s}", param_name ? param_name : "(null)");
 
   if (!param_name || !*param_name) {
     LOG_PRINTF("invalid or empty param name\n");
@@ -280,7 +280,7 @@ bool PoseStore::run_pose(const char *pose_name) {
   String text = "run pose " + String(pose_name);
   setFooter(text.c_str());
 
-  LOG_SECTION_START_PRINTF("pose store run_pose", "| {%s} type{%s}", pose_name, type.c_str());
+  LOG_SECTION_START("pose store run_pose", "| {%s} type{%s}", pose_name, type.c_str());
   bool ok = false;
 
   if (type == "x") {
@@ -306,9 +306,9 @@ bool PoseStore::run_pose(const char *pose_name) {
   bool active = is_at_pose(pose.button_key.c_str(), 0.5, 1.0);
   bool issue = !ok;
   LOG_PRINTF("    ---- reflect UI after pose run {%s} run with issue {%s} active{%s}\n",  //
-             pose.button_key.c_str(),                                                     //
-             issue ? "yes" : "no",                                                        //
-             active ? "yes" : "no");
+                     pose.button_key.c_str(),                                                     //
+                     issue ? "yes" : "no",                                                        //
+                     active ? "yes" : "no");
   updateButtonStateByKey(pose.button_key.c_str(), issue, active, false);
 
   LOG_SECTION_END();
@@ -368,7 +368,7 @@ bool PoseStore::is_at_pose(const char *name, double tol_mm, double tol_deg) {
 // -----------------------------------------------------------
 
 void PoseStore::init_from_defaults(const Pose *defaults, int def_count) {
-  LOG_SECTION_START("PoseStore::init_from_defaults");
+  LOG_SECTION_START("PoseStore::init_from_defaults","");
 
   for (int i = 0; i < def_count; i++) {
     const Pose &def = defaults[i];
@@ -396,7 +396,7 @@ void PoseStore::reflect_poses_ui() {
 }
 
 void PoseStore::set_all_poses_last_run(bool b) {
-  LOG_SECTION_START("PoseStore::reflect_poses_ui");
+  LOG_SECTION_START_REFLECT("PoseStore::reflect_poses_ui","");
   for (int i = 0; i < count; i++) {
     Pose &p = poses_list[i];
     p.last_run_ok = b;
@@ -409,7 +409,7 @@ void PoseStore::set_all_poses_last_run(bool b) {
 }
 
 void PoseStore::update_pose_store_from_param_store(const Pose *defaults, int def_count) {
-  LOG_SECTION_START("PoseStore::update_pose_store_from_param_store");
+  LOG_SECTION_START("PoseStore::update_pose_store_from_param_store","");
 
   for (int i = 0; i < def_count; i++) {
     const Pose &def = defaults[i];
@@ -451,7 +451,7 @@ void PoseStore::update_pose_store_from_param_store(const Pose *defaults, int def
 // Debug list
 // -----------------------------------------------------------
 void PoseStore::list_poses() const {
-  LOG_SECTION_START("PoseStore::list_poses");
+  LOG_SECTION_START("PoseStore::list_poses","");
   for (int i = 0; i < count; i++) {
     const Pose &p = poses_list[i];
     LOG_PRINTF("(%2d) name{%-10s} | type{%-8s} | p1{%.2f} | step{%.2f} min{%.2f} max{%.2f} btn{%s} last{%s}\n",

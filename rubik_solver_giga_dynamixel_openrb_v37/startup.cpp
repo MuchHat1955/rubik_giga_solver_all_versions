@@ -23,7 +23,7 @@ static bool startupOK = false;
 bool runStartupTests() {
   if (startupDone) return startupOK;
 
-  LOG_SECTION_START("startup tests");
+  LOG_SECTION_START("startup tests","");
 
   int failCount = 0;
   int total = 0;

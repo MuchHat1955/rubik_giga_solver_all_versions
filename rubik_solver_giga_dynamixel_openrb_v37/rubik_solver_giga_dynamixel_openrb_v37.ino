@@ -111,7 +111,7 @@ String getSketchVersionWithDate() {
 }
 
 void setup() {
-  LOG_SECTION_START("setup");
+  LOG_SECTION_START("setup","");
 
   // ----------------------------------------------------------
   // SERIAL INIT (for logs)
@@ -124,6 +124,7 @@ void setup() {
   // ----------------------------------------------------------
   // UI + DISPLAY INIT
   // ----------------------------------------------------------
+  init_logging();
   ui_init();  // sets up LVGL + touch + draws initial menu
 
   // ----------------------------------------------------------
@@ -144,8 +145,8 @@ void setup() {
   // ----------------------------------------------------------
   // SERVO SYSTEM INIT
   // ----------------------------------------------------------
-  initParamStore();   // load or create parameter storage
-  initPoseStore();    // register servos + group poses
+  initParamStore();  // load or create parameter storage
+  initPoseStore();   // register servos + group poses
 
   // ----------------------------------------------------------
   // STARTUP SELF TEST
@@ -169,6 +170,7 @@ void setup() {
 // ----------------------------------------------------------
 void loop() {
   LOG_RESET();
+  update_bee_logging();
 
   // Run LVGL event handler
   ui_loop();

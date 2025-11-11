@@ -77,7 +77,7 @@ static void on_num_plus_clicked(lv_event_t *e) {
 // ===========================================================
 void buildMenu(const char *menuName) {
 
-  LOG_SECTION_START_VAR("build menu", "menu", menuName);
+  LOG_SECTION_START("build menu", "menu {%s}", menuName);
 
   lv_obj_t *scr = lv_scr_act();
   if (!scr || !menuDoc.containsKey(menuName)) {

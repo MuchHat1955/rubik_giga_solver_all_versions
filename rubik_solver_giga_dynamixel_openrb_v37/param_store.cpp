@@ -24,7 +24,7 @@ extern SequenceStore sequence_store;
 //                           RUN ACTION
 // =====================================================================
 void runAction(const char* key) {
-  LOG_SECTION_START_VAR("runAction", "key", key);
+  LOG_SECTION_START("runAction", "key {%s}", key);
 
   if (!key || !*key) {
     LOG_PRINTF("run action null/empty key ignored\n");
@@ -82,7 +82,7 @@ static void add(const char* k, double v, bool persist_ = true) {
 // Save parameters to non-volatile KVStore
 // ---------------------------------------------------------------------
 static void saveParamsToFlash() {
-  LOG_SECTION_START("saveParamsToFlash");
+  LOG_SECTION_START("saveParamsToFlash", "");
 
   for (auto& kv : param_store) {
     if (!kv.second.persist) continue;
@@ -99,7 +99,7 @@ static void saveParamsToFlash() {
 // Load parameters from non-volatile KVStore
 // ---------------------------------------------------------------------
 static void loadParamsFromFlash() {
-  LOG_SECTION_START("loadParamsFromFlash");
+  LOG_SECTION_START("loadParamsFromFlash", "");
 
   for (auto& kv : param_store) {
     const char* key = kv.first.c_str();
@@ -119,7 +119,7 @@ static void loadParamsFromFlash() {
 // Initialize parameter store
 // ---------------------------------------------------------------------
 void initParamStore() {
-  LOG_SECTION_START("initParamStore");
+  LOG_SECTION_START("initParamStore", "");
 
   // TODO below needs to mach the pose store that has to match the UI
 
@@ -150,7 +150,7 @@ void initParamStore() {
 // ---------------------------------------------------------------------
 
 double getParamValue(const char* k) {
-  //LOG_SECTION_START_VAR("getParamValue", "key", k ? k : "(null)");
+  //LOG_SECTION_START("getParamValue", "key", k ? k : "(null)");
 
   if (!k || !*k) {
     //LOG_SECTION_END();
@@ -178,7 +178,7 @@ double getParamValue(std::string& k) {
 // Set parameter
 // ---------------------------------------------------------------------
 void setParamValue(const char* k, double v) {
-  LOG_SECTION_START_VAR("setParamValue", "key", k ? k : "(null)");
+  LOG_SECTION_STARTtParamValue, "key {%s}", k ? k : "(null)");
 
   if (!k || !*k) {
     LOG_SECTION_END();
@@ -221,7 +221,7 @@ void setParamValue(std::string& k, double v) {
 
 // ---------------------------------------------------------------------
 void incrementParam(const char* k, int delta) {
-  LOG_SECTION_START_VAR("incrementParam", "key", k ? k : "(null)");
+  LOG_SECTION_START("incrementParam", "key {%s}", k ? k : "(null)");
 
   if (!k || !*k) {
     LOG_SECTION_END();
