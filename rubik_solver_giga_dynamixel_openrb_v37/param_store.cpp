@@ -89,7 +89,7 @@ static void saveParamsToFlash() {
     const char* key = kv.first.c_str();
     double val = kv.second.value;
     kv_set(key, &val, sizeof(val), 0);
-    LOG_PRINTF_AUTO("saving | key {%s} | val {%.2f}\n", key, val);
+    LOG_PRINTF_PARAM("saving | key {%s} | val {%.2f}\n", key, val);
   }
 
   LOG_SECTION_END();
@@ -125,13 +125,13 @@ void initParamStore() {
 
   const char* keys[] = {
     // XY poses
-    "y_zero_param", "y_1st_param", "y_2nd_param", "y_3rd_param", "x_c2_param", "x_c3_param", "x_center_param", "x_left_param", "x_right_param",
+    "y_zero_param", "y_1st_param", "y_2nd_param", "y_3rd_param", "y_c2_param", "y_c3_param", "x_c2_param", "x_c3_param", "x_center_param", "x_left_param", "x_right_param",
     // Combined grippers
     "grippers_open_param", "grippers_close_param",
     // Individual grippers
     "gripper1_open_param", "gripper1_close_param", "gripper2_open_param", "gripper2_close_param",
     // Wrist
-    "wrist_vert_param", "wrist_horiz_left_param", "wrist_horiz_left_param",
+    "wrist_vert_param", "wrist_horiz_right_param", "wrist_horiz_left_param",
     // Base
     "base_front_param", "base_left_param", "base_right_param",
     // end
@@ -150,23 +150,20 @@ void initParamStore() {
 // ---------------------------------------------------------------------
 
 double getParamValue(const char* k) {
-  LOG_SECTION_START_PARAM("get param key {%s}", k ? k : "(null)");
+  LOG_PRINTF_PARAM("get param value for | key {%s}\n", k ? k : "(null)");
 
   if (!k || !*k) {
-    LOG_SECTION_END();
     return PARAM_VAL_NA;
   }
 
   auto it = param_store.find(std::string(k));
   if (it == param_store.end()) {
-    LOG_PRINTF_AUTO("[!] param {%s} not found in the store\n", k);
-    LOG_SECTION_END();
+    LOG_PRINTF_PARAM("[!] param {%s} not found in the param store\n", k);
     return PARAM_VAL_NA;
   }
 
   int val = it->second.value;
-  LOG_PRINTF_AUTO("param {%s} result from the store {%.2f}\n", k, val);
-  LOG_SECTION_END();
+  LOG_PRINTF_PARAM("param found in the param store | key {%s} | val {%.2f}\n", k, val);
   return val;
 }
 
@@ -178,7 +175,7 @@ double getParamValue(std::string& k) {
 // Set parameter
 // ---------------------------------------------------------------------
 void setParamValue(const char* key, double v) {
-  LOG_SECTION_START_PARAM("setParamValue | key {%s}", key ? key : "(null)");
+  LOG_PRINTF_PARAM("setParamValue | key {%s}\n", key ? key : "(null)");
 
   if (!key || !*key) {
     LOG_SECTION_END();
@@ -191,15 +188,14 @@ void setParamValue(const char* key, double v) {
   // Check if key ends with "_param"
   if (!key_str.endsWith("_param")) {
     key_str += "_param";
-    LOG_PRINTF_PARAM("added param {%s}", key_str.c_str());
+    // LOG_PRINTF_PARAM("added param {%s}\n", key_str.c_str());
   }
 
   const char* key_final = key_str.c_str();
 
   auto it = param_store.find(std::string(key_final));
   if (it == param_store.end()) {
-    LOG_PRINTF_AUTO("param not found {%s}\n", key_final);
-    LOG_SECTION_END();
+    LOG_PRINTF_PARAM("param not found {%s}\n", key_final);
     return;
   }
 
@@ -211,11 +207,10 @@ void setParamValue(const char* key, double v) {
       saveParamsToFlash();
       lastSave = millis();
     }
-    LOG_PRINTF_AUTO("updated param {%s} | val {%.2f}\n", key_final, v);
+    LOG_PRINTF_PARAM("updated from store | param {%s} | val {%.2f}\n", key_final, v);
   } else {
-    LOG_PRINTF_AUTO("no change for param {%s} | val {%.2f}\n", key_final, v);
+    // LOG_PRINTF_PARAM("no change for param {%s} | val {%.2f}\n", key_final, v);
   }
-  LOG_SECTION_END();
 }
 
 void setParamValue(std::string& k, double v) {
@@ -231,26 +226,23 @@ void setParamValue(std::string& k, double v) {
 
 // ---------------------------------------------------------------------
 void incrementParam(const char* k, int delta) {
-  LOG_SECTION_START_PARAM("incrementParam key {%s}", k ? k : "(null)");
+  LOG_PRINTF_PARAM("incrementParam key {%s}", k ? k : "(null)");
 
   if (!k || !*k) {
-    LOG_SECTION_END();
     return;
   }
   if (!pose_store.is_param_for_pose(k)) {
-    LOG_PRINTF("[!] increment param err no pose found {%s}\n", k);
+    LOG_PRINTF_PARAM("[!] increment param err no pose found {%s}\n", k);
     LOG_SECTION_END();
     return;
   }
   double p1 = 0;
   if (!pose_store.get_pose_params(k, &p1)) {
-    LOG_PRINTF("[!] increment param err cannot get pose params {%s}\n", k);
-    LOG_SECTION_END();
+    LOG_PRINTF_PARAM("[!] increment param err cannot get pose params {%s}\n", k);
     return;
   }
   pose_store.increment_pose_param(k, delta, p1);
   pose_store.set_pose_params(k, p1);
 
-  LOG_PRINTF("incremented {%s} | by {%d} | to {%.2f}\n", k, delta, p1);
-  LOG_SECTION_END();
+  LOG_PRINTF_PARAM("incremented {%s} | by {%d} | to {%.2f}\n", k, delta, p1);
 }

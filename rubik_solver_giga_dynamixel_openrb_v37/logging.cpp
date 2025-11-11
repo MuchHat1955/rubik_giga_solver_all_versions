@@ -14,6 +14,7 @@ static volatile int log_buffer_tail = 0;
 bool logging_on = true;
 
 bool log_rb_enabled = true;
+bool log_menu_enabled = true;
 bool log_param_enabled = true;
 bool log_pose_enabled = true;
 bool log_seq_enabled = true;

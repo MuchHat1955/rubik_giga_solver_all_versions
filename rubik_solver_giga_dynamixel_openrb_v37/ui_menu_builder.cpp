@@ -620,7 +620,7 @@ const char jsonBuffer[] = R"json(
       ],
       [
         { "text": "wrist h right", "type": "action", "key": "wrist_horiz_right_btn", "status": "yes" },
-        { "text": "+0000-", "type": "num", "key": "wrist_right_left_param" },
+        { "text": "+0000-", "type": "num", "key": "wrist_horiz_right_param" },
         { "text": "deg", "type": "text", "key": "" }
       ],
       [

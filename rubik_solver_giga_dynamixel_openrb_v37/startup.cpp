@@ -47,5 +47,5 @@ bool runStartupTests() {
 // ----------------------------------------------------------
 String getStartupTestErrorString() {
   if (startupOK) return "all servos responded OK.";
-  getAllErrorLines();
+  return getAllErrorLines();
 }

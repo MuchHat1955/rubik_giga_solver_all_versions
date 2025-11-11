@@ -438,13 +438,13 @@ void PoseStore::update_pose_store_from_param_store(const Pose *defaults, int def
         Pose &p = poses_list[idx];
         p.p1 = restored_p1;
 
-        LOG_PRINTF("Restored pose {%s} from param_store val{%.2f}\n",
+        LOG_PRINTF_PARAM("updated pose from from paramstore | pose {%s} | val{%.2f}\n",
                    def.name.c_str(), restored_p1);
       } else {
         LOG_ERROR("pose not found for default {%s}", def.name.c_str());
       }
     } else {
-      LOG_PRINTF("    ---- No saved param for pose{%s}, keeping default {%.2f}\n",
+      LOG_PRINTF_PARAM("not found in param store, keeping default | pose{%s} | default {%.2f}\n",
                  def.name.c_str(), def.p1);
     }
   }
@@ -459,7 +459,7 @@ void PoseStore::list_poses() const {
   LOG_SECTION_START_POSE("PoseStore::list_poses");
   for (int i = 0; i < count; i++) {
     const Pose &p = poses_list[i];
-    LOG_PRINTF_AUTO("(%2d) name{%-10s} | type{%-8s} | p1{%.2f} | step{%.2f} min{%.2f} max{%.2f} btn{%s} last{%s}\n",
+    LOG_PRINTF_POSE("(%2d) name{%-10s} | type{%-8s} | p1{%.2f} | step{%.2f} min{%.2f} max{%.2f} btn{%s} last{%s}\n",
                     i, p.name.c_str(), p.move_type.c_str(), p.p1,
                     p.step, p.min_val, p.max_val, p.button_key.c_str(), p.last_run_ok ? "true" : "false");
   }

@@ -70,8 +70,6 @@ bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
 bool RBInterface::runCommand(const char* name, const float* args, int argCount) {
   LOG_SECTION_START_RB("runCommand | cmd {%s} | argc {%d}", name, argCount);
 
-  clearErrorBuffer();
-
   String cmd(name);
   for (int i = 0; i < argCount; i++) {
     cmd += " ";
@@ -375,7 +373,6 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
 bool RBInterface::updateInfo() {
   LOG_SECTION_START_RB("updateInfo");
 
-  clearErrorBuffer();
   Serial2.println("READ 0");
   LOG_PRINTF("requesting READ 0...\n");
 
