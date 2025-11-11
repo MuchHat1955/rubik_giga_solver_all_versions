@@ -124,7 +124,9 @@ void uiStatusRegisterButton(const String &buttonKey, lv_obj_t *btn) {
     //           buttonKey.c_str(),
     //           it->second.issue ? "yes" : "no",
     //          it->second.active ? "yes" : "no");
-    drawButtonOverlayByPtr(btn, buttonKey.c_str(), buttonKey == "poses", it->second.issue, it->second.active, false);
+    drawButtonOverlayByPtr(btn, buttonKey.c_str(), buttonKey == "poses" || buttonKey == "system",  //
+                           it->second.issue,                                                       //
+                           it->second.active, false);
     return;
   }
 
@@ -142,6 +144,12 @@ void uiStatusRegisterButton(const String &buttonKey, lv_obj_t *btn) {
 // ----------------------------------------------------------
 void drawButtonOverlayByPtr(lv_obj_t *btn, const char *key, bool is_menu, bool issue, bool active, bool busy) {
   if (!btn) return;
+
+  if (busy) {
+    issue = false;
+    active = false;
+  }
+  if (issue) active = false;
 
   //LOG_SECTION_START("drawButtonOverlayByPtr");
   LOG_PRINTF("draw button overlay by PTR for key {%s}  issue {%s} active {%s} busy {%s}\n",  //
@@ -185,7 +193,7 @@ void drawButtonOverlayByPtr(lv_obj_t *btn, const char *key, bool is_menu, bool i
   // --- BUSY: solid blue/green fill, light border, "busy..." text---
   if (busy) {
     LOG_PRINTF("overlay BUSY\n");
-    lv_obj_set_style_bg_color(btn, baseColor, LV_PART_MAIN);  // dark gray
+    lv_obj_set_style_bg_color(btn, baseColor, LV_PART_MAIN);  // original button color
     lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_border_color(btn, baseColor, LV_PART_MAIN);  // off-white border
     lv_obj_set_style_border_width(btn, BORDER_WIDTH_ISSUE, LV_PART_MAIN);
@@ -306,11 +314,20 @@ void updateButtonStateByKey(const String &buttonKey, bool issue, bool active, bo
   }
 
   bool is_menu = false;
-  if (strcmp(buttonKey.c_str(), "poses") == 0) is_menu = true;
+  if (strcmp(buttonKey.c_str(), "poses") ||  //
+      strcmp(buttonKey.c_str(), "system") == 0) is_menu = true;
 
   ButtonState &b = it->second;
   b.issue = issue;
   b.active = active;
+  if (busy) {
+    active = false;
+    issue = false;
+  }
+  if (is_menu) {
+    active = false;
+    issue = false;
+  }
 
   if (b.btn) {
     if (issue || active || busy) {
@@ -320,7 +337,7 @@ void updateButtonStateByKey(const String &buttonKey, bool issue, bool active, bo
                  active ? "yes" : "no",                                                                     //
                  issue ? "yes" : "no",                                                                      //
                  busy ? "yes" : "no");
-      log_lv_obj_info(b.btn, buttonKey.c_str());
+      if (b.btn) log_lv_obj_info(b.btn, buttonKey.c_str());
       drawButtonOverlayByPtr(b.btn, buttonKey.c_str(), is_menu, issue, active, busy);
     }
   } else {

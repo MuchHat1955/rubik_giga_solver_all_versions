@@ -84,7 +84,7 @@ void updateButtonAndRefreshServosOnClick(const char *key) {
 
   if (strcmp(key, "poses") == 0) {
     LOG_SECTION_START_VAR("update servos for poses UI", "btn", key);
-    setFooter("update servos");
+    setFooter("reading servos...");
     updateButtonStateByKey("poses", false, false, true);
     rb.updateInfo();
     updateButtonStateByKey("poses", false, false, false);
@@ -93,7 +93,7 @@ void updateButtonAndRefreshServosOnClick(const char *key) {
   }
   if (strcmp(key, "system") == 0) {
     LOG_SECTION_START_VAR("update servos for poses UI", "btn", key);
-    setFooter("update servos");
+    setFooter("reading servos...");
     updateButtonStateByKey("system", true, false, true);
     rb.updateInfo();
     updateButtonStateByKey("system", true, false, false);

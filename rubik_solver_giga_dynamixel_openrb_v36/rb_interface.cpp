@@ -372,9 +372,29 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
 static int errNo = 0;
 
 void RBInterface::addErrorLine(const String& line) {
+  static unsigned long lastErrorMillis = 0;  // remembers previous error time
+  unsigned long now = millis();
+
+  // time since previous error
+  unsigned long delta = (lastErrorMillis == 0) ? now : (now - lastErrorMillis);
+  lastErrorMillis = now;
+
+  // format time since previous or boot
+  String timeText;
+  unsigned long secs = delta / 1000;
+  if (secs < 60) {
+    timeText = String(secs) + "s";
+  } else {
+    unsigned long mins = secs / 60;
+    unsigned long rems = secs % 60;
+    timeText = String(mins) + "m" + String(rems) + "s";
+  }
+
   errNo++;
-  String lineToAdd = String(errNo) + ". [!] " + line;
+  String lineToAdd = String(errNo) + ". [!] " + line + " (" + (errNo == 1 ? "since boot " : "+") + timeText + ")";
+
   errorLines.push_back(lineToAdd);
+
   if (errorLines.size() > 20) {
     // remove oldest
     errorLines.erase(errorLines.begin());
@@ -535,9 +555,9 @@ const char* RBInterface::getLastErrorLine() {
 }
 String RBInterface::getAllErrorLines() const {
   String s;
-  for (auto &e : errorLines) {
+  for (auto& e : errorLines) {
     String line = e;
-    line.trim();          // removes \n, \r, and spaces at ends
+    line.trim();  // removes \n, \r, and spaces at ends
     s += line + "\n";
   }
   return s;
