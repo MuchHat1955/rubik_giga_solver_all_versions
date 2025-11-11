@@ -67,15 +67,14 @@ void runAction(const std::string& k) {
 //                          PARAM STORE CORE
 // =====================================================================
 struct Param {
-  int value{ 0 };
-  bool fixed{ false };
+  double value{ 0 };
   bool persist{ true };
 };
 
 static std::map<std::string, Param> param_store;
 
 static void add(const char* k, double v, bool persist_ = true) {
-  param_store[k] = { v, false, persist_ };
+  param_store[k] = { v, persist_ };
 }
 
 // ---------------------------------------------------------------------
@@ -197,16 +196,18 @@ void setParamValue(const char* key, double v) {
   }
 
   Param& p = it->second;
+  LOG_PRINTF_PARAM("param found in the store with | param {%s} | val {%.2f}\n", key_final, p.value);
   if (p.value != v) {
     p.value = v;
+    LOG_PRINTF_PARAM("set new value in the store | param {%s} | val {%.2f}\n", key_final, p.value);
     static unsigned long lastSave = 0;
-    if (millis() - lastSave > 1000) {
+    if (millis() - lastSave > 300) {
+      LOG_PRINTF_PARAM("saving to flash all params store because of | param {%s} | val {%.2f}\n", key_final, p.value);
       saveParamsToFlash();
       lastSave = millis();
     }
-    LOG_PRINTF_PARAM("updated from store | param {%s} | val {%.2f}\n", key_final, v);
   } else {
-    // LOG_PRINTF_PARAM("no change for param {%s} | val {%.2f}\n", key_final, v);
+    LOG_PRINTF_PARAM("unchanged no need to save param {%s} | val {%.2f}\n", key_final, v);
   }
 }
 
@@ -223,7 +224,7 @@ void setParamValue(std::string& k, double v) {
 
 // ---------------------------------------------------------------------
 void incrementParam(const char* k, int delta) {
-  LOG_PRINTF_PARAM("incrementParam key {%s}", k ? k : "(null)");
+  LOG_PRINTF_PARAM("incrementParam key {%s}", k ? k : "(null)\n");
 
   if (!k || !*k) {
     return;

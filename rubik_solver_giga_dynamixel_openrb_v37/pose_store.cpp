@@ -397,7 +397,7 @@ void PoseStore::reflect_poses_ui() {
     if (issue) LOG_PRINTF_MENU("    ---- reflect UI for {%s} with issue {true}\n", p.button_key.c_str());
     updateButtonStateByKey(p.button_key.c_str(), issue, active, false);
   }
-  LOG_SECTION_END_POSE();
+  LOG_SECTION_END_MENU();
 }
 
 void PoseStore::set_all_poses_last_run(bool b) {
