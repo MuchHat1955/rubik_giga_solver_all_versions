@@ -138,7 +138,7 @@ bool RBInterface::requestServoInfo(uint8_t id) {
 // Request all servos and cache in array
 // ============================================================
 bool RBInterface::requestAllServoInfo() {
-  LOG_SECTION_START("requestAllServoInfo");
+  LOG_SECTION_START("requestAllServoInfo","");
 
   bool all_ok = true;
 
@@ -410,7 +410,7 @@ void RBInterface::addErrorLine(const String &line) {
 // UpdateInfo - force RB to send current status (READ 0)
 // ============================================================
 bool RBInterface::updateInfo() {
-  LOG_SECTION_START("updateInfo");
+  LOG_SECTION_START("updateInfo","");
 
   clearErrorBuffer();
   Serial2.println("READ 0");

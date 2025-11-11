@@ -178,7 +178,7 @@ double getParamValue(std::string& k) {
 // Set parameter
 // ---------------------------------------------------------------------
 void setParamValue(const char* k, double v) {
-  LOG_SECTION_STARTtParamValue, "key {%s}", k ? k : "(null)");
+  LOG_SECTION_START("setParamValue", "key {%s}", k ? k : "(null)");
 
   if (!k || !*k) {
     LOG_SECTION_END();

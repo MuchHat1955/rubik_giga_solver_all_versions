@@ -1,6 +1,5 @@
 #pragma once
 #include <Arduino.h>
-#include "rb_interface.h"
 
 // ============================================================================
 // CONFIGURATION
@@ -15,6 +14,10 @@
 // #define LOG_MENU
 #define LOG_SEQUENCES
 #define LOG_CUBE
+
+// Forward declaration to avoid circular include
+class RBInterface;
+extern RBInterface rb;
 
 // ============================================================================
 // GLOBAL FLAGS / STATE
@@ -213,79 +216,76 @@ inline void serial_printf(const char* fmt, Args... args) {
 // nested ones follow the section’s active state automatically.
 
 #define LOG_SHOULD_PRINT(tag, enabled_flag) \
-  (logging_on && bee_logging_enabled && (enabled_flag || \
-   (current_log_prefix && strcmp(current_log_prefix, tag) == 0)))
+  (logging_on && bee_logging_enabled && (enabled_flag || (current_log_prefix && strcmp(current_log_prefix, tag) == 0)))
 
 // ---------------------------------------------------------------- REFLECT --
 #ifdef LOG_REFLECT
-  #define LOG_PRINTF_REFLECT(fmt, ...) \
-    do { \
-      if (LOG_SHOULD_PRINT("REFLECT", log_reflect_enabled)) { \
-        LOG_PRINTF("[REFLECT] " fmt, ##__VA_ARGS__); \
-      } \
-    } while (0)
+#define LOG_PRINTF_REFLECT(fmt, ...) \
+  do { \
+    if (LOG_SHOULD_PRINT("REFLECT", log_reflect_enabled)) { \
+      LOG_PRINTF("[REFLECT] " fmt, ##__VA_ARGS__); \
+    } \
+  } while (0)
 #else
-  #define LOG_PRINTF_REFLECT(fmt, ...) ((void)0)
+#define LOG_PRINTF_REFLECT(fmt, ...) ((void)0)
 #endif
 
 // ------------------------------------------------------------------ RB -----
 #ifdef LOG_RB_COMMANDS
-  #define LOG_PRINTF_RB(fmt, ...) \
-    do { \
-      if (LOG_SHOULD_PRINT("RB", log_rb_enabled)) { \
-        LOG_PRINTF("[RB] " fmt, ##__VA_ARGS__); \
-      } \
-    } while (0)
+#define LOG_PRINTF_RB(fmt, ...) \
+  do { \
+    if (LOG_SHOULD_PRINT("RB", log_rb_enabled)) { \
+      LOG_PRINTF("[RB] " fmt, ##__VA_ARGS__); \
+    } \
+  } while (0)
 #else
-  #define LOG_PRINTF_RB(fmt, ...) ((void)0)
+#define LOG_PRINTF_RB(fmt, ...) ((void)0)
 #endif
 
 // ---------------------------------------------------------------- PERSIST --
 #ifdef LOG_PERSIST
-  #define LOG_PRINTF_PERSIST(fmt, ...) \
-    do { \
-      if (LOG_SHOULD_PRINT("PERSIST", log_persist_enabled)) { \
-        LOG_PRINTF("[PERSIST] " fmt, ##__VA_ARGS__); \
-      } \
-    } while (0)
+#define LOG_PRINTF_PERSIST(fmt, ...) \
+  do { \
+    if (LOG_SHOULD_PRINT("PERSIST", log_persist_enabled)) { \
+      LOG_PRINTF("[PERSIST] " fmt, ##__VA_ARGS__); \
+    } \
+  } while (0)
 #else
-  #define LOG_PRINTF_PERSIST(fmt, ...) ((void)0)
+#define LOG_PRINTF_PERSIST(fmt, ...) ((void)0)
 #endif
 
 // ------------------------------------------------------------------ MENU ---
 #ifdef LOG_MENU
-  #define LOG_PRINTF_MENU(fmt, ...) \
-    do { \
-      if (LOG_SHOULD_PRINT("MENU", log_menu_enabled)) { \
-        LOG_PRINTF("[MENU] " fmt, ##__VA_ARGS__); \
-      } \
-    } while (0)
+#define LOG_PRINTF_MENU(fmt, ...) \
+  do { \
+    if (LOG_SHOULD_PRINT("MENU", log_menu_enabled)) { \
+      LOG_PRINTF("[MENU] " fmt, ##__VA_ARGS__); \
+    } \
+  } while (0)
 #else
-  #define LOG_PRINTF_MENU(fmt, ...) ((void)0)
+#define LOG_PRINTF_MENU(fmt, ...) ((void)0)
 #endif
 
 // --------------------------------------------------------------- SEQUENCES --
 #ifdef LOG_SEQUENCES
-  #define LOG_PRINTF_SEQ(fmt, ...) \
-    do { \
-      if (LOG_SHOULD_PRINT("SEQ", log_seq_enabled)) { \
-        LOG_PRINTF("[SEQ] " fmt, ##__VA_ARGS__); \
-      } \
-    } while (0)
+#define LOG_PRINTF_SEQ(fmt, ...) \
+  do { \
+    if (LOG_SHOULD_PRINT("SEQ", log_seq_enabled)) { \
+      LOG_PRINTF("[SEQ] " fmt, ##__VA_ARGS__); \
+    } \
+  } while (0)
 #else
-  #define LOG_PRINTF_SEQ(fmt, ...) ((void)0)
+#define LOG_PRINTF_SEQ(fmt, ...) ((void)0)
 #endif
 
 // ------------------------------------------------------------------ CUBE ---
 #ifdef LOG_CUBE
-  #define LOG_PRINTF_CUBE(fmt, ...) \
-    do { \
-      if (LOG_SHOULD_PRINT("CUBE", log_cube_enabled)) { \
-        LOG_PRINTF("[CUBE] " fmt, ##__VA_ARGS__); \
-      } \
-    } while (0)
+#define LOG_PRINTF_CUBE(fmt, ...) \
+  do { \
+    if (LOG_SHOULD_PRINT("CUBE", log_cube_enabled)) { \
+      LOG_PRINTF("[CUBE] " fmt, ##__VA_ARGS__); \
+    } \
+  } while (0)
 #else
-  #define LOG_PRINTF_CUBE(fmt, ...) ((void)0)
+#define LOG_PRINTF_CUBE(fmt, ...) ((void)0)
 #endif
-
-

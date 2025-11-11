@@ -84,7 +84,7 @@ void logButtonMap(bool alwaysLog) {
   countActiveLastLog = countActive;
   millisLastLog = millis();
 
-  LOG_SECTION_START("log button map");
+  LOG_SECTION_START("log button map","");
 
   if (buttonMap.empty()) {
     LOG_PRINTF("buttonMap is empty\n");

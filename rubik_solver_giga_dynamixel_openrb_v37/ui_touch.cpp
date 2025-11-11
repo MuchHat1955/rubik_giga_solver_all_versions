@@ -210,7 +210,7 @@ void validateMenuKeys() {
 extern const char jsonBuffer[];
 
 void ui_init() {
-  LOG_SECTION_START("ui_init");
+  LOG_SECTION_START("ui_init","");
 
   // 1. Initialize LVGL core
   lv_init();
@@ -248,7 +248,7 @@ void ui_refresh() {
   if (now - lastRefresh < 30000UL) return;  //TODO adjust this
   lastRefresh = now;
 
-  LOG_SECTION_START("refresh ui");
+  LOG_SECTION_START("refresh ui","");
   pose_store.reflect_poses_ui();
   logButtonMap(true);
   LOG_SECTION_END();
