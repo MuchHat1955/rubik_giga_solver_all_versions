@@ -410,7 +410,7 @@ void PoseStore::set_all_poses_last_run(bool b) {
     if (!issue) active = false;
     updateButtonStateByKey(p.button_key.c_str(), issue, active, false);
   }
-  LOG_SECTION_END_POSE();
+  LOG_SECTION_END_MENU();
 }
 
 void PoseStore::update_pose_store_from_param_store(const Pose *defaults, int def_count) {
