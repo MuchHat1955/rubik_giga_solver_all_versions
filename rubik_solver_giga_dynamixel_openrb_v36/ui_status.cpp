@@ -145,7 +145,7 @@ void uiStatusRegisterButton(const String &buttonKey, lv_obj_t *btn) {
 void drawButtonOverlayByPtr(lv_obj_t *btn, const char *key, bool is_menu, bool issue, bool active, bool busy) {
   if (!btn) return;
 
-  if (busy) {
+  if (busy || is_menu) {
     issue = false;
     active = false;
   }
@@ -285,7 +285,7 @@ void log_lv_obj_info(const lv_obj_t *obj, const char *prefix) {
     focused = true;
 #endif
 
-  LOG_PRINTF("     ---- log for btn {%s} typ {%s} pos {%d,%d} size {%d,%d} hidden {%s} focused {%s}\n",
+  LOG_PRINTF("     ---- log for btn {%s} type {%s} pos {%d,%d} size {%d,%d} hidden {%s} focused {%s}\n",
              prefix ? prefix : "",
              name ? name : "(unknown)",
              coords.x1, coords.y1,
@@ -313,18 +313,12 @@ void updateButtonStateByKey(const String &buttonKey, bool issue, bool active, bo
     return;  // nothing to update
   }
 
-  bool is_menu = false;
-  if (strcmp(buttonKey.c_str(), "poses") ||  //
-      strcmp(buttonKey.c_str(), "system") == 0) is_menu = true;
+  bool is_menu = (buttonKey == "poses" || buttonKey == "system");
 
   ButtonState &b = it->second;
   b.issue = issue;
   b.active = active;
-  if (busy) {
-    active = false;
-    issue = false;
-  }
-  if (is_menu) {
+  if (busy || is_menu) {
     active = false;
     issue = false;
   }

@@ -45,7 +45,7 @@ bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
 
   if (!got) {
     pose_store.set_all_poses_last_run(false);
-    LOG_ERROR_RB("no response from RB board!");
+    LOG_ERROR_RB("no response from rb");
     LOG_SECTION_END();
     return false;
   }
@@ -129,7 +129,7 @@ bool RBInterface::requestServoInfo(uint8_t id) {
     return true;
   }
 
-  LOG_ERROR_RB("no INFO response for servo ID {%d}\n", id);
+  LOG_ERROR_RB("no INFO for servo ID {%d}\n", id);
   LOG_SECTION_END();
   return false;
 }
@@ -176,7 +176,7 @@ bool RBInterface::requestAllServoInfo() {
 
     if (!got) {
       all_ok = false;
-      LOG_ERROR_RB("no INFO response for servo ID {%d}\n", id);
+      LOG_ERROR_RB("no INFO for servo ID {%d}\n", id);
       if (id < MAX_SERVOS) servo_infos[id].clear();
     }
   }
@@ -371,15 +371,15 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
 
 static int errNo = 0;
 
-void RBInterface::addErrorLine(const String& line) {
-  static unsigned long lastErrorMillis = 0;  // remembers previous error time
+void RBInterface::addErrorLine(const String &line) {
+  static unsigned long lastErrorMillis = 0;
   unsigned long now = millis();
 
-  // time since previous error
+  // Compute time delta since last error or since boot
   unsigned long delta = (lastErrorMillis == 0) ? now : (now - lastErrorMillis);
   lastErrorMillis = now;
 
-  // format time since previous or boot
+  // Format time text
   String timeText;
   unsigned long secs = delta / 1000;
   if (secs < 60) {
@@ -390,13 +390,18 @@ void RBInterface::addErrorLine(const String& line) {
     timeText = String(mins) + "m" + String(rems) + "s";
   }
 
+  // Trim any trailing newline or carriage return before appending timing info
+  String cleanLine = line;
+  cleanLine.trim();   // removes spaces, \n, \r from both ends
+
+  // Build full error entry
   errNo++;
-  String lineToAdd = String(errNo) + ". [!] " + line + " (" + (errNo == 1 ? "since boot " : "+") + timeText + ")";
+  String lineToAdd = String(errNo) + ". [!] " + cleanLine + " (" +
+                     (errNo == 1 ? "since boot " : "+") + timeText + ")";
 
+  // Push and prune
   errorLines.push_back(lineToAdd);
-
   if (errorLines.size() > 20) {
-    // remove oldest
     errorLines.erase(errorLines.begin());
   }
 }
@@ -440,8 +445,8 @@ bool RBInterface::updateInfo() {
   }
 
   if (!gotAny) {
-    addErrorLine("no READ 0 response received");
-    LOG_PRINTF("[!] No response for READ 0\n");
+    addErrorLine("no read 0 received");
+    LOG_PRINTF("[!] no response for read 0\n");
     pose_store.set_all_poses_last_run(false);
     LOG_SECTION_END();
     return false;
