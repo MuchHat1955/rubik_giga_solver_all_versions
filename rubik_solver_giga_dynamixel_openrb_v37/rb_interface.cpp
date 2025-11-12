@@ -76,7 +76,7 @@ bool RBInterface::runCommand(const char* name, const float* args, int argCount) 
     if (strcmp(name, "MOVEPER") == 0 && i == 0)
       cmd += String((int)args[i]);  // integer formatting for servo ID
     else
-      cmd += String(args[i], 3);  // 3-decimal float
+      cmd += String(args[i], 2);  // 2-decimal float
   }
 
   setFooter(cmd.c_str());
@@ -303,7 +303,7 @@ bool RBInterface::waitForCompletion(const char* commandName) {
 
   if (!success) {
     setFooter("[!] timeout or incomplete command");
-    LOG_ERROR("timeout or incomplete command {%s}", commandName);
+    LOG_ERROR("timeout or incomplete command {%s}\n", commandName);
   }
 
   LOG_SECTION_END_RB();
@@ -324,8 +324,8 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
     double err1 = fabs(last.g1_per - val);
     double err2 = fabs(last.g2_per - val);
 
-    LOG_PRINTF_RB("verify expected move{%s} g1_per expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, val, last.g1_per, err1);
-    LOG_PRINTF_RB("verify expected move{%s} g2_per expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, val, last.g2_per, err2);
+    LOG_PRINTF_RB("verify expected move{%s} g1_per expected{%.2f} actual{%.2f} err{%.2f}\n", cmd_name, val, last.g1_per, err1);
+    LOG_PRINTF_RB("verify expected move{%s} g2_per expected{%.2f} actual{%.2f} err{%.2f}\n", cmd_name, val, last.g2_per, err2);
 
     if (err1 <= tol && err2 <= tol) {
       LOG_SECTION_END_RB();
@@ -333,11 +333,11 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
     }
 
     if (err1 > tol) {
-      snprintf(buf, sizeof(buf), "verify expected move{%s} g1_per expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, val, last.g1_per, err1);
+      snprintf(buf, sizeof(buf), "verify expected move{%s} g1_per expected{%.2f} actual{%.2f} err{%.2f}\n", cmd_name, val, last.g1_per, err1);
       addErrorLine(buf);
     }
     if (err2 > tol) {
-      snprintf(buf, sizeof(buf), "verify expected move{%s} g2_per expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, val, last.g2_per, err2);
+      snprintf(buf, sizeof(buf), "verify expected move{%s} g2_per expected{%.2f} actual{%.2f} err{%.2f}\n", cmd_name, val, last.g2_per, err2);
       addErrorLine(buf);
     }
     LOG_SECTION_END_RB();
@@ -361,14 +361,14 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
 
   // Common computation and logging
   err = fabs(actual - val);
-  LOG_PRINTF_RB("verify expected move{%s} servo{%d} expected{%.2f} actual{%.2f} err{%.2f}", cmd_name, servo_id, val, actual, err);
+  LOG_PRINTF_RB("verify expected move{%s} servo{%d} expected{%.2f} actual{%.2f} err{%.2f}\n", cmd_name, servo_id, val, actual, err);
 
   if (err <= tol) {
     LOG_SECTION_END_RB();
     return true;
   }
 
-  LOG_ERROR("verify expected move{%s} servo{%d} expected{%.2f} actual{%.2f} err{%.2f}",
+  LOG_ERROR("verify expected move{%s} servo{%d} expected{%.2f} actual{%.2f} err{%.2f}\n",
             cmd_name, servo_id, val, actual, err);
 
   LOG_SECTION_END_RB();

@@ -312,7 +312,7 @@ void log_lv_obj_info(const lv_obj_t *obj, const char *prefix) {
 // ----------------------------------------------------------
 // Update state by key (used by UI refresh)
 // ----------------------------------------------------------
-void updateButtonStateByKey(const String &buttonKey, bool issue, bool active, bool busy) {
+void updateButtonStateByKey(const String &buttonKey,const String &buttonName,  bool issue, bool active, bool busy) {
 
   // LOG_PRINTF_MENU("update button state by key {%s} ", buttonKey.c_str());
   auto it = buttonMap.find(buttonKey);
@@ -348,7 +348,7 @@ void updateButtonStateByKey(const String &buttonKey, bool issue, bool active, bo
                       issue ? "yes" : "no",                                                                              //
                       busy ? "yes" : "no");
       if (b.btn) log_lv_obj_info(b.btn, buttonKey.c_str());
-      drawButtonOverlayByPtr(b.btn, buttonKey.c_str(), is_menu, issue, active, busy);
+      drawButtonOverlayByPtr(b.btn, buttonName.c_str(), is_menu, issue, active, busy);
     }
   } else {
     if (issue || active || busy) {

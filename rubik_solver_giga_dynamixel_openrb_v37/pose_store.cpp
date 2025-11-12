@@ -268,21 +268,21 @@ bool PoseStore::is_btn_for_pose(const char *btn_key) const {
 // -----------------------------------------------------------
 // Run a pose
 // -----------------------------------------------------------
-bool PoseStore::run_pose(const char *pose_name) {
-  int idx = find_pose_index(pose_name);
+bool PoseStore::run_pose(const char *pose_btn) {
+  int idx = find_pose_by_button(pose_btn);
   if (idx < 0) return false;
   Pose &pose = poses_list[idx];
 
   double p1 = pose.p1;
   String type = pose.move_type;
 
-  String text = "run pose " + String(pose_name);
+  String text = "run pose " + String(pose.name);
   setFooter(text.c_str());
 
-  LOG_SECTION_START_POSE("run pose | pose {%s} | type{%s}", pose_name, type.c_str());
+  LOG_SECTION_START_POSE("run pose | pose {%s} | type{%s}", pose_btn, type.c_str());
   bool ok = false;
 
-  updateButtonStateByKey(pose.button_key.c_str(), false, false, true);
+  updateButtonStateByKey(pose.button_key.c_str(), pose.name, false, false, true);
   if (type == "x") {
     ok = rb.moveXmm(p1);
   } else if (type == "y") {
@@ -309,7 +309,7 @@ bool PoseStore::run_pose(const char *pose_name) {
                   pose.button_key.c_str(),                                             //
                   issue ? "yes" : "no",                                                //
                   active ? "yes" : "no");
-  updateButtonStateByKey(pose.button_key.c_str(), issue, active, false);
+  updateButtonStateByKey(pose.button_key.c_str(), pose.name, issue, active, false);
 
   LOG_SECTION_END_POSE();
   return ok;
@@ -391,7 +391,7 @@ void PoseStore::reflect_poses_ui() {
     bool active = is_at_pose(p.button_key.c_str(), 0.5, 1.0);
     if (!issue) active = 0;
     if (issue) LOG_PRINTF_MENU("    ---- reflect UI for {%s} with issue {true}\n", p.button_key.c_str());
-    updateButtonStateByKey(p.button_key.c_str(), issue, active, false);
+    updateButtonStateByKey(p.button_key.c_str(), p.name, issue, active, false);
   }
   LOG_SECTION_END_MENU();
 }
@@ -404,7 +404,7 @@ void PoseStore::set_all_poses_last_run(bool b) {
     bool issue = !b;
     bool active = is_at_pose(p.button_key.c_str(), 0.5, 1.0);
     if (!issue) active = false;
-    updateButtonStateByKey(p.button_key.c_str(), issue, active, false);
+    updateButtonStateByKey(p.button_key.c_str(), p.name, issue, active, false);
   }
   LOG_SECTION_END_MENU();
 }
@@ -478,39 +478,39 @@ void PoseStore::list_poses() const {
 Pose default_poses[] = {
 
   // XY poses_list
-  { "y_zero", "y", 40.0, "y_zero_btn", 0.5, 40.0, 110.0 },
-  { "y_1st", "y", 50.0, "y_1st_btn", 0.5, 40.0, 110.0 },
-  { "y_2nd", "y", 60.0, "y_2nd_btn", 0.5, 40.0, 110.0 },
-  { "y_3rd", "y", 70.0, "y_3rd_btn", 0.5, 40.0, 110.0 },
+  { "y zero", "y", 40.0, "y_zero_btn", 0.5, 40.0, 110.0 },
+  { "y 1st", "y", 50.0, "y_1st_btn", 0.5, 40.0, 110.0 },
+  { "y 2nd", "y", 60.0, "y_2nd_btn", 0.5, 40.0, 110.0 },
+  { "y 3rd", "y", 70.0, "y_3rd_btn", 0.5, 40.0, 110.0 },
 
-  { "y_c2", "y", 50.0, "y_c2_btn", 0.5, 40.0, 110.0 },
-  { "y_c3", "y", 60.0, "y_c3_btn", 0.5, 40.0, 110.0 },
+  { "y c2", "y", 50.0, "y_c2_btn", 0.5, 40.0, 110.0 },
+  { "y c3", "y", 60.0, "y_c3_btn", 0.5, 40.0, 110.0 },
 
-  { "x_center", "x", 0.1, "x_center_btn", 0.5, -25.0, 25.0 },  // 0.1 to avoid the 0.0 meaning the value in the storage
-  { "x_left", "x", -25.0, "x_left_btn", 0.5, -35.0, 0.0 },
-  { "x_right", "x", 25.0, "x_right_btn", 0.5, 0.0, 35.0 },
+  { "x center", "x", 0.1, "x_center_btn", 0.5, -25.0, 25.0 },  // 0.1 to avoid the 0.0 meaning the value in the storage
+  { "x left", "x", -25.0, "x_left_btn", 0.5, -35.0, 0.0 },
+  { "x right", "x", 25.0, "x_right_btn", 0.5, 0.0, 35.0 },
 
   // Combined grippers
-  { "grippers_open", "grippers", 80.0, "grippers_open_btn", 0.5, 0.0, 100.0 },
-  { "grippers_close", "grippers", 10.0, "grippers_close_btn", 0.5, 0.0, 100.0 },
+  { "grippers open", "grippers", 80.0, "grippers_open_btn", 0.5, 0.0, 100.0 },
+  { "grippers close", "grippers", 10.0, "grippers_close_btn", 0.5, 0.0, 100.0 },
 
   // Individual gripper 1
-  { "gripper1_open", "gripper1", 80.0, "gripper1_open_btn", 0.5, 0.0, 100.0 },
-  { "gripper1_close", "gripper1", 10.0, "gripper1_close_btn", 0.5, 0.0, 100.0 },
+  { "gripper1 open", "gripper1", 80.0, "gripper1_open_btn", 0.5, 0.0, 100.0 },
+  { "gripper1 close", "gripper1", 10.0, "gripper1_close_btn", 0.5, 0.0, 100.0 },
 
   // Individual gripper 2
-  { "gripper2_open", "gripper2", 80.0, "gripper2_open_btn", 0.5, 0.0, 100.0 },
-  { "gripper2_close", "gripper2", 10.0, "gripper2_close_btn", 0.5, 0.0, 100.0 },
+  { "gripper2 open", "gripper2", 80.0, "gripper2_open_btn", 0.5, 0.0, 100.0 },
+  { "gripper2 close", "gripper2", 10.0, "gripper2_close_btn", 0.5, 0.0, 100.0 },
 
   // Wrist poses_list
-  { "wrist_vert", "wrist", 0.1, "wrist_vert_btn", 0.5, -45.0, 45.0 },  // 0.1 to avoid the 0.0 meaning the value in the storage
-  { "wrist_horiz_left", "wrist", -90.0, "wrist_horiz_left_btn", 0.5, 45.0, 135.0 },
-  { "wrist_horiz_right", "wrist", 90.0, "wrist_horiz_right_btn", 0.5, 135.0, 205.0 },
+  { "wrist vert", "wrist", 0.1, "wrist_vert_btn", 0.5, -45.0, 45.0 },  // 0.1 to avoid the 0.0 meaning the value in the storage
+  { "wrist horiz left", "wrist", -90.0, "wrist_horiz_left_btn", 0.5, 45.0, 135.0 },
+  { "wrist horiz right", "wrist", 90.0, "wrist_horiz_right_btn", 0.5, 135.0, 205.0 },
 
   // Base rotation
-  { "base_front", "base", 0.1, "base_front_btn", 0.5, -45.0, 45.0 },  // 0.1 to avoid the 0.0 meaning the value in the storage
-  { "base_right", "base", 90.0, "base_right_btn", 0.5, 45.0, 135.0 },
-  { "base_left", "base", -90.0, "base_left_btn", 0.5, 135.0, 205.0 }
+  { "base front", "base", 0.1, "base_front_btn", 0.5, -45.0, 45.0 },  // 0.1 to avoid the 0.0 meaning the value in the storage
+  { "base right", "base", 90.0, "base_right_btn", 0.5, 45.0, 135.0 },
+  { "base left", "base", -90.0, "base_left_btn", 0.5, 135.0, 205.0 }
 };
 
 const int DEFAULT_POSE_COUNT = sizeof(default_poses) / sizeof(default_poses[0]);
@@ -523,7 +523,7 @@ bool initPoseStore() {
   return true;
 }
 
-bool updatePoseStoreFromParamStore(){
+bool updatePoseStoreFromParamStore() {
   pose_store.update_pose_store_from_param_store(default_poses, DEFAULT_POSE_COUNT);
   return true;
 }

@@ -85,18 +85,18 @@ void updateButtonAndRefreshServosOnClick(const char *key) {
   if (strcmp(key, "poses") == 0) {
     LOG_SECTION_START_MENU("update servos for poses UI btn {%s}", key);
     setFooter("reading servos...");
-    updateButtonStateByKey("poses", false, false, true);
+    updateButtonStateByKey("poses", "poses", false, false, true);
     rb.updateInfo();
-    updateButtonStateByKey("poses", false, false, false);
+    updateButtonStateByKey("poses", "poses", false, false, false);
     lv_timer_handler();
     LOG_SECTION_END_MENU();
   }
   if (strcmp(key, "system") == 0) {
     LOG_SECTION_START_MENU("update servos for poses UI btn {%s}", key);
     setFooter("reading servos...");
-    updateButtonStateByKey("system", true, false, true);
+    updateButtonStateByKey("system", "system", true, false, true);
     rb.updateInfo();
-    updateButtonStateByKey("system", true, false, false);
+    updateButtonStateByKey("system", "system", true, false, false);
     lv_timer_handler();
     LOG_SECTION_END_MENU();
   }
@@ -108,7 +108,7 @@ void updateButtonAndRefreshServosOnClick(const char *key) {
 // ----------------------------------------------------------
 //                   BUTTON ACTION LOGIC
 // ----------------------------------------------------------
-void buttonAction(const char *key) {
+void buttonAction(const char *key, const char *txt) {
   LOG_SECTION_START_MENU("buttonAction key {%s}", key ? key : "(null)");
 
   static unsigned long lastClickTime = 0;
@@ -154,7 +154,7 @@ void buttonAction(const char *key) {
 
   // --- Regular action (pose / servo / group / sequence) ---
   setFooter((String("action ") + key).c_str());
-  runAction((char *)key);
+  runAction((char *)key, txt);
 
   LOG_SECTION_END_MENU();
 }

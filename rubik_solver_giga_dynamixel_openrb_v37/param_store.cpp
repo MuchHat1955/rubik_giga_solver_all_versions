@@ -23,7 +23,7 @@ extern SequenceStore sequence_store;
 // =====================================================================
 //                           RUN ACTION
 // =====================================================================
-void runAction(const char* key) {
+void runAction(const char* key, const char* txt) {
   LOG_SECTION_START_POSE("runAction key {%s}", key);
 
   if (!key || !*key) {
@@ -47,7 +47,7 @@ void runAction(const char* key) {
   }
 
   if (sequence_store.is_key_for_sequence(key)) {
-    bool ok = sequence_store.run_sequence_by_key(key);
+    bool ok = sequence_store.run_sequence_by_key(key, txt);
     LOG_PRINTF_POSE("sequence | move {%s} | result {%s}\n", key, ok ? "OK" : "FAIL");
     LOG_SECTION_END_POSE();
     return;
@@ -59,8 +59,8 @@ void runAction(const char* key) {
 }
 
 // overload for std::string
-void runAction(const std::string& k) {
-  runAction(k.c_str());
+void runAction(const std::string& k, const std::string& t) {
+  runAction(k.c_str(), t.c_str());
 }
 
 // =====================================================================

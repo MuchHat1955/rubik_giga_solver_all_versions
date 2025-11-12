@@ -24,8 +24,8 @@ extern std::map<String, ButtonState> buttonMap;
 
 void uiStatusClear();
 void uiStatusRegisterButton(const String &buttonKey, lv_obj_t *btn);
-void updateButtonStateByKey(const String &buttonKey, bool issue, bool active, bool busy);
-void drawButtonOverlayByPtr(lv_obj_t *btn, const char *key, bool is_menu, bool issue, bool active, bool busy);
+void updateButtonStateByKey(const String &buttonKey, const String &buttonName, bool issue, bool active, bool busy);
+void drawButtonOverlayByPtr(lv_obj_t *btn, const char *name, bool is_menu, bool issue, bool active, bool busy);
 void logButtonMap(bool alwaysLog);
 int countOfButtonIssues();
 int countOfButtonActive();
