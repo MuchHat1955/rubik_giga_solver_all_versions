@@ -151,8 +151,9 @@ void setup() {
     lv_timer_handler();
     delay(20);
   }
+    initPoseStore();   // pose store must be init first such next can be overwritten with the stored in flash params
   initParamStore();  // load or create parameter storage
-  initPoseStore();   // register servos + group poses
+
 
   // ----------------------------------------------------------
   // STARTUP SELF TEST

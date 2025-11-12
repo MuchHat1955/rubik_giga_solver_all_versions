@@ -110,6 +110,7 @@ static void loadParamsFromFlash() {
       LOG_PRINTF_PARAM("loading from flash | key {%s} | val {%.2f}\n", key, loaded);
     }
   }
+  updatePoseStoreFromParamStore();
   LOG_SECTION_END_PARAM();
 }
 
@@ -196,10 +197,10 @@ void setParamValue(const char* key, double v) {
   }
 
   Param& p = it->second;
-  LOG_PRINTF_PARAM("param found in the store with | param {%s} | val {%.2f}\n", key_final, p.value);
+  LOG_PRINTF_PARAM("param found in the param store with | param {%s} | val {%.2f}\n", key_final, p.value);
   if (p.value != v) {
     p.value = v;
-    LOG_PRINTF_PARAM("set new value in the store | param {%s} | val {%.2f}\n", key_final, p.value);
+    LOG_PRINTF_PARAM("set new value in the param store | param {%s} | val {%.2f}\n", key_final, p.value);
     static unsigned long lastSave = 0;
     if (millis() - lastSave > 300) {
       LOG_PRINTF_PARAM("saving to flash all params store because of | param {%s} | val {%.2f}\n", key_final, p.value);
@@ -218,13 +219,17 @@ void setParamValue(std::string& k, double v) {
 // ---------------------------------------------------------------------
 // Increment parameter
 // Use the following from the pose store
-//    bool PoseStore::increment_pose_param(const char* param_name, int units, double& new_value_ref);
+//    bool PoseStore::increment_in_pose_store(const char* param_name, int units, double& new_value_ref);
 //    void PoseStore::set_pose_val_from_param(const char* param_name, double val);
 //    int PoseStore::is_param_for_pose(const char* btn_key) const;
 
 // ---------------------------------------------------------------------
-void incrementParam(const char* k, int delta) {
-  LOG_PRINTF_PARAM("incrementParam key {%s}", k ? k : "(null)\n");
+void increment_pose_param_in_pose_and_param_stores(const char* k, int delta) {
+
+  // it does not increment unless is a pose and in that case
+  // it will have it to the pose store also
+
+  LOG_PRINTF_PARAM("increment_pose_param_in_pose_and_param_stores key {%s}", k ? k : "(null)\n");
 
   if (!k || !*k) {
     return;
@@ -238,8 +243,8 @@ void incrementParam(const char* k, int delta) {
     LOG_PRINTF_PARAM("[!] increment param err cannot get pose params {%s}\n", k);
     return;
   }
-  pose_store.increment_pose_param(k, delta, p1);
-  pose_store.set_pose_params(k, p1);
+  pose_store.increment_in_pose_store(k, delta, p1);
+  pose_store.save_pose_in_param_store(k, p1);
 
-  LOG_PRINTF_PARAM("incremented {%s} | by {%d} | to {%.2f}\n", k, delta, p1);
+  LOG_PRINTF_PARAM("done incrementing {%s} | by {%d} | to {%.2f}\n", k, delta, p1);
 }

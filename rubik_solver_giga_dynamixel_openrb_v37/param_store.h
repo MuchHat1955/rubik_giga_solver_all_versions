@@ -9,7 +9,7 @@ double getParamValue(const char* k);
 double getParamValue(std::string& k);
 void setParamValue(const char* k, double v);
 void setParamValue(std::string& k, double v);
-void incrementParam(const char* k, int delta);
+void increment_pose_param_in_pose_and_param_stores(const char* k, int delta);
 
 // ---------------- Action dispatch ----------------
 void runAction(const char* key);

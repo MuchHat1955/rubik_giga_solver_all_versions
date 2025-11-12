@@ -32,7 +32,7 @@ public:
   bool is_button_for_pose(const char *btn_key) const;
 
   bool get_pose_params(const char *name, double *p1);
-  bool set_pose_params(const char *name, double p1);
+  bool save_pose_in_param_store(const char *name, double p1);
 
   bool run_pose(const char *name);
   bool run_pose_by_button(const char *btn_key);
@@ -42,7 +42,7 @@ public:
   bool is_btn_for_pose(const char *btn_key) const;
   bool is_param_for_pose(const char *param_name) const;
   char *param_to_pose(const char *param_name) const;
-  bool increment_pose_param(const char *param_name, int units, double &new_value_ref);
+  bool increment_in_pose_store(const char *param_name, int units, double &new_value_ref);
 
   bool is_at_pose(const char *name, double tol_mm = 0.5, double tol_deg = 1.0);
 
@@ -61,3 +61,4 @@ public:
 };
 
 bool initPoseStore();
+bool updatePoseStoreFromParamStore();

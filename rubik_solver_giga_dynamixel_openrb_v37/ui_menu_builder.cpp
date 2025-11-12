@@ -38,7 +38,7 @@ static void on_num_minus_clicked(lv_event_t *e) {
   lv_obj_t *parent = lv_obj_get_parent((const lv_obj_t *)target);
 
   select_num_pair(parent, false);
-  incrementParam(key, -1);
+  increment_pose_param_in_pose_and_param_stores(key, -1);
 
   double val = PARAM_VAL_NA;
   pose_store.get_pose_params(key, &val);
@@ -59,7 +59,7 @@ static void on_num_plus_clicked(lv_event_t *e) {
   lv_obj_t *parent = lv_obj_get_parent((const lv_obj_t *)target);
 
   select_num_pair(parent, false);
-  incrementParam(key, +1);
+  increment_pose_param_in_pose_and_param_stores(key, +1);
 
   double val = PARAM_VAL_NA;
   pose_store.get_pose_params(key, &val);

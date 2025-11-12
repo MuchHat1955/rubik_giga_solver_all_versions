@@ -82,7 +82,7 @@ bool RBInterface::runCommand(const char* name, const float* args, int argCount) 
   setFooter(cmd.c_str());
   Serial2.println(cmd);
 
-  LOG_PRINTF_RB("[GIGA → RB] | command {%s}", cmd.c_str());
+  LOG_PRINTF_RB("[GIGA → RB] | command {%s}\n", cmd.c_str());
   bool ok = waitForCompletion(name);
 
   LOG_PRINTF_RB("[RB → GIGA] | command {%s} result {%s}\n", name, ok ? "OK" : "FAIL");

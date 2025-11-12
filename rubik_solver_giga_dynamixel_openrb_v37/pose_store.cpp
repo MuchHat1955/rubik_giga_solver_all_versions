@@ -81,7 +81,7 @@ bool PoseStore::get_pose_params(const char *name, double *p1) {
   return true;
 }
 
-bool PoseStore::set_pose_params(const char *name, double p1) {
+bool PoseStore::save_pose_in_param_store(const char *name, double p1) {
   // --- Make a mutable copy of the input name
   char base_name[64];
   strncpy(base_name, name, sizeof(base_name));
@@ -146,7 +146,7 @@ char *PoseStore::param_to_pose(const char *param_name) const {
 // -----------------------------------------------------------
 // Increment / Decrement
 // -----------------------------------------------------------
-bool PoseStore::increment_pose_param(const char *param_name, int units, double &new_value_ref) {
+bool PoseStore::increment_in_pose_store(const char *param_name, int units, double &new_value_ref) {
   if (!param_name || !*param_name) return false;
 
   LOG_SECTION_START_POSE("increment pose param | name  {%s}", param_name);
@@ -184,12 +184,7 @@ bool PoseStore::increment_pose_param(const char *param_name, int units, double &
   LOG_PRINTF_POSE("calling set param value for pose {%s} val {%.2f}\n", pose_name.c_str(), new_val);
   setParamValue(save_key.c_str(), new_val);
 
-  // --- Execute updated pose
-  LOG_PRINTF_POSE("running pose{%s} new val{%.2f} units{%d}\n", pose_name.c_str(), new_val, units);
-  // run_pose(pose_name.c_str()); do not run here, has to click, but reflect in UI somehow is changed eg is_at_pose?
-  // TODO reflect UI
-
-  LOG_PRINTF_POSE("pose{%s} adjusted to %.2f (units %d)\n", pose_name.c_str(), new_val, units);
+  LOG_PRINTF_POSE("pose{%s} adjusted in pose store to {%.2f} units {%d}\n", pose_name.c_str(), new_val, units);
   LOG_SECTION_END_POSE();
   return true;
 }
@@ -281,13 +276,13 @@ bool PoseStore::run_pose(const char *pose_name) {
   double p1 = pose.p1;
   String type = pose.move_type;
 
-  updateButtonStateByKey(pose.button_key.c_str(), false, false, true);
   String text = "run pose " + String(pose_name);
   setFooter(text.c_str());
 
   LOG_SECTION_START_POSE("run pose | pose {%s} | type{%s}", pose_name, type.c_str());
   bool ok = false;
 
+  updateButtonStateByKey(pose.button_key.c_str(), false, false, true);
   if (type == "x") {
     ok = rb.moveXmm(p1);
   } else if (type == "y") {
@@ -306,14 +301,14 @@ bool PoseStore::run_pose(const char *pose_name) {
     LOG_PRINTF_POSE("[!] unknown move type for {%s}\n", type.c_str());
   }
   pose.last_run_ok = ok;
-  LOG_PRINTF_POSE("pose store last run set for {%} to {%s}\n", pose.button_key.c_str(), pose.last_run_ok ? "true" : "false");
+  LOG_PRINTF_POSE("pose store last run for {%s} set to {%s}\n", pose.button_key.c_str(), pose.last_run_ok ? "true" : "false");
 
   bool active = is_at_pose(pose.button_key.c_str(), 0.5, 1.0);
   bool issue = !ok;
-  LOG_PRINTF_POSE("    ---- reflect UI after pose run {%s} run with issue {%s} active{%s}\n",  //
-             pose.button_key.c_str(),                                                     //
-             issue ? "yes" : "no",                                                        //
-             active ? "yes" : "no");
+  LOG_PRINTF_POSE("reflect UI after pose run {%s} run with issue {%s} active {%s}\n",  //
+                  pose.button_key.c_str(),                                             //
+                  issue ? "yes" : "no",                                                //
+                  active ? "yes" : "no");
   updateButtonStateByKey(pose.button_key.c_str(), issue, active, false);
 
   LOG_SECTION_END_POSE();
@@ -324,7 +319,8 @@ bool PoseStore::run_pose_by_button(const char *btn_key) {
   int idx = find_pose_by_button(btn_key);
   if (idx < 0) idx = find_pose_index(btn_key);
   if (idx < 0) return false;
-  return run_pose(poses_list[idx].name.c_str());
+  bool ok = run_pose(poses_list[idx].name.c_str());
+  return ok;
 }
 
 // -----------------------------------------------------------
@@ -439,13 +435,13 @@ void PoseStore::update_pose_store_from_param_store(const Pose *defaults, int def
         p.p1 = restored_p1;
 
         LOG_PRINTF_POSE("value from flash | pose {%s} | val {%.2f}\n",
-                   def.name.c_str(), restored_p1);
+                        def.name.c_str(), restored_p1);
       } else {
         LOG_ERROR("pose not found in flash {%s}", def.name.c_str());
       }
     } else {
       LOG_PRINTF_POSE("keeping default | pose {%s} | default {%.2f}\n",
-                 def.name.c_str(), def.p1);
+                      def.name.c_str(), def.p1);
     }
   }
 
@@ -523,6 +519,11 @@ PoseStore pose_store;
 
 bool initPoseStore() {
   pose_store.init_from_defaults(default_poses, DEFAULT_POSE_COUNT);
+  pose_store.update_pose_store_from_param_store(default_poses, DEFAULT_POSE_COUNT);
+  return true;
+}
+
+bool updatePoseStoreFromParamStore(){
   pose_store.update_pose_store_from_param_store(default_poses, DEFAULT_POSE_COUNT);
   return true;
 }

@@ -98,11 +98,11 @@ void logButtonMap(bool alwaysLog) {
     const String &key = entry.first;
     const ButtonState &st = entry.second;
     LOG_PRINTF_MENU("    ---- {%02d} | key {%s} | btn_ptr {%p} | active {%s} | issue {%s}\n",
-               count,
-               key.c_str(),
-               (void *)st.btn,
-               st.active ? "yes" : "no",
-               st.issue ? "yes" : "no");
+                    count,
+                    key.c_str(),
+                    (void *)st.btn,
+                    st.active ? "yes" : "no",
+                    st.issue ? "yes" : "no");
     log_lv_obj_info(st.btn, key.c_str());
     count++;
   }
@@ -209,8 +209,8 @@ void drawButtonOverlayByPtr(lv_obj_t *btn, const char *key, bool is_menu, bool i
 
     uint32_t color32 = lv_color_to_u32(lv_obj_get_style_bg_color(btn, LV_PART_MAIN));
     LOG_PRINTF_MENU("opa %d color %#08X\n",
-               lv_obj_get_style_bg_opa(btn, LV_PART_MAIN),
-               color32);
+                    lv_obj_get_style_bg_opa(btn, LV_PART_MAIN),
+                    color32);
   }
 
   // --- ISSUE: solid red fill, no white border ---
@@ -221,6 +221,10 @@ void drawButtonOverlayByPtr(lv_obj_t *btn, const char *key, bool is_menu, bool i
     lv_obj_set_style_border_color(btn, lv_color_hex(0xC0392B), LV_PART_MAIN);  // same as fill
     lv_obj_set_style_border_width(btn, BORDER_WIDTH_ISSUE, LV_PART_MAIN);
     lv_obj_set_style_radius(btn, CORNERS, LV_PART_MAIN);
+
+    // text to be restored after busy
+    lv_obj_t *lbl = lv_obj_get_child(btn, 0);
+    if (lbl) lv_label_set_text(lbl, key);
   }
 
   // --- ACTIVE: solid blue fill, no white border ---
@@ -231,6 +235,10 @@ void drawButtonOverlayByPtr(lv_obj_t *btn, const char *key, bool is_menu, bool i
     lv_obj_set_style_border_color(btn, baseColor, LV_PART_MAIN);
     lv_obj_set_style_border_width(btn, BORDER_WIDTH_ACTIVE, LV_PART_MAIN);
     lv_obj_set_style_radius(btn, CORNERS, LV_PART_MAIN);
+
+    // text to be restored after busy
+    lv_obj_t *lbl = lv_obj_get_child(btn, 0);
+    if (lbl) lv_label_set_text(lbl, key);
   }
 
   // --- NORMAL: transparent background, restore base border ---
@@ -240,8 +248,16 @@ void drawButtonOverlayByPtr(lv_obj_t *btn, const char *key, bool is_menu, bool i
     lv_obj_set_style_border_color(btn, baseColor, LV_PART_MAIN);  // ✅ correct parameter
     lv_obj_set_style_border_width(btn, BORDER_WIDTH_NORMAL, LV_PART_MAIN);
     lv_obj_set_style_radius(btn, CORNERS, LV_PART_MAIN);
+
+    // text to be restored after busy
+    lv_obj_t *lbl = lv_obj_get_child(btn, 0);
+    if (lbl) lv_label_set_text(lbl, key);
   }
 
+  // force a visible redraw
+  lv_obj_invalidate(btn);
+  lv_refr_now(NULL);
+  lv_timer_handler();
   lv_obj_invalidate(btn);
   lv_refr_now(NULL);
   delay(15);
@@ -326,22 +342,22 @@ void updateButtonStateByKey(const String &buttonKey, bool issue, bool active, bo
   if (b.btn) {
     if (issue || active || busy) {
       LOG_PRINTF_MENU("[!] updating button with PTR for key {%s} | menu {%s} | active {%s} | issue {%s} | busy {%s}\n",  //
-                 buttonKey.c_str(),                                                                                 //
-                 is_menu ? "menu" : "no menu",                                                                      //
-                 active ? "yes" : "no",                                                                             //
-                 issue ? "yes" : "no",                                                                              //
-                 busy ? "yes" : "no");
+                      buttonKey.c_str(),                                                                                 //
+                      is_menu ? "menu" : "no menu",                                                                      //
+                      active ? "yes" : "no",                                                                             //
+                      issue ? "yes" : "no",                                                                              //
+                      busy ? "yes" : "no");
       if (b.btn) log_lv_obj_info(b.btn, buttonKey.c_str());
       drawButtonOverlayByPtr(b.btn, buttonKey.c_str(), is_menu, issue, active, busy);
     }
   } else {
     if (issue || active || busy) {
       LOG_PRINTF_MENU("[!] updating button NO PTR for key {%s} | menu {%s}|  active {%s} | issue {%s} | busy {%s}\n",  //
-                 buttonKey.c_str(),                                                                               //
-                 is_menu ? "menu" : "no menu",                                                                    //
-                 active ? "yes" : "no",                                                                           //
-                 issue ? "yes" : "no",                                                                            //
-                 busy ? "yes" : "no");
+                      buttonKey.c_str(),                                                                               //
+                      is_menu ? "menu" : "no menu",                                                                    //
+                      active ? "yes" : "no",                                                                           //
+                      issue ? "yes" : "no",                                                                            //
+                      busy ? "yes" : "no");
     }
   }
 }
