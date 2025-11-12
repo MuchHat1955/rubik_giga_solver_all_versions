@@ -13,7 +13,7 @@
 #define LOG_POSE
 #define LOG_SEQUENCES
 #define LOG_CUBE
-// #define LOG_MENU
+#define LOG_MENU
 
 // Forward declaration to avoid circular include
 class RBInterface;

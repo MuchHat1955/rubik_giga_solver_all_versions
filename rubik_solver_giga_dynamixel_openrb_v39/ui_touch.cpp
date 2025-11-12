@@ -11,9 +11,10 @@
 #include "ui_status.h"
 #include "rb_interface.h"
 #include "pose_store.h"
+#include "ui_button.h"
 
 // Forward declarations
-void drawButtonOverlayByPtr(lv_obj_t *btn, const char *key, bool is_menu, bool issue, bool active, bool busy);
+void drawButtonOverlay(int btn_id);
 
 extern RBInterface rb;
 extern PoseStore pose_store;
@@ -86,68 +87,91 @@ void setFooter(const char *msg) {
 }
 
 // ---- below is for actions to be done when a menu is displayed ---
-void updateButtonAndRefreshServosOnClick(const char *key) {
-  LOG_SECTION_START_MENU("update buttons on click for menu {%s}", key);
-  // logButtonMap(true);
-  if (!key) {
-    LOG_PRINTF_MENU("invalik key {null}\n");
-    LOG_SECTION_END_MENU();
+void updateButton_OnClick(int btn_id) {
+  LOG_SECTION_START_MENU("update buttons on click for menu {%d}", btn_id);
+  UIButton *b = find_button_by_id(btn_id);
+  if (!b) {
+    LOG_PRINTF_MENU("[!] updateButton_OnClick: no button found for id {%d}\n", btn_id);
     return;
   }
 
-  if (strcmp(key, "poses") == 0) {
-    LOG_SECTION_START_MENU("update servos for poses UI btn {%s}", key);
+  constchar *txt = b->get_text();
+
+  if (strcmp(txt, "poses") == 0) {
+    LOG_SECTION_START_MENU("update servos for poses UI btn {%s}", txt);
+    b->set_is_busy(true);
+    drawButtonOverlayById(btn_id);
     setFooter("reading servos...");
-    updateButtonStateByKey("poses", "poses", false, false, true);
     rb.updateInfo();
-    updateButtonStateByKey("poses", "poses", false, false, false);
-    lv_timer_handler();
+    b->set_is_busy(false);
+    drawButtonOverlayById(btn_id);
     LOG_SECTION_END_MENU();
   }
-  if (strcmp(key, "system") == 0) {
-    LOG_SECTION_START_MENU("update servos for poses UI btn {%s}", key);
+  if (strcmp(txt, "system") == 0) {
+    LOG_SECTION_START_MENU("update servos for poses UI btn {%s}", txt);
+    b->set_is_busy(true);
+    drawButtonOverlayById(btn_id);
     setFooter("reading servos...");
-    updateButtonStateByKey("system", "system", true, false, true);
     rb.updateInfo();
-    updateButtonStateByKey("system", "system", true, false, false);
-    lv_timer_handler();
+    b->set_is_busy(false);
+    drawButtonOverlayById(btn_id);
     LOG_SECTION_END_MENU();
   }
 
-  logButtonMap(true);
   LOG_SECTION_END_MENU();
 }
 
 // ----------------------------------------------------------
 //                   BUTTON ACTION LOGIC
 // ----------------------------------------------------------
-void buttonAction(const char *key, const char *txt) {
-  LOG_SECTION_START_MENU("buttonAction key {%s}", key ? key : "(null)");
+void buttonAction(int btn_id) {
+  LOG_SECTION_START_MENU("buttonAction: id {%d}", btn_id);
+
+  UIButton *b = find_button_by_id(btn_id);
+  if (!b) {
+    LOG_PRINTF_MENU("[!] buttonAction: no button found for id {%d}\n", btn_id);
+    return;
+  }
 
   static unsigned long lastClickTime = 0;
   static String lastClickKey;
+  static unsigned long millisButtonBusy = 0;
+  static String lastBusyKey = "";
+  const char *key = b->get_text();
 
   unsigned long now = millis();
-  if (key && *key && key == lastClickKey && now - lastClickTime < 500) {
-    LOG_PRINTF_MENU("button action rapid re-click ignored key {%s}\n", key);
+
+  // --- Prevent rapid re-clicks (debounce 500 ms)
+  if (key && lastClickKey.equals(key) && now < lastClickTime + 500) {
+    LOG_PRINTF_MENU("[!] rapid re-click ignored key {%s}\n", key);
     LOG_SECTION_END_MENU();
     return;
   }
   lastClickTime = now;
   lastClickKey = key;
 
-  // --- Safety: guard against null or empty keys ---
+  // --- Guard against null or empty key
   if (!key || !*key) {
-    LOG_PRINTF_MENU("button action empty or null key ignored\n");
+    LOG_PRINTF_MENU("[!] button action empty or null key ignored\n");
     LOG_SECTION_END_MENU();
     return;
   }
 
-  if (strcmp(key, "system") == 0) on_system_pose_opened();
+  // --- Busy guard (wait up to 33 s)
+  if (millisButtonBusy > 0 && now < millisButtonBusy + 33000) {
+    LOG_PRINTF_MENU("[!] button action ignored while busy on {%s}\n",
+                    lastBusyKey.c_str());
+    LOG_SECTION_END_MENU();
+    return;
+  }
 
-  updateButtonAndRefreshServosOnClick(key);
+  // --- Mark this button as busy before running the long op
+  millisButtonBusy = now;
+  lastBusyKey = key;
+  updateButton_OnClick(btn_id);  // blocking call
+  millisButtonBusy = 0;
 
-    // --- Navigate to a submenu if the key matches a menu name ---
+  // --- Navigate to submenu only after operation finished
   if (menuDoc.containsKey(key)) {
     currentMenu = key;
     setFooter((String("switch menu ") + key).c_str());
@@ -156,7 +180,7 @@ void buttonAction(const char *key, const char *txt) {
     return;
   }
 
-  // --- Explicit back to main menu ---
+  // --- Explicit back to main menu
   if (strcmp(key, "main") == 0) {
     currentMenu = "main";
     setFooter("back to main menu");

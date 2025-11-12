@@ -12,11 +12,11 @@ void ui_init();
 void ui_loop();
 void ui_refresh();
 void buildMenu(const char *menuName);
-void buttonAction(const char *key, const char* name);
+void buttonAction(int btn_id);
 
 // to change UI status
-void drawButtonOverlayByPtr(lv_obj_t *btn, bool is_menu, bool issue, bool active, bool busy);
-void updateButtonAndRefreshServosOnClick(const char *key);
+void drawButtonOverlayById(int btn_id);
+void updateButtonAndRefreshServosOnClick(int btn_id);
 
 // utility functions
 void setFooter(const char *msg);

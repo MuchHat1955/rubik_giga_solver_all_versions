@@ -20,13 +20,8 @@ struct ButtonState {
   bool active{ false };
 };
 
-extern std::map<String, ButtonState> buttonMap;
-
 void uiStatusClear();
-void uiStatusRegisterButton(const String &buttonKey, lv_obj_t *btn);
-void updateButtonStateByKey(const String &buttonKey, const String &buttonName, bool issue, bool active, bool busy);
-void drawButtonOverlayByPtr(lv_obj_t *btn, const char *name, bool is_menu, bool issue, bool active, bool busy);
-void logButtonMap(bool alwaysLog);
-int countOfButtonIssues();
-int countOfButtonActive();
+void updateButtonPtrByText(const char* btn_text, lv_obj_t *btn);
+void drawButtonOverlayById(int btn_id);
+void drawButtonOverlayByText(const char* btn_text);
 void log_lv_obj_info(const lv_obj_t *obj, const char *prefix);

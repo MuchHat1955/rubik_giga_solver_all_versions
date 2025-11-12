@@ -310,7 +310,7 @@ bool PoseStore::run_pose(const char *pose_btn) {
   LOG_SECTION_START_POSE("run pose | pose {%s} | type{%s}", pose_btn, type.c_str());
   bool ok = false;
 
-  updateButtonStateByKey(pose.button_key.c_str(), pose.name.c_str(), false, false, true);
+  drawButtonOverlayByText(pose.name.c_str());
   if (type == "x") {
     ok = rb.moveXmm(p1);
   } else if (type == "y") {
@@ -337,8 +337,12 @@ bool PoseStore::run_pose(const char *pose_btn) {
                   pose.button_key.c_str(),                                             //
                   issue ? "yes" : "no",                                                //
                   active ? "yes" : "no");
-  updateButtonStateByKey(pose.button_key.c_str(), pose.name, issue, active, false);
-
+  UIBUtton *b = find_button_by_text(pose.name.c_str());
+  if (!b) {
+    LOG_ERROR("[!] cannot find button for pose {%s}", pose.name.c_str());
+  } else {
+    drawButtonOverlayById(b->get_id());
+  }
   LOG_SECTION_END_POSE();
   return ok;
 }
@@ -421,8 +425,15 @@ void PoseStore::reflect_poses_ui() {
     bool issue = !p.last_run_ok;
     bool active = is_at_pose(p.button_key.c_str(), 0.5, 1.0);
     if (!issue) active = 0;
-    if (issue) LOG_PRINTF_MENU("    ---- reflect UI for {%s} with issue {true}\n", p.button_key.c_str());
-    updateButtonStateByKey(p.button_key.c_str(), p.name.c_str(), issue, active, false);
+    if (issue || active) LOG_PRINTF_MENU("reflect UI for {%s} with issue {true}\n", p.button_key.c_str());
+    UIButton *b = find_button_by_text(p.name.c_str());
+    if (!b) {
+      LOG_ERROR("[!] trying to update issue and active state for non existing button {%s}", p.button_key.c_str());
+    } else {
+      b->set_has_issue(issue);
+      b->set_is_active(active);
+      drawButtonOverlayById(b->get_id());
+    }
   }
   LOG_SECTION_END_MENU();
 }
@@ -435,7 +446,14 @@ void PoseStore::set_all_poses_last_run(bool b) {
     bool issue = !b;
     bool active = is_at_pose(p.button_key.c_str(), 0.5, 1.0);
     if (!issue) active = false;
-    updateButtonStateByKey(p.button_key.c_str(), p.name.c_str(), issue, active, false);
+    UIButton *b = find_button_by_text(p.name.c_str());
+    if (!b) {
+      LOG_ERROR("[!] trying to update issue and active state for non existing button {%s}", p.button_key.c_str());
+    } else {
+      b->set_has_issue(issue);
+      b->set_is_active(active);
+      drawButtonOverlayById(b->get_id());
+    }
   }
   LOG_SECTION_END_MENU();
 }
