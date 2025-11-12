@@ -5,6 +5,7 @@
 // Single pose entry
 // -----------------------------------------------------------
 struct Pose {
+  String key;        // e.g. "wrist_0"
   String name;       // e.g. "wrist_0"
   String move_type;  // "xy", "gripper", "wrist"
   double p1;
@@ -24,7 +25,7 @@ public:
     count = 0;
   };
 
-  bool add_pose(const char *name, const char *type, double p1,
+  bool add_pose(const char *key, const char *name, const char *type, double p1,
                 const char *btn_key = nullptr, double step = 1.0,
                 double min_val = -9999.0, double max_val = 9999.0);
 
@@ -57,7 +58,7 @@ public:
   int count = 0;
 
   int find_pose_index(const char *name) const;
-  int find_pose_by_button(const char *btn_key) const;
+  int find_pose_by_key_param_button(const char *btn_key) const;
 };
 
 bool initPoseStore();

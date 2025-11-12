@@ -79,7 +79,7 @@ lv_style_t style_num_selected;     // orange border + light background
 lv_style_t style_num_btn_active;   // filled yellow (selected)
 lv_style_t style_num_btn_pressed;  // bright flash on press
 
-void buttonAction(const char *key);
+void buttonAction(const char *key, const char *name);
 int incrementValue(const char *key, int delta);
 void initPoseStore();
 bool runStartupTests();
@@ -151,7 +151,7 @@ void setup() {
     lv_timer_handler();
     delay(20);
   }
-    initPoseStore();   // pose store must be init first such next can be overwritten with the stored in flash params
+  initPoseStore();   // pose store must be init first such next can be overwritten with the stored in flash params
   initParamStore();  // load or create parameter storage
 
 

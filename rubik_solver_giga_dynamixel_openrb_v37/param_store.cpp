@@ -41,7 +41,7 @@ void runAction(const char* key, const char* txt) {
   // --- Pose buttons ---
   if (pose_store.is_button_for_pose(key)) {
     bool ok = pose_store.run_pose_by_button(key);
-    LOG_PRINTF_POSE("pose | move {%s} | result {%s}\n", key, ok ? "OK" : "FAIL");
+    LOG_PRINTF_POSE("pose not found from is button for pose | move {%s} | result {%s}\n", key, ok ? "OK" : "FAIL");
     LOG_SECTION_END_POSE();
     return;
   }

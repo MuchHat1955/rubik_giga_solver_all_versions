@@ -67,8 +67,21 @@ void setFooter(const char *msg) {
     LOG_PRINTF_MENU("set footer {%s}\n", b);
 
     lv_label_set_text(footLbl, b);
+
+    // force a visible redraw
     lv_obj_invalidate(footLbl);
-    lv_timer_handler();  // ✅ force redraw immediately
+    lv_refr_now(NULL);
+    lv_timer_handler();
+    lv_obj_invalidate(footLbl);
+    lv_refr_now(NULL);
+    delay(15);
+
+    for (int i = 0; i < 10; ++i) {
+      LOG_PRINTF_MENU("calling lv timer handler\n");
+      lv_timer_handler();
+      delay(5);
+    }
+    delay(15);
   }
 }
 

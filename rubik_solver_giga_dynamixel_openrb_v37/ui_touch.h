@@ -12,7 +12,7 @@ void ui_init();
 void ui_loop();
 void ui_refresh();
 void buildMenu(const char *menuName);
-void buttonAction(const char *key);
+void buttonAction(const char *key, const char* name);
 
 // to change UI status
 void drawButtonOverlayByPtr(lv_obj_t *btn, bool is_menu, bool issue, bool active, bool busy);

@@ -10,6 +10,11 @@
 #include "ui_status.h"
 #include "rb_interface.h"
 
+struct BtnUserData {
+  const char *key;
+  const char *txt;
+};
+
 String getSketchVersion();
 String getSketchVersionWithDate();
 void buildMenu(const char *menuName);
@@ -275,27 +280,41 @@ void buildMenu(const char *menuName) {
           continue;
         }
 
+        BtnUserData *ud = new BtnUserData{ key, txt };
+
         lv_obj_add_event_cb(
           btn,
           [](lv_event_t *e) {
             if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
-            const char *keyUD = static_cast<const char *>(lv_event_get_user_data(e));
-            if (!keyUD || !*keyUD) {
+
+            auto *ud = static_cast<BtnUserData *>(lv_event_get_user_data(e));
+            if (!ud || !ud->key || !*ud->key) {
               LOG_PRINTF_MENU("click event: empty key\n");
               return;
             }
+
 #if LV_USE_ASYNC_CALL
             lv_async_call(
-              [](void *ud) {
-                const char *k = static_cast<const char *>(ud);
-                buttonAction(k);
+              [](void *param) {
+                auto *ud2 = static_cast<BtnUserData *>(param);
+                buttonAction(ud2->key, ud2->txt);
               },
-              (void *)keyUD);
+              ud);
 #else
-            buttonAction(keyUD);
+            buttonAction(ud->key, ud->txt);
 #endif
           },
-          LV_EVENT_CLICKED, (void *)key);
+          LV_EVENT_CLICKED, ud);
+
+        lv_obj_add_event_cb(
+          btn,
+          [](lv_event_t *e) {
+            if (lv_event_get_code(e) == LV_EVENT_DELETE) {
+              auto *ud = static_cast<BtnUserData *>(lv_event_get_user_data(e));
+              delete ud;  // ✅ release memory
+            }
+          },
+          LV_EVENT_DELETE, ud);
       }
 
       // ---------- NUMERIC ----------
@@ -391,7 +410,7 @@ void buildMenu(const char *menuName) {
         else servoText = String("#FFA500 servos info#\n") + String("[!] no servos info\n\n");
 
         String systemText =
-          String("#FFA500 build#\n") + getSketchVersionWithDate() + "\n\n" + //
+          String("#FFA500 build#\n") + getSketchVersionWithDate() + "\n\n" +  //
           String("#FFA500 log lines#\n") + getAllErrorLines() + "\n\n" + servoText;
 
         lv_textarea_set_text(ta, systemText.c_str());

@@ -79,15 +79,16 @@ bool RBInterface::runCommand(const char* name, const float* args, int argCount) 
       cmd += String(args[i], 2);  // 2-decimal float
   }
 
-  setFooter(cmd.c_str());
-  Serial2.println(cmd);
-
   LOG_PRINTF_RB("[GIGA → RB] | command {%s}\n", cmd.c_str());
+  setFooter(cmd.c_str());
+  delay(100);
+  Serial2.println(cmd);
   bool ok = waitForCompletion(name);
 
   LOG_PRINTF_RB("[RB → GIGA] | command {%s} result {%s}\n", name, ok ? "OK" : "FAIL");
   String txt = cmd + " " + (ok ? "OK" : "FAIL");
   setFooter(txt.c_str());
+  delay(100);
   LOG_SECTION_END_RB();
   return ok;
 }
@@ -99,6 +100,9 @@ bool RBInterface::requestServoInfo(uint8_t id) {
   LOG_SECTION_START_RB("requestServoInfo | id {%d}", id);
 
   String cmd = "INFO " + String(id);
+  LOG_PRINTF_RB("[GIGA → RB] | command {%s}\n", cmd.c_str());
+  setFooter(cmd.c_str());
+  delay(100);
   Serial2.println(cmd);
 
   unsigned long t0 = millis();
@@ -142,6 +146,10 @@ bool RBInterface::requestAllServoInfo() {
 
   for (auto id : { ID_ARM1, ID_ARM2, ID_WRIST, ID_GRIPPER1, ID_GRIPPER2, ID_BASE }) {
     String cmd = "INFO " + String(id);
+
+    LOG_PRINTF_RB("[GIGA → RB] | command {%s}\n", cmd.c_str());
+    setFooter(cmd.c_str());
+    delay(100);
     Serial2.println(cmd);
 
     unsigned long t0 = millis();
@@ -381,6 +389,7 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
 bool RBInterface::updateInfo() {
   LOG_SECTION_START_RB("updateInfo");
 
+  setFooter("read 0");
   Serial2.println("READ 0");
   LOG_PRINTF_RB("requesting READ 0...\n");
 
