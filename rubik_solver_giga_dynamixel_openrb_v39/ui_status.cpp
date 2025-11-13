@@ -70,7 +70,7 @@ void drawButtonOverlayById(int btn_id) {
   }
 
   LOG_PRINTF_MENU("drawButtonOverlay for id {%d} (%s)\n", btn_id, btn_ptr->get_text());
-  log_button_by_id(btn_id);
+  // log_button_by_id(btn_id);
 
   bool busy = btn_ptr->get_is_busy();
   bool issue = btn_ptr->get_has_issue();

@@ -82,7 +82,10 @@ bool PoseStore::is_button_for_pose(const char *btn_key) const {
 // -----------------------------------------------------------
 bool PoseStore::get_pose_params(const char *name, double *p1) {
   int idx = find_pose_index(name);
-  if (idx < 0) return false;
+  if (idx < 0) {
+    LOG_ERROR("could not find pose param for pose{%s}\n", name);
+    return false;
+  }
   if (p1) *p1 = poses_list[idx].p1;
   return true;
 }

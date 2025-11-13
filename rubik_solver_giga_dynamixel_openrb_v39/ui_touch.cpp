@@ -157,6 +157,8 @@ void buttonAction(int btn_id) {
     return;
   }
 
+  /*
+  
   // --- Busy guard (wait up to 33 s)
   if (millisButtonBusy > 0 && now < millisButtonBusy + 33000) {
     LOG_PRINTF_MENU("[!] button action ignored while busy on {%s}\n",
@@ -164,6 +166,8 @@ void buttonAction(int btn_id) {
     LOG_SECTION_END_MENU();
     return;
   }
+
+  */
 
   // --- Mark this button as busy before running the long op
   millisButtonBusy = now;
