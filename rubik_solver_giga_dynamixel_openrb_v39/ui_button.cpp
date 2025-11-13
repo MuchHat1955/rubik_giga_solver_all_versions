@@ -68,13 +68,13 @@ UIButton ui_buttons[] = {
   { 3, "scramble cube", nullptr, true },
   { 4, "tests", nullptr, true },
   { 5, "system", nullptr, true },
+  { 61, "main", nullptr, true },
 
   // Solve/read/random/system menus
   { 6, "start", nullptr, false },
   { 7, "start read", nullptr, false },
   { 8, "scramble (12)", nullptr, false },
   { 9, "scramble (20)", nullptr, false },
-  { 10, "back", nullptr, true },
 
   // Tests
   { 11, "poses", nullptr, true },

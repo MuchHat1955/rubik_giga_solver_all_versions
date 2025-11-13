@@ -83,6 +83,7 @@ static void on_num_plus_clicked(lv_event_t *e) {
 // ===========================================================
 void buildMenu(const char *menuName) {
 
+  LOG_PRINTF_MENU("---------------- build menu\n");
   LOG_SECTION_START_MENU("build menu {%s}", menuName);
 
   lv_obj_t *scr = lv_scr_act();
@@ -397,10 +398,8 @@ void buildMenu(const char *menuName) {
         lv_obj_set_pos(ta, x, y);
         lv_obj_set_scrollbar_mode(ta, LV_SCROLLBAR_MODE_AUTO);
 
-        bool req_ok = rb.requestAllServoInfo();
         String servoText = "";
-        if (req_ok) servoText = String("#FFA500 servos info#\n") + rb.getAllServoInfoLines() + "\n\n";
-        else servoText = String("#FFA500 servos info#\n") + String("[!] no servos info\n\n");
+        servoText = String("#FFA500 servos info#\n") + rb.getAllServoInfoLines() + "\n\n";
 
         String systemText =
           String("#FFA500 build#\n") + getSketchVersionWithDate() + "\n\n" +  //
@@ -456,7 +455,7 @@ const char jsonBuffer[] = R"json(
     "columns": 1,
     "rows": [
       [{ "text": "start", "type": "action", "key": "start" }],
-      [{ "text": "back", "type": "menu", "key": "back" }]
+      [{ "text": "back", "type": "menu", "key": "main" }]
     ]
   },
   "read cube": {
@@ -465,7 +464,7 @@ const char jsonBuffer[] = R"json(
     "columns": 1,
     "rows": [
       [{ "text": "start read", "type": "action", "key": "start read" }],
-      [{ "text": "back", "type": "menu", "key": "back" }]
+      [{ "text": "back", "type": "menu", "key": "main" }]
     ]
   },
   "scramble cube": {
@@ -475,7 +474,7 @@ const char jsonBuffer[] = R"json(
     "rows": [
       [{ "text": "scramble (12)", "type": "action", "key": "scramble (12)" }],
       [{ "text": "scramble (20)", "type": "action", "key": "scramble (20)" }],
-      [{ "text": "back", "type": "menu", "key": "back" }]
+      [{ "text": "back", "type": "menu", "key": "main" }]
     ]
   },
   "system": {
@@ -485,7 +484,7 @@ const char jsonBuffer[] = R"json(
     "equal_columns": "all",
     "rows": [
       [{ "type": "error_status", "text": "" }],
-      [{ "text": "back", "type": "menu", "key": "back" }]
+      [{ "text": "back", "type": "menu", "key": "main" }]
     ]
   },
   "tests": {
@@ -497,7 +496,7 @@ const char jsonBuffer[] = R"json(
       [{ "text": "poses", "type": "menu", "key": "poses", "status": "yes" }],
       [{ "text": "sequences", "type": "menu", "key": "sequences" }],
       [{ "text": "cube moves", "type": "menu", "key": "cube moves" }],
-      [{ "text": "back", "type": "menu", "key": "back" }]
+      [{ "text": "back", "type": "menu", "key": "main" }]
     ]
   },
   "sequences": {
@@ -526,7 +525,7 @@ const char jsonBuffer[] = R"json(
         { "text": "rotate down face+", "type": "action", "key": "rotate down face+" },
         { "text": "rotate down face-", "type": "action", "key": "rotate down face-" }
       ],
-      [{ "text": "back", "type": "menu", "key": "back" }]
+      [{ "text": "back", "type": "menu", "key": "tests" }]
     ]
   },
   "cube moves": {
@@ -565,7 +564,7 @@ const char jsonBuffer[] = R"json(
         { "text": "", "type": "text" },
         { "text": "", "type": "text" }
       ],
-      [{ "text": "back", "type": "menu", "key": "back" }]
+      [{ "text": "back", "type": "menu", "key": "main" }]
     ]
   },
   "poses": {
@@ -634,7 +633,7 @@ const char jsonBuffer[] = R"json(
       [{ "text": "base left", "type": "action", "key": "base left", "status": "yes" },
        { "text": "+0000-", "type": "num", "key": "base left" },
        { "text": "deg", "type": "text", "key": "deg" }],
-      [{ "text": "back", "type": "menu", "key": "back" }]
+      [{ "text": "back", "type": "menu", "key": "tests" }]
     ]
   }
 }

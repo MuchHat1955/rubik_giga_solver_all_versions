@@ -69,7 +69,7 @@ void drawButtonOverlayById(int btn_id) {
     return;
   }
 
-  LOG_PRINTF_MENU("drawButtonOverlay for id {%d} (%s)\n", btn_id, btn_ptr->get_text());
+  // LOG_PRINTF_MENU("drawButtonOverlay for id {%d} (%s)\n", btn_id, btn_ptr->get_text());
   // log_button_by_id(btn_id);
 
   bool busy = btn_ptr->get_is_busy();
@@ -133,7 +133,7 @@ void drawButtonOverlayById(int btn_id) {
 
   // --- ISSUE state ---
   else if (issue) {
-    LOG_PRINTF_MENU("overlay ISSUE\n");
+    //LOG_PRINTF_MENU("overlay ISSUE\n");
     lv_obj_set_style_bg_color(btn, lv_color_hex(0xC0392B), LV_PART_MAIN);  // red
     lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_border_color(btn, lv_color_hex(0xC0392B), LV_PART_MAIN);
@@ -159,7 +159,7 @@ void drawButtonOverlayById(int btn_id) {
 
   // --- NORMAL state ---
   else {
-    LOG_PRINTF_MENU("overlay NORMAL\n");
+    //LOG_PRINTF_MENU("overlay NORMAL\n");
     lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_color(btn, baseColor, LV_PART_MAIN);
     lv_obj_set_style_border_width(btn, BORDER_WIDTH_NORMAL, LV_PART_MAIN);

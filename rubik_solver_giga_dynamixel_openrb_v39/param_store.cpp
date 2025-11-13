@@ -21,49 +21,6 @@ extern SequenceStore sequence_store;
 #endif
 
 // =====================================================================
-//                           RUN ACTION
-// =====================================================================
-void runAction(const char* key, const char* txt) {
-  LOG_SECTION_START_POSE("runAction key {%s}", key);
-
-  if (!key || !*key) {
-    LOG_PRINTF_POSE("run action null/empty key ignored\n");
-    LOG_SECTION_END_POSE();
-    return;
-  }
-
-  if (strcmp(key, "runAction") == 0) {  // recursion guard
-    LOG_PRINTF_POSE("run action recursion guard triggered\n");
-    LOG_SECTION_END_POSE();
-    return;
-  }
-
-  // --- Pose buttons ---
-  if (pose_store.is_button_for_pose(key)) {
-    bool ok = pose_store.run_pose_by_button(key);
-    LOG_PRINTF_POSE("pose not found from is button for pose | move {%s} | result {%s}\n", key, ok ? "OK" : "FAIL");
-    LOG_SECTION_END_POSE();
-    return;
-  }
-
-  if (sequence_store.is_key_for_sequence(key)) {
-    bool ok = sequence_store.run_sequence_by_key(key, txt);
-    LOG_PRINTF_POSE("sequence | move {%s} | result {%s}\n", key, ok ? "OK" : "FAIL");
-    LOG_SECTION_END_POSE();
-    return;
-  }
-
-  // --- Fallback for unhandled keys ---
-  LOG_PRINTF_POSE("unhandled action key {%s}\n", key);
-  LOG_SECTION_END_POSE();
-}
-
-// overload for std::string
-void runAction(const std::string& k, const std::string& t) {
-  runAction(k.c_str(), t.c_str());
-}
-
-// =====================================================================
 //                          PARAM STORE CORE
 // =====================================================================
 struct Param {
@@ -181,13 +138,6 @@ void setParamValue(const char* key, double v) {
 
   // Convert to String for safe manipulation
   String key_str = key;
-
-  // Check if key ends with "_param"
-  if (!key_str.endsWith("_param")) {
-    key_str += "_param";
-    // LOG_PRINTF_PARAM("added param {%s}\n", key_str.c_str());
-  }
-
   const char* key_final = key_str.c_str();
 
   auto it = param_store.find(std::string(key_final));

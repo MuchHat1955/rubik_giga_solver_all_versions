@@ -36,7 +36,6 @@ public:
   bool save_pose_in_param_store(const char *name, double p1);
 
   bool run_pose(const char *name);
-  bool run_pose_by_button(const char *btn_key);
 
   void set_pose_val_from_param(const char *param_name, double val);
   bool is_btn_for_pose(const char *btn_key) const;
@@ -47,7 +46,7 @@ public:
 
   void init_from_defaults(const Pose *defaults, int count);
   void update_pose_store_from_param_store(const Pose *defaults, int def_count);
-  void reflect_poses_ui();
+  void reflect_poses_last_run();
   void set_all_poses_last_run(bool b);
   void list_poses() const;
 

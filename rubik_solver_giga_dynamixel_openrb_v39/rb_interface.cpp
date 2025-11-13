@@ -217,6 +217,8 @@ String RBInterface::getAllServoInfoLines() const {
            " | pos_present " + String(s.pos_present) + "\n";            //
   }
 
+  if (out.length() == 0) out = "[!] no servos info";
+
   return out;
 }
 
@@ -332,8 +334,8 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
     double err1 = fabs(last.g1_per - val);
     double err2 = fabs(last.g2_per - val);
 
-    LOG_PRINTF_RB("verify expected move{%s} g1_per expected{%.2f} actual{%.2f} err{%.2f}\n", cmd_name, val, last.g1_per, err1);
-    LOG_PRINTF_RB("verify expected move{%s} g2_per expected{%.2f} actual{%.2f} err{%.2f}\n", cmd_name, val, last.g2_per, err2);
+    LOG_PRINTF_RB("verify expected | move {%s} g1_per | expected {%.2f} actual {%.2f} err {%.2f}\n", cmd_name, val, last.g1_per, err1);
+    LOG_PRINTF_RB("verify expected | move {%s} g2_per | expected {%.2f} actual {%.2f} err {%.2f}\n", cmd_name, val, last.g2_per, err2);
 
     if (err1 <= tol && err2 <= tol) {
       LOG_SECTION_END_RB();
@@ -341,11 +343,11 @@ bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id,
     }
 
     if (err1 > tol) {
-      snprintf(buf, sizeof(buf), "verify expected move{%s} g1_per expected{%.2f} actual{%.2f} err{%.2f}\n", cmd_name, val, last.g1_per, err1);
+      snprintf(buf, sizeof(buf), "verify expected | move {%s} g1_per | expected {%.2f} actual {%.2f} err {%.2f}\n", cmd_name, val, last.g1_per, err1);
       addErrorLine(buf);
     }
     if (err2 > tol) {
-      snprintf(buf, sizeof(buf), "verify expected move{%s} g2_per expected{%.2f} actual{%.2f} err{%.2f}\n", cmd_name, val, last.g2_per, err2);
+      snprintf(buf, sizeof(buf), "verify expected | move {%s} g2_per | expected {%.2f} actual {%.2f} err {%.2f}\n", cmd_name, val, last.g2_per, err2);
       addErrorLine(buf);
     }
     LOG_SECTION_END_RB();

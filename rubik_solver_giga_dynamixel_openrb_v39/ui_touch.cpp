@@ -87,18 +87,18 @@ void setFooter(const char *msg) {
 }
 
 // ---- below is for actions to be done when a menu is displayed ---
-void updateButton_OnClick(int btn_id) {
+void buttonAction_executeAction(int btn_id) {
   LOG_SECTION_START_MENU("update buttons on click for menu {%d}", btn_id);
   UIButton *b = find_button_by_id(btn_id);
   if (!b) {
-    LOG_PRINTF_MENU("[!] updateButton_OnClick: no button found for id {%d}\n", btn_id);
+    // LOG_PRINTF_MENU("[!] buttonAction_executeAction: no button found for id {%d}\n", btn_id);
     return;
   }
 
   const char *txt = b->get_text();
 
   if (strcmp(txt, "poses") == 0) {
-    LOG_SECTION_START_MENU("update servos for poses UI btn {%s}", txt);
+    LOG_SECTION_START_MENU("update servos for btn {%s}", txt);
     b->set_is_busy(true);
     drawButtonOverlayById(btn_id);
     setFooter("reading servos...");
@@ -106,18 +106,30 @@ void updateButton_OnClick(int btn_id) {
     b->set_is_busy(false);
     drawButtonOverlayById(btn_id);
     LOG_SECTION_END_MENU();
-  }
-  if (strcmp(txt, "system") == 0) {
-    LOG_SECTION_START_MENU("update servos for poses UI btn {%s}", txt);
-    b->set_is_busy(true);
-    drawButtonOverlayById(btn_id);
-    setFooter("reading servos...");
-    rb.updateInfo();
-    b->set_is_busy(false);
-    drawButtonOverlayById(btn_id);
-    LOG_SECTION_END_MENU();
-  }
 
+  } else if (strcmp(txt, "system") == 0) {
+    LOG_SECTION_START_MENU("update servos for btn {%s}", txt);
+    b->set_is_busy(true);
+    drawButtonOverlayById(btn_id);
+    setFooter("reading servos...");
+    if (rb.updateInfo()) {
+      // also get the detailed info if above worked
+      rb.requestAllServoInfo();
+    }
+    b->set_is_busy(false);
+    drawButtonOverlayById(btn_id);
+    LOG_SECTION_END_MENU();
+
+  } else if (pose_store.is_pose(txt)) {
+    LOG_SECTION_START_MENU("run pose {%s}", txt);
+    b->set_is_busy(true);
+    drawButtonOverlayById(btn_id);
+    setFooter(txt);
+    pose_store.run_pose(txt);
+    b->set_is_busy(false);
+    drawButtonOverlayById(btn_id);
+    LOG_SECTION_END_MENU();
+  }
   LOG_SECTION_END_MENU();
 }
 
@@ -137,8 +149,8 @@ void buttonAction(int btn_id) {
   static String lastClickKey;
   static unsigned long millisButtonBusy = 0;
   static String lastBusyKey = "";
-  const char *key = b->get_text();
 
+  const char *key = b->get_text();
   unsigned long now = millis();
 
   // --- Prevent rapid re-clicks (debounce 500 ms)
@@ -166,13 +178,12 @@ void buttonAction(int btn_id) {
     LOG_SECTION_END_MENU();
     return;
   }
-
   */
 
   // --- Mark this button as busy before running the long op
   millisButtonBusy = now;
   lastBusyKey = key;
-  updateButton_OnClick(btn_id);  // blocking call
+  buttonAction_executeAction(btn_id);  // blocking call
   millisButtonBusy = 0;
 
   // --- Navigate to submenu only after operation finished
@@ -285,7 +296,7 @@ void ui_refresh() {
   lastRefresh = now;
 
   LOG_SECTION_START_MENU("refresh ui");
-  pose_store.reflect_poses_ui();
+  pose_store.reflect_poses_last_run();
   // log_all_buttons(true);
   LOG_SECTION_END_MENU();
 }

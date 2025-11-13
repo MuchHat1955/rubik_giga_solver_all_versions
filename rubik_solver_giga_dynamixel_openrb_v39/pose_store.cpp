@@ -60,7 +60,7 @@ int PoseStore::find_pose_by_key_param_button(const char *btn_key) const {
     LOG_PRINTF("button index {%d} crr {%s} target {%s}\n",
                i, curr.c_str(), target.c_str());
     if (curr.equalsIgnoreCase(target)) {
-      LOG_PRINTF("return index {%d}", i);
+      LOG_PRINTF("return index {%d}\n", i);
       LOG_SECTION_END_POSE();
       return i;
     }
@@ -74,7 +74,8 @@ bool PoseStore::is_pose(const char *key) const {
   return find_pose_index(key) >= 0;
 }
 bool PoseStore::is_button_for_pose(const char *btn_key) const {
-  return find_pose_by_key_param_button(btn_key) >= 0;
+  int ret = find_pose_by_key_param_button(btn_key) >= 0;
+  return (ret >= 0);
 }
 
 // -----------------------------------------------------------
@@ -237,17 +238,6 @@ bool PoseStore::run_pose(const char *pose_btn) {
   return ok;
 }
 
-bool PoseStore::run_pose_by_button(const char *btn_key) {
-  int idx = find_pose_by_key_param_button(btn_key);
-  if (idx < 0) idx = find_pose_index(btn_key);
-  if (idx < 0) {
-    LOG_PRINTF_POSE("find pose by button failed for {%s}", btn_key);
-    return false;
-  }
-  bool ok = run_pose(poses_list[idx].key.c_str());
-  return ok;
-}
-
 // -----------------------------------------------------------
 // Position comparison
 // -----------------------------------------------------------
@@ -308,14 +298,13 @@ void PoseStore::init_from_defaults(const Pose *defaults, int def_count) {
   LOG_SECTION_END_POSE();
 }
 
-void PoseStore::reflect_poses_ui() {
-  LOG_SECTION_START_MENU("PoseStore::reflect_poses_ui");
+void PoseStore::reflect_poses_last_run() {
+  LOG_SECTION_START_MENU("PoseStore::reflect_poses_last_run");
   for (int i = 0; i < count; i++) {
     const Pose &p = poses_list[i];
     bool issue = !p.last_run_ok;
     bool active = is_at_pose(p.button_key.c_str(), 0.5, 1.0);
     if (!issue) active = 0;
-    if (issue || active) LOG_PRINTF_MENU("reflect UI for {%s} with issue {true}\n", p.button_key.c_str());
     UIButton *b = find_button_by_text(p.name.c_str());
     if (!b) {
       LOG_ERROR("[!] trying to update issue and active state for non existing button {%s}\n", p.button_key.c_str());
