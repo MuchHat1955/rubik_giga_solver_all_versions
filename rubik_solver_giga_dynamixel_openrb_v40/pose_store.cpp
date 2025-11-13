@@ -343,21 +343,15 @@ void PoseStore::update_pose_store_from_param_store(const Pose *defaults, int def
   for (int i = 0; i < def_count; i++) {
     const Pose &def = defaults[i];
 
-    // --- Read from param store
     double stored_val = getParamValue(def.key.c_str());
 
-    // --- getParamValue() returns PARAM_VAL_NA if not found,
-    // so we’ll only apply if it’s non-zero and different from default
-    if (stored_val < PARAM_VAL_NA && stored_val != 0.0) {  //TODO for now given the storage has many 0.0
-      double restored_p1 = stored_val;                     // convert back from scaled int
+    // Apply only if value exists and is non-zero
+    if (stored_val != PARAM_VAL_NA && stored_val != 0.0) {
       int idx = find_pose_index(def.key.c_str());
-
       if (idx >= 0) {
-        Pose &p = poses_list[idx];
-        p.p1 = restored_p1;
-
+        poses_list[idx].p1 = stored_val;
         LOG_PRINTF_POSE("value from flash | pose {%s} | val {%.2f}\n",
-                        def.key.c_str(), restored_p1);
+                        def.key.c_str(), stored_val);
       } else {
         LOG_ERROR("pose not found in flash {%s}", def.key.c_str());
       }
@@ -366,6 +360,7 @@ void PoseStore::update_pose_store_from_param_store(const Pose *defaults, int def
                       def.key.c_str(), def.p1);
     }
   }
+
   LOG_SECTION_END_POSE();
 }
 

@@ -34,6 +34,22 @@ static void add(const char* k, double v, bool persist_ = true) {
   param_store[k] = { v, persist_ };
 }
 
+String make_flash_safe_key(const String& key) {
+  String safe = key;
+  for (size_t i = 0; i < safe.length(); i++) {
+    char c = safe[i];
+    // Replace spaces or any other disallowed chars
+    if (c == ' ' || c == '\t' || c == '\n') {
+      safe[i] = '_';
+    }
+  }
+  return safe;
+}
+
+String make_flash_safe_key(const std::string& key_std) {
+  return make_flash_safe_key(String(key_std.c_str()));
+}
+
 // ---------------------------------------------------------------------
 // Save parameters to non-volatile KVStore
 // ---------------------------------------------------------------------
@@ -42,10 +58,10 @@ static void saveParamsToFlash() {
 
   for (auto& kv : param_store) {
     if (!kv.second.persist) continue;
-    const char* key = kv.first.c_str();
+    String key = make_flash_safe_key(kv.first);
     double val = kv.second.value;
-    kv_set(key, &val, sizeof(val), 0);
-    LOG_PRINTF_PARAM("saving to flash | key {%s} | val {%.2f}\n", key, val);
+    kv_set(key.c_str(), &val, sizeof(val), 0);
+    LOG_PRINTF_PARAM("saving to flash | key {%s} | val {%.2f}\n", key.c_str(), val);
   }
 
   LOG_SECTION_END_PARAM();
@@ -58,13 +74,17 @@ static void loadParamsFromFlash() {
   LOG_SECTION_START_PARAM("loadParamsFromFlash");
 
   for (auto& kv : param_store) {
-    const char* key = kv.first.c_str();
+    String key = make_flash_safe_key(kv.first);
     double loaded = 0;
     size_t actual = 0;
-    int ret = kv_get(key, &loaded, sizeof(loaded), &actual);
+    LOG_PRINTF_PARAM("attempting loading from flash | key {%s}\n", key.c_str());
+    int ret = kv_get(key.c_str(), &loaded, sizeof(loaded), &actual);
+
     if (ret == MBED_SUCCESS) {
       kv.second.value = loaded;
-      LOG_PRINTF_PARAM("loading from flash | key {%s} | val {%.2f}\n", key, loaded);
+      LOG_PRINTF_PARAM("loading from flash | key {%s} | val {%.2f}\n", key.c_str(), loaded);
+    } else {
+      LOG_PRINTF_PARAM("[!] failed loading from flash | key {%s}\n", key.c_str());
     }
   }
   updatePoseStoreFromParamStore();
