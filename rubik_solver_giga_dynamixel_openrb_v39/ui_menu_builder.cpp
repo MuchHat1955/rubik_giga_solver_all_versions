@@ -245,8 +245,6 @@ void buildMenu(const char *menuName) {
         lv_obj_center(lbl);
 
         if (strlen(key)) statusWidgets[key] = lbl;
-        if (strcmp(it["status"] | "", "yes") == 0 && strlen(key))
-          updateButtonPtr(key, cell);
       }
 
       // ---------- ACTION / MENU ----------
@@ -273,17 +271,17 @@ void buildMenu(const char *menuName) {
         lv_obj_set_style_text_font(lbl, btnFont, 0);
         lv_obj_set_style_text_color(lbl, COLOR_BTN_TEXT, 0);
 
-        if (strcmp(it["status"] | "", "yes") == 0 && strlen(key))
-          updateButtonPtr(key, btn);
+        if (strcmp(it["status"] | "", "yes") == 0 && strlen(key)) {
+          updateButtonPtrByText(key, btn);
+          // update overlay if it changed vs default build
+          drawButtonOverlayByText(key);
+        }
 
+        // setup the click
         if (!key || !*key) {
           LOG_PRINTF_MENU("skipping button with empty key {%s}\n", key);
           continue;
         }
-
-        // update overlay if it changed vs default build
-        updateButtonPtr(key, btn);
-        drawButtonOverlayByText(key);
 
         // get the button id from the map
         UIButton *btn_ptr = find_button_by_text(key);
@@ -606,10 +604,10 @@ const char jsonBuffer[] = R"json(
       [{ "text": "wrist vert", "type": "action", "key": "wrist vert", "status": "yes" },
        { "text": "+0000-", "type": "num", "key": "+0000-" },
        { "text": "deg", "type": "text", "key": "deg" }],
-      [{ "text": "wrist h right", "type": "action", "key": "wrist h right", "status": "yes" },
+      [{ "text": "wrist horiz right", "type": "action", "key": "wrist horiz right", "status": "yes" },
        { "text": "+0000-", "type": "num", "key": "+0000-" },
        { "text": "deg", "type": "text", "key": "deg" }],
-      [{ "text": "wrist h left", "type": "action", "key": "wrist h left", "status": "yes" },
+      [{ "text": "wrist horiz left", "type": "action", "key": "wrist horiz left", "status": "yes" },
        { "text": "+0000-", "type": "num", "key": "+0000-" },
        { "text": "deg", "type": "text", "key": "deg" }],
       [{ "text": "grippers open", "type": "action", "key": "grippers open", "status": "yes" },

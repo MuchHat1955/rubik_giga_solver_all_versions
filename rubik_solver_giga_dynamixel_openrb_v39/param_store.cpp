@@ -123,15 +123,15 @@ void initParamStore() {
   // TODO below MUST mach the pose store that has to MATCH the UI
   const char* keys[] = {
     // XY poses
-    "y_zero_param", "y_1st_param", "y_2nd_param", "y_3rd_param", "y_c2_param", "y_c3_param", "x_c2_param", "x_c3_param", "x_center_param", "x_left_param", "x_right_param",
+    "y zero", "y 1st", "y 2nd", "y 3rd", "y c2", "y c3", "x c2", "x c3", "x center", "x left", "x right",
     // Combined grippers
-    "grippers_open_param", "grippers_close_param",
+    "grippers open", "grippers close",
     // Individual grippers
-    "gripper1_open_param", "gripper1_close_param", "gripper2_open_param", "gripper2_close_param",
+    "gripper 1 open", "gripper 1 close", "gripper 2 open", "gripper 2 close",
     // Wrist
-    "wrist_vert_param", "wrist_horiz_right_param", "wrist_horiz_left_param",
+    "wrist vert", "wrist horiz right", "wrist horiz left",
     // Base
-    "base_front_param", "base_left_param", "base_right_param",
+    "base front", "base left", "base right",
     // end
     nullptr
   };
@@ -156,7 +156,7 @@ double getParamValue(const char* k) {
 
   auto it = param_store.find(std::string(k));
   if (it == param_store.end()) {
-    LOG_PRINTF_PARAM("[!] param not found in the param store | key {%s} \n", k);
+    // LOG_PRINTF_PARAM("[!] param not found in the param store | key {%s} \n", k);
     return PARAM_VAL_NA;
   }
 

@@ -77,8 +77,8 @@ void setFooter(const char *msg) {
     lv_refr_now(NULL);
     delay(15);
 
-    for (int i = 0; i < 10; ++i) {
-      LOG_PRINTF_MENU("calling lv timer handler\n");
+    LOG_PRINTF_MENU("calling lv timer handler 6 times\n");
+    for (int i = 0; i < 6; ++i) {
       lv_timer_handler();
       delay(5);
     }
@@ -95,7 +95,7 @@ void updateButton_OnClick(int btn_id) {
     return;
   }
 
-  constchar *txt = b->get_text();
+  const char *txt = b->get_text();
 
   if (strcmp(txt, "poses") == 0) {
     LOG_SECTION_START_MENU("update servos for poses UI btn {%s}", txt);
@@ -277,13 +277,12 @@ static unsigned long lastRefresh = 0;
 
 void ui_refresh() {
   unsigned long now = millis();
-  logButtonMap(false);
   if (now - lastRefresh < 30000UL) return;  //TODO adjust this
   lastRefresh = now;
 
   LOG_SECTION_START_MENU("refresh ui");
   pose_store.reflect_poses_ui();
-  logButtonMap(true);
+  // log_all_buttons(true);
   LOG_SECTION_END_MENU();
 }
 

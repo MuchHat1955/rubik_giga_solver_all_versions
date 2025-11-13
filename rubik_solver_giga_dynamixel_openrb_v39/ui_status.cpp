@@ -22,75 +22,32 @@ void uiStatusClear() {
   // fully reset to avoid dangling pointers and map growth
   LOG_PRINTF_MENU("start clear button map\n");
   clear_all_button_ptrs();
-  log_all_buttons();
+  log_all_buttons(true);
   LOG_PRINTF_MENU("end clear button map\n");
-}
-
-static int countIssuesLastLog = -1;
-static int countActiveLastLog = -1;
-unsigned long millisLastLog = 0;
-
-void logButtonMap(bool alwaysLog) {
-
-  if (millis() < millisLastLog + 500) return;
-  millisLastLog = millis();
-
-  int countIssues = 0;
-  int countActive = 0;
-
-  if (!buttonMap.empty()) {
-    for (const auto &entry : buttonMap) {
-      const String &key = entry.first;
-      const ButtonState &st = entry.second;
-      if (st.issue) countIssues++;
-      if (st.active) countActive++;
-    }
-  }
-
-  if (countIssues == countIssuesLastLog &&  //
-      countActive == countActiveLastLog &&  //
-      !alwaysLog) return;
-
-  countIssuesLastLog = countIssues;
-  countActiveLastLog = countActive;
-  millisLastLog = millis();
-
-  LOG_SECTION_START_MENU("log button map");
-
-  if (buttonMap.empty()) {
-    LOG_PRINTF_MENU("buttonMap is empty\n");
-    LOG_SECTION_END_MENU();
-    return;
-  }
-  int count = 1;
-
-  LOG_PRINTF_MENU("Button map contains {%u} entries and {%d} with issues\n", (unsigned)buttonMap.size(), countIssues);
-  for (const auto &entry : buttonMap) {
-    const String &key = entry.first;
-    const ButtonState &st = entry.second;
-    LOG_PRINTF_MENU("    ---- {%02d} | key {%s} | btn_ptr {%p} | active {%s} | issue {%s}\n",
-                    count,
-                    key.c_str(),
-                    (void *)st.btn,
-                    st.active ? "yes" : "no",
-                    st.issue ? "yes" : "no");
-    log_lv_obj_info(st.btn, key.c_str());
-    count++;
-  }
-
-  LOG_SECTION_END_MENU();
 }
 
 // ----------------------------------------------------------
 // Add a button ptr when created in buildMenu()
 // ----------------------------------------------------------
-void updateButtonPtr(const String &buttonText, lv_obj_t *btn) {
+void updateButtonPtrByText(const char *btn_txt, lv_obj_t *btn) {
   if (!btn) return;
 
-  UIButton *btn_ptr = find_button_by_text(buttonText);
+  UIButton *btn_ptr = find_button_by_text(btn_txt);
 
   if (!btn_ptr) {
-    LOG_ERROR("invalid button text in updateButtonPtr {%s}", buttonText);
+    LOG_ERROR("invalid button text in updateButtonPtrByText {%s}", btn_txt);
+    return;  // nothing to update
+  }
+  btn_ptr->set_ptr(btn);
+}
+
+void updateButtonPtrById(int btn_id, lv_obj_t *btn) {
+  if (!btn) return;
+
+  UIButton *btn_ptr = find_button_by_id(btn_id);
+
+  if (!btn_ptr) {
+    LOG_ERROR("invalid button id in updateButtonPtrById {%d}", btn_id);
     return;  // nothing to update
   }
   btn_ptr->set_ptr(btn);
@@ -102,13 +59,13 @@ void updateButtonPtr(const String &buttonText, lv_obj_t *btn) {
 void drawButtonOverlayById(int btn_id) {
   UIButton *btn_ptr = find_button_by_id(btn_id);
   if (!btn_ptr) {
-    LOG_ERROR("[!] drawButtonOverlay: invalid button id {%d}", btn_id);
+    LOG_ERROR("[!] drawButtonOverlay: invalid button id {%d}\n", btn_id);
     return;
   }
 
   lv_obj_t *btn = btn_ptr->get_ptr();
   if (!btn) {
-    LOG_ERROR("[!] drawButtonOverlay: button object is null for id {%d}", btn_id);
+    // LOG_ERROR("[!] drawButtonOverlay: button object is null for id {%d}\n", btn_id);
     return;
   }
 
@@ -229,7 +186,7 @@ void drawButtonOverlayByText(const char *btn_txt) {
     LOG_ERROR("[!] drawButtonOverlay: invalid button text {%s}", btn_txt);
     return;
   }
-  drawButtonOverlayByid(b->get_id());
+  drawButtonOverlayById(btn_ptr->get_id());
 }
 
 // ----------------------------------------------------------

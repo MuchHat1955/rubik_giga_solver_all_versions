@@ -54,4 +54,4 @@ UIButton* find_button_by_id(int id);
 void clear_all_button_ptrs();
 void log_button_by_id(int id);
 void log_button_by_text(const char* txt);
-void log_all_buttons();
+void log_all_buttons(bool only_if_not_on_default = false);

@@ -56,14 +56,6 @@ void UIButton::set_is_busy(bool val) {
   is_busy_ = val;
 }
 
-// --- Identify button ---
-bool UIButton::is_button(const char* txt) const {
-  return txt && text_.equalsIgnoreCase(txt);
-}
-bool UIButton::is_button(int id) const {
-  return id_ == id;
-}
-
 // ============================================================================
 // Global button registry
 // ============================================================================
@@ -131,9 +123,10 @@ UIButton ui_buttons[] = {
   { 48, "y c2", nullptr, false },
   { 49, "y c3", nullptr, false },
   { 50, "wrist vert", nullptr, false },
-  { 51, "wrist h right", nullptr, false },
-  { 52, "wrist h left", nullptr, false },
+  { 51, "wrist horiz right", nullptr, false },
+  { 52, "wrist horiz left", nullptr, false },
   { 53, "grippers open", nullptr, false },
+  { 61, "grippers close", nullptr, false },
   { 54, "gripper 1 open", nullptr, false },
   { 55, "gripper 1 close", nullptr, false },
   { 56, "gripper 2 open", nullptr, false },
@@ -151,7 +144,7 @@ const int UI_BUTTON_COUNT = sizeof(ui_buttons) / sizeof(ui_buttons[0]);
 UIButton* find_button_by_text(const char* txt) {
   if (!txt || !*txt) return nullptr;
   for (int i = 0; i < UI_BUTTON_COUNT; i++) {
-    if (ui_buttons[i].is_button(txt))
+    if (strcmp(ui_buttons[i].get_text(), txt) == 0)
       return &ui_buttons[i];
   }
   LOG_PRINTF_MENU("[!] find_button_by_text: no match for {%s}\n", txt);
@@ -160,7 +153,7 @@ UIButton* find_button_by_text(const char* txt) {
 
 UIButton* find_button_by_id(int id) {
   for (int i = 0; i < UI_BUTTON_COUNT; i++) {
-    if (ui_buttons[i].is_button(id))
+    if (ui_buttons[i].get_id() == id)
       return &ui_buttons[i];
   }
   LOG_PRINTF_MENU("[!] find_button_by_id: no match for id {%d}\n", id);
@@ -220,34 +213,28 @@ void log_button_by_text(const char* txt) {
 // ============================================================================
 // LOG ALL BUTTONS
 // ============================================================================
-void log_all_buttons() {
-  LOG_SECTION_START_MENU("log_all_buttons");
+void log_all_buttons(bool only_if_not_on_default) {
+  LOG_SECTION_START_MENU("log_all_buttons with {%s}", only_if_not_on_default ? "only if not on default" : "all");
 
-  if (buttons_list.empty()) {
-    LOG_PRINTF_MENU("[!] no buttons currently registered\n");
-    LOG_SECTION_END_MENU();
-    return;
-  }
-
-  LOG_PRINTF_MENU("total buttons registered: %d\n", (int)buttons_list.size());
-
-  for (auto& b : buttons_list) {
-    if (!b.get_ptr()) {
-      LOG_PRINTF_MENU("[!] button id {%d} text {%s} has NULL ptr\n",
-                      b.get_id(),
-                      b.get_text());
-      continue;
+  for (int i = 0; i < UI_BUTTON_COUNT; i++) {
+    bool to_log = true;
+    if (only_if_not_on_default) {
+      to_log = false;
+      if (ui_buttons[i].get_is_active()) to_log = true;
+      if (ui_buttons[i].get_has_issue()) to_log = true;
+      if (ui_buttons[i].get_is_busy()) to_log = true;
     }
-
-    LOG_PRINTF_MENU("id {%d} | text {%s} | menu {%s} | active {%s} | issue {%s} | busy {%s} | ptr {%s}\n",
-                    b.get_id(),
-                    b.get_text(),
-                    b.get_is_menu() ? "yes" : "no",
-                    b.get_is_active() ? "yes" : "no",
-                    b.get_has_issue() ? "yes" : "no",
-                    b.get_is_busy() ? "yes" : "no",
-                    b.get_ptr() ? "set" : "null");
+    if (to_log) {
+      LOG_PRINTF_MENU("[%d] id {%d} | text {%s} | menu {%s} | active {%s} | issue {%s} | busy {%s} | ptr {%s}\n",
+                      i + 1,
+                      ui_buttons[i].get_id(),
+                      ui_buttons[i].get_text(),
+                      ui_buttons[i].get_is_menu() ? "yes" : "no",
+                      ui_buttons[i].get_is_active() ? "yes" : "no",
+                      ui_buttons[i].get_has_issue() ? "yes" : "no",
+                      ui_buttons[i].get_is_busy() ? "yes" : "no",
+                      ui_buttons[i].get_ptr() ? "set" : "null");
+    }
   }
-
   LOG_SECTION_END_MENU();
 }

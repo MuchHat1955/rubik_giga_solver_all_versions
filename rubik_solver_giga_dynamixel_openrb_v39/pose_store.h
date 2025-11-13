@@ -39,10 +39,8 @@ public:
   bool run_pose_by_button(const char *btn_key);
 
   void set_pose_val_from_param(const char *param_name, double val);
-  char *btn_to_pose(const char *btn_name) const;
   bool is_btn_for_pose(const char *btn_key) const;
   bool is_param_for_pose(const char *param_name) const;
-  char *param_to_pose(const char *param_name) const;
   bool increment_in_pose_store(const char *param_name, int units, double &new_value_ref);
 
   bool is_at_pose(const char *name, double tol_mm = 0.5, double tol_deg = 1.0);

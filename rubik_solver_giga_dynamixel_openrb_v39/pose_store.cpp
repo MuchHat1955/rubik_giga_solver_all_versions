@@ -4,7 +4,7 @@
 #include "logging.h"
 #include "ui_status.h"
 #include "ui_touch.h"
-
+#include "ui_button.h"
 
 extern RBInterface rb;
 
@@ -51,20 +51,12 @@ int PoseStore::find_pose_index(const char *akey) const {
 
 int PoseStore::find_pose_by_key_param_button(const char *btn_key) const {
   if (!btn_key || !*btn_key) return -1;
-
-  auto strip_btn = [](String s) {
-    s.toLowerCase();
-    if (s.endsWith("_btn")) s.remove(s.length() - 4);
-    if (s.endsWith("_param")) s.remove(s.length() - 6);
-    return s;
-  };
-
-  String target = strip_btn(String(btn_key));
+  String target = String(btn_key);
 
   LOG_SECTION_START_POSE("find_pose_by_key_param_button | target {%s}", target.c_str());
 
   for (int i = 0; i < count; i++) {
-    String curr = strip_btn(poses_list[i].button_key);
+    String curr = poses_list[i].button_key;
     LOG_PRINTF("button index {%d} crr {%s} target {%s}\n",
                i, curr.c_str(), target.c_str());
     if (curr.equalsIgnoreCase(target)) {
@@ -89,86 +81,25 @@ bool PoseStore::is_button_for_pose(const char *btn_key) const {
 // Accessors
 // -----------------------------------------------------------
 bool PoseStore::get_pose_params(const char *name, double *p1) {
-
-  // make a mutable local copy of the name
-  char base_name[64];
-  strncpy(base_name, name, sizeof(base_name));
-  base_name[sizeof(base_name) - 1] = '\0';
-
-  // if the name ends with "_param", remove it
-  const char suffix[] = "_param";
-  size_t len = strlen(base_name);
-  size_t suf_len = strlen(suffix);
-  if (len > suf_len && strcmp(base_name + len - suf_len, suffix) == 0) {
-    base_name[len - suf_len] = '\0';
-  }
-
-  int idx = find_pose_index(base_name);
+  int idx = find_pose_index(name);
   if (idx < 0) return false;
   if (p1) *p1 = poses_list[idx].p1;
   return true;
 }
 
 bool PoseStore::save_pose_in_param_store(const char *name, double p1) {
-  // --- Make a mutable copy of the input name
-  char base_name[64];
-  strncpy(base_name, name, sizeof(base_name));
-  base_name[sizeof(base_name) - 1] = '\0';
 
-  // --- If name ends with "_param", remove it for pose lookup
-  const char suffix[] = "_param";
-  size_t len = strlen(base_name);
-  size_t suf_len = strlen(suffix);
-  if (len > suf_len && strcmp(base_name + len - suf_len, suffix) == 0) {
-    base_name[len - suf_len] = '\0';
-  }
-
-  // --- Lookup pose by base name (without "_param")
-  int idx = find_pose_index(base_name);
+  // --- Lookup pose by  name
+  int idx = find_pose_index(name);
   if (idx < 0) return false;
 
   Pose &p = poses_list[idx];
   p.p1 = p1;
 
-  // --- Build key for saving parameter (ensure single "_param")
-  char key_buf[64];
-  if (strstr(base_name, "_param_param")) {
-    // Defensive fix in case of malformed names
-    strncpy(key_buf, base_name, sizeof(key_buf));
-    key_buf[sizeof(key_buf) - 1] = '\0';
-  } else if (strstr(base_name, "_param")) {
-    // Already contains one _param
-    strncpy(key_buf, base_name, sizeof(key_buf));
-    key_buf[sizeof(key_buf) - 1] = '\0';
-  } else {
-    // Append _param
-    snprintf(key_buf, sizeof(key_buf), "%s_param", base_name);
-  }
-
   // --- Save to persistent storage
-  setParamValue(key_buf, p1);
+  setParamValue(name, p1);
 
   return true;
-}
-
-char *PoseStore::param_to_pose(const char *param_name) const {
-  if (!param_name || !*param_name) return nullptr;
-
-  String key = param_name;
-  if (!key.endsWith("_param")) return nullptr;
-
-  // Extract the middle part between "pose_" and "_p1"
-  static String name;
-  name = key.substring(5, key.length() - 3);
-
-  // If the extracted name ends with "_param", remove it
-  const char suffix[] = "_param";
-  int suf_len = strlen(suffix);
-  if (name.length() > suf_len && name.endsWith(suffix)) {
-    name.remove(name.length() - suf_len);
-  }
-
-  return (char *)name.c_str();
 }
 
 // -----------------------------------------------------------
@@ -179,18 +110,10 @@ bool PoseStore::increment_in_pose_store(const char *param_name, int units, doubl
 
   LOG_SECTION_START_POSE("increment pose param | name  {%s}", param_name);
 
-  String key = param_name;
-
-  // --- Normalize key to ensure it ends with "_param"
-  if (!key.endsWith("_param")) key += "_param";
-
-  // --- Extract base pose name (without "_param")
-  String pose_name = key.substring(0, key.length() - 6);
-
-  // --- Find pose by base name
-  int idx = find_pose_index(pose_name.c_str());
+  // --- Find pose by name
+  int idx = find_pose_index(param_name);
   if (idx < 0) {
-    LOG_PRINTF_POSE("pose not found for %s", pose_name.c_str());
+    LOG_PRINTF_POSE("pose not found for %s", param_name);
     LOG_SECTION_END_POSE();
     return false;
   }
@@ -205,14 +128,11 @@ bool PoseStore::increment_in_pose_store(const char *param_name, int units, doubl
   p.p1 = new_val;
   new_value_ref = new_val;
 
-  // --- Build consistent param key for persistence
-  String save_key = String(pose_name) + "_param";
-
   // --- Store new parameter value (x100)
-  LOG_PRINTF_POSE("calling set param value for pose {%s} val {%.2f}\n", pose_name.c_str(), new_val);
-  setParamValue(save_key.c_str(), new_val);
+  LOG_PRINTF_POSE("calling set param value for pose {%s} val {%.2f}\n", param_name, new_val);
+  setParamValue(param_name, new_val);
 
-  LOG_PRINTF_POSE("pose{%s} adjusted in pose store to {%.2f} units {%d}\n", pose_name.c_str(), new_val, units);
+  LOG_PRINTF_POSE("pose{%s} adjusted in pose store to {%.2f} units {%d}\n", param_name, new_val, units);
   LOG_SECTION_END_POSE();
   return true;
 }
@@ -229,20 +149,10 @@ void PoseStore::set_pose_val_from_param(const char *param_name, double val) {
     return;
   }
 
-  String key = param_name;
-  if (!key.endsWith("_param")) {
-    LOG_PRINTF_POSE("[!] not a pose param {%s}\n", param_name);
-    LOG_SECTION_END_POSE();
-    return;
-  }
-
-  // Extract pose name: everything before "_param"
-  String pose_key = key.substring(0, key.length() - 6);  // remove "_param"
-
   // Find pose by name
-  int idx = find_pose_index(pose_key.c_str());
+  int idx = find_pose_index(param_name);
   if (idx < 0) {
-    LOG_PRINTF_POSE("pose {%s} not found\n", pose_key.c_str());
+    LOG_PRINTF_POSE("pose {%s} not found\n", param_name);
     LOG_SECTION_END_POSE();
     return;
   }
@@ -253,21 +163,8 @@ void PoseStore::set_pose_val_from_param(const char *param_name, double val) {
   // for persistent param store
   setParamValue(param_name, val);
 
-  LOG_PRINTF_POSE("updated pose | key {%s} | val {%.2f}\n", pose_key.c_str(), val);
+  LOG_PRINTF_POSE("updated pose | key {%s} | val {%.2f}\n", param_name, val);
   LOG_SECTION_END_POSE();
-}
-
-// -----------------------------------------------------------
-// Convert a button name (e.g. "x_left_btn") to a pose name ("x_left")
-// -----------------------------------------------------------
-char *PoseStore::btn_to_pose(const char *btn_name) const {
-  if (!btn_name || !*btn_name) return nullptr;
-
-  int idx = find_pose_by_key_param_button(btn_name);
-  if (idx < 0) return nullptr;
-
-  // Return a pointer to the internal string buffer
-  return (char *)poses_list[idx].key.c_str();
 }
 
 // -----------------------------------------------------------
@@ -275,17 +172,7 @@ char *PoseStore::btn_to_pose(const char *btn_name) const {
 // -----------------------------------------------------------
 bool PoseStore::is_param_for_pose(const char *param_name) const {
   if (!param_name || !*param_name) return false;
-
-  String key = param_name;
-  if (!key.endsWith("_param"))
-    return false;
-
-  // Replace "_param" with "_btn" to get the corresponding button key
-  String btn_key = key;
-  btn_key.replace("_param", "_btn");
-
-  // Check if any pose has this button key
-  return is_button_for_pose(btn_key.c_str());
+  return is_button_for_pose(param_name);
 }
 
 bool PoseStore::is_btn_for_pose(const char *btn_key) const {
@@ -337,7 +224,7 @@ bool PoseStore::run_pose(const char *pose_btn) {
                   pose.button_key.c_str(),                                             //
                   issue ? "yes" : "no",                                                //
                   active ? "yes" : "no");
-  UIBUtton *b = find_button_by_text(pose.name.c_str());
+  UIButton *b = find_button_by_text(pose.name.c_str());
   if (!b) {
     LOG_ERROR("[!] cannot find button for pose {%s}", pose.name.c_str());
   } else {
@@ -428,7 +315,7 @@ void PoseStore::reflect_poses_ui() {
     if (issue || active) LOG_PRINTF_MENU("reflect UI for {%s} with issue {true}\n", p.button_key.c_str());
     UIButton *b = find_button_by_text(p.name.c_str());
     if (!b) {
-      LOG_ERROR("[!] trying to update issue and active state for non existing button {%s}", p.button_key.c_str());
+      LOG_ERROR("[!] trying to update issue and active state for non existing button {%s}\n", p.button_key.c_str());
     } else {
       b->set_has_issue(issue);
       b->set_is_active(active);
@@ -439,7 +326,7 @@ void PoseStore::reflect_poses_ui() {
 }
 
 void PoseStore::set_all_poses_last_run(bool b) {
-  LOG_SECTION_START_MENU("PoseStore::reflect_poses_ui", "");
+  LOG_SECTION_START_MENU("PoseStore::set_all_poses_last_run", "");
   for (int i = 0; i < count; i++) {
     Pose &p = poses_list[i];
     p.last_run_ok = b;
@@ -448,7 +335,7 @@ void PoseStore::set_all_poses_last_run(bool b) {
     if (!issue) active = false;
     UIButton *b = find_button_by_text(p.name.c_str());
     if (!b) {
-      LOG_ERROR("[!] trying to update issue and active state for non existing button {%s}", p.button_key.c_str());
+      LOG_ERROR("[!] trying to update issue and active state for non existing button {%s}\n", p.button_key.c_str());
     } else {
       b->set_has_issue(issue);
       b->set_is_active(active);
@@ -464,14 +351,8 @@ void PoseStore::update_pose_store_from_param_store(const Pose *defaults, int def
   for (int i = 0; i < def_count; i++) {
     const Pose &def = defaults[i];
 
-    // --- Build the key used in ParamStore: "pose_param"
-    String key = def.key;
-    if (!key.endsWith("_param")) {
-      key += "_param";
-    }
-
     // --- Read from param store
-    double stored_val = getParamValue(key.c_str());
+    double stored_val = getParamValue(def.key.c_str());
 
     // --- getParamValue() returns PARAM_VAL_NA if not found,
     // so we’ll only apply if it’s non-zero and different from default
@@ -526,40 +407,40 @@ void PoseStore::list_poses() const {
 
 Pose default_poses[] = {
 
-  // XY poses_list
-  { "y_zero", "y zero", "y", 40.0, "y_zero_btn", 0.5, 40.0, 110.0 },
-  { "y_1st", "y 1st", "y", 50.0, "y_1st_btn", 0.5, 40.0, 110.0 },
-  { "y_2nd", "y 2nd", "y", 60.0, "y_2nd_btn", 0.5, 40.0, 110.0 },
-  { "y_3rd", "y 3rd", "y", 70.0, "y_3rd_btn", 0.5, 40.0, 110.0 },
+  // XY poses list
+  { "y zero", "y zero", "y", 40.0, "y zero", 0.5, 40.0, 110.0 },
+  { "y 1st", "y 1st", "y", 50.0, "y 1st", 0.5, 40.0, 110.0 },
+  { "y 2nd", "y 2nd", "y", 60.0, "y 2nd", 0.5, 40.0, 110.0 },
+  { "y 3rd", "y 3rd", "y", 70.0, "y 3rd", 0.5, 40.0, 110.0 },
 
-  { "y_c2", "y c2", "y", 50.0, "y_c2_btn", 0.5, 40.0, 110.0 },
-  { "y_c3", "y c3", "y", 60.0, "y_c3_btn", 0.5, 40.0, 110.0 },
+  { "y c2", "y c2", "y", 50.0, "y c2", 0.5, 40.0, 110.0 },
+  { "y c3", "y c3", "y", 60.0, "y c3", 0.5, 40.0, 110.0 },
 
-  { "x_center", "x center", "x", 0.1, "x_center_btn", 0.5, -25.0, 25.0 },  // 0.1 to avoid the 0.0 meaning the value in the storage
-  { "x_left", "x left", "x", -25.0, "x_left_btn", 0.5, -35.0, 0.0 },
-  { "x_right", "x right", "x", 25.0, "x_right_btn", 0.5, 0.0, 35.0 },
+  { "x center", "x center", "x", 0.1, "x center", 0.5, -25.0, 25.0 },  // 0.1 to avoid the 0.0 meaning the value in the storage
+  { "x left", "x left", "x", -25.0, "x left", 0.5, -35.0, 0.0 },
+  { "x right", "x right", "x", 25.0, "x right", 0.5, 0.0, 35.0 },
 
   // Combined grippers
-  { "grippers_open", "grippers open", "grippers", 80.0, "grippers_open_btn", 0.5, 0.0, 100.0 },
-  { "grippers_close", "grippers close", "grippers", 10.0, "grippers_close_btn", 0.5, 0.0, 100.0 },
+  { "grippers open", "grippers open", "grippers", 80.0, "grippers open", 0.5, 0.0, 100.0 },
+  { "grippers close", "grippers close", "grippers", 10.0, "grippers close", 0.5, 0.0, 100.0 },
 
   // Individual gripper 1
-  { "gripper1_open", "gripper1 open", "gripper1", 80.0, "gripper1_open_btn", 0.5, 0.0, 100.0 },
-  { "gripper1_close", "gripper1 close", "gripper1", 10.0, "gripper1_close_btn", 0.5, 0.0, 100.0 },
+  { "gripper 1 open", "gripper 1 open", "gripper1", 80.0, "gripper 1 open", 0.5, 0.0, 100.0 },
+  { "gripper 1 close", "gripper 1 close", "gripper1", 10.0, "gripper 1 close", 0.5, 0.0, 100.0 },
 
   // Individual gripper 2
-  { "gripper2_open", "gripper2 open", "gripper2", 80.0, "gripper2_open_btn", 0.5, 0.0, 100.0 },
-  { "gripper2_close", "gripper2 close", "gripper2", 10.0, "gripper2_close_btn", 0.5, 0.0, 100.0 },
+  { "gripper 2 open", "gripper 2 open", "gripper2", 80.0, "gripper 2 open", 0.5, 0.0, 100.0 },
+  { "gripper 2 close", "gripper 2 close", "gripper2", 10.0, "gripper 2 close", 0.5, 0.0, 100.0 },
 
-  // Wrist poses_list
-  { "wrist_vert", "wrist vert", "wrist", 0.1, "wrist_vert_btn", 0.5, -45.0, 45.0 },  // 0.1 to avoid the 0.0 meaning the value in the storage
-  { "wrist_horiz_left", "wrist horiz left", "wrist", -90.0, "wrist_horiz_left_btn", 0.5, 45.0, 135.0 },
-  { "wrist_horiz_right", "wrist horiz right", "wrist", 90.0, "wrist_horiz_right_btn", 0.5, 135.0, 205.0 },
+  // Wrist poses list
+  { "wrist vert", "wrist vert", "wrist", 0.1, "wrist vert", 0.5, -45.0, 45.0 },  // 0.1 to avoid the 0.0 meaning the value in the storage
+  { "wrist horiz left", "wrist horiz left", "wrist", -90.0, "wrist horiz left", 0.5, 45.0, 135.0 },
+  { "wrist horiz right", "wrist horiz right", "wrist", 90.0, "wrist horiz right", 0.5, 135.0, 205.0 },
 
   // Base rotation
-  { "base_front", "base front", "base", 0.1, "base_front_btn", 0.5, -45.0, 45.0 },  // 0.1 to avoid the 0.0 meaning the value in the storage
-  { "base_right", "base right", "base", 90.0, "base_right_btn", 0.5, 45.0, 135.0 },
-  { "base_left", "base left", "base", -90.0, "base_left_btn", 0.5, 135.0, 205.0 }
+  { "base front", "base front", "base", 0.1, "base front", 0.5, -45.0, 45.0 },  // 0.1 to avoid the 0.0 meaning the value in the storage
+  { "base right", "base right", "base", 90.0, "base right", 0.5, 45.0, 135.0 },
+  { "base left", "base left", "base", -90.0, "base left", 0.5, 135.0, 205.0 }
 };
 
 const int DEFAULT_POSE_COUNT = sizeof(default_poses) / sizeof(default_poses[0]);

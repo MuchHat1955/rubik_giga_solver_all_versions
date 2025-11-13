@@ -21,7 +21,8 @@ struct ButtonState {
 };
 
 void uiStatusClear();
-void updateButtonPtrByText(const char* btn_text, lv_obj_t *btn);
+void updateButtonPtrByText(const char *btn_text, lv_obj_t *btn);
+void updateButtonPtrById(int btn_id, lv_obj_t *btn);
 void drawButtonOverlayById(int btn_id);
-void drawButtonOverlayByText(const char* btn_text);
+void drawButtonOverlayByText(const char *btn_text);
 void log_lv_obj_info(const lv_obj_t *obj, const char *prefix);
