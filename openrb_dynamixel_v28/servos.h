@@ -98,6 +98,8 @@ void lOff(uint8_t id);
 
 extern const float PROTOCOL;
 
+bool safeSetGoalPosition(uint8_t id, int goal_ticks);
+
 // ---------------- Group helpers ----------------
 void torqueOnGroup(const std::vector<uint8_t> &ids);
 void torqueOffGroup(const std::vector<uint8_t> &ids);

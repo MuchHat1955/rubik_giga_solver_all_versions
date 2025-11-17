@@ -34,132 +34,50 @@ Dynamixel2Arduino dxl(DXL_SERIAL, DXL_DIR_PIN);
 extern VerticalKinematics kin;
 
 // -------------------------------------------------------------------
-//   OpenRB-150 "retained RAM" pseudo-flash persistence
+//   SAFE GOAL POSITION WRAPPER (with LED flash on fault)
 // -------------------------------------------------------------------
-//  * No extra includes, works in Arduino for OpenRB
-//  * Data persists across soft resets (not power loss)
-//  * Keeps your same flash_read / flash_write API
-// -------------------------------------------------------------------
-
-#include <Arduino.h>
-
-#define FLASH_EMU_SIZE 2048
-
-// The __attribute__((section(".noinit"))) prevents zero-fill on reset.
-// On OpenRB this RAM region survives soft resets.
-static uint8_t flash_emulated[FLASH_EMU_SIZE] __attribute__((section(".noinit")));
-
-static void flash_read(uint32_t addr, void *dst, size_t len) {
-  if (addr + len > FLASH_EMU_SIZE) len = FLASH_EMU_SIZE - addr;
-  memcpy(dst, &flash_emulated[addr], len);
-}
-
-static void flash_write(uint32_t addr, const void *src, size_t len) {
-  if (addr + len > FLASH_EMU_SIZE) len = FLASH_EMU_SIZE - addr;
-  memcpy(&flash_emulated[addr], src, len);
-}
-
-// -------------------------------------------------------------------
-//                Struct + persistence helpers
+//  Checks servo current and temperature before commanding a move.
+//  If either exceeds safety limits, torque is turned off and
+//  the LED flashes several times to signal a fault.
 // -------------------------------------------------------------------
 
-struct __attribute__((packed)) servo_persist_t {
-  uint16_t magic;   // 0x53C1
-  uint8_t version;  // 1
-  uint8_t id;       // numeric id (11,12,...)
-  uint16_t zero;
-  uint16_t min_t;
-  uint16_t max_t;
-  int8_t dir;  // +1 or -1
-  uint8_t reserved;
-  uint16_t checksum;
-};
+bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
+  // Read servo current and temperature
+  int curr_mA = dxl.getPresentCurrent(id);
+  int temp_C = dxl.readControlTableItem(ControlTableItem::PRESENT_TEMPERATURE, id);
 
-static constexpr uint16_t PERSIST_MAGIC = 0x53C1;
-static constexpr uint8_t PERSIST_VER = 1;
+  // Safety thresholds (same as globals)
+  constexpr int STALL_LIMIT_mA = 1000;
+  constexpr int TEMP_LIMIT_C = 70;
+  constexpr int LED_FLASH_COUNT = 3;
+  constexpr int LED_FLASH_DELAY_MS = 120;
 
-static inline size_t eeprom_slot_addr(uint8_t id) {
-  return static_cast<size_t>(id) * sizeof(servo_persist_t);
-}
+  // Check for stall or overheat
+  if (curr_mA > STALL_LIMIT_mA || temp_C >= TEMP_LIMIT_C) {
+    // Disable torque immediately
+    dxl.torqueOff(id);
 
-static uint16_t checksum16(const uint8_t *data, size_t n) {
-  uint32_t sum = 0;
-  for (size_t i = 0; i < n; ++i) sum += data[i];
-  return static_cast<uint16_t>(sum & 0xFFFF);
-}
+    // Flash LED a few times as a warning
+    for (int i = 0; i < LED_FLASH_COUNT; i++) {
+      lOn(id);
+      delay(LED_FLASH_DELAY_MS);
+      lOff(id);
+      delay(LED_FLASH_DELAY_MS);
+    }
 
-static bool eeprom_capacity_ok(uint8_t id) {
-  size_t need = eeprom_slot_addr(id) + sizeof(servo_persist_t);
-  return need <= FLASH_EMU_SIZE;
-}
+    // Leave LED ON after flashing to indicate persistent fault
+    lOn(id);
 
-// TODO below does nothing
-static bool load_persist(uint8_t id, servo_persist_t &out) {
-  return false;
+    serial_printf_verbose(
+      "[safe move blocked] id=%u curr=%d temp=%d  (⚠ torque off)\n",
+      id, curr_mA, temp_C);
 
-  size_t addr = eeprom_slot_addr(id);
-  if (addr + sizeof(servo_persist_t) > FLASH_EMU_SIZE) return false;
-  flash_read(addr, &out, sizeof(out));
-
-  if (out.magic != PERSIST_MAGIC || out.version != PERSIST_VER || out.id != id) {
-    serial_printf_verbose("[!] err persist checksum\n");
-    return false;
+    return false;  // abort move
   }
 
-  const size_t n = sizeof(servo_persist_t) - sizeof(uint16_t);
-  uint16_t calc = checksum16(reinterpret_cast<const uint8_t *>(&out), n);
-  bool ok = (calc == out.checksum);
-
-  if (ok) {
-    serial_printf_verbose(
-      "[persist] loaded id=%u  min=%u  zero=%u  max=%u  dir=%d\n",
-      out.id, out.min_t, out.zero, out.max_t, (int)out.dir);
-  } else {
-    serial_printf_verbose(
-      "[!] persist checksum mismatch for id=%u  min=%u  zero=%u  max=%u  dir=%d\n",
-      out.id, out.min_t, out.zero, out.max_t, (int)out.dir);
-  }
-
-  serial_printf_verbose(
-    "[debug persist raw] addr=%u  magic=0x%X ver=%u id=%u zero=%u min=%u max=%u dir=%d checksum=%u calc=%u\n",
-    addr, out.magic, out.version, out.id, out.zero, out.min_t, out.max_t, out.dir, out.checksum, calc);
-
-  return ok;
-}
-
-// TODO below does nothing
-static void save_persist(const servo_persist_t &src) {
-  servo_persist_t tmp = src;
-  tmp.magic = PERSIST_MAGIC;
-  tmp.version = PERSIST_VER;
-  const size_t n = sizeof(servo_persist_t) - sizeof(uint16_t);
-  tmp.checksum = checksum16(reinterpret_cast<const uint8_t *>(&tmp), n);
-  size_t addr = eeprom_slot_addr(tmp.id);
-  flash_write(addr, &tmp, sizeof(tmp));
-
-  serial_printf_verbose(
-    "[persist] saved id=%u  min=%u  zero=%u  max=%u  dir=%d\n",
-    tmp.id, tmp.min_t, tmp.zero, tmp.max_t, (int)tmp.dir);
-}
-
-static void persist_config(uint8_t id, uint16_t zero, uint16_t min_t, uint16_t max_t, double dir) {
-
-  servo_persist_t sp{};
-  sp.magic = PERSIST_MAGIC;
-  sp.version = PERSIST_VER;
-  sp.id = id;
-  sp.zero = zero;
-  sp.min_t = min_t;
-  sp.max_t = max_t;
-  sp.dir = (dir >= 0.0) ? 1 : -1;
-  sp.reserved = 0;
-
-  serial_printf_verbose(
-    "[persist] config id=%u  min=%u  zero=%u  max=%u  dir=%d\n",
-    sp.id, sp.min_t, sp.zero, sp.max_t, (int)sp.dir);
-
-  // TODO no save for now
-  // save_persist(sp);
+  // Otherwise safe to move
+  dxl.setGoalPosition(id, goal_ticks);
+  return true;
 }
 
 // -------------------------------------------------------------------
@@ -180,21 +98,19 @@ ServoConfig::ServoConfig(const char *key,
     limit_max_(limit_max) {}
 
 void ServoConfig::init() {
-  servo_persist_t sp{};
-  if (load_persist(id_, sp)) {
-    // Load persisted values
-    zero_ticks_ = sp.zero;
-    limit_min_ = sp.min_t;
-    limit_max_ = sp.max_t;
-    dir_ = (sp.dir >= 0) ? 1.0 : -1.0;
-    serial_printf_verbose("[loaded from persist] %s id=%u loaded: zero=%u min=%u max=%u dir=%d\n",
-                          key_, id_, zero_ticks_, limit_min_, limit_max_, (int)sp.dir);
-  } else {
-    // Not found / invalid → write defaults to the slot (so future boots are consistent)
-    persist_config(id_, zero_ticks_, limit_min_, limit_max_, dir_);
-    serial_printf_verbose("[persist defaults] %s id=%u zero=%u min=%u max=%u dir=%d\n",
+
+  if (!dxl.ping(id_)) {
+    serial_printf_verbose("ERR [servo init ping failed] | %s id=%u zero=%u min=%u max=%u dir=%d\n",
                           key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
+    return;
   }
+
+  // read min and max from the servo
+  limit_min_ = dxl.readControlTableItem(ControlTableItem::MIN_POSITION_LIMIT, id_);
+  limit_max_ = dxl.readControlTableItem(ControlTableItem::MAX_POSITION_LIMIT, id_);
+
+  serial_printf_verbose("[servo init] | %s id=%u zero=%u min=%u max=%u dir=%d\n",
+                        key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
 }
 
 uint8_t ServoConfig::get_id() const {
@@ -227,9 +143,6 @@ void ServoConfig::set_zero_ticks(uint16_t t) {
     limit_max_ = a;
   }
   serial_printf_verbose("[set zero] %s id=%u set zero=%u\n", key_, id_, zero_ticks_);
-  // persist_config(id_, zero_ticks_, limit_min_, limit_max_, dir_);
-  // serial_printf_verbose("[persist] %s id=%u zero=%u min=%u max=%u dir=%d\n",
-  //                      key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
 }
 void ServoConfig::set_min_ticks(uint16_t t) {
   return;
@@ -241,14 +154,13 @@ void ServoConfig::set_min_ticks(uint16_t t) {
     limit_max_ = a;
   }
 
-  serial_printf_verbose("[set min] %s id=%u set min=%u (max=%u)\n", key_, id_, limit_min_, limit_max_);
+  serial_printf_verbose("[set min] | %s id=%u set min=%u (max=%u)\n", key_, id_, limit_min_, limit_max_);
   dxl.torqueOff(id_);
   dxl.writeControlTableItem(ControlTableItem::MIN_POSITION_LIMIT, id_, limit_min_);
   dxl.torqueOn(id_);
 
-  //persist_config(id_, zero_ticks_, limit_min_, limit_max_, dir_);
-  //serial_printf_verbose("[persist] %s id=%u zero=%u min=%u max=%u dir=%d\n",
-  //                      key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
+  serial_printf_verbose("[set min] servo control table min set | %s id=%u zero=%u min=%u max=%u dir=%d\n",
+                        key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
 }
 void ServoConfig::set_max_ticks(uint16_t t) {
   return;
@@ -260,22 +172,13 @@ void ServoConfig::set_max_ticks(uint16_t t) {
     limit_max_ = a;
   }
 
-  serial_printf_verbose("[set max] %s id=%u set max=%u (min=%u)\n", key_, id_, limit_max_, limit_min_);
+  serial_printf_verbose("[set max] | %s id=%u set max=%u (min=%u)\n", key_, id_, limit_max_, limit_min_);
   dxl.torqueOff(id_);
   dxl.writeControlTableItem(ControlTableItem::MAX_POSITION_LIMIT, id_, limit_max_);
   dxl.torqueOn(id_);
 
-  // persist_config(id_, zero_ticks_, limit_min_, limit_max_, dir_);
-  // serial_printf_verbose("[persist] %s id=%u zero=%u min=%u max=%u dir=%d\n",
-  //                      key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
-}
-void ServoConfig::set_dir(double d) {
-  return;
-
-  // dir_ = (d >= 0.0) ? 1.0 : -1.0;  // store as ±1 for consistency
-  //persist_config(id_, zero_ticks_, limit_min_, limit_max_, dir_);
-  // serial_printf_verbose("[persist] %s id=%u zero=%u min=%u max=%u dir=%d\n",
-  //                      key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
+  serial_printf_verbose("[set max] servo control table max set | %s id=%u zero=%u min=%u max=%u dir=%d\n",
+                        key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
 }
 
 // -------------------------------------------------------------------
@@ -287,12 +190,12 @@ void ServoConfig::set_dir(double d) {
 #define TICK_MINUS90_DEFAULT 1024
 
 // TODO fix those based on the HW
-ServoConfig arm1("arm1", ID_ARM1, TICK_ZERO_DEFAULT, -1.0, TICK_MINUS90_DEFAULT - 100, TICK_90_DEFAULT + 100);
-ServoConfig arm2("arm2", ID_ARM2, TICK_ZERO_DEFAULT, 1.0, TICK_MINUS90_DEFAULT - 100, TICK_90_DEFAULT + 100);
-ServoConfig wrist("wrist", ID_WRIST, 2500, 1.0, TICK_MINUS90_DEFAULT - 100, TICK_90_DEFAULT + 100);  // wrist zero has to be at -90 //TODO update everywhere
-ServoConfig grip1("grip1", ID_GRIP1, TICK_ZERO_DEFAULT, 1.0, TICK_MINUS90_DEFAULT - 100, TICK_90_DEFAULT + 100);
-ServoConfig grip2("grip2", ID_GRIP2, TICK_ZERO_DEFAULT, -1.0, TICK_MINUS90_DEFAULT - 100, TICK_90_DEFAULT + 100);
-ServoConfig base("base", ID_BASE, TICK_ZERO_DEFAULT, 1.0, TICK_MINUS90_DEFAULT - 100, TICK_90_DEFAULT + 100);
+ServoConfig arm1("arm1", ID_ARM1, TICK_ZERO_DEFAULT, -1.0, TICK_MINUS90_DEFAULT, TICK_90_DEFAULT);
+ServoConfig arm2("arm2", ID_ARM2, TICK_ZERO_DEFAULT, 1.0, TICK_MINUS90_DEFAULT, TICK_90_DEFAULT);
+ServoConfig wrist("wrist", ID_WRIST, 2500, 1.0, TICK_MINUS90_DEFAULT, TICK_90_DEFAULT);
+ServoConfig grip1("grip1", ID_GRIP1, TICK_ZERO_DEFAULT, 1.0, TICK_MINUS90_DEFAULT, TICK_90_DEFAULT);
+ServoConfig grip2("grip2", ID_GRIP2, TICK_ZERO_DEFAULT, -1.0, TICK_MINUS90_DEFAULT, TICK_90_DEFAULT);
+ServoConfig base("base", ID_BASE, TICK_ZERO_DEFAULT, 1.0, TICK_MINUS90_DEFAULT, TICK_90_DEFAULT);
 
 ServoConfig *all_servos[] = { &arm1, &arm2, &wrist, &grip1, &grip2, &base };
 constexpr uint8_t SERVO_COUNT = sizeof(all_servos) / sizeof(all_servos[0]);
@@ -323,23 +226,6 @@ void init_servo_limits() {
     uint16_t want_min = cfg->min_ticks();
     uint16_t want_max = cfg->max_ticks();
     bool changed = false;
-
-    // ------------------------------------------------
-    // 1.1 Fix corrupted limits (hw_min > hw_max)
-    // ------------------------------------------------
-    if (hw_min > hw_max) {
-      serial_printf_verbose("[%s] ID %u: ⚠ invalid limits (%u > %u), resetting to [%u - %u]\n",
-                            cfg->get_key(), id, hw_min, hw_max, want_min, want_max);
-
-      dxl.torqueOff(id);
-      dxl.writeControlTableItem(ControlTableItem::MIN_POSITION_LIMIT, id, want_min);
-      dxl.writeControlTableItem(ControlTableItem::MAX_POSITION_LIMIT, id, want_max);
-      dxl.torqueOn(id);
-
-      hw_min = want_min;
-      hw_max = want_max;
-      changed = true;
-    }
 
     // ------------------------------------------------
     // 2. Tighten range if wider than desired
@@ -375,10 +261,10 @@ void init_servo_limits() {
 
     if (pos < hw_min) {
       serial_printf_verbose("[%s] pos=%u < min=%u → moving to min\n", cfg->get_key(), pos, hw_min);
-      dxl.setGoalPosition(id, hw_min);
+      safeSetGoalPosition(id, hw_min);
     } else if (pos > hw_max) {
       serial_printf_verbose("[%s] pos=%u > max=%u → moving to max\n", cfg->get_key(), pos, hw_max);
-      dxl.setGoalPosition(id, hw_max);
+      safeSetGoalPosition(id, hw_max);
     } else {
       // inside limits
     }
@@ -528,7 +414,7 @@ double getPos_deg(int id) {
 
 void setGoal_deg(int id, double goal_deg) {
   int goal_ticks = deg2ticks(id, goal_deg);
-  dxl.setGoalPosition(id, goal_ticks);
+  safeSetGoalPosition(id, goal_ticks);
 }
 
 bool isInPosition(uint8_t id) {

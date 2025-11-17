@@ -165,7 +165,7 @@ public:
   void writeTicks(int* posList) {
     for (uint8_t i = 0; i < axesCount(); i++) {
       uint8_t id = getId(i);
-      if (id > 0 && posList[i] >= 0) dxl->writeControlTableItem(ControlTableItem::GOAL_POSITION, id, posList[i]);
+      if (id > 0 && posList[i] >= 0) safeSetGoalPosition(id, posList[i]);
     }
   }
   // Compute synchronized tick for slave axis using kinematics (XY) or % catch-up (gripper)

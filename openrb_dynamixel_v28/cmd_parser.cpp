@@ -124,7 +124,7 @@ bool cmd_move_ticks(int argc, double *argv) {
   int goal_ticks = (int)argv[1];
   serial_printf_verbose("cmd_move_ticks: id=%d ticks=%d\n", id, goal_ticks);
 
-  if (!dxl.setGoalPosition(id, goal_ticks)) return false;
+  if (!safeSetGoalPosition(id, goal_ticks)) return false;
   print_servo_status(id);
   return true;
 }
@@ -235,7 +235,7 @@ bool cmd_set_dir_minus(int argc, double *argv) {
 
 bool cmd_move_center(int argc, double *argv) {
   for (int i = 0; i < SERVO_COUNT; i++)
-    dxl.setGoalPosition(all_servos[i]->get_id(), 2048);
+    safeSetGoalPosition(all_servos[i]->get_id(), 2048);
   return true;
 }
 
@@ -373,8 +373,8 @@ static CommandEntry command_table[] = {
 
   // TODO need an external FRAM RB does not have EEPRO
 
-  // { "SETMIN", "%d %d", cmd_set_min, "SETMIN <id> <ticks> - set the min as ticks" },
-  // { "SETMAX", "%d %d", cmd_set_max, "SETMAX <id> <ticks> - set the max as ticks" },
+  { "SETMIN", "%d %d", cmd_set_min, "SETMIN <id> <ticks> - set the min ticks" },
+  { "SETMAX", "%d %d", cmd_set_max, "SETMAX <id> <ticks> - set the max ticks" },
   // { "SETZERO", "%d %d", cmd_set_zero, "SETZERO <id> <ticks> - set the zero pos in ticks" },
   // { "SETDIRPLUS", "%d", cmd_set_dir_plus, "SETDIRPLUS <id> - set dir using the current pos > zero" },
   // { "SETDIRMINUS", "%d", cmd_set_dir_minus, "SETDIRMINUS <id> - set dir using the current pos < zero" },
