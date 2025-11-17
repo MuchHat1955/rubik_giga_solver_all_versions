@@ -86,10 +86,9 @@ ServoConfig *find_servo(const char *name);
 
 double ticks2deg(uint8_t id, int ticks);
 int deg2ticks(uint8_t id, double deg);
-
+double ticks2per(uint8_t id, int ticks);
 int per2ticks(uint8_t id, double per);
 double per2deg(uint8_t id, double per);
-double ticks2per(uint8_t id, double ticks);
 
 uint8_t name2id(const char *name);
 const char *id2name(uint8_t id);

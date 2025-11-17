@@ -1,5 +1,6 @@
 #include "cmd_parser.h"
 #include "movement.h"
+#include "servos.h"
 
 void print_info(uint8_t id);
 
@@ -90,7 +91,7 @@ bool cmd_move_xy(int argc, double *argv) {
 }
 
 bool cmd_pos_zero(int argc, double *argv) {
-  if (!cmdMoveGripperPer(100.0)) return false;
+  if (!cmdMoveGripperPer(0.0)) return false;
   if (!cmdMoveWristDegVertical(0.0)) return false;
   if (!cmdMoveXmm(0.0)) return false;
   if (!cmdMoveYmm(35.5)) return false;
@@ -263,19 +264,19 @@ bool cmd_move_x(int argc, double *argv) {
 }
 
 bool cmd_move_gripper(int argc, double *argv) {
-  int id = (int)argv[0];
-  if (!dxl.ping(id)) return false;
+  if (!dxl.ping(ID_GRIP1) || !dxl.ping(ID_GRIP2)) return false;
 
-  double goal_deg = argv[1];
+  double goal_deg = argv[0];
 
-  if (goal_deg < 5.0 || goal_deg > 105.0) {
+  if (goal_deg < -5.0 || goal_deg > 105.0) {
     serial_printf("ERR invalid gripper percentage: %.2f expected range (-5.0 per to 105 per)\n", goal_deg);
     return false;
   }
 
   serial_printf_verbose("cmd_move_gripper: deg=%.2\n", goal_deg);
   if (!cmdMoveGripperPer(goal_deg)) return false;
-  print_servo_status(id);
+  print_servo_status(ID_GRIP1);
+  print_servo_status(ID_GRIP2);
   return true;
 }
 
@@ -370,11 +371,13 @@ static CommandEntry command_table[] = {
   { "VERBOSEON", "", cmd_verbose_on, "VERBOSEON - enable verbose output" },
   { "VERBOSEOFF", "", cmd_verbose_off, "VERBOSEOFF - disable verbose output" },
 
-  { "SETMIN", "%d", cmd_set_min, "SETMIN <id> - set current pos as min" },
-  { "SETMAX", "%d", cmd_set_max, "SETMAX <id> - set current pos as max" },
-  { "SETZERO", "%d", cmd_set_zero, "SETLIMITMAX <id> - set current pos as zero" },
-  { "SETDIRPLUS", "%d", cmd_set_dir_plus, "SETDIRPLUS <id> - set dir using the current pos > zero" },
-  { "SETDIRMINUS", "%d", cmd_set_dir_minus, "SETDIRMINUS <id> - set dir using the current pos < zero" },
+  // TODO need an external FRAM RB does not have EEPRO
+
+  // { "SETMIN", "%d %d", cmd_set_min, "SETMIN <id> <ticks> - set the min as ticks" },
+  // { "SETMAX", "%d %d", cmd_set_max, "SETMAX <id> <ticks> - set the max as ticks" },
+  // { "SETZERO", "%d %d", cmd_set_zero, "SETZERO <id> <ticks> - set the zero pos in ticks" },
+  // { "SETDIRPLUS", "%d", cmd_set_dir_plus, "SETDIRPLUS <id> - set dir using the current pos > zero" },
+  // { "SETDIRMINUS", "%d", cmd_set_dir_minus, "SETDIRMINUS <id> - set dir using the current pos < zero" },
 
   { "POSZERO", "", cmd_pos_zero, "POSZERO - move to pos zero" },
   { "MOVETICKS", "%d %d", cmd_move_ticks, "MOVEDEG <id> <ticks goal> - move one servo to ticks (not smooth)" },

@@ -47,19 +47,6 @@ extern VerticalKinematics kin;
 // Tolerance in ticks for considering goal reached
 #define SMOOTH_TOL_TICKS 4
 
-// ------------------------------------------------------------
-// Conversion helpers
-// ------------------------------------------------------------
-inline int mm2ticks(double mm) {
-  return (int)round(mm / MM_PER_TICK);
-}
-inline int deg2ticks(double deg) {
-  return (int)round(deg / DEG_PER_TICK);
-}
-inline int per2ticks(double per) {
-  return (int)round(per * (4095.0 / 100.0));
-}
-
 // ============================================================
 //                 Nudge Controller Class
 // ============================================================

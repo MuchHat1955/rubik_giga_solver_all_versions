@@ -11,11 +11,6 @@
 #include "rb_interface.h"
 #include "ui_button.h"
 
-struct BtnUserData {
-  const char *key;
-  const char *txt;
-};
-
 String getSketchVersion();
 String getSketchVersionWithDate();
 void buildMenu(const char *menuName);
