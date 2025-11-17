@@ -81,8 +81,8 @@ bool cmd_move_xy(int argc, double *argv) {
     return false;
   }
   double goal_ymm = argv[1];
-  if (goal_ymm < 35.0 || goal_ymm > 105.0) {
-    serial_printf("ERR invalid y mm: %.2f expected range (35.0 mm to 105 mm)\n", goal_ymm);
+  if (goal_ymm < 42.0 || goal_ymm > 102.0) {
+    serial_printf("ERR invalid y mm: %.2f expected range (42.0 mm to 102 mm)\n", goal_ymm);
     return false;
   }
   if (!cmdMoveXmm(goal_xmm)) return false;
@@ -175,65 +175,10 @@ bool cmd_set_max(int argc, double *argv) {
   return false;
 }
 
-bool cmd_set_zero(int argc, double *argv) {
-  int id = (int)argv[0];
-  if (!dxl.ping(id)) return false;
-
-  int t = (int)argv[1];
-
-  if (auto *s = find_servo(id)) {
-    serial_printf_verbose("cmd_set_zero: id=%d ticks=%d\n", id, t);
-    s->set_zero_ticks(t);
-    return true;
-  }
-  return false;
-}
-
-bool cmd_set_dir_plus(int argc, double *argv) {
-  int id = (int)argv[0];
-  if (!dxl.ping(id)) return false;
-
-  int t = (int)argv[1];
-
-  if (auto *s = find_servo(id)) {
-    int curr = dxl.getPresentPosition(id);
-    int zero = s->zero_ticks();
-    if (abs(curr - zero) < 100) {
-      serial_printf("ERR move servo at least 100 ticks from zero to set dir: zero=%d curr=%d\n", zero, curr);
-      return false;
-    }
-    double dir = 1.0;
-    if (curr < zero) dir = -1.0;
-    serial_printf("ERR cmd_set_dir_plus: id=%d zero=%d curr=%d dir=%.2f\n", id, zero, curr, dir);
-    s->set_dir(dir);
-    return true;
-  }
-  return false;
-}
-
-bool cmd_set_dir_minus(int argc, double *argv) {
-  int id = (int)argv[0];
-  if (!dxl.ping(id)) return false;
-
-  int t = (int)argv[1];
-
-  if (auto *s = find_servo(id)) {
-    int curr = dxl.getPresentPosition(id);
-    int zero = s->zero_ticks();
-    if (abs(curr - zero) < 100) {
-      serial_printf("ERR move servo at least 100 ticks from zero to set dir: zero=%d curr=%d\n", zero, curr);
-      return false;
-    }
-    double dir = 1.0;
-    if (curr > zero) dir = -1.0;
-    serial_printf("ERR cmd_set_dir_plus: id=%d zero=%d curr=%d dir=%.2f\n", id, zero, curr, dir);
-    s->set_dir(dir);
-    return true;
-  }
-  return false;
-}
-
 bool cmd_move_center(int argc, double *argv) {
+  return false;
+  // could cause colisions now TODO
+
   for (int i = 0; i < SERVO_COUNT; i++)
     safeSetGoalPosition(all_servos[i]->get_id(), 2048);
   return true;
@@ -285,12 +230,13 @@ bool cmd_move_wrist_vert(int argc, double *argv) {
 
   double goal_deg = argv[0];
 
-  if (goal_deg < -5 || goal_deg > 95) {
-    serial_printf("ERR invalid wrist percentage: %.2f expected range (-5% to 95%)\n", goal_deg);
+  if (goal_deg < -5 || goal_deg > 185) {
+    serial_printf("ERR invalid wrist percentage: %.2f expected range (-5% to 185%)\n", goal_deg);
     return false;
   }
 
   serial_printf_verbose("cmd_move_wrist: deg=%.2\n", goal_deg);
+  // TODO no move if Y is too low
   if (!cmdMoveWristDegVertical(goal_deg)) return false;
   print_servo_status(ID_WRIST);
   return true;
@@ -301,6 +247,47 @@ bool cmd_help(int argc, double *argv) {
   Serial.println(get_help_text());
   Serial.println();
   return true;
+}
+
+bool cmd_test(int argc, double *argv) {
+  int test_no = argv[0];
+
+  if (test_no == 0) {
+    if (!cmdMoveYmm(80)) return false;
+    if (!cmdMoveServoDeg(ID_BASE, 90)) return false;
+    if (!cmdMoveXmm(0)) return false;
+    if (!cmdMoveWristDegVertical(90)) return false;
+    if (!cmdMoveGripperPer(100)) return false;
+    if (!cmdMoveYmm(42)) return false;
+  }
+  if (test_no == 1) {
+    if (!cmdMoveYmm(50)) return false;
+    if (!cmdMoveWristDegVertical(90)) return false;
+    if (!cmdMoveServoDeg(ID_BASE, 90)) return false;
+    if (!cmdMoveServoDeg(ID_BASE, 180)) return false;
+    if (!cmdMoveServoDeg(ID_BASE, 0)) return false;
+    if (!cmdMoveServoDeg(ID_BASE, 90)) return false;
+    if (!cmdMoveXmm(0)) return false;
+    if (!cmdMoveYmm(100)) return false;
+    if (!cmdMoveYmm(50)) return false;
+    if (!cmdMoveXmm(-30)) return false;
+    if (!cmdMoveXmm(0)) return false;
+    if (!cmdMoveXmm(30)) return false;
+    if (!cmdMoveXmm(0)) return false;
+    if (!cmdMoveWristDegVertical(90)) return false;
+    if (!cmdMoveYmm(42)) return false;
+    if (!cmdMoveGripperPer(100)) return false;
+  }
+  if (test_no == 1) {
+    if (!cmdMoveYmm(50)) return false;
+    if (!cmdMoveWristDegVertical(90)) return false;
+    if (!cmdMoveServoDeg(ID_BASE, 90)) return false;
+    if (!cmdMoveGripperPer(100)) return false;
+    if (!cmdMoveGripperPer(0)) return false;
+    if (!cmdMoveGripperPer(100)) return false;
+    if (!cmdMoveYmm(42)) return false;
+  }
+  return false;
 }
 
 bool cmd_read(int argc, double *argv) {
@@ -383,12 +370,14 @@ static CommandEntry command_table[] = {
   { "MOVETICKS", "%d %d", cmd_move_ticks, "MOVEDEG <id> <ticks goal> - move one servo to ticks (not smooth)" },
   { "MOVEDEG", "%d %f", cmd_move_deg, "MOVEDEG <id> <deg goal> - move one servo to degree (smooth)" },
   { "MOVEPER", "%d %f", cmd_move_per, "MOVEPER <id> <per goal> - move one servo to percent (smooth)" },
-  { "MOVECENTER", "", cmd_move_center, "MOVECENTER - move all to center" },
-  { "MOVEYMM", "%f", cmd_move_y, "MOVEYMM <float mm> - vertical move" },
-  { "MOVEXMM", "%f", cmd_move_x, "MOVEXMM <float mm> - lateral move" },
-  { "MOVEXYMM", "%f %f", cmd_move_xy, "MOVEXYMM <float mm> <float mm> - lateral then vertical move" },
-  { "MOVEGRIPPER", "%f", cmd_move_gripper, "MOVEGRIPPER <percentage> - move both grips to percentage" },
-  { "MOVEWRISTVERTDEG", "%f", cmd_move_wrist_vert, "MOVEWRISTVERTDEG <deg> - move wrist relative to vertical" },
+  // { "MOVECENTER", "", cmd_move_center, "MOVECENTER - move all to center" },
+  { "MOVEYMM", "%f", cmd_move_y, "MOVEYMM <float mm> - vertical move (42 to 102)" },
+  { "MOVEXMM", "%f", cmd_move_x, "MOVEXMM <float mm> - lateral move (-30 to 30)" },
+  { "MOVEXYMM", "%f %f", cmd_move_xy, "MOVEXYMM <float mm> <float mm> - lateral then vertical move (-25 to 25)(42 to 102)" },
+  { "MOVEGRIPPER", "%f", cmd_move_gripper, "MOVEGRIPPER <percentage> - move both grips to percentage (0 to 100)" },
+  { "MOVEWRISTVERTDEG", "%f", cmd_move_wrist_vert, "MOVEWRISTVERTDEG <deg> - move wrist relative to vertical (-5 to 185)" },
+
+  { "TESTNO", "%d", cmd_test, "TESTNO <no> - test 0 is move to pos 0, test 1 various tests" },
 
   { "READ", "%d", cmd_read, "READ <id> - show servo summary status" },
   { "INFO", "%d", cmd_info, "INFO <id> - show servo full status" },

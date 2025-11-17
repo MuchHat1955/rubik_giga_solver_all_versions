@@ -549,6 +549,8 @@ bool move_smooth(
     finalGoalTicks[i] = axes.getGoalTicks(i);
     axesDone[i] = false;
     correctionTicks[i] = 0;
+    if (finalGoalTicks[i] > getMax_ticks(axes.getId(i)) - 50) finalGoalTicks[i] = getMax_ticks(axes.getId(i)) - 50;
+    if (finalGoalTicks[i] < getMin_ticks(axes.getId(i)) + 50) finalGoalTicks[i] = getMin_ticks(axes.getId(i)) + 50;
   }
 
   // Gather master trajectory info

@@ -163,7 +163,6 @@ void ServoConfig::set_zero_ticks(uint16_t t) {
   serial_printf_verbose("[set zero] %s id=%u set zero=%u\n", key_, id_, zero_ticks_);
 }
 void ServoConfig::set_min_ticks(uint16_t t) {
-  return;
 
   limit_min_ = t;
   if (limit_min_ > limit_max_) {
@@ -175,13 +174,13 @@ void ServoConfig::set_min_ticks(uint16_t t) {
   serial_printf_verbose("[set min] | %s id=%u set min=%u (max=%u)\n", key_, id_, limit_min_, limit_max_);
   dxl.torqueOff(id_);
   dxl.writeControlTableItem(ControlTableItem::MIN_POSITION_LIMIT, id_, limit_min_);
+  dxl.writeControlTableItem(ControlTableItem::MAX_POSITION_LIMIT, id_, limit_max_);
   dxl.torqueOn(id_);
 
   serial_printf_verbose("[set min] servo control table min set | %s id=%u zero=%u min=%u max=%u dir=%d\n",
                         key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
 }
 void ServoConfig::set_max_ticks(uint16_t t) {
-  return;
 
   limit_max_ = t;
   if (limit_min_ > limit_max_) {
@@ -192,6 +191,7 @@ void ServoConfig::set_max_ticks(uint16_t t) {
 
   serial_printf_verbose("[set max] | %s id=%u set max=%u (min=%u)\n", key_, id_, limit_max_, limit_min_);
   dxl.torqueOff(id_);
+  dxl.writeControlTableItem(ControlTableItem::MIN_POSITION_LIMIT, id_, limit_min_);
   dxl.writeControlTableItem(ControlTableItem::MAX_POSITION_LIMIT, id_, limit_max_);
   dxl.torqueOn(id_);
 
