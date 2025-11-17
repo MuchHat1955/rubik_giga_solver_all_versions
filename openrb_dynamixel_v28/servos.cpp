@@ -75,6 +75,22 @@ bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
     return false;  // abort move
   }
 
+  // Check for min and maxt
+  if (goal_ticks < getMin_ticks(id) || goal_ticks > getMax_ticks(id)) {
+    // Flash LED a few times as a warning
+    for (int i = 0; i < LED_FLASH_COUNT; i++) {
+      lOn(id);
+      delay(LED_FLASH_DELAY_MS);
+      lOff(id);
+      delay(LED_FLASH_DELAY_MS);
+    }
+    serial_printf_verbose(
+      "[safe move do nothing, over the limites] id=%u goal=%d min=%d min=%d\n",
+      id, goal_ticks, getMin_ticks(id), getMax_ticks(id));
+
+    return false;  // abort move
+  }
+
   // Otherwise safe to move
   dxl.setGoalPosition(id, goal_ticks);
   return true;
@@ -98,6 +114,8 @@ ServoConfig::ServoConfig(const char *key,
     limit_max_(limit_max) {}
 
 void ServoConfig::init() {
+
+  if (limit_max_ > 4095) limit_max_ = 4095;
 
   if (!dxl.ping(id_)) {
     serial_printf_verbose("ERR [servo init ping failed] | %s id=%u zero=%u min=%u max=%u dir=%d\n",
@@ -185,17 +203,25 @@ void ServoConfig::set_max_ticks(uint16_t t) {
 //                     SERVO CONFIG INSTANCES
 // -------------------------------------------------------------------
 
-#define TICK_ZERO_DEFAULT 2048
-#define TICK_90_DEFAULT 3072
-#define TICK_MINUS90_DEFAULT 1024
+#define MID_TICK 2048
+#define TICK_100DEG 1138
+#define TICK_10DEG 113
+
+#define DEFAULT_ZERO MID_TICK
+#define DEFAULT_MIN MID_TICK - TICK_100DEG
+#define DEFAULT_MAX MID_TICK + TICK_100DEG
+
+#define WRIST_ZERO 2500
+#define WRIST_MIN WRIST_ZERO - TICK_10DEG
+#define WRIST_MAX WRIST_ZERO + TICK_100DEG + TICK_100DEG
 
 // TODO fix those based on the HW
-ServoConfig arm1("arm1", ID_ARM1, TICK_ZERO_DEFAULT, -1.0, TICK_MINUS90_DEFAULT, TICK_90_DEFAULT);
-ServoConfig arm2("arm2", ID_ARM2, TICK_ZERO_DEFAULT, 1.0, TICK_MINUS90_DEFAULT, TICK_90_DEFAULT);
-ServoConfig wrist("wrist", ID_WRIST, 2500, 1.0, TICK_MINUS90_DEFAULT, TICK_90_DEFAULT);
-ServoConfig grip1("grip1", ID_GRIP1, TICK_ZERO_DEFAULT, 1.0, TICK_MINUS90_DEFAULT, TICK_90_DEFAULT);
-ServoConfig grip2("grip2", ID_GRIP2, TICK_ZERO_DEFAULT, -1.0, TICK_MINUS90_DEFAULT, TICK_90_DEFAULT);
-ServoConfig base("base", ID_BASE, TICK_ZERO_DEFAULT, 1.0, TICK_MINUS90_DEFAULT, TICK_90_DEFAULT);
+ServoConfig arm1("arm1", ID_ARM1, DEFAULT_ZERO, -1.0, DEFAULT_MIN, DEFAULT_MAX);
+ServoConfig arm2("arm2", ID_ARM2, DEFAULT_ZERO, 1.0, DEFAULT_MIN, DEFAULT_MAX);
+ServoConfig wrist("wrist", ID_WRIST, WRIST_ZERO, 1.0, WRIST_MIN, WRIST_MAX);
+ServoConfig grip1("grip1", ID_GRIP1, DEFAULT_ZERO, 1.0, DEFAULT_MIN, DEFAULT_MAX);
+ServoConfig grip2("grip2", ID_GRIP2, DEFAULT_ZERO, -1.0, DEFAULT_MIN, DEFAULT_MAX);
+ServoConfig base("base", ID_BASE, DEFAULT_ZERO, 1.0, DEFAULT_MIN, DEFAULT_MAX);
 
 ServoConfig *all_servos[] = { &arm1, &arm2, &wrist, &grip1, &grip2, &base };
 constexpr uint8_t SERVO_COUNT = sizeof(all_servos) / sizeof(all_servos[0]);
@@ -425,6 +451,18 @@ bool isInPosition(uint8_t id) {
 bool isMoving(uint8_t id) {
   int s = dxl.readControlTableItem(ControlTableItem::MOVING_STATUS, id);
   return (s >= 0) && (s & 0x02);
+}
+
+int getMin_ticks(int id) {
+  ServoConfig *s = find_servo(id);
+  if (!s) return 0;
+  return s->min_ticks();
+}
+
+int getMax_ticks(int id) {
+  ServoConfig *s = find_servo(id);
+  if (!s) return 0;
+  return s->max_ticks();
 }
 
 // -------------------------------------------------------------------
