@@ -143,6 +143,7 @@ public:
       uint8_t id = getId(i);
       if (dxl->ping(id)) dxl->ledOn(id);
     }
+    serial_printf_verbose("axes start | leds on\n");
   }
 
   void end() {
@@ -151,6 +152,7 @@ public:
       uint8_t id = getId(i);
       if (dxl->ping(id)) dxl->ledOff(id);
     }
+    serial_printf_verbose("axes end | leds off\n");
   }
 
   void readPresentTicks(int* posList) {
@@ -403,13 +405,18 @@ void NudgeController::recordData(int prevGoalTicks, int currPos, int nudge, Move
   records.push_back(r);
 }
 
-int NudgeController::computeNudge(int currErr, MovePhase phase, int samePosCount) {
+int NudgeController::computeNudge(int currErr, int dir, MovePhase phase, int samePosCount) {
 
-  if (abs(currErr) <= 4) return 0;  //TODO
+  if (abs(currErr) <= 4) return 0;
   // If no history, fall back to simple proportional estimate
 
-  // if (records.empty()) // TODO use just the base
-  return baseEstimate(currErr, phase, samePosCount);
+  // in the phases before final correct only if its behind, not ahead such it does not move back
+  if (currErr * dir < 0 && phase != MovePhase::FINAL) return 0;
+
+  // if (records.empty()) // TODO for now use just the base
+  int nudge = baseEstimate(currErr, phase, samePosCount);
+
+  /*
 
   double sumErr = 0, sumNudge = 0, weightSum = 0;
   for (int i = records.size() - 1; i >= 0; i--) {
@@ -425,12 +432,13 @@ int NudgeController::computeNudge(int currErr, MovePhase phase, int samePosCount
 
   double kPhase = phaseGain(phase);
   double pred = kPhase * avgErr + 0.3 * avgNudge;
+*/
 
   // In final phase, add same-position reinforcement if stuck
   if (phase == MovePhase::FINAL && samePosCount > 0)
-    pred += samePosCount * 0.5 * (currErr > 0 ? 1 : -1);
+    nudge += (int)(samePosCount * 0.5 * (currErr > 0 ? 1 : -1));
 
-  int nudge = (int)constrain(pred, -20.0, 20.0);
+  nudge = (int)constrain(nudge, -10.0, 15.0);
   return nudge;
 }
 
@@ -529,6 +537,7 @@ bool move_smooth(
   int currTicks[3];
   int prevTicks[3];
   int errTicks[3];
+  int dirTicks[3];
   int prevGoalTicks[3];
   int nextGoalTicks[3];
   int finalGoalTicks[3];
@@ -536,8 +545,8 @@ bool move_smooth(
   bool axesDone[3];
 
   axes.readPresentTicks(currTicks);
-  serial_printf_verbose("-- axes read current ticks {%d, %d, %d}\n", currTicks[0], currTicks[1], currTicks[2]);
-  serial_printf_verbose("-- axes goal ticks {%d, %d, %d}\n", axes.getGoalTicks(0), axes.getGoalTicks(1), axes.getGoalTicks(2));
+  serial_printf_verbose("start move | axes read current ticks={%d, %d, %d}\n", currTicks[0], currTicks[1], currTicks[2]);
+  serial_printf_verbose("start move | axes goal ticks={%d, %d, %d}\n", axes.getGoalTicks(0), axes.getGoalTicks(1), axes.getGoalTicks(2));
 
   for (int i = 0; i < axes_count; i++) {
     samePosCount[i] = 0;
@@ -549,6 +558,8 @@ bool move_smooth(
     finalGoalTicks[i] = axes.getGoalTicks(i);
     axesDone[i] = false;
     correctionTicks[i] = 0;
+    dirTicks[i] = 1;
+    if (finalGoalTicks[i] < startTicks[i]) dirTicks[i] = -1;
     if (finalGoalTicks[i] > getMax_ticks(axes.getId(i)) - 50) finalGoalTicks[i] = getMax_ticks(axes.getId(i)) - 50;
     if (finalGoalTicks[i] < getMin_ticks(axes.getId(i)) + 50) finalGoalTicks[i] = getMin_ticks(axes.getId(i)) + 50;
   }
@@ -559,7 +570,11 @@ bool move_smooth(
   int dist = masterGoal - masterStart;
   int dirMaster = (dist >= 0) ? 1 : -1;
   int total_steps = abs(dist);
-  if (total_steps < tol_ticks) return true;
+  if (total_steps < tol_ticks) {
+    serial_printf_verbose("end move | already in position dist=%d\n", dist);
+    axes.end();
+    return true;
+  }
 
   bool inFinalPosition = false;
 
@@ -569,7 +584,7 @@ bool move_smooth(
   if (coastSpan < 0) coastSpan = 0;
   int coastSteps = coastSpan / maxStep_ticks;
 
-  serial_printf_verbose("MOVE start=%d goal=%d total_steps=%d accel=%d coast=%d decel=%d\n\n",
+  serial_printf_verbose("start move | start=%d goal=%d total_steps=%d accel=%d coast=%d decel=%d\n\n",
                         masterStart, masterGoal, masterGoal - masterStart, accelSteps, coastSteps, decelSteps);
 
   bool all_good = false;
@@ -609,7 +624,8 @@ bool move_smooth(
       samePosCount[ax] = std::min(samePosCount[ax], 6);
       prevTicks[ax] = currTicks[ax];
       correctionTicks[ax] = 0;
-      if (axes.getNudgeFlag(ax)) correctionTicks[ax] = nudgers[ax]->computeNudge(errTicks[ax], currentPhase, samePosCount[ax]);
+
+      if (axes.getNudgeFlag(ax)) correctionTicks[ax] = nudgers[ax]->computeNudge(errTicks[ax], dirTicks[ax], currentPhase, samePosCount[ax]);
       logProgress(axes.getMoveName(), startTicks[0], currTicks[0], finalGoalTicks[0]);
       curr_step += step_ticks;
 
@@ -700,6 +716,7 @@ bool move_smooth(
     step_axes("FINAL", nu, (nu < ((maxNudges - 1) / 2)) ? 1 : 0);  // step is zero, indicates last 3 nudges
     delay(nudgeExtraDelay);                                        // extra delay
   }
+  serial_printf_verbose("end move | master err=%d\n", errTicks[0]);
   axes.end();
   return true;
 }
@@ -788,7 +805,7 @@ bool cmdMoveYmm(double goal_ymm) {
   double g_relative_to_vert = kin.getGdeg() - g_at_vert;
   if (g_relative_to_vert > 135 || g_relative_to_vert < 45) {
     if (goal_ymm < MIN_Y_FOR_W_VERTICAL) {
-      serial_printf_verbose("ERR y too low (<60mm) because of verical gripper g_at_vert {%.2f} g_deg {%.2f} g_rel_vert {%.2f} deg\n",  //
+      serial_printf_verbose("ERR y too low (<60mm) because of verical gripper g_at_vert=%.2f g_deg=%.2f g_rel_vert=%.2f deg\n",  //
                             kin.getGdeg_for_vertical(), kin.getGdeg(), g_relative_to_vert);
       return false;
     }

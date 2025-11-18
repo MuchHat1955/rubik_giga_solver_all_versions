@@ -20,32 +20,22 @@ extern Dynamixel2Arduino dxl;
 extern bool verboseOn;
 extern VerticalKinematics kin;
 
-// ------------------------------------------------------------
-// Default profile configuration
-// ------------------------------------------------------------
-#define SMOOTH_STEP_INTERVAL_MS 35  // was 15
-#define SMOOTH_ACCEL_STEPS 20       // was 20
-#define SMOOTH_DECEL_STEPS 20       // was 20
-#define SMOOTH_MIN_STEP_TICKS 1
-#define SMOOTH_MAX_STEP_TICKS 30  // was 25
-#define SMOOTH_TOL_TICKS 4
-
 // ============================================================
 // Default motion-profile parameters for move_smooth()
 // ============================================================
 
 // Time between incremental servo goal updates (ms)
-#define SMOOTH_STEP_INTERVAL_MS 35
+#define SMOOTH_STEP_INTERVAL_MS 20  // was 25
 // Number of acceleration steps before reaching full speed
 #define SMOOTH_ACCEL_STEPS 10  // was 20
 // Number of deceleration steps before stopping
-#define SMOOTH_DECEL_STEPS 10  // was 20
+#define SMOOTH_DECEL_STEPS 15  // was 20
 // Minimum tick change per update (slowest motion increment)
-#define SMOOTH_MIN_STEP_TICKS 1
+#define SMOOTH_MIN_STEP_TICKS 1  // was 1
 // Maximum tick change per update (fastest motion increment)
-#define SMOOTH_MAX_STEP_TICKS 15  // was 25
+#define SMOOTH_MAX_STEP_TICKS 45  // was 25
 // Tolerance in ticks for considering goal reached
-#define SMOOTH_TOL_TICKS 4
+#define SMOOTH_TOL_TICKS 5  // was 4
 
 // ============================================================
 //                 Nudge Controller Class
@@ -71,7 +61,7 @@ public:
     : id(servoId) {}
 
   void recordData(int prevGoal, int currPos, int nudge, MovePhase phase);
-  int computeNudge(int currErr, MovePhase phase, int samePosCount);
+  int computeNudge(int currErr, int dir, MovePhase phase, int samePosCount);
   void printLog();
   const char* getMoveName();
 
