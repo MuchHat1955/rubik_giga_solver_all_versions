@@ -85,7 +85,7 @@ bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
       delay(LED_FLASH_DELAY_MS);
     }
     serial_printf_verbose(
-      "[safe move do nothing, over the limites] id=%u goal=%d min=%d min=%d\n",
+      "[safe move do nothing, over the limites] id=%u goal=%d min=%d max=%d\n",
       id, goal_ticks, getMin_ticks(id), getMax_ticks(id));
 
     return false;  // abort move
@@ -211,7 +211,7 @@ void ServoConfig::set_max_ticks(uint16_t t) {
 #define DEFAULT_MIN MID_TICK - TICK_100DEG
 #define DEFAULT_MAX MID_TICK + TICK_100DEG
 
-#define WRIST_ZERO 2550
+#define WRIST_ZERO 2525
 #define WRIST_MIN WRIST_ZERO - TICK_10DEG
 #define WRIST_MAX WRIST_ZERO + TICK_100DEG + TICK_100DEG
 
