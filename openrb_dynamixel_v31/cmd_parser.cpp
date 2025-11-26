@@ -251,7 +251,7 @@ bool cmd_help(int argc, double *argv) {
 #define Y_UP 117
 
 // ---- x poses
-#define X_CENTER -1.0
+#define X_CENTER -2.0
 
 // ---- w poses
 #define W_HORIZ -90
