@@ -84,10 +84,23 @@ bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
       lOff(id);
       delay(LED_FLASH_DELAY_MS);
     }
-    serial_printf_verbose(
-      "[safe move do nothing, over the limites] id=%u goal=%d min=%d max=%d\n",
-      id, goal_ticks, getMin_ticks(id), getMax_ticks(id));
+    if (goal_ticks < getMin_ticks(id)) {
+      serial_printf_verbose(
+        "[safe move do nothing, under min] id=%u goal=%d min=%d\n",
+        id, goal_ticks, getMin_ticks(id));
+    }
+    if (goal_ticks > getMax_ticks(id)) {
+      serial_printf_verbose(
+        "[safe move do nothing, over max] id=%u goal=%d max=%d\n",
+        id, goal_ticks, getMax_ticks(id));
+    }
 
+    for (int i = 0; i < LED_FLASH_COUNT; i++) {
+      lOn(id);
+      delay(LED_FLASH_DELAY_MS);
+      lOff(id);
+      delay(LED_FLASH_DELAY_MS);
+    }
     return false;  // abort move
   }
 
@@ -211,7 +224,8 @@ void ServoConfig::set_max_ticks(uint16_t t) {
 #define DEFAULT_MIN MID_TICK - TICK_100DEG
 #define DEFAULT_MAX MID_TICK + TICK_100DEG
 
-#define WRIST_ZERO 2525
+#define WRIST_ZERO 475
+#define BASE_ZERO 2735
 #define WRIST_MIN WRIST_ZERO - TICK_10DEG
 #define WRIST_MAX WRIST_ZERO + TICK_100DEG + TICK_100DEG
 
@@ -221,7 +235,7 @@ ServoConfig arm2("arm2", ID_ARM2, DEFAULT_ZERO, 1.0, DEFAULT_MIN, DEFAULT_MAX);
 ServoConfig wrist("wrist", ID_WRIST, WRIST_ZERO, 1.0, WRIST_MIN, WRIST_MAX);
 ServoConfig grip1("grip1", ID_GRIP1, DEFAULT_ZERO, 1.0, DEFAULT_MIN, DEFAULT_MAX);
 ServoConfig grip2("grip2", ID_GRIP2, DEFAULT_ZERO, -1.0, DEFAULT_MIN, DEFAULT_MAX);
-ServoConfig base("base", ID_BASE, DEFAULT_ZERO, 1.0, DEFAULT_MIN, DEFAULT_MAX);
+ServoConfig base("base", ID_BASE, BASE_ZERO, 1.0, DEFAULT_MIN, DEFAULT_MAX);
 
 ServoConfig *all_servos[] = { &arm1, &arm2, &wrist, &grip1, &grip2, &base };
 constexpr uint8_t SERVO_COUNT = sizeof(all_servos) / sizeof(all_servos[0]);
@@ -238,21 +252,19 @@ void init_servo_limits() {
     cfg->init();
   }
 
+  /*
   // enforce servo limits
   for (int i = 0; i < SERVO_COUNT; i++) {
     ServoConfig *cfg = all_servos[i];
     uint8_t id = cfg->get_id();
-
     // ------------------------------------------------
     // 1. Read current limits from the servo
     // ------------------------------------------------
     uint16_t hw_min = dxl.readControlTableItem(ControlTableItem::MIN_POSITION_LIMIT, id);
     uint16_t hw_max = dxl.readControlTableItem(ControlTableItem::MAX_POSITION_LIMIT, id);
-
     uint16_t want_min = cfg->min_ticks();
     uint16_t want_max = cfg->max_ticks();
     bool changed = false;
-
     // ------------------------------------------------
     // 2. Tighten range if wider than desired
     // ------------------------------------------------
@@ -263,7 +275,6 @@ void init_servo_limits() {
       hw_min = want_min;
       changed = true;
     }
-
     if (hw_max > want_max) {
       dxl.torqueOff(id);
       dxl.writeControlTableItem(ControlTableItem::MAX_POSITION_LIMIT, id, want_max);
@@ -271,7 +282,6 @@ void init_servo_limits() {
       hw_max = want_max;
       changed = true;
     }
-
     if (changed) {
       serial_printf_verbose("[%s] ID %u: limits updated to [%u - %u]\n",
                             cfg->get_key(), id, hw_min, hw_max);
@@ -279,22 +289,21 @@ void init_servo_limits() {
       serial_printf_verbose("[%s] ID %u: limits OK [%u - %u]\n",
                             cfg->get_key(), id, hw_min, hw_max);
     }
-
     // ------------------------------------------------
     // 3. Correct out-of-range positions
     // ------------------------------------------------
     uint16_t pos = dxl.readControlTableItem(ControlTableItem::PRESENT_POSITION, id);
-
     if (pos < hw_min) {
       serial_printf_verbose("[%s] pos=%u < min=%u → moving to min\n", cfg->get_key(), pos, hw_min);
-      safeSetGoalPosition(id, hw_min);
+      //safeSetGoalPosition(id, hw_min);
     } else if (pos > hw_max) {
       serial_printf_verbose("[%s] pos=%u > max=%u → moving to max\n", cfg->get_key(), pos, hw_max);
-      safeSetGoalPosition(id, hw_max);
+      //safeSetGoalPosition(id, hw_max);
     } else {
       // inside limits
     }
   }
+  */
 }
 
 // -------------------------------------------------------------------

@@ -4,6 +4,10 @@
 
 void print_info(uint8_t id);
 
+extern double max_xmm;
+extern double max_ymm;
+extern double min_ymm;
+
 // -------------------------------------------------------------------
 //                            PARSE HELPERS
 // -------------------------------------------------------------------
@@ -76,13 +80,13 @@ bool cmd_verbose_off(int argc, double *argv) {
 
 bool cmd_move_xy(int argc, double *argv) {
   double goal_xmm = argv[0];
-  if (goal_xmm < -30.0 || goal_xmm > 30.0) {
-    serial_printf("ERR invalid x mm: %.2f expected range (-30 mm to 30 mm)\n", goal_xmm);
+  if (goal_xmm < -max_xmm || goal_xmm > max_xmm) {
+    serial_printf("ERR invalid x mm: %.2f expected range (%.2f mm to %.2f mm)\n", goal_xmm,-max_xmm,max_xmm);
     return false;
   }
   double goal_ymm = argv[1];
-  if (goal_ymm < 42.0 || goal_ymm > 102.0) {
-    serial_printf("ERR invalid y mm: %.2f expected range (42.0 mm to 102 mm)\n", goal_ymm);
+  if (goal_ymm < min_ymm || goal_ymm > max_ymm) {
+    serial_printf("ERR invalid y mm: %.2f expected range (%.2f mm to %.2f mm)\n", goal_ymm, min_ymm, max_ymm);
     return false;
   }
   if (!cmdMoveXmm(goal_xmm)) return false;
@@ -134,8 +138,8 @@ bool cmd_move_per(int argc, double *argv) {
   if (!dxl.ping(id)) return false;
 
   double goal_per = argv[1];
-  if (goal_per < 5.0 || goal_per > 105.0) {
-    serial_printf("ERR invalid servo percentage: %.2f expected range (-5.0 per to 105.0 per)\n", goal_per);
+  if (goal_per < -15.0 || goal_per > 115.0) {
+    serial_printf("ERR invalid servo percentage: %.2f expected range (-15.0 per to 115.0 per)\n", goal_per);
     return false;
   }
 
@@ -186,8 +190,8 @@ bool cmd_move_center(int argc, double *argv) {
 
 bool cmd_move_y(int argc, double *argv) {
   double goal_mm = argv[0];
-  if (goal_mm < 35.0 || goal_mm > 105.0) {
-    serial_printf("ERR invalid y mm: %.2f expected range (35.0 mm to 105 mm)\n", goal_mm);
+  if (goal_mm < min_ymm || goal_mm > max_ymm) {
+    serial_printf("ERR invalid y mm: %.2f expected range (%.2f mm to %.2f mm)\n", goal_mm,min_ymm,max_ymm);
     return false;
   }
 
@@ -198,8 +202,8 @@ bool cmd_move_y(int argc, double *argv) {
 
 bool cmd_move_x(int argc, double *argv) {
   double goal_mm = argv[0];
-  if (goal_mm < -30.0 || goal_mm > 30.0) {
-    serial_printf("ERR invalid x mm: %.2f expected range (-30 mm to 30 mm)\n", goal_mm);
+  if (goal_mm < -max_xmm || goal_mm > max_xmm) {
+    serial_printf("ERR invalid x mm: %.2f expected range (%.2f mm to %.2f)\n", goal_mm,-max_xmm,max_xmm);
     return false;
   }
 
@@ -213,7 +217,7 @@ bool cmd_move_gripper(int argc, double *argv) {
 
   double goal_deg = argv[0];
 
-  if (goal_deg < -5.0 || goal_deg > 105.0) {
+  if (goal_deg < -5.0 || goal_deg > 115.0) {
     serial_printf("ERR invalid gripper percentage: %.2f expected range (-5.0 per to 105 per)\n", goal_deg);
     return false;
   }
@@ -230,8 +234,8 @@ bool cmd_move_wrist_vert(int argc, double *argv) {
 
   double goal_deg = argv[0];
 
-  if (goal_deg < -5 || goal_deg > 185) {
-    serial_printf("ERR invalid wrist percentage: %.2f expected range (-5% to 185%)\n", goal_deg);
+  if (goal_deg < -95 || goal_deg > 95) {
+    serial_printf("ERR invalid wrist percentage: %.2f expected range (-95% to 95%)\n", goal_deg);
     return false;
   }
 

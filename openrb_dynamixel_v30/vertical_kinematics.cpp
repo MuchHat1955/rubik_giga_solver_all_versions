@@ -4,7 +4,11 @@
 //               KINEMATICS SOLVERS (Final Hybrid Version)
 // ============================================================
 
-double l_mm = 53.0;
+double l_mm = 60.0;
+double min_ymm = 33.5;
+double max_ymm = l_mm * 1.95;
+double max_xmm = 30;
+
 double _90_rad = M_PI / 2.0;
 double _45_rad = M_PI / 4.0;
 double _135_rad = M_PI / 2.0 + M_PI / 4.0;
@@ -51,27 +55,27 @@ static inline double clampd(double v, double lo, double hi) {
 // Bounds helpers
 // ============================================================
 bool x_in_bounds(double _x) {
-  bool _b = (_x >= -0.95 * l_mm - EPS) && (_x <= 0.95 * l_mm + EPS);
+  bool _b = (_x >= -max_xmm - EPS) && (_x <= max_xmm + EPS);
   if (_b) return true;
-  serial_printf_verbose("ERR x_in_bounds x=%.2f\n", _x);
+  serial_printf_verbose("ERR x_in_bounds x=%.2f expected +/-%.2f\n", _x, max_xmm);
   return false;
 }
 bool y_in_bounds(double _y) {
-  bool _b = (_y > 0.05 * l_mm + EPS) && (_y < 1.95 * l_mm - EPS);
+  bool _b = (_y >= min_ymm + EPS) && (_y <= max_ymm - EPS);
   if (_b) return true;
-  serial_printf_verbose("ERR y_in_bounds y=%.2f\n", _y);
+  serial_printf_verbose("ERR y_in_bounds y=%.2f expected between %.2f to %.2f\n", _y, min_ymm, max_ymm);
   return false;
 }
 bool a1_servo_deg_in_bounds(double _a) {
-  bool _b = (_a > -45.0 + EPS) && (_a < 90.0 - EPS);
+  bool _b = (_a > -50.0 + EPS) && (_a < 95.0 - EPS);
   if (_b) return true;
   serial_printf_verbose("ERR a1_servo_deg_in_bounds a=%.2f\n", _a);
   return false;
 }
 bool a2_servo_deg_in_bounds(double _a) {
-  bool _b = (_a > -90.0 + EPS) && (_a < 90.0 - EPS);
+  bool _b = (_a > -90.0 + EPS) && (_a < 95.0 - EPS);
   if (_b) return true;
-  serial_printf_verbose("ERR a2_servo_deg_in_bounds a=%.2f\n", _a);
+  serial_printf_verbose("5 a2_servo_deg_in_bounds a=%.2f\n", _a);
   return false;
 }
 
@@ -81,7 +85,7 @@ bool a2_servo_deg_in_bounds(double _a) {
 bool VerticalKinematics::solve_a2_y_from_a1_x(double _a1_servo_deg, double _x, double _g_servo_deg) {
   // serial_printf_verbose("            x=%.2f\n", _x);
   if (!x_in_bounds(_x))
-    return_false("x=%.2f out of range | expected ±%.1f", _x, 0.5 * l_mm);
+    return_false("x=%.2f out of range | expected ±%.2f", _x, max_xmm);
   if (!a1_servo_deg_in_bounds(_a1_servo_deg))
     return_false("a1_servo_deg=%.2f° out of range", _a1_servo_deg);
 
@@ -102,7 +106,7 @@ bool VerticalKinematics::solve_a2_y_from_a1_x(double _a1_servo_deg, double _x, d
   double _a2_servo_deg = rad2deg(_a2_servo_rad);
 
   if (!y_in_bounds(_y))
-    return_false("y=%.2f out of range [%.1f, %.1f]", _y, 0.5 * l_mm, 1.8 * l_mm);
+    return_false("y=%.2f out of range [%.1f, %.1f]", _y, 0.01 * l_mm, 1.99 * l_mm);
   if (!a2_servo_deg_in_bounds(_a2_servo_deg))
     return_false("a2_servo_deg=%.2f° out of range", _a2_servo_deg);
 
@@ -123,7 +127,7 @@ bool VerticalKinematics::solve_a2_y_from_a1_x(double _a1_servo_deg, double _x, d
 // ============================================================
 bool VerticalKinematics::solve_a2_x_from_a1_y(double _a1_servo_deg, double _y, double _g_servo_deg) {
   if (!y_in_bounds(_y))
-    return_false("y=%.2f out of range [%.1f, %.1f]", _y, 0.5 * l_mm, 1.8 * l_mm);
+    return_false("y=%.2f out of range [%.1f, %.1f]", _y, 0.01 * l_mm, 1.99 * l_mm);
   if (!a1_servo_deg_in_bounds(_a1_servo_deg))
     return_false("a1_servo_deg=%.2f° out of range", _a1_servo_deg);
 
@@ -217,9 +221,9 @@ bool VerticalKinematics::solve_x_y_from_a1_a2(double _a1_servo_deg, double _a2_s
 // ============================================================
 bool VerticalKinematics::solve_a1_a2_from_x_y(double _x, double _y, double _g_servo_deg) {
   if (!x_in_bounds(_x))
-    return_false("x=%.2f out of range [%.1f, %.1f]", _x, -0.5 * l_mm, 0.5 * l_mm);
+    return_false("x=%.2f out of range [%.1f, %.1f]", _x, -0.01 * l_mm, 0.99 * l_mm);
   if (!y_in_bounds(_y))
-    return_false("y=%.2f out of range [%.1f, %.1f]", _y, 0.5 * l_mm, 1.8 * l_mm);
+    return_false("y=%.2f out of range [%.1f, %.1f]", _y, 0.05 * l_mm, 1.99 * l_mm);
 
   double _ax = _x / l_mm;
   double _by = _y / l_mm;
@@ -294,12 +298,12 @@ double VerticalKinematics::getGdeg() const {
 
 double VerticalKinematics::getGdeg_for_vertical() const {  //TODO check
   // 0° = gripper vertical; positive tilts along Arm2
-  return -a2_servo_deg - a1_servo_deg;
+  return -a2_servo_deg - a1_servo_deg + 180; //TODO changed per latest installation of hw
 }
 
 double VerticalKinematics::getGdeg_for_horizontal() const {  //TODO check // mount gripper 90 towards right vs others
   // 0° = gripper vertical; positive tilts along Arm2
-  return getGdeg_for_vertical() + 90.0;
+  return getGdeg_for_vertical() - 90.0;
 }
 
 double VerticalKinematics::getGdeg_closest_aligned() {

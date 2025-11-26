@@ -25,7 +25,7 @@ void setup() {
   dxl.begin(57600);
   dxl.setPortProtocolVersion(PROTOCOL);
 
-  Serial.println("---- Dynamixel xl430 Controller v28 -------------------------------------");
+  Serial.println("---- Dynamixel xl430 Controller v30 -------------------------------------");
   Serial.println();
 
   // quick test for all servos

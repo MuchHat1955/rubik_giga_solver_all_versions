@@ -12,6 +12,8 @@ extern bool verboseOn;
 extern Dynamixel2Arduino dxl;
 extern VerticalKinematics kin;
 
+extern double min_ymm;
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~START AXIS CONTROLLER~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 // ====================================================================================
@@ -749,9 +751,9 @@ void print_all_status() {
   double _g2_servo_per = ticks2per(ID_GRIP2, dxl.getPresentPosition(ID_ARM2));
   double _base_servo_deg = ticks2deg(ID_BASE, dxl.getPresentPosition(ID_ARM2));
   kin.solve_x_y_from_a1_a2(_a1_servo_deg, _a2_servo_deg);
-  serial_printf("x_mm=%.2f y_mm=%.2f a1_deg=%.2f a2_deg=%.2f g_vert_deg=%.2f g1_per=%.2f g2_per=%.2f base_deg=%.2f\n",
+  serial_printf("x_mm=%.2f y_mm=%.2f a1_deg=%.2f a2_deg=%.2f g_vert_deg=%.2f g_deg=%.2f g1_per=%.2f g2_per=%.2f base_deg=%.2f\n",
                 kin.getXmm(), kin.getYmm(), kin.getA1deg(), kin.getA2deg(),
-                kin.getGdeg_for_vertical() - kin.getGdeg(),  //
+                kin.getGdeg_for_vertical(), kin.getGdeg(),  //
                 _g1_servo_per, _g2_servo_per, _base_servo_deg);
 }
 
@@ -769,14 +771,12 @@ bool cmdMoveGripperPer(double goal_per) {
   return ret;
 }
 
-#define MIN_Y_FOR_W_VERTICAL 60.0
-
 bool cmdMoveWristDegVertical(double goal_deg) {
   if (!dxl.ping(ID_ARM1) || !dxl.ping(ID_ARM2) || !dxl.ping(ID_WRIST)) return false;
 
   if (goal_deg > 135 || goal_deg < 45) {
-    if (kin.getYmm() < MIN_Y_FOR_W_VERTICAL) {
-      serial_printf_verbose("ERR y too low to rotate gripper < 60mm\n");
+    if (kin.getYmm() < min_ymm) {
+      serial_printf_verbose("ERR y=%.2f too low to rotate gripper <%.2f\n", kin.getYmm(), min_ymm);
       return false;
     }
   }
@@ -804,9 +804,9 @@ bool cmdMoveYmm(double goal_ymm) {
   double g_at_vert = kin.getGdeg_for_vertical();
   double g_relative_to_vert = kin.getGdeg() - g_at_vert;
   if (g_relative_to_vert > 135 || g_relative_to_vert < 45) {
-    if (goal_ymm < MIN_Y_FOR_W_VERTICAL) {
-      serial_printf_verbose("ERR y too low (<60mm) because of verical gripper g_at_vert=%.2f g_deg=%.2f g_rel_vert=%.2f deg\n",  //
-                            kin.getGdeg_for_vertical(), kin.getGdeg(), g_relative_to_vert);
+    if (goal_ymm < min_ymm) {
+      serial_printf_verbose("ERR y too low (<%.2f) because of verical gripper g_at_vert=%.2f g_deg=%.2f g_rel_vert=%.2f deg\n",  //
+                            min_ymm, kin.getGdeg_for_vertical(), kin.getGdeg(), g_relative_to_vert);
       return false;
     }
   }

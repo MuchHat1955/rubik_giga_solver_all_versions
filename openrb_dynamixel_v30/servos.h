@@ -72,8 +72,7 @@ extern ServoConfig *all_servos[];
 #define ID_WRIST 13
 #define ID_GRIP1 14
 #define ID_GRIP2 15
-#define ID_BASE 16
-#define ID_XM 17
+#define ID_BASE 17
 
 // -------------------------------------------------------------------
 //                     Servo helper functions
