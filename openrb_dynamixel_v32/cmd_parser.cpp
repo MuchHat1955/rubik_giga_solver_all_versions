@@ -251,17 +251,28 @@ bool cmd_help(int argc, double *argv) {
 #define Y_ALIGN 80
 #define Y_MID 97
 #define Y_UP 117
+#define Y_DOWN 40
+
+// ---- y read color poses
+#define Y_C_TOP 73
+#define Y_C_MID 52
 
 // ---- x poses
 #define X_CENTER -2.0
+
+// ---- x read color poses
+#define X_C_LEFT -18.0
+#define X_C_RIGHT 18.0
 
 // ---- w poses
 #define W_HORIZ -90
 #define W_RIGHT 0
 
 // ---- g poses
-#define G_OPEN 40
+#define G_OPEN 35
+#define G_WIDE_OPEN 2
 #define G_CLOSE 95
+#define G_SOFT_CLOSE 65
 
 // ---- b poses
 #define B_CENTER 0
@@ -296,11 +307,14 @@ bool cmd_test(int argc, double *argv) {
   int test_no = (int)argv[0];
 
   if (test_no == 0) {
-    if (!cmdMoveGripperPer(G_OPEN)) return false;
+    if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveYmm(Y_CENTER)) return false;
     if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
     if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+    if (!cmdMoveGripperPer(G_OPEN)) return false;
+    if (!cmdMoveYmm(Y_DOWN)) return false;
+    if (!cmdMoveGripperPer(G_SOFT_CLOSE)) return false;
     return true;
   }
   // bring faces to base
@@ -373,6 +387,29 @@ bool cmd_test(int argc, double *argv) {
   // fix base
   if (test_no == 6) {
     if (!fixBase()) return false;
+  }
+  // read colors front
+  if (test_no == 7) {
+    if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
+    if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+    if (!cmdMoveXmm(X_CENTER)) return false;
+
+    // top row
+    if (!cmdMoveYmm(Y_C_TOP)) return false;
+    if (!cmdMoveXmm(X_C_RIGHT)) return false;
+    if (!cmdMoveXmm(X_CENTER)) return false;
+    if (!cmdMoveXmm(X_C_LEFT)) return false;
+
+    // mid row
+    if (!cmdMoveYmm(Y_C_MID)) return false;
+    if (!cmdMoveXmm(X_C_LEFT)) return false;
+    if (!cmdMoveXmm(X_CENTER)) return false;
+    if (!cmdMoveXmm(X_C_RIGHT)) return false;
+
+    // back to main pos
+    if (!cmdMoveXmm(X_CENTER)) return false;
+    if (!cmdMoveXmm(Y_CENTER)) return false;
+    if (!cmdMoveGripperPer(G_OPEN)) return false;
   }
   return false;
 }
@@ -463,7 +500,7 @@ static CommandEntry command_table[] = {
   { "MOVEGRIPPER", "%f", cmd_move_gripper, "MOVEGRIPPER <percentage> - move both grips to percentage (0 to 100)" },
   { "MOVEWRISTVERTDEG", "%f", cmd_move_wrist_vert, "MOVEWRISTVERTDEG <deg> - move wrist relative to vertical (-5 to 185)" },
 
-  { "TEST", "%d", cmd_test, "TEST <no> - 0 center | 1 left down  | 2 right down\n                       | 3 base right | 4 base left | 5 base back\n                       | 6 fix base" },
+  { "TEST", "%d", cmd_test, "TEST <no> - 0 center | 1 left down  | 2 right down\n                       | 3 base right | 4 base left | 5 base back\n                       | 7 read colors\n                       | " },
 
   { "READ", "%d", cmd_read, "READ <id> - show servo summary status" },
   { "INFO", "%d", cmd_info, "INFO <id> - show servo full status" },
