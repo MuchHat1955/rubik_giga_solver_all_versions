@@ -102,6 +102,7 @@ bool move_smooth_ticks(
 
 // convenience motion commands in mm
 bool cmdMoveServoDeg(uint8_t id, double goal_deg);
+bool cmdMoveServoPer(int id, double goal_per);
 bool cmdMoveYmm(double y_mm);
 bool cmdMoveXmm(double x_mm);
 bool cmdMoveGripperPer(double goal_per);

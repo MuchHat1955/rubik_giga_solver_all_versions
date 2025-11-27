@@ -248,7 +248,7 @@ bool cmd_help(int argc, double *argv) {
 
 // ---- y poses
 #define Y_CENTER 73.0
-#define Y_ALIGN 80
+#define Y_ALIGN 68
 #define Y_MID 97
 #define Y_UP 117
 #define Y_DOWN 40
@@ -273,14 +273,19 @@ bool cmd_help(int argc, double *argv) {
 #define G_WIDE_OPEN 2
 #define G_CLOSE 95
 #define G_SOFT_CLOSE 65
+#define G_ALIGN_LEFT 100
+#define G_ALIGN_RIGHT 100
 
 // ---- b poses
 #define B_CENTER 0
 #define B_RIGHT 90
 #define B_LEFT -90
 #define B_BACK -180
+#define B_ERR 8
 
-bool fixBase() {
+//TODO adjust grip left and right to be simetric
+
+bool resetBase() {
   double b_pos = getPos_deg(ID_BASE);
   if (b_pos > B_CENTER - 3 && b_pos < B_CENTER + 3) return true;
 
@@ -298,15 +303,36 @@ bool fixBase() {
   return true;
 }
 
-bool cmd_test(int argc, double *argv) {
+bool alignCube() {
+  if (!cmdMoveGripperPer(G_OPEN)) return false;
+  if (!cmdMoveXmm(X_CENTER)) return false;
+  if (!cmdMoveYmm(Y_CENTER)) return false;
+  if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+
+  if (!cmdMoveServoPer(ID_GRIP2, G_ALIGN_LEFT)) return false;
+  if (!cmdMoveServoDeg(ID_GRIP2, G_OPEN)) return false;
+  if (!cmdMoveServoDeg(ID_GRIP1, G_ALIGN_RIGHT)) return false;  //TODOTODO this is not working
+  if (!cmdMoveServoDeg(ID_GRIP1, G_OPEN)) return false;
+  if (!cmdMoveGripperPer(G_OPEN)) return false;
+
+  if (!cmdMoveYmm(Y_ALIGN)) return false;
+  if (!cmdMoveGripperPer(G_CLOSE)) return false;
+  if (!cmdMoveGripperPer(G_OPEN)) return false;
+  if (!cmdMoveYmm(Y_CENTER)) return false;
+  if (!cmdMoveXmm(X_CENTER)) return false;
+
+  return true;
+}
+
+bool cmd_run(int argc, double *argv) {
   if (argc < 1) {
     serial_printf("ERR: TESTNO Missing argument\n");
     return false;
   }
 
-  int test_no = (int)argv[0];
+  int run_no = (int)argv[0];
 
-  if (test_no == 0) {
+  if (run_no == 0) {
     if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveYmm(Y_CENTER)) return false;
@@ -318,7 +344,7 @@ bool cmd_test(int argc, double *argv) {
     return true;
   }
   // bring faces to base
-  if (test_no == 1) {
+  if (run_no == 1) {
     if (!cmdMoveGripperPer(G_OPEN)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveYmm(Y_CENTER)) return false;
@@ -340,7 +366,7 @@ bool cmd_test(int argc, double *argv) {
     return true;
   }
   // bring faces to base
-  if (test_no == 2) {
+  if (run_no == 2) {
     if (!cmdMoveGripperPer(G_OPEN)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveYmm(Y_CENTER)) return false;
@@ -362,34 +388,44 @@ bool cmd_test(int argc, double *argv) {
     return true;
   }
   // rotate base
-  if (test_no == 3 || test_no == 4 || test_no == 5) {
+  if (run_no == 3 || run_no == 4 || run_no == 5) {
     if (!cmdMoveGripperPer(G_OPEN)) return false;
-    if (!fixBase()) return false;
+    if (!resetBase()) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveYmm(Y_MID)) return false;
     if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
     if (!cmdMoveGripperPer(G_CLOSE)) return false;
 
-    if (test_no == 3)
+    if (run_no == 3) {
+      if (!cmdMoveServoDeg(ID_BASE, B_RIGHT + B_ERR)) return false;
+      if (!cmdMoveGripperPer(G_OPEN)) return false;
       if (!cmdMoveServoDeg(ID_BASE, B_RIGHT)) return false;
-    if (test_no == 4)
+    }
+    if (run_no == 4) {
+      if (!cmdMoveServoDeg(ID_BASE, B_LEFT - B_ERR)) return false;
+      if (!cmdMoveGripperPer(G_OPEN)) return false;
       if (!cmdMoveServoDeg(ID_BASE, B_LEFT)) return false;
-    if (test_no == 5)
+    }
+    if (run_no == 5) {
+      if (!cmdMoveServoDeg(ID_BASE, B_BACK - B_ERR)) return false;
+      if (!cmdMoveGripperPer(G_OPEN)) return false;
       if (!cmdMoveServoDeg(ID_BASE, B_BACK)) return false;
-    if (!cmdMoveGripperPer(G_OPEN)) return false;
-    if (!cmdMoveYmm(Y_MID)) return false;
-    if (!cmdMoveGripperPer(G_CLOSE)) return false;
-    if (!cmdMoveGripperPer(G_OPEN)) return false;
-    if (!cmdMoveYmm(Y_CENTER)) return false;
-    if (!cmdMoveXmm(X_CENTER)) return false;
+    }
+
+    // align
+    if (!alignCube()) return false;
     return true;
   }
-  // fix base
-  if (test_no == 6) {
-    if (!fixBase()) return false;
+  // reset base
+  if (run_no == 6) {
+    if (!resetBase()) return false;
+  }
+  // align cube
+  if (run_no == 7) {
+    if (!alignCube()) return false;
   }
   // read colors front
-  if (test_no == 7) {
+  if (run_no == 8) {
     if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
     if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
@@ -410,6 +446,10 @@ bool cmd_test(int argc, double *argv) {
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveXmm(Y_CENTER)) return false;
     if (!cmdMoveGripperPer(G_OPEN)) return false;
+  }
+  // fix base
+  if (run_no == 8) {
+    if (!alignCube()) return false;
   }
   return false;
 }
@@ -500,7 +540,7 @@ static CommandEntry command_table[] = {
   { "MOVEGRIPPER", "%f", cmd_move_gripper, "MOVEGRIPPER <percentage> - move both grips to percentage (0 to 100)" },
   { "MOVEWRISTVERTDEG", "%f", cmd_move_wrist_vert, "MOVEWRISTVERTDEG <deg> - move wrist relative to vertical (-5 to 185)" },
 
-  { "TEST", "%d", cmd_test, "TEST <no> - 0 center | 1 left down  | 2 right down\n                       | 3 base right | 4 base left | 5 base back\n                       | 7 read colors\n                       | " },
+  { "RUN", "%d", cmd_run, "RUN <no> - 0 center | 1 left down  | 2 right down\n                      | 3 base right | 4 base left | 5 base back\n                      | 6 reset base | 7 align cube | 8 read colors\n" },
 
   { "READ", "%d", cmd_read, "READ <id> - show servo summary status" },
   { "INFO", "%d", cmd_info, "INFO <id> - show servo full status" },

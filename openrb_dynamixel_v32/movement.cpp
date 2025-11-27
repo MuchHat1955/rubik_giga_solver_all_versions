@@ -748,6 +748,22 @@ bool cmdMoveServoDeg(uint8_t id, double goal_deg) {
   return move_smooth();
 }
 
+bool cmdMoveServoPer(int id, double goal_per) {
+  if (!dxl.ping(id)) return false;
+
+  if (goal_per < -15.0 || goal_per > 115.0) {
+    serial_printf("ERR invalid servo percentage: %.2f expected range (-15.0 per to 115.0 per)\n", goal_per);
+    return false;
+  }
+
+  double goal_deg = per2deg(id, goal_per);
+  serial_printf_verbose("cmd_move_per: id=%d per=%d deg=%d\n", id, goal_per, goal_deg);
+
+  if (!cmdMoveServoDeg((uint8_t)id, goal_deg)) return false;
+  print_servo_status(id);
+  return true;
+}
+
 void read_print_xy_status() {
   double _a1_servo_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
   double _a2_servo_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
