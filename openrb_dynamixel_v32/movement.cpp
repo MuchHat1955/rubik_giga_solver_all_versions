@@ -1,408 +1,27 @@
-#include <vector>
-#include <map>
-#include <Arduino.h>
-#include <algorithm>
 #include "movement.h"
+
+#include <map>
+#include <algorithm>
+#include <cmath>
+
 #include "Dynamixel2Arduino.h"
 #include "vertical_kinematics.h"
 
-// Forward decls & globals from main
-class AxisGroupController;  // forward
-extern bool verboseOn;
+// ----------------------------------------------------------------------
+// Externals from elsewhere in the project
+// (These must be defined in other translation units.)
+// ----------------------------------------------------------------------
 extern Dynamixel2Arduino dxl;
 extern VerticalKinematics kin;
-
+extern bool verboseOn;
 extern double min_ymm;
 
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~START AXIS CONTROLLER~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ----------------------------------------------------------------------
+// NudgeController implementation
+// ----------------------------------------------------------------------
 
-// ====================================================================================
-// AxisGroupController
-// ------------------------------------------------------------------------------------
-//  Hardware / kinematics abstraction for the motion kernel.
-//  Supports four logical modes:
-//    1. Single servo (degree goal)
-//    2. XY vertical   (keep X fixed)
-//    3. XY horizontal (keep Y fixed)
-//    4. Gripper open/close (percent goal, smart master/slave catch-up)
-// ====================================================================================
-
-enum AxisRunMode : uint8_t {
-  MODE_UNDEFINED = 0,
-  MODE_SINGLE_SERVO = 1,
-  MODE_XY_VERTICAL = 2,
-  MODE_XY_HORIZONTAL = 3,
-  MODE_GRIPPER = 4
-};
-
-class AxisGroupController {
-public:
-  AxisGroupController(Dynamixel2Arduino* dxl_ptr,
-                      VerticalKinematics* kin_ptr)
-    : dxl(dxl_ptr), kin(kin_ptr) {}
-
-  // ------------------------------------------------------------
-  //               Mode & configuration setup
-  // ------------------------------------------------------------
-  void setMode(AxisRunMode m) {
-    mode = m;
-    // Reset IDs/goals
-    goal_deg = goal_mm_x = goal_mm_y = goal_percent = 0.0;
-
-    start_ticks.resize(3);
-    goal_ticks.resize(3);
-    curr_ticks.resize(3);
-    nudge_list.resize(3);
-    nudge_flags.resize(3);
-    id_list.resize(3);
-    dir_list.resize(3);
-
-    start_ticks.clear();
-    goal_ticks.clear();
-    curr_ticks.clear();
-    nudge_list.clear();
-    nudge_flags.clear();
-    id_list.clear();
-    dir_list.clear();
-    configured = false;
-    grip_lastProgress = 0.0;
-  }
-
-  // For MODE_SINGLE_SERVO
-  void setServoId(uint8_t id) {
-    id_servo = id;
-  }
-  void setGoalDeg(double deg) {
-    goal_deg = deg;
-  }
-  void setXGoalMm(double x_mm) {
-    goal_mm_x = x_mm;
-  }
-  void setYGoalMm(double y_mm) {
-    goal_mm_y = y_mm;
-  }
-  void setGoalPercent(double per) {
-    goal_percent = per;
-  }
-
-  // ------------------------------------------------------------
-  //                      Initialization
-  // ------------------------------------------------------------
-  bool init() {
-    switch (mode) {
-      case MODE_SINGLE_SERVO: return initSingle();
-      case MODE_XY_VERTICAL: return initXY(true);     // keep X
-      case MODE_XY_HORIZONTAL: return initXY(false);  // keep Y
-      case MODE_GRIPPER: return initGripper();
-      default: return false;
-    }
-  }
-
-  // ------------------------------------------------------------
-  //                  Access for motion kernel
-  // ------------------------------------------------------------
-  int axesCount() const {
-    switch (mode) {
-      case MODE_SINGLE_SERVO: return 1;
-      case MODE_GRIPPER: return 2;
-      case MODE_XY_VERTICAL:
-      case MODE_XY_HORIZONTAL: return 3;
-      default: return 0;
-    }
-  }
-
-  int getId(uint8_t index) const {
-    if (index > 2) return 0;
-    return id_list[index];
-  }
-  int getGoalTicks(uint8_t index) const {
-    if (index > 2) return 0;
-    return goal_ticks[index];
-  }
-  const char* getMoveName() {
-    switch (mode) {
-      case MODE_SINGLE_SERVO: return id2name(getId(0));
-      case MODE_GRIPPER: return "gripper";
-      case MODE_XY_VERTICAL: return "xy vert";
-      case MODE_XY_HORIZONTAL: return "xy horiz";
-      default: return "na";
-    }
-  }
-
-  bool getNudgeFlag(uint8_t index) const {
-    if (index > 2) return false;
-    return nudge_flags[index];
-  }
-
-  NudgeController* getNudgeController(uint8_t index) {
-    if (index > 2) return nullptr;
-    return &nudge_list[index];
-  }
-
-  void start() {
-    // optional LED on or torque relax
-    for (uint8_t i = 0; i < axesCount(); i++) {
-      uint8_t id = getId(i);
-      if (dxl->ping(id)) dxl->ledOn(id);
-    }
-    serial_printf_verbose("axes start | leds on\n");
-  }
-
-  void end() {
-    // optional LED off or torque relax
-    for (uint8_t i = 0; i < axesCount(); i++) {
-      uint8_t id = getId(i);
-      if (dxl->ping(id)) dxl->ledOff(id);
-    }
-    serial_printf_verbose("axes end | leds off\n");
-  }
-
-  void readPresentTicks(int* posList) {
-    for (uint8_t i = 0; i < axesCount(); i++) {
-      uint8_t id = getId(i);
-      if (id > 0) {
-        posList[i] = dxl->getPresentPosition(id);
-        curr_ticks[i] = posList[i];
-      }
-    }
-  }
-  void writeTicks(int* posList) {
-    for (uint8_t i = 0; i < axesCount(); i++) {
-      uint8_t id = getId(i);
-      if (id > 0 && posList[i] >= 0) safeSetGoalPosition(id, posList[i]);
-    }
-  }
-  // Compute synchronized tick for slave axis using kinematics (XY) or % catch-up (gripper)
-  int getSyncGoal(uint8_t slaveIndex, int masterTicks) const {
-    if (slaveIndex == 0) return masterTicks;  // master
-
-    // serial_printf_verbose("        get sync goal goal_mm_x=%.2f\n", goal_mm_x);
-
-    switch (mode) {
-      case MODE_XY_VERTICAL:
-      case MODE_XY_HORIZONTAL:
-        {
-          // master is arm1 (index 0)
-          VerticalKinematics* k = kin;
-
-          if (mode == MODE_XY_VERTICAL) {
-            double _a1_center_deg = ticks2deg(ID_ARM1, masterTicks);
-            if (!const_cast<VerticalKinematics*>(k)->solve_a2_y_from_a1_x(_a1_center_deg, goal_mm_x)) return 0;
-          }
-          if (mode == MODE_XY_HORIZONTAL) {
-            double _a1_center_deg = ticks2deg(ID_ARM1, masterTicks);
-            if (!const_cast<VerticalKinematics*>(k)->solve_a2_x_from_a1_y(_a1_center_deg, goal_mm_y)) return 0;
-          }
-          if (slaveIndex == 1) return const_cast<VerticalKinematics*>(k)->getA2ticks();
-          if (slaveIndex == 2) return const_cast<VerticalKinematics*>(k)->getGticks_closest_aligned();  // keep existing position
-          return 0;
-        }
-
-      case MODE_GRIPPER:
-        {
-          // Smart catch-up: slave waits until master's % travel >= slave's, then syncs
-          int masterTravelLeft = abs(goal_ticks[0] - curr_ticks[0]);
-          int slaveTravelTotal = abs(goal_ticks[1] - start_ticks[1]);
-          const int mBehind = slaveTravelTotal - masterTravelLeft;
-          if (mBehind < 0) return start_ticks[1];  // do not move the slave until master it caches up
-
-          // else progress such ticks left are the same
-          int mSlaveSyncGoal = goal_ticks[1] - masterTravelLeft * dir_list[1];
-          return mSlaveSyncGoal;
-        }
-
-      default:
-        return 0;
-    }
-  }
-
-private:
-  // ------------------------------------------------------------
-  //            Internal initialization helpers
-  // ------------------------------------------------------------
-  bool initSingle() {
-    if (!dxl->ping(id_servo)) {
-      serial_printf_verbose("[INIT SINGLE] ⚠ Servo %d not responding\n", id_servo);
-      return false;
-    }
-
-    id_list = { id_servo, 0, 0 };
-    int start_ticks_servo = dxl->getPresentPosition(id_list[0]);
-    int goal_ticks_servo = deg2ticks(id_list[0], goal_deg);
-    goal_ticks = { goal_ticks_servo, -1, -1 };
-    start_ticks = { start_ticks_servo, -1, -1 };
-    nudge_list.resize(1);
-    nudge_flags = { false, false, false };  // no mid-nudging for single
-    dir_list = { goal_ticks_servo - start_ticks_servo > 0 ? 1.0 : -1.0, 0, 0 };
-    configured = true;
-
-    serial_printf_verbose("[INIT SINGLE] id=%d start=%d goal_deg=%.2f goal_ticks=%d\n",
-                          id_list[0], start_ticks[0], goal_deg, goal_ticks[0]);
-    return true;
-  }
-
-  bool initXY(bool keepX) {
-    if (!dxl->ping(ID_ARM1) || !dxl->ping(ID_ARM2) || !dxl->ping(ID_WRIST)) {
-      serial_printf_verbose("[INIT XY] ⚠ Missing servo(s): ping arm1=%d ping arm2=%d ping grip=%d\n",
-                            dxl->ping(ID_ARM1), dxl->ping(ID_ARM2), dxl->ping(ID_WRIST));
-      return false;
-    }
-
-    // just in case
-    id_list[0] = ID_ARM1;
-    id_list[1] = ID_ARM2;
-    id_list[2] = ID_WRIST;
-
-    start_ticks[0] = dxl->getPresentPosition(ID_ARM1);
-    start_ticks[1] = dxl->getPresentPosition(ID_ARM2);
-    start_ticks[2] = dxl->getPresentPosition(ID_WRIST);
-
-    double _a1_center_deg = ticks2deg(ID_ARM1, dxl->getPresentPosition(ID_ARM1));
-    double _a2_center_deg = ticks2deg(ID_ARM2, dxl->getPresentPosition(ID_ARM2));
-    if (!kin->solve_x_y_from_a1_a2(_a1_center_deg, _a2_center_deg)) return false;
-
-    double x_now = kin->getXmm();
-    double y_now = kin->getYmm();
-
-    double g_vert = kin->getGdeg_for_vertical();
-    double g_horiz = kin->getGdeg_for_horizontal();
-    double g_present = kin->getGdeg();
-    bool is_vert = false;
-    if (g_vert < 0) g_vert += 360;
-    if (g_horiz < 0) g_horiz += 360;
-    if (g_present < 0) g_present += 360;
-    if (fabs(g_present - g_vert) < fabs(g_present - g_horiz)) is_vert = true;
-
-    if (keepX) goal_mm_x = x_now;
-    else goal_mm_y = y_now;
-
-    serial_printf_verbose("[INIT XY] current XY=(%.2f, %.2f)mm - > goal XY=(%.2f, %.2f)mm, keepX=%d, is_vert=%s\n",  //
-                          x_now, y_now, goal_mm_x, goal_mm_y, keepX, is_vert ? "vert" : "horiz");
-
-    kin->solve_a1_a2_from_x_y(goal_mm_x, goal_mm_y);
-
-    double a1 = kin->getA1deg();
-    double a2 = kin->getA2deg();
-    double g = 0;
-    if (is_vert) g = kin->getGdeg_for_vertical();
-    else g = kin->getGdeg_for_horizontal();
-
-    goal_ticks[0] = deg2ticks(ID_ARM1, a1);
-    goal_ticks[1] = deg2ticks(ID_ARM2, a2);
-    goal_ticks[2] = deg2ticks(ID_WRIST, g);
-
-    nudge_flags = { true, true, false };  // mid-nudge for arm1 and arm2, not gripper
-    nudge_list.resize(3);
-    dir_list = {
-      goal_ticks[0] - start_ticks[0] > 0 ? 1.0 : -1.0,  //
-      goal_ticks[1] - start_ticks[1] > 0 ? 1.0 : -1.0,  //
-      goal_ticks[2] - start_ticks[2] > 0 ? 1.0 : -1.0,
-    };
-
-    configured = true;
-
-    serial_printf_verbose("[INIT XY] keep%s | a1=%.2f° a2=%.2f° g=%.2f°\n",
-                          keepX ? "X" : "Y", a1, a2, g);
-    serial_printf_verbose("[INIT XY] arm1 start=%d goal=%d  Δ=%d\n",
-                          start_ticks[0], goal_ticks[0],
-                          goal_ticks[0] - start_ticks[0]);
-    serial_printf_verbose("[INIT XY] arm2 start=%d goal=%d  Δ=%d\n",
-                          start_ticks[1], goal_ticks[1],
-                          goal_ticks[1] - start_ticks[1]);
-    serial_printf_verbose("[INIT XY] grip start=%d goal=%d  Δ=%d\n",
-                          start_ticks[2], goal_ticks[2],
-                          goal_ticks[2] - start_ticks[2]);
-    return true;
-  }
-
-  bool initGripper() {
-    bool ok1 = dxl->ping(ID_GRIP1);
-    bool ok2 = dxl->ping(ID_GRIP2);
-    if (!ok1 || !ok2) {
-      serial_printf_verbose("[INIT GRIP] ⚠ Gripper ping failed ping g1=%d ping g2=%d\n", ok1, ok2);
-      return false;
-    }
-
-    // Read starts
-    int start1 = dxl->getPresentPosition(ID_GRIP1);
-    int start2 = dxl->getPresentPosition(ID_GRIP2);
-
-    // Compute tick goals from % for each jaw
-    int goal1 = per2ticks(ID_GRIP1, goal_percent);
-    int goal2 = per2ticks(ID_GRIP2, goal_percent);
-
-    int travel1 = abs(goal1 - start1);
-    int travel2 = abs(goal2 - start2);
-
-    // Pick master = larger travel; slave waits until % matches
-    // just in case ignore the setId
-    if (travel1 >= travel2) {
-      id_list = { ID_GRIP1, ID_GRIP2, 0 };
-      start_ticks = { start1, start2, -1 };
-      goal_ticks = { goal1, goal2, -1 };
-    } else {
-      id_list = { ID_GRIP2, ID_GRIP1, 0 };
-      start_ticks = { start2, start1, -1 };
-      goal_ticks = { goal2, goal1, -1 };
-    }
-
-    nudge_flags = { false, false };  // typically no mid-nudge for gripper
-    nudge_list.resize(2);
-
-    dir_list = {
-      goal_ticks[0] - start_ticks[0] > 0 ? 1.0 : -1.0,  //
-      goal_ticks[1] - start_ticks[1] > 0 ? 1.0 : -1.0,  //
-      0,
-    };
-
-    configured = true;
-    grip_lastProgress = 0.0;
-
-    serial_printf_verbose("[INIT GRIP] goal%%=%.1f start1=%d start2=%d goal1=%d goal2=%d\n",
-                          goal_percent, start1, start2, goal1, goal2);
-    serial_printf_verbose("[INIT GRIP] travel1=%d travel2=%d\n",
-                          travel1, travel2);
-    return true;
-  }
-
-private:
-  Dynamixel2Arduino* dxl;
-  VerticalKinematics* kin;
-  AxisRunMode mode = MODE_UNDEFINED;
-  bool configured = false;
-
-  // Servo IDs
-  uint8_t id_servo = 0;
-
-  // Goals (varies by mode)
-  double goal_deg = 0.0;
-  double goal_mm_x = 0.0;
-  double goal_mm_y = 0.0;
-  double goal_percent = 0.0;
-
-  // Cached ticks
-  std::vector<int> start_ticks;
-  std::vector<int> goal_ticks;
-  std::vector<int> curr_ticks;
-  std::vector<int> id_list;
-  std::vector<double> dir_list;
-
-  // Nudging
-  std::vector<NudgeController> nudge_list;
-  std::vector<bool> nudge_flags;
-
-  // Gripper progress memory (for monotonic sync)
-  double grip_lastProgress = 0.0;
-};
-
-// Instantiate the global controller AFTER class definition
-AxisGroupController axes(&dxl, &kin);
-
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~START NUDGE CONTROLLER~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-// ====================================================================================
-//          NudgeController Implementation
-// ------------------------------------------------------------------------------------
+NudgeController::NudgeController(uint8_t id_)
+  : id(id_) {}
 
 void NudgeController::recordData(int prevGoalTicks, int currPos, int nudge, MovePhase phase) {
   Record r;
@@ -415,67 +34,56 @@ void NudgeController::recordData(int prevGoalTicks, int currPos, int nudge, Move
 
   if (records.size() >= maxRecords)
     records.erase(records.begin());
+
   records.push_back(r);
 }
 
 int NudgeController::computeNudge(int currErr, int dir, MovePhase phase, int samePosCount) {
-
+  // Ignore tiny errors
   if (abs(currErr) <= 4) return 0;
-  // If no history, fall back to simple proportional estimate
 
-  // in the phases before final correct only if its behind, not ahead such it does not move back
+  // In early phases, don't pull back if ahead of target
   if (currErr * dir < 0 && phase != MovePhase::FINAL) return 0;
 
-  // if (records.empty()) // TODO for now use just the base
+  // Base estimate from simple proportional rule
   int nudge = baseEstimate(currErr, phase, samePosCount);
 
-  /*
-
-  double sumErr = 0, sumNudge = 0, weightSum = 0;
-  for (int i = records.size() - 1; i >= 0; i--) {
-    if (records[i].phase != phase) continue;
-    double w = 1.0 + 0.02 * (i + 1);  // more recent samples weighted higher
-    sumErr += w * records[i].errTicks;
-    sumNudge += w * records[i].nudgeApplied;
-    weightSum += w;
+  // In final phase, add reinforcement if stuck
+  if (phase == MovePhase::FINAL && samePosCount > 0) {
+    nudge += (int)(samePosCount * 0.5 * (currErr > 0 ? 1 : -1));
   }
 
-  double avgErr = (weightSum > 0) ? (sumErr / weightSum) : currErr;
-  double avgNudge = (weightSum > 0) ? (sumNudge / weightSum) : 0.0;
-
-  double kPhase = phaseGain(phase);
-  double pred = kPhase * avgErr + 0.3 * avgNudge;
-*/
-
-  // In final phase, add same-position reinforcement if stuck
-  if (phase == MovePhase::FINAL && samePosCount > 0)
-    nudge += (int)(samePosCount * 0.5 * (currErr > 0 ? 1 : -1));
-
-  nudge = (int)constrain(nudge, -10.0, 15.0);
+  nudge = (int)constrain(nudge, -20.0, 20.0);
+  if (nudge > 0 && nudge < 6) nudge = 6;
+  if (nudge < 0 && nudge > -6) nudge = -6;
   return nudge;
 }
 
 void NudgeController::printLog() {
   serial_printf_verbose("---- Nudge log for servo %d (count=%d) ----\n",
                         id, (int)records.size());
+
   for (auto& r : records) {
     const char* phaseStr =
       (r.phase == MovePhase::ACCEL) ? "ACC" : (r.phase == MovePhase::COAST) ? "COAST"
                                             : (r.phase == MovePhase::DECEL) ? "DEC"
                                                                             : "FINAL";
-    serial_printf_verbose("[%lu ms] %s goal=%d curr=%d errTicks=%d nudge=%d\n",
-                          r.t_ms, phaseStr, r.prevGoalTicks, r.currPosTicks, r.errTicks, r.nudgeApplied);
+
+    serial_printf_verbose("[%lu ms] %s goal=%d curr=%d err=%d nudge=%d\n",
+                          r.t_ms, phaseStr, r.prevGoalTicks,
+                          r.currPosTicks, r.errTicks, r.nudgeApplied);
   }
 }
 
 int NudgeController::baseEstimate(int errTicks, MovePhase phase, int samePosCount) {
-  // TODO if errTicks is negate -> pos nudge
   double k = phaseGain(phase);
   double nudge = k * -errTicks;
-  if (phase == MovePhase::FINAL && samePosCount > 0)
-    nudge += samePosCount * 2 * (errTicks > 0 ? -1 : 1);  //TODO adjust
+
+  if (phase == MovePhase::FINAL && samePosCount > 0) {
+    nudge += samePosCount * 2 * (errTicks > 0 ? -1 : 1);
+  }
+
   nudge = constrain(nudge, -35.0, 35.0);
-  // serial_printf_verbose("   --nudge for errTicks=%d is %d\n", errTicks, (int)nudge);
   return (int)nudge;
 }
 
@@ -489,77 +97,632 @@ double NudgeController::phaseGain(MovePhase p) {
   }
 }
 
-// static controller map per servo
-std::map<uint8_t, NudgeController> nudgeDB;
-inline NudgeController& getNudgeController(uint8_t id) {
-  if (nudgeDB.find(id) == nudgeDB.end())
-    nudgeDB[id] = NudgeController(id);
-  return nudgeDB[id];
+// ----------------------------------------------------------------------
+// Global NudgeController DB (per servo-id)
+// ----------------------------------------------------------------------
+
+static std::map<uint8_t, NudgeController> nudgeDB;
+
+static NudgeController& getNudgeControllerForId(uint8_t id) {
+  auto it = nudgeDB.find(id);
+  if (it == nudgeDB.end()) {
+    it = nudgeDB.emplace(id, NudgeController(id)).first;
+  }
+  return it->second;
 }
 
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~START SMOOTH MOVE USING THE AXIS CONTROLLER~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ----------------------------------------------------------------------
+// AxisGroupController implementation
+// ----------------------------------------------------------------------
 
-void logProgress(const char* moveName, int startTicks, int crrTicks, int endTicks) {
+AxisGroupController::AxisGroupController(Dynamixel2Arduino* dxl_ptr,
+                                         VerticalKinematics* kin_ptr)
+  : dxlPtr(dxl_ptr),
+    kinPtr(kin_ptr),
+    mode(AxisRunMode::UNDEFINED),
+    configured(false),
+    id_servo(0),
+    goal_deg(0.0),
+    goal_mm_x(0.0),
+    goal_mm_y(0.0),
+    goal_percent(0.0),
+    grip_lastProgress(0.0) {
+  start_ticks.assign(3, 0);
+  goal_ticks.assign(3, 0);
+  curr_ticks.assign(3, 0);
+  id_list.assign(3, 0);
+  dir_list.assign(3, 0.0);
+  nudge_flags.assign(3, false);
+}
+
+void AxisGroupController::setMode(AxisRunMode m) {
+  mode = m;
+
+  goal_deg = 0.0;
+  goal_mm_x = 0.0;
+  goal_mm_y = 0.0;
+  goal_percent = 0.0;
+  grip_lastProgress = 0.0;
+  configured = false;
+
+  // Reset caches
+  start_ticks.assign(3, 0);
+  goal_ticks.assign(3, 0);
+  curr_ticks.assign(3, 0);
+  id_list.assign(3, 0);
+  dir_list.assign(3, 0.0);
+  nudge_flags.assign(3, false);
+}
+
+void AxisGroupController::setServoId(uint8_t id) {
+  id_servo = id;
+}
+void AxisGroupController::setGoalDeg(double deg) {
+  goal_deg = deg;
+}
+void AxisGroupController::setXGoalMm(double x_mm) {
+  goal_mm_x = x_mm;
+}
+void AxisGroupController::setYGoalMm(double y_mm) {
+  goal_mm_y = y_mm;
+}
+void AxisGroupController::setGoalPercent(double per) {
+  goal_percent = per;
+}
+
+bool AxisGroupController::init() {
+  switch (mode) {
+    case AxisRunMode::SINGLE_SERVO: return initSingle();
+    case AxisRunMode::XY_VERTICAL: return initXY(true);
+    case AxisRunMode::XY_HORIZONTAL: return initXY(false);
+    case AxisRunMode::GRIPPER: return initGripper();
+    default: return false;
+  }
+}
+
+int AxisGroupController::axesCount() const {
+  switch (mode) {
+    case AxisRunMode::SINGLE_SERVO: return 1;
+    case AxisRunMode::GRIPPER: return 2;
+    case AxisRunMode::XY_VERTICAL:
+    case AxisRunMode::XY_HORIZONTAL: return 3;
+    default: return 0;
+  }
+}
+
+uint8_t AxisGroupController::getId(uint8_t index) const {
+  if (index >= id_list.size()) return 0;
+  return id_list[index];
+}
+
+int AxisGroupController::getGoalTicks(uint8_t index) const {
+  if (index >= goal_ticks.size()) return 0;
+  return goal_ticks[index];
+}
+
+const char* AxisGroupController::getMoveName() const {
+  switch (mode) {
+    case AxisRunMode::SINGLE_SERVO: return id2name(getId(0));
+    case AxisRunMode::GRIPPER: return "gripper";
+    case AxisRunMode::XY_VERTICAL: return "xy vert";
+    case AxisRunMode::XY_HORIZONTAL: return "xy horiz";
+    default: return "na";
+  }
+}
+
+bool AxisGroupController::getNudgeFlag(uint8_t index) const {
+  if (index >= nudge_flags.size()) return false;
+  return nudge_flags[index];
+}
+
+NudgeController* AxisGroupController::getNudgeController(uint8_t index) {
+  if (index >= id_list.size()) return nullptr;
+  uint8_t id = id_list[index];
+  if (id == 0) return nullptr;
+  return &getNudgeControllerForId(id);
+}
+
+void AxisGroupController::start() {
+  int n = axesCount();
+  for (int i = 0; i < n; i++) {
+    uint8_t id = getId(i);
+    if (id > 0 && dxlPtr->ping(id)) {
+      dxlPtr->ledOn(id);
+    }
+  }
+  serial_printf_verbose("axes start | leds on\n");
+}
+
+void AxisGroupController::end() {
+  int n = axesCount();
+  for (int i = 0; i < n; i++) {
+    uint8_t id = getId(i);
+    if (id > 0 && dxlPtr->ping(id)) {
+      dxlPtr->ledOff(id);
+    }
+  }
+  serial_printf_verbose("axes end | leds off\n");
+}
+
+void AxisGroupController::readPresentTicks(int* posList) {
+  int n = axesCount();
+  for (int i = 0; i < n; i++) {
+    uint8_t id = getId(i);
+    if (id > 0) {
+      int pos = dxlPtr->getPresentPosition(id);
+      posList[i] = pos;
+      curr_ticks[i] = pos;
+    } else {
+      posList[i] = 0;
+      curr_ticks[i] = 0;
+    }
+  }
+}
+
+void AxisGroupController::writeTicks(const int* posList) {
+  int n = axesCount();
+  for (int i = 0; i < n; i++) {
+    uint8_t id = getId(i);
+    if (id > 0 && posList[i] >= 0) {
+      safeSetGoalPosition(id, posList[i]);
+    }
+  }
+}
+
+// Compute synchronized tick for slave axis using kinematics (XY) or
+// percentage catch-up (gripper).
+int AxisGroupController::getSyncGoal(uint8_t slaveIndex, int masterTicks) {
+  if (slaveIndex == 0) return masterTicks;  // master itself
+
+  switch (mode) {
+    case AxisRunMode::XY_VERTICAL:
+    case AxisRunMode::XY_HORIZONTAL:
+      {
+        // master is arm1 (index 0)
+        double a1_deg = ticks2deg(getId(0), masterTicks);
+
+        if (mode == AxisRunMode::XY_VERTICAL) {
+          if (!kinPtr->solve_a2_y_from_a1_x(a1_deg, goal_mm_x))
+            return curr_ticks[slaveIndex];
+        } else {
+          if (!kinPtr->solve_a2_x_from_a1_y(a1_deg, goal_mm_y))
+            return curr_ticks[slaveIndex];
+        }
+
+        if (slaveIndex == 1) return kinPtr->getA2ticks();
+        if (slaveIndex == 2) return kinPtr->getGticks_closest_aligned();
+        return curr_ticks[slaveIndex];
+      }
+
+    case AxisRunMode::GRIPPER:
+      {
+        // master index 0, slave index 1
+        if (slaveIndex != 1) return curr_ticks[slaveIndex];
+        int masterTravelLeft = abs(goal_ticks[0] - curr_ticks[0]);
+        int slaveTravelTotal = abs(goal_ticks[1] - start_ticks[1]);
+        int mBehind = slaveTravelTotal - masterTravelLeft;
+
+        if (mBehind < 0) {
+          // slave waits
+          return start_ticks[1];
+        }
+
+        int slaveGoal = goal_ticks[1] - masterTravelLeft * (int)dir_list[1];
+        return slaveGoal;
+      }
+
+    default:
+      return masterTicks;
+  }
+}
+
+// -------------------------- init helpers --------------------------
+
+bool AxisGroupController::initSingle() {
+  if (!dxlPtr->ping(id_servo)) {
+    serial_printf_verbose("[INIT SINGLE] ⚠ Servo %d not responding\n", id_servo);
+    return false;
+  }
+
+  id_list[0] = id_servo;
+  id_list[1] = 0;
+  id_list[2] = 0;
+
+  int start_ticks_servo = dxlPtr->getPresentPosition(id_list[0]);
+  int goal_ticks_servo = deg2ticks(id_list[0], goal_deg);
+
+  start_ticks[0] = start_ticks_servo;
+  start_ticks[1] = -1;
+  start_ticks[2] = -1;
+
+  goal_ticks[0] = goal_ticks_servo;
+  goal_ticks[1] = -1;
+  goal_ticks[2] = -1;
+
+  nudge_flags[0] = false;
+  nudge_flags[1] = false;
+  nudge_flags[2] = false;
+
+  dir_list[0] = (goal_ticks_servo - start_ticks_servo >= 0) ? 1.0 : -1.0;
+  dir_list[1] = 0.0;
+  dir_list[2] = 0.0;
+
+  configured = true;
+
+  serial_printf_verbose("[INIT SINGLE] id=%d start=%d goal_deg=%.2f goal_ticks=%d\n",
+                        id_list[0], start_ticks[0], goal_deg, goal_ticks[0]);
+  return true;
+}
+
+bool AxisGroupController::initXY(bool keepX) {
+  // IDs like ID_ARM1, ID_ARM2, ID_WRIST must be defined elsewhere
+  if (!dxlPtr->ping(ID_ARM1) || !dxlPtr->ping(ID_ARM2) || !dxlPtr->ping(ID_WRIST)) {
+    serial_printf_verbose("[INIT XY] ⚠ Missing servo(s): ping arm1=%d ping arm2=%d ping wrist=%d\n",
+                          dxlPtr->ping(ID_ARM1),
+                          dxlPtr->ping(ID_ARM2),
+                          dxlPtr->ping(ID_WRIST));
+    return false;
+  }
+
+  id_list[0] = ID_ARM1;
+  id_list[1] = ID_ARM2;
+  id_list[2] = ID_WRIST;
+
+  start_ticks[0] = dxlPtr->getPresentPosition(ID_ARM1);
+  start_ticks[1] = dxlPtr->getPresentPosition(ID_ARM2);
+  start_ticks[2] = dxlPtr->getPresentPosition(ID_WRIST);
+
+  double a1_center_deg = ticks2deg(ID_ARM1, start_ticks[0]);
+  double a2_center_deg = ticks2deg(ID_ARM2, start_ticks[1]);
+  if (!kinPtr->solve_x_y_from_a1_a2(a1_center_deg, a2_center_deg))
+    return false;
+
+  double x_now = kinPtr->getXmm();
+  double y_now = kinPtr->getYmm();
+
+  double g_vert = kinPtr->getGdeg_for_vertical();
+  double g_horiz = kinPtr->getGdeg_for_horizontal();
+  double g_present = kinPtr->getGdeg();
+
+  auto norm360 = [](double d) {
+    while (d < 0) d += 360.0;
+    while (d >= 360) d -= 360.0;
+    return d;
+  };
+
+  g_vert = norm360(g_vert);
+  g_horiz = norm360(g_horiz);
+  g_present = norm360(g_present);
+
+  bool is_vert = (std::fabs(g_present - g_vert) < std::fabs(g_present - g_horiz));
+
+  if (keepX) goal_mm_x = x_now;
+  else goal_mm_y = y_now;
+
+  serial_printf_verbose("[INIT XY] current XY=(%.2f, %.2f)mm -> goal XY=(%.2f, %.2f)mm, keepX=%d, is_vert=%s\n",
+                        x_now, y_now, goal_mm_x, goal_mm_y, keepX,
+                        is_vert ? "vert" : "horiz");
+
+  kinPtr->solve_a1_a2_from_x_y(goal_mm_x, goal_mm_y);
+
+  double a1 = kinPtr->getA1deg();
+  double a2 = kinPtr->getA2deg();
+  double g = is_vert ? kinPtr->getGdeg_for_vertical()
+                     : kinPtr->getGdeg_for_horizontal();
+
+  goal_ticks[0] = deg2ticks(ID_ARM1, a1);
+  goal_ticks[1] = deg2ticks(ID_ARM2, a2);
+  goal_ticks[2] = deg2ticks(ID_WRIST, g);
+
+  nudge_flags[0] = true;   // allow nudging for arm1
+  nudge_flags[1] = true;   // allow nudging for arm2
+  nudge_flags[2] = false;  // no nudge for wrist
+
+  dir_list[0] = (goal_ticks[0] - start_ticks[0] >= 0) ? 1.0 : -1.0;
+  dir_list[1] = (goal_ticks[1] - start_ticks[1] >= 0) ? 1.0 : -1.0;
+  dir_list[2] = (goal_ticks[2] - start_ticks[2] >= 0) ? 1.0 : -1.0;
+
+  configured = true;
+
+  serial_printf_verbose("[INIT XY] keep%s | a1=%.2f° a2=%.2f° g=%.2f°\n",
+                        keepX ? "X" : "Y", a1, a2, g);
+  serial_printf_verbose("[INIT XY] arm1 start=%d goal=%d Δ=%d\n",
+                        start_ticks[0], goal_ticks[0],
+                        goal_ticks[0] - start_ticks[0]);
+  serial_printf_verbose("[INIT XY] arm2 start=%d goal=%d Δ=%d\n",
+                        start_ticks[1], goal_ticks[1],
+                        goal_ticks[1] - start_ticks[1]);
+  serial_printf_verbose("[INIT XY] wrist start=%d goal=%d Δ=%d\n",
+                        start_ticks[2], goal_ticks[2],
+                        goal_ticks[2] - start_ticks[2]);
+  return true;
+}
+
+bool AxisGroupController::initGripper() {
+  if (!dxlPtr->ping(ID_GRIP1) || !dxlPtr->ping(ID_GRIP2)) {
+    serial_printf_verbose("[INIT GRIP] ⚠ Gripper ping failed ping g1=%d ping g2=%d\n",
+                          dxlPtr->ping(ID_GRIP1), dxlPtr->ping(ID_GRIP2));
+    return false;
+  }
+
+  int start1 = dxlPtr->getPresentPosition(ID_GRIP1);
+  int start2 = dxlPtr->getPresentPosition(ID_GRIP2);
+
+  int goal1 = per2ticks(ID_GRIP1, goal_percent);
+  int goal2 = per2ticks(ID_GRIP2, goal_percent);
+
+  int travel1 = abs(goal1 - start1);
+  int travel2 = abs(goal2 - start2);
+
+  // master = bigger travel
+  if (travel1 >= travel2) {
+    id_list[0] = ID_GRIP1;
+    id_list[1] = ID_GRIP2;
+    id_list[2] = 0;
+
+    start_ticks[0] = start1;
+    start_ticks[1] = start2;
+    start_ticks[2] = -1;
+
+    goal_ticks[0] = goal1;
+    goal_ticks[1] = goal2;
+    goal_ticks[2] = -1;
+  } else {
+    id_list[0] = ID_GRIP2;
+    id_list[1] = ID_GRIP1;
+    id_list[2] = 0;
+
+    start_ticks[0] = start2;
+    start_ticks[1] = start1;
+    start_ticks[2] = -1;
+
+    goal_ticks[0] = goal2;
+    goal_ticks[1] = goal1;
+    goal_ticks[2] = -1;
+  }
+
+  nudge_flags[0] = false;
+  nudge_flags[1] = false;
+  nudge_flags[2] = false;
+
+  dir_list[0] = (goal_ticks[0] - start_ticks[0] >= 0) ? 1.0 : -1.0;
+  dir_list[1] = (goal_ticks[1] - start_ticks[1] >= 0) ? 1.0 : -1.0;
+  dir_list[2] = 0.0;
+
+  configured = true;
+  grip_lastProgress = 0.0;
+
+  serial_printf_verbose("[INIT GRIP] goal%%=%.1f start1=%d start2=%d goal1=%d goal2=%d\n",
+                        goal_percent, start1, start2, goal1, goal2);
+  serial_printf_verbose("[INIT GRIP] travel1=%d travel2=%d\n", travel1, travel2);
+  return true;
+}
+
+// ----------------------------------------------------------------------
+// Global AxisGroupController instance
+// ----------------------------------------------------------------------
+
+AxisGroupController axes(&dxl, &kin);
+
+// ----------------------------------------------------------------------
+// logProgress helper
+// ----------------------------------------------------------------------
+
+static void logProgress(const char* moveName, int startTicks, int crrTicks, int endTicks) {
   static int lastStartLogged = -1;
   static int lastEndLogged = -1;
   static int lastCrrLogged = -1;
 
-  if (lastStartLogged != startTicks ||  //
-      lastEndLogged != endTicks) lastCrrLogged = -1;
+  if (lastStartLogged != startTicks || lastEndLogged != endTicks) {
+    lastCrrLogged = -1;
+  }
+
   lastStartLogged = startTicks;
   lastEndLogged = endTicks;
 
-  // log every 50 ticks relative to start
-  if (abs(crrTicks - lastCrrLogged) < 50 &&  //
-      lastCrrLogged > 0) return;
+  // log every ~50 ticks relative to start
+  if (lastCrrLogged >= 0 && abs(crrTicks - lastCrrLogged) < 50) return;
   lastCrrLogged = crrTicks;
 
-  serial_printf("MOVING %s %d%/%d\n", moveName, crrTicks, endTicks);
+  serial_printf("MOVING %s %d/%d\n", moveName, crrTicks, endTicks);
 }
 
-// ====================================================================================
-//                 move_smooth()
-//  - trajectory and timing kernel (geometry-agnostic)
-//  - asks global AxisGroupController for all tick-space I/O
-// ------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------
+// PID + sync helpers (v2)
+// ----------------------------------------------------------------------
 
-bool move_smooth(
-  int stepInterval_ms = SMOOTH_STEP_INTERVAL_MS,
-  int accelSteps = SMOOTH_ACCEL_STEPS,
-  int decelSteps = SMOOTH_DECEL_STEPS,
-  int minStep_ticks = SMOOTH_MIN_STEP_TICKS,
-  int maxStep_ticks = SMOOTH_MAX_STEP_TICKS,
-  int tol_ticks = SMOOTH_TOL_TICKS) {
+// XL430 practical ranges
+static const int P_MIN = 300;
+static const int P_MAX = 2000;
+static const int I_MIN = 0;
+static const int I_MAX = 1000;
+static const int D_MIN = 50;
+static const int D_MAX = 600;
+
+// Velocity & Accel ranges
+static const int VEL_MIN = 10;   // don't crawl
+static const int VEL_MAX = 100;  // ~23 rpm
+static const int ACCEL_MIN = 40;
+static const int ACCEL_MAX = 300;
+
+static double clamp01(double x) {
+  if (x < 0.0) return 0.0;
+  if (x > 1.0) return 1.0;
+  return x;
+}
+
+static void setPid(uint8_t id, double nP, double nI, double nD) {
+  if (id == 0) return;
+
+  nP = clamp01(nP);
+  nI = clamp01(nI);
+  nD = clamp01(nD);
+
+  int P = P_MIN + (int)(nP * (P_MAX - P_MIN));
+  int I = I_MIN + (int)(nI * (I_MAX - I_MIN));
+  int D = D_MIN + (int)(nD * (D_MAX - D_MIN));
+
+  serial_printf("PID id=%d P=%d I=%d D=%d\n", id, P, I, D);
+
+  dxl.writeControlTableItem(ControlTableItem::POSITION_P_GAIN, id, P);
+  dxl.writeControlTableItem(ControlTableItem::POSITION_I_GAIN, id, I);
+  dxl.writeControlTableItem(ControlTableItem::POSITION_D_GAIN, id, D);
+}
+
+/**/
+static void syncServoMotion(uint8_t id1, uint8_t id2, uint8_t id3,
+                            int dist1, int dist2, int dist3) {
+  if (dist1 < 0) dist1 = 0;
+  if (dist2 < 0) dist2 = 0;
+  if (dist3 < 0) dist3 = 0;
+
+  int maxDist = std::max(dist1, std::max(dist2, dist3));
+
+  if (maxDist <= 0) {
+    // No motion: gentle holding PIDs
+    if (id1) setPid(id1, 0.1, 0.0, 0.8);
+    if (id2) setPid(id2, 0.1, 0.0, 0.8);
+    if (id3) setPid(id3, 0.1, 0.0, 0.8);
+    return;
+  }
+
+  auto ratio = [&](int d) -> double {
+    if (d <= 0) return 0.0;
+    return clamp01((double)d / (double)maxDist);
+  };
+
+  double r1 = ratio(dist1);
+  double r2 = ratio(dist2);
+  double r3 = ratio(dist3);
+
+  auto mapP = [&](double r) {
+    return 0.25 + 0.75 * r;
+  };  // 0.25–1.0
+  auto mapI = [&](double r) {
+    return 0.05 + 0.60 * r;
+  };  // 0.05–0.65
+  auto mapD = [&](double r) {
+    return 0.80 - 0.60 * r;
+  };  // 0.8–0.2
+
+  if (id1) setPid(id1, mapP(r1), mapI(r1), mapD(r1));
+  if (id2) setPid(id2, mapP(r2), mapI(r2), mapD(r2));
+  if (id3) setPid(id3, mapP(r3), mapI(r3), mapD(r3));
+
+  auto velFromRatio = [&](double r) -> int {
+    if (r <= 0) return 0;
+    double v = VEL_MIN + r * (VEL_MAX - VEL_MIN);
+    return (int)v;
+  };
+
+  auto accelFromVel = [&](int v) -> int {
+    if (v <= 0) return 0;
+    int a = (int)(v * 2.5);
+    if (a < ACCEL_MIN) a = ACCEL_MIN;
+    if (a > ACCEL_MAX) a = ACCEL_MAX;
+    return a;
+  };
+
+  int v1 = velFromRatio(r1);
+  int v2 = velFromRatio(r2);
+  int v3 = velFromRatio(r3);
+
+  int a1 = accelFromVel(v1);
+  int a2 = accelFromVel(v2);
+  int a3 = accelFromVel(v3);
+
+  if (id1) {
+    dxl.writeControlTableItem(ControlTableItem::PROFILE_VELOCITY, id1, v1);
+    dxl.writeControlTableItem(ControlTableItem::PROFILE_ACCELERATION, id1, a1);
+  }
+  if (id2) {
+    dxl.writeControlTableItem(ControlTableItem::PROFILE_VELOCITY, id2, v2);
+    dxl.writeControlTableItem(ControlTableItem::PROFILE_ACCELERATION, id2, a2);
+  }
+  if (id3) {
+    dxl.writeControlTableItem(ControlTableItem::PROFILE_VELOCITY, id3, v3);
+    dxl.writeControlTableItem(ControlTableItem::PROFILE_ACCELERATION, id3, a3);
+  }
+
+  serial_printf("SyncMotion: [%d:%d/%d]  [%d:%d/%d]  [%d:%d/%d]\n",
+                id1, v1, a1, id2, v2, a2, id3, v3, a3);
+}
+
+static void refineEndPositions(uint8_t id1, uint8_t id2, uint8_t id3,
+                               int goal1, int goal2, int goal3) {
+  const int REFINE_ERR = 4;
+  const int REFINE_THRESH = 40;
+  const uint32_t TIMEOUT = 500;
+
+  uint32_t t0 = millis();
+
+  while (millis() - t0 < TIMEOUT) {
+    int p1 = 0, p2 = 0, p3 = 0;
+
+    if (id1) p1 = dxl.getPresentPosition(id1);
+    if (id2) p2 = dxl.getPresentPosition(id2);
+    if (id3) p3 = dxl.getPresentPosition(id3);
+
+    bool done1 = (!id1 || goal1 == -1) || (abs(goal1 - p1) < REFINE_ERR);
+    bool done2 = (!id2 || goal2 == -1) || (abs(goal2 - p2) < REFINE_ERR);
+    bool done3 = (!id3 || goal3 == -1) || (abs(goal3 - p3) < REFINE_ERR);
+
+    if (done1 && done2 && done3) return;
+
+    if (id1 && goal1 != -1 && abs(goal1 - p1) > REFINE_THRESH)
+      dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, id1, goal1);
+
+    if (id2 && goal2 != -1 && abs(goal2 - p2) > REFINE_THRESH)
+      dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, id2, goal2);
+
+    if (id3 && goal3 != -1 && abs(goal3 - p3) > REFINE_THRESH)
+      dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, id3, goal3);
+  }
+}
+
+// ----------------------------------------------------------------------
+// move_smooth() wrapper -> v2
+// ----------------------------------------------------------------------
+
+bool move_smooth() {
+  return move_smooth_v2();
+}
+
+// ----------------------------------------------------------------------
+// move_smooth_v1  (original step-based + nudge logic)
+// ----------------------------------------------------------------------
+
+bool move_smooth_v1() {
   const int axes_count = axes.axesCount();
   if (axes_count == 0) return false;
 
-  axes.start();  // prepares hardware (reads starts, etc.)
+  axes.start();
 
   MovePhase currentPhase = MovePhase::ACCEL;
 
-  // TODO adjust torque
-
-  // per-axis nudgers
   std::vector<NudgeController*> nudgers;
   nudgers.reserve(axes_count);
-  for (int i = 0; i < axes_count; i++)
+  for (int i = 0; i < axes_count; i++) {
     nudgers.push_back(axes.getNudgeController(i));
+  }
 
-  int samePosCount[3];
-  int startTicks[3];
-  int currTicks[3];
-  int prevTicks[3];
-  int errTicks[3];
-  int dirTicks[3];
-  int prevGoalTicks[3];
-  int nextGoalTicks[3];
-  int finalGoalTicks[3];
-  int correctionTicks[3];
-  bool axesDone[3];
+  int samePosCount[3] = { 0, 0, 0 };
+  int startTicks[3] = { 0, 0, 0 };
+  int currTicks[3] = { 0, 0, 0 };
+  int prevTicks[3] = { 0, 0, 0 };
+  int errTicks[3] = { 0, 0, 0 };
+  int dirTicks[3] = { 1, 1, 1 };
+  int prevGoalTicks[3] = { 0, 0, 0 };
+  int nextGoalTicks[3] = { 0, 0, 0 };
+  int goalTicks[3] = { 0, 0, 0 };
+  int correctionTicks[3] = { 0, 0, 0 };
+  bool axesDone[3] = { false, false, false };
 
   axes.readPresentTicks(currTicks);
-  serial_printf_verbose("start move | axes read current ticks={%d, %d, %d}\n", currTicks[0], currTicks[1], currTicks[2]);
-  serial_printf_verbose("start move | axes goal ticks={%d, %d, %d}\n", axes.getGoalTicks(0), axes.getGoalTicks(1), axes.getGoalTicks(2));
+  serial_printf_verbose("start move | axes read current ticks={%d,%d,%d}\n",
+                        currTicks[0], currTicks[1], currTicks[2]);
+  serial_printf_verbose("start move | axes goal ticks={%d,%d,%d}\n",
+                        axes.getGoalTicks(0), axes.getGoalTicks(1), axes.getGoalTicks(2));
 
   for (int i = 0; i < axes_count; i++) {
     samePosCount[i] = 0;
@@ -568,20 +731,24 @@ bool move_smooth(
     prevGoalTicks[i] = currTicks[i];
     errTicks[i] = 0;
     nextGoalTicks[i] = currTicks[i];
-    finalGoalTicks[i] = axes.getGoalTicks(i);
+    goalTicks[i] = axes.getGoalTicks(i);
     axesDone[i] = false;
     correctionTicks[i] = 0;
-    dirTicks[i] = 1;
-    if (finalGoalTicks[i] < startTicks[i]) dirTicks[i] = -1;
-    if (finalGoalTicks[i] > getMax_ticks(axes.getId(i)) - 50) finalGoalTicks[i] = getMax_ticks(axes.getId(i)) - 50;
-    if (finalGoalTicks[i] < getMin_ticks(axes.getId(i)) + 50) finalGoalTicks[i] = getMin_ticks(axes.getId(i)) + 50;
+    dirTicks[i] = (goalTicks[i] >= startTicks[i]) ? 1 : -1;
+
+    uint8_t id = axes.getId(i);
+    if (goalTicks[i] > getMax_ticks(id) - 50)
+      goalTicks[i] = getMax_ticks(id) - 50;
+    if (goalTicks[i] < getMin_ticks(id) + 50)
+      goalTicks[i] = getMin_ticks(id) + 50;
   }
 
-  // Gather master trajectory info
   int masterStart = startTicks[0];
-  int masterGoal = finalGoalTicks[0];
+  int masterGoal = goalTicks[0];
   int dist = masterGoal - masterStart;
   int dirMaster = (dist >= 0) ? 1 : -1;
+  int tol_ticks = 4;
+
   int total_steps = abs(dist);
   if (total_steps < tol_ticks) {
     serial_printf_verbose("end move | already in position dist=%d\n", dist);
@@ -591,110 +758,121 @@ bool move_smooth(
 
   bool inFinalPosition = false;
 
+  // These constants must exist somewhere or you can inline them here
+  const int stepInterval_ms = 25;
+  const int accelSteps = 10;
+  const int decelSteps = 10;
+  const int minStep_ticks = 1;
+  const int maxStep_ticks = 8;
+
   int accelSpan = accelSteps * (minStep_ticks + maxStep_ticks) / 2;
   int decelSpan = decelSteps * (minStep_ticks + maxStep_ticks) / 2;
   int coastSpan = total_steps - (accelSpan + decelSpan);
   if (coastSpan < 0) coastSpan = 0;
-  int coastSteps = coastSpan / maxStep_ticks;
+  int coastSteps = (maxStep_ticks > 0) ? (coastSpan / maxStep_ticks) : 0;
 
-  serial_printf_verbose("start move | start=%d goal=%d total_steps=%d accel=%d coast=%d decel=%d\n\n",
-                        masterStart, masterGoal, masterGoal - masterStart, accelSteps, coastSteps, decelSteps);
+  serial_printf_verbose("start move | start=%d goal=%d total_steps=%d accelSteps=%d coastSteps=%d decelSteps=%d\n\n",
+                        masterStart, masterGoal, masterGoal - masterStart,
+                        accelSteps, coastSteps, decelSteps);
 
   bool all_good = false;
   bool skip2final = false;
   int curr_step = 0;
 
-  // Helper: one phase iteration
   auto step_axes = [&](const char* phaseName, int iter, int step_ticks) {
-    //////////////////////////////
-    // feedback & nudging
     axes.readPresentTicks(currTicks);
 
-    //////////////////////////////
-    // feedback & nudging
     for (int ax = 0; ax < axes.axesCount(); ax++) {
       if (axesDone[ax]) {
         samePosCount[ax] = 0;
-        prevGoalTicks[ax] = finalGoalTicks[ax];
+        prevGoalTicks[ax] = goalTicks[ax];
         errTicks[ax] = 0;
-        nextGoalTicks[ax] = finalGoalTicks[ax];
+        nextGoalTicks[ax] = goalTicks[ax];
         continue;
       }
 
-      // compute the error vs last goal
       errTicks[ax] = prevGoalTicks[ax] - currTicks[ax];
-      if (prevGoalTicks[ax] < 0) errTicks[ax] = 0;  // first iteration
-      if (abs(currTicks[ax] - finalGoalTicks[ax]) < tol_ticks) axesDone[ax] = true;
+      if (prevGoalTicks[ax] < 0)
+        errTicks[ax] = 0;
+
+      if (abs(currTicks[ax] - goalTicks[ax]) < tol_ticks)
+        axesDone[ax] = true;
 
       if (axesDone[ax]) {
-        nextGoalTicks[ax] = finalGoalTicks[ax];
+        nextGoalTicks[ax] = goalTicks[ax];
         continue;
       }
 
-      // compute now the nudge
-      if (abs(prevTicks[ax] - currTicks[ax]) < 2) samePosCount[ax]++;
-      else samePosCount[ax] = 0;
+      if (abs(prevTicks[ax] - currTicks[ax]) < 2)
+        samePosCount[ax]++;
+      else
+        samePosCount[ax] = 0;
+
       samePosCount[ax] = std::min(samePosCount[ax], 6);
       prevTicks[ax] = currTicks[ax];
-      correctionTicks[ax] = 0;
 
-      if (axes.getNudgeFlag(ax)) correctionTicks[ax] = nudgers[ax]->computeNudge(errTicks[ax], dirTicks[ax], currentPhase, samePosCount[ax]);
-      logProgress(axes.getMoveName(), startTicks[0], currTicks[0], finalGoalTicks[0]);
+      correctionTicks[ax] = 0;
+      if (axes.getNudgeFlag(ax) && nudgers[ax]) {
+        correctionTicks[ax] = nudgers[ax]->computeNudge(errTicks[ax],
+                                                        dirTicks[ax],
+                                                        currentPhase,
+                                                        samePosCount[ax]);
+      }
+
+      logProgress(axes.getMoveName(), startTicks[0], currTicks[0], goalTicks[0]);
       curr_step += step_ticks;
 
-      // ---------------- compute next goal ----------------
       bool use_final_goal = false;
-      if (ax == 0) {  // master
-        // In FINAL phase, don't jump to finalGoalTicks — just apply correction
+
+      if (ax == 0) {
         if (currentPhase == MovePhase::FINAL) {
           if (step_ticks == 0) {
             use_final_goal = true;
-            nextGoalTicks[0] = finalGoalTicks[0] + correctionTicks[0];
-          } else nextGoalTicks[0] = currTicks[0] + correctionTicks[0];
+            nextGoalTicks[0] = goalTicks[0] + correctionTicks[0];
+          } else {
+            nextGoalTicks[0] = currTicks[0] + correctionTicks[0];
+          }
         } else {
-          // Normal accel/coast/decel motion
           nextGoalTicks[0] += dirMaster * step_ticks;
 
-          // Clamp if crossing final or in the last 3 steps of final
-          int err_final = abs(currTicks[0] - finalGoalTicks[0]);
-          if ((dirMaster >= 0 && nextGoalTicks[0] > (finalGoalTicks[0] + tol_ticks)) ||  //
-              (dirMaster < 0 && nextGoalTicks[0] < (finalGoalTicks[0] - tol_ticks)) ||   //
-              err_final < tol_ticks) {
-            nextGoalTicks[0] = finalGoalTicks[0];
-            skip2final = true;  // mark transition, but don't jump later
+          int err_final = abs(currTicks[0] - goalTicks[0]);
+          if ((dirMaster >= 0 && nextGoalTicks[0] > (goalTicks[0] + tol_ticks)) || (dirMaster < 0 && nextGoalTicks[0] < (goalTicks[0] - tol_ticks)) || err_final < tol_ticks) {
+            nextGoalTicks[0] = goalTicks[0];
+            skip2final = true;
           }
         }
       } else {
-        // slaves follow master, geometry handled in getSyncGoal()
         nextGoalTicks[ax] = axes.getSyncGoal(ax, nextGoalTicks[0]);
         nextGoalTicks[ax] += correctionTicks[ax];
       }
 
-      // do not apply to master in case it reached end goal, but can apply to slaves
-      //if (ax == 1) Serial.print("      ");
-      //if (ax == 2) Serial.print("            ");
-      if (ax == 0) serial_printf_verbose("[%s] axis=%d prev_goal=%d curr= %d err=%d next goal=%d correction=%d same=%d step_ticks=%d x=%.2f y=%.2f skip=%d use_final=%d\n",
-                                         phaseName, ax, prevGoalTicks[ax], currTicks[ax], errTicks[ax], nextGoalTicks[ax],  //
-                                         correctionTicks[ax], samePosCount[ax], step_ticks, kin.getXmm(), kin.getYmm(), skip2final, use_final_goal);
+      serial_printf_verbose("[%s] axis=%d prev_goal=%d curr=%d err=%d next=%d corr=%d same=%d step=%d x=%.2f y=%.2f skip=%d use_final=%d\n",
+                            phaseName, ax, prevGoalTicks[ax], currTicks[ax],
+                            errTicks[ax], nextGoalTicks[ax], correctionTicks[ax],
+                            samePosCount[ax], step_ticks,
+                            kin.getXmm(), kin.getYmm(), skip2final, use_final_goal);
       prevGoalTicks[ax] = nextGoalTicks[ax];
     }
 
     all_good = true;
     for (int i = 0; i < axes.axesCount(); i++) {
-      if (!axesDone[i]) all_good = false;
+      if (!axesDone[i]) {
+        all_good = false;
+        break;
+      }
     }
+
     if (!all_good) {
-      int goalsWithSkipDone[3];
+      int goalsWithSkipDone[3] = { -1, -1, -1 };
       for (int i = 0; i < axes.axesCount(); i++) {
-        if (axesDone[i]) goalsWithSkipDone[i] = -1;
-        else goalsWithSkipDone[i] = nextGoalTicks[i];
+        goalsWithSkipDone[i] = axesDone[i] ? -1 : nextGoalTicks[i];
       }
       axes.writeTicks(goalsWithSkipDone);
       delay(stepInterval_ms);
     }
   };
 
-  // 1. Acceleration phase
+  // Accel
   currentPhase = MovePhase::ACCEL;
   for (int i = 0; i < accelSteps; i++) {
     if (all_good || skip2final) break;
@@ -702,14 +880,14 @@ bool move_smooth(
     step_axes("ACCEL", i, step_ticks);
   }
 
-  // 2. Coast phase
+  // Coast
   currentPhase = MovePhase::COAST;
   for (int i = 0; i < coastSteps; i++) {
     if (all_good || skip2final) break;
     step_axes("COAST", i, maxStep_ticks);
   }
 
-  // 3. Deceleration phase
+  // Decel
   currentPhase = MovePhase::DECEL;
   for (int i = 0; i < decelSteps; i++) {
     if (all_good || skip2final) break;
@@ -717,29 +895,202 @@ bool move_smooth(
                          minStep_ticks, maxStep_ticks);
     step_axes("DECEL", i, step_ticks);
   }
-  delay(2 * stepInterval_ms);  // extra delay
 
-  // 4. Final nudging & settle
+  delay(2 * stepInterval_ms);
+
+  // Final
   currentPhase = MovePhase::FINAL;
   const int maxNudges = 8;
   const int nudgeExtraDelay = 65;
 
   for (int nu = 0; nu < maxNudges; nu++) {
     if (all_good) break;
-    step_axes("FINAL", nu, (nu < ((maxNudges - 1) / 2)) ? 1 : 0);  // step is zero, indicates last 3 nudges
-    delay(nudgeExtraDelay);                                        // extra delay
+    int step_ticks = (nu < ((maxNudges - 1) / 2)) ? 1 : 0;
+    step_axes("FINAL", nu, step_ticks);
+    delay(nudgeExtraDelay);
   }
+
   serial_printf_verbose("end move | master err=%d\n", errTicks[0]);
   axes.end();
   return true;
 }
 
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~START WRAPPERS FOR COMMANDS~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ----------------------------------------------------------------------
+// move_smooth_v2  (DX-built-in profile + sync + refine)
+// ----------------------------------------------------------------------
+
+bool move_smooth_v2() {
+  const int axes_count = axes.axesCount();
+  if (axes_count == 0) return false;
+
+  axes.start();
+
+  int startTicks[3] = { 0, 0, 0 };
+  int goalTicks[3] = { 0, 0, 0 };
+  uint8_t ids[3] = { 0, 0, 0 };
+
+  axes.readPresentTicks(startTicks);
+
+  for (int i = 0; i < axes_count; i++) {
+    goalTicks[i] = axes.getGoalTicks(i);
+    ids[i] = axes.getId(i);
+
+    int mn = getMin_ticks(ids[i]);
+    int mx = getMax_ticks(ids[i]);
+
+    if (goalTicks[i] > mx - 5) goalTicks[i] = mx - 5;
+    if (goalTicks[i] < mn + 5) goalTicks[i] = mn + 5;
+  }
+
+  serial_printf_verbose(
+    "start move | axes=%d | present={%d,%d,%d} | goals={%d,%d,%d}\n",
+    axes_count,
+    startTicks[0], startTicks[1], startTicks[2],
+    goalTicks[0], goalTicks[1], goalTicks[2]);
+
+  int distA = (axes_count >= 1) ? abs(goalTicks[0] - startTicks[0]) : 0;
+  int distB = (axes_count >= 2) ? abs(goalTicks[1] - startTicks[1]) : 0;
+  int distC = (axes_count >= 3) ? abs(goalTicks[2] - startTicks[2]) : 0;
+
+  if (distA <= 4 && distB <= 4 && distC <= 4) {
+    serial_printf_verbose(
+      "end move | axes=%d | present={%d,%d,%d} | goals={%d,%d,%d}\n",
+      axes_count,
+      startTicks[0], startTicks[1], startTicks[2],
+      goalTicks[0], goalTicks[1], goalTicks[2]);
+    axes.end();
+    return true;
+  }
+
+  syncServoMotion(
+    (axes_count >= 1) ? ids[0] : 0,
+    (axes_count >= 2) ? ids[1] : 0,
+    (axes_count >= 3) ? ids[2] : 0,
+    distA, distB, distC);
+
+  if (axes_count >= 1)
+    dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, ids[0], goalTicks[0]);
+  if (axes_count >= 2)
+    dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, ids[1], goalTicks[1]);
+  if (axes_count >= 3)
+    dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, ids[2], goalTicks[2]);
+
+  refineEndPositions(
+    (axes_count >= 1) ? ids[0] : 0,
+    (axes_count >= 2) ? ids[1] : 0,
+    (axes_count >= 3) ? ids[2] : 0,
+    (axes_count >= 1) ? goalTicks[0] : -1,
+    (axes_count >= 2) ? goalTicks[1] : -1,
+    (axes_count >= 3) ? goalTicks[2] : -1);
+
+  // ----------------------------------------------------
+  //   FINAL VERIFY: Make sure movement actually finished
+  // ----------------------------------------------------
+
+  // delay(50);
+
+  // --------------------- INITIAL ERROR LOG ------------------------
+  String err0 = (axes_count >= 1) ? String(abs(dxl.getPresentPosition(ids[0]) - goalTicks[0])) : "na";
+  String err1 = (axes_count >= 2) ? String(abs(dxl.getPresentPosition(ids[1]) - goalTicks[1])) : "na";
+  String err2 = (axes_count >= 3) ? String(abs(dxl.getPresentPosition(ids[2]) - goalTicks[2])) : "na";
+
+  serial_printf_verbose("final verify | axes=%d | err0=%s | err1=%s | err2=%s\n",
+                        axes_count,
+                        err0.c_str(), err1.c_str(), err2.c_str());
+
+  // ---------------------- SETTLE LOOP ------------------------------
+  for (int i = 0; i < axes_count; i++) {
+
+    uint8_t id = ids[i];
+    if (id == 0) continue;  // safety
+
+    int lastPos = dxl.getPresentPosition(id);
+
+    // If already within tolerance, no need to settle
+    if (abs(lastPos - goalTicks[i]) <= 4) continue;
+
+    uint32_t t0 = millis();
+
+    while (millis() - t0 < 150) {  // wait for stable reading
+
+      int p = dxl.getPresentPosition(id);
+
+      if (abs(p - lastPos) > 1) {
+        // still moving → reset timer + update lastPos
+        t0 = millis();
+        lastPos = p;
+      }
+
+      delay(5);
+    }
+  }
+
+  // --------------------- RESEND IF STILL OFF -----------------------
+  for (int t = 0; t < 3; t++) {
+
+    for (int i = 0; i < axes_count; i++) {
+
+      uint8_t id = ids[i];
+      if (id == 0) continue;  // safety
+
+      int finalPos = dxl.getPresentPosition(id);
+      int diff = abs(finalPos - goalTicks[i]);
+
+      if (diff > 4) {
+        serial_printf_verbose("final check: servo %d still off by %d → resending goal\n",
+                              id, diff);
+        dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION,
+                                  id, goalTicks[i]);
+        delay(50);
+      }
+    }
+  }
+
+  // ---------------------- FINAL ERROR READBACK ----------------------
+  err0 = (axes_count >= 1) ? String(abs(dxl.getPresentPosition(ids[0]) - goalTicks[0])) : "na";
+  err1 = (axes_count >= 2) ? String(abs(dxl.getPresentPosition(ids[1]) - goalTicks[1])) : "na";
+  err2 = (axes_count >= 3) ? String(abs(dxl.getPresentPosition(ids[2]) - goalTicks[2])) : "na";
+
+  serial_printf_verbose("end move | axes=%d | err0=%s | err1=%s | err2=%s\n",
+                        axes_count,
+                        err0.c_str(), err1.c_str(), err2.c_str());
+
+  axes.end();
+
+  return true;
+}
+
+// ----------------------------------------------------------------------
+// Status helpers & command wrappers
+// ----------------------------------------------------------------------
+
+void read_print_xy_status() {
+  double a1_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
+  double a2_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
+  kin.solve_x_y_from_a1_a2(a1_deg, a2_deg);
+  print_xy_status();
+}
+
+void print_all_status() {
+  double a1_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
+  double a2_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
+  double g1_per = ticks2per(ID_GRIP1, dxl.getPresentPosition(ID_GRIP1));
+  double g2_per = ticks2per(ID_GRIP2, dxl.getPresentPosition(ID_GRIP2));
+  double base_deg = ticks2deg(ID_BASE, dxl.getPresentPosition(ID_BASE));
+
+  kin.solve_x_y_from_a1_a2(a1_deg, a2_deg);
+
+  serial_printf(
+    "x_mm=%.2f y_mm=%.2f a1_deg=%.2f a2_deg=%.2f g_vert_deg=%.2f g_deg=%.2f g1_per=%.2f g2_per=%.2f base_deg=%.2f\n",
+    kin.getXmm(), kin.getYmm(), kin.getA1deg(), kin.getA2deg(),
+    kin.getGdeg_for_vertical(), kin.getGdeg(),
+    g1_per, g2_per, base_deg);
+}
 
 bool cmdMoveServoDeg(uint8_t id, double goal_deg) {
   if (!dxl.ping(id)) return false;
 
-  axes.setMode(MODE_SINGLE_SERVO);
+  axes.setMode(AxisGroupController::AxisRunMode::SINGLE_SERVO);
   axes.setServoId(id);
   axes.setGoalDeg(goal_deg);
   if (!axes.init()) return false;
@@ -756,43 +1107,22 @@ bool cmdMoveServoPer(int id, double goal_per) {
     return false;
   }
 
-  double goal_deg = per2deg(id, goal_per);
-  serial_printf_verbose("cmd_move_per: id=%d per=%d deg=%d\n", id, goal_per, goal_deg);
+  double goal_deg = per2deg((uint8_t)id, goal_per);
+  serial_printf_verbose("cmd_move_per: id=%d per=%.2f deg=%.2f\n", id, goal_per, goal_deg);
 
   if (!cmdMoveServoDeg((uint8_t)id, goal_deg)) return false;
-  print_servo_status(id);
+  print_servo_status((uint8_t)id);
   return true;
-}
-
-void read_print_xy_status() {
-  double _a1_servo_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
-  double _a2_servo_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
-  kin.solve_x_y_from_a1_a2(_a1_servo_deg, _a2_servo_deg);
-  print_xy_status();
-}
-
-void print_all_status() {
-  double _a1_servo_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
-  double _a2_servo_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
-  double _g1_servo_per = ticks2per(ID_GRIP1, dxl.getPresentPosition(ID_ARM2));
-  double _g2_servo_per = ticks2per(ID_GRIP2, dxl.getPresentPosition(ID_ARM2));
-  double _base_servo_deg = ticks2deg(ID_BASE, dxl.getPresentPosition(ID_ARM2));
-  kin.solve_x_y_from_a1_a2(_a1_servo_deg, _a2_servo_deg);
-  serial_printf("x_mm=%.2f y_mm=%.2f a1_deg=%.2f a2_deg=%.2f g_vert_deg=%.2f g_deg=%.2f g1_per=%.2f g2_per=%.2f base_deg=%.2f\n",
-                kin.getXmm(), kin.getYmm(), kin.getA1deg(), kin.getA2deg(),
-                kin.getGdeg_for_vertical(), kin.getGdeg(),  //
-                _g1_servo_per, _g2_servo_per, _base_servo_deg);
 }
 
 bool cmdMoveGripperPer(double goal_per) {
   if (!dxl.ping(ID_GRIP1) || !dxl.ping(ID_GRIP2)) return false;
 
-  axes.setMode(MODE_GRIPPER);
+  axes.setMode(AxisGroupController::AxisRunMode::GRIPPER);
   axes.setGoalPercent(goal_per);
   if (!axes.init()) return false;
 
   serial_printf_verbose("START move_smooth for MODE_GRIPPER\n");
-
   bool ret = move_smooth();
   read_print_xy_status();
   return ret;
@@ -803,20 +1133,22 @@ bool cmdMoveWristDegVertical(double goal_deg) {
 
   if (goal_deg > 5 || goal_deg < -185) {
     if (kin.getYmm() < min_ymm) {
-      serial_printf_verbose("ERR y=%.2f too low to rotate gripper <%.2f\n", kin.getYmm(), min_ymm);
+      serial_printf_verbose("ERR y=%.2f too low to rotate gripper <%.2f\n",
+                            kin.getYmm(), min_ymm);
       return false;
     }
   }
 
-  double _a1_center_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
-  double _a2_center_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
-  if (!kin.solve_x_y_from_a1_a2(_a1_center_deg, _a2_center_deg)) return false;
+  double a1_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
+  double a2_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
+  if (!kin.solve_x_y_from_a1_a2(a1_deg, a2_deg)) return false;
 
   double vert_deg = kin.getGdeg_for_vertical();
   print_xy_status();
-  serial_printf_verbose("g deg vertical=%.2f, g deg move to=%.2f\n", vert_deg, vert_deg + goal_deg);
+  serial_printf_verbose("g deg vertical=%.2f, g deg move to=%.2f\n",
+                        vert_deg, vert_deg + goal_deg);
 
-  axes.setMode(MODE_SINGLE_SERVO);
+  axes.setMode(AxisGroupController::AxisRunMode::SINGLE_SERVO);
   axes.setServoId(ID_WRIST);
   axes.setGoalDeg(vert_deg + goal_deg);
   if (!axes.init()) return false;
@@ -830,20 +1162,20 @@ bool cmdMoveYmm(double goal_ymm) {
 
   double g_at_vert = kin.getGdeg_for_vertical();
   double g_relative_to_vert = kin.getGdeg() - g_at_vert;
-  if (g_relative_to_vert > 135 || g_relative_to_vert < 45) {
-    if (goal_ymm < min_ymm) {
-      serial_printf_verbose("ERR y too low (<%.2f) because of verical gripper g_at_vert=%.2f g_deg=%.2f g_rel_vert=%.2f deg\n",  //
-                            min_ymm, kin.getGdeg_for_vertical(), kin.getGdeg(), g_relative_to_vert);
-      return false;
-    }
+
+
+  if (goal_ymm < min_ymm) {
+    serial_printf_verbose("ERR y too low (<%.2f) because of vertical gripper g_at_vert=%.2f g_deg=%.2f g_rel_vert=%.2f deg\n",
+                          min_ymm, kin.getGdeg_for_vertical(), kin.getGdeg(), g_relative_to_vert);
+    return false;
   }
 
-  double _a1_center_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
-  double _a2_center_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
-  if (!kin.solve_x_y_from_a1_a2(_a1_center_deg, _a2_center_deg)) return false;
+  double a1_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
+  double a2_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
+  if (!kin.solve_x_y_from_a1_a2(a1_deg, a2_deg)) return false;
 
-  axes.setMode(MODE_XY_VERTICAL);
-  axes.setYGoalMm(kin.getXmm());  // use existing x
+  axes.setMode(AxisGroupController::AxisRunMode::XY_VERTICAL);
+  axes.setXGoalMm(kin.getXmm());  // keep X
   axes.setYGoalMm(goal_ymm);
   if (!axes.init()) return false;
 
@@ -857,13 +1189,13 @@ bool cmdMoveYmm(double goal_ymm) {
 bool cmdMoveXmm(double x_mm) {
   if (!dxl.ping(ID_ARM1) || !dxl.ping(ID_ARM2)) return false;
 
-  double _a1_center_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
-  double _a2_center_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
-  if (!kin.solve_x_y_from_a1_a2(_a1_center_deg, _a2_center_deg)) return false;
+  double a1_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
+  double a2_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
+  if (!kin.solve_x_y_from_a1_a2(a1_deg, a2_deg)) return false;
 
-  axes.setMode(MODE_XY_HORIZONTAL);
+  axes.setMode(AxisGroupController::AxisRunMode::XY_HORIZONTAL);
   axes.setXGoalMm(x_mm);
-  axes.setYGoalMm(kin.getYmm());  // use existing y
+  axes.setYGoalMm(kin.getYmm());  // keep Y
   if (!axes.init()) return false;
 
   serial_printf_verbose("START move_smooth for MODE_XY_HORIZONTAL\n");

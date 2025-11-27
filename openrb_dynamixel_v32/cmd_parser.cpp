@@ -281,7 +281,7 @@ bool cmd_help(int argc, double *argv) {
 #define B_RIGHT 90
 #define B_LEFT -90
 #define B_BACK -180
-#define B_ERR 8
+#define B_ERR 3
 
 //TODO adjust grip left and right to be simetric
 
@@ -413,8 +413,13 @@ bool cmd_run(int argc, double *argv) {
       if (!cmdMoveServoDeg(ID_BASE, B_BACK)) return false;
     }
 
-    // align
-    if (!alignCube()) return false;
+    if (!cmdMoveGripperPer(G_OPEN)) return false;
+    if (!cmdMoveXmm(X_CENTER)) return false;
+    if (!cmdMoveYmm(Y_CENTER)) return false;
+    if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+
+    // align TODO
+    // if (!alignCube()) return false;
     return true;
   }
   // reset base
