@@ -346,9 +346,10 @@ bool cmd_run(int argc, double *argv) {
   // bring faces to base
   if (run_no == 1) {
     if (!cmdMoveGripperPer(G_OPEN)) return false;
+    if (!resetBase()) return false;
+
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveYmm(Y_CENTER)) return false;
-    if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
     if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
     if (!cmdMoveGripperPer(G_CLOSE)) return false;
     if (!cmdMoveYmm(Y_UP)) return false;
@@ -368,9 +369,9 @@ bool cmd_run(int argc, double *argv) {
   // bring faces to base
   if (run_no == 2) {
     if (!cmdMoveGripperPer(G_OPEN)) return false;
+    if (!resetBase()) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveYmm(Y_CENTER)) return false;
-    if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
     if (!cmdMoveWristDegVertical(W_RIGHT)) return false;
     if (!cmdMoveGripperPer(G_CLOSE)) return false;
     if (!cmdMoveYmm(Y_UP)) return false;
@@ -419,13 +420,17 @@ bool cmd_run(int argc, double *argv) {
   // reset base
   if (run_no == 6) {
     if (!resetBase()) return false;
+    return true;
   }
   // align cube
   if (run_no == 7) {
     if (!alignCube()) return false;
+    return true;
   }
   // read colors front
   if (run_no == 8) {
+    if (!cmdMoveGripperPer(G_OPEN)) return false;
+    if (!resetBase()) return false;
     if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
     if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
@@ -446,10 +451,12 @@ bool cmd_run(int argc, double *argv) {
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveXmm(Y_CENTER)) return false;
     if (!cmdMoveGripperPer(G_OPEN)) return false;
+    return true;
   }
   // fix base
   if (run_no == 8) {
     if (!alignCube()) return false;
+    return true;
   }
   return false;
 }
