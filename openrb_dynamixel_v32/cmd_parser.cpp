@@ -7,6 +7,7 @@ void print_info(uint8_t id);
 extern double max_xmm;
 extern double max_ymm;
 extern double min_ymm;
+extern double speed;
 
 // -------------------------------------------------------------------
 //                            PARSE HELPERS
@@ -330,6 +331,8 @@ bool cmd_run(int argc, double *argv) {
     return false;
   }
 
+  speed = 1.0;
+
   int run_no = (int)argv[0];
 
   if (run_no == 0) {
@@ -432,32 +435,43 @@ bool cmd_run(int argc, double *argv) {
     if (!alignCube()) return false;
     return true;
   }
-  // read colors front
-  if (run_no == 8) {
-    if (!cmdMoveGripperPer(G_OPEN)) return false;
-    if (!resetBase()) return false;
-    if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
-    if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
-    if (!cmdMoveXmm(X_CENTER)) return false;
 
-    // top row
-    if (!cmdMoveYmm(Y_C_TOP)) return false;
-    if (!cmdMoveXmm(X_C_RIGHT)) return false;
-    if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveXmm(X_C_LEFT)) return false;
+  while (1) {
+    // read colors front
+    if (run_no == 8) {
+      if (!cmdMoveGripperPer(G_OPEN)) break;
+      if (!resetBase()) break;
+      if (!cmdMoveGripperPer(G_WIDE_OPEN)) break;
+      if (!cmdMoveWristDegVertical(W_HORIZ)) break;
+      if (!cmdMoveXmm(X_CENTER)) break;
 
-    // mid row
-    if (!cmdMoveYmm(Y_C_MID)) return false;
-    if (!cmdMoveXmm(X_C_LEFT)) return false;
-    if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveXmm(X_C_RIGHT)) return false;
+      speed = 0.25;
 
-    // back to main pos
-    if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveXmm(Y_CENTER)) return false;
-    if (!cmdMoveGripperPer(G_OPEN)) return false;
-    return true;
+      // top row
+      if (!cmdMoveYmm(Y_C_TOP)) break;
+      if (!cmdMoveXmm(X_C_RIGHT)) break;
+      if (!cmdMoveXmm(X_CENTER)) break;
+      if (!cmdMoveXmm(X_C_LEFT)) break;
+
+      // mid row
+      if (!cmdMoveYmm(Y_C_MID)) break;
+      if (!cmdMoveXmm(X_C_LEFT)) break;
+      if (!cmdMoveXmm(X_CENTER)) break;
+      if (!cmdMoveXmm(X_C_RIGHT)) break;
+
+      // back to main pos
+      if (!cmdMoveXmm(X_CENTER)) break;
+      if (!cmdMoveXmm(Y_CENTER)) break;
+
+      speed = 1.0;
+
+      if (!cmdMoveGripperPer(G_OPEN)) break;
+      return true;
+    }
   }
+
+  speed = 1.0;
+
   // fix base
   if (run_no == 8) {
     if (!alignCube()) return false;

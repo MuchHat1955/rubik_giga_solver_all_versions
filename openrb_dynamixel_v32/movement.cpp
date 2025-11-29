@@ -16,6 +16,8 @@ extern VerticalKinematics kin;
 extern bool verboseOn;
 extern double min_ymm;
 
+double speed = 1.0;
+
 // ----------------------------------------------------------------------
 // NudgeController implementation
 // ----------------------------------------------------------------------
@@ -623,9 +625,15 @@ static void syncServoMotion(uint8_t id1, uint8_t id2, uint8_t id3,
     return a;
   };
 
-  int v1 = velFromRatio(r1);
-  int v2 = velFromRatio(r2);
-  int v3 = velFromRatio(r3);
+  // ---- Velocity scaled by speed ----
+  int v1 = velFromRatio(r1) * speed;
+  int v2 = velFromRatio(r2) * speed;
+  int v3 = velFromRatio(r3) * speed;
+
+  // ---- Safe minimum ----
+  v1 = max(5, v1);
+  v2 = max(5, v2);
+  v3 = max(5, v3);
 
   int a1 = accelFromVel(v1);
   int a2 = accelFromVel(v2);
@@ -1193,9 +1201,14 @@ bool cmdMoveXmm(double x_mm) {
   double a2_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
   if (!kin.solve_x_y_from_a1_a2(a1_deg, a2_deg)) return false;
 
+  double prev_speed = speed;
+  speed = 0.3; //TODO
+
   axes.setMode(AxisGroupController::AxisRunMode::XY_HORIZONTAL);
   axes.setXGoalMm(x_mm);
   axes.setYGoalMm(kin.getYmm());  // keep Y
+  speed = prev_speed;
+
   if (!axes.init()) return false;
 
   serial_printf_verbose("START move_smooth for MODE_XY_HORIZONTAL\n");
