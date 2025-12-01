@@ -1,6 +1,7 @@
 #include "cmd_parser.h"
 #include "movement.h"
 #include "servos.h"
+#include "color_read.h"
 
 void print_info(uint8_t id);
 
@@ -143,8 +144,6 @@ bool cmd_move_per(int argc, double *argv) {
   return true;
 }
 
-
-
 bool cmd_set_min(int argc, double *argv) {
   int id = (int)argv[0];
   if (!dxl.ping(id)) return false;
@@ -240,6 +239,27 @@ bool cmd_move_wrist_vert(int argc, double *argv) {
   return true;
 }
 
+bool cmd_color(int argc, double *argv) {
+  int read_count = 1;
+
+  if (argc == 1) {
+    read_count = (int)argv[0];
+  }
+  if (read_count > 10) read_count = 10;
+  if (read_count < 1) read_count = 1;
+
+  serial_printf_verbose("cmd_color: count=%d\n", read_count);
+
+  for (int i = 0; i < read_count; i++) {
+    serial_printf("calling read color i=%d\n", i);
+    String crrColor = read_color();
+    serial_printf_verbose("COLOR READ clr=%s\n", crrColor.c_str());
+    delay(555);
+  }
+
+  return true;
+}
+
 bool cmd_help(int argc, double *argv) {
   Serial.println();
   Serial.println(get_help_text());
@@ -327,7 +347,7 @@ bool alignCube() {
 
 bool cmd_run(int argc, double *argv) {
   if (argc < 1) {
-    serial_printf("ERR: TESTNO Missing argument\n");
+    serial_printf("ERR: TESTNO missing argument\n");
     return false;
   }
 
@@ -596,6 +616,8 @@ static CommandEntry command_table[] = {
 
   { "READ", "%d", cmd_read, "READ <id> - show servo summary status" },
   { "INFO", "%d", cmd_info, "INFO <id> - show servo full status" },
+
+  { "COLOR", "%d", cmd_color, "COLOR <count> - read color <count> times" },
 
   { "LEDON", "%d", cmd_ledon, "LEDON <id> - turn servo LED on" },
   { "LEDOFF", "%d", cmd_ledoff, "LEDOFF <id> - turn servo LED off" },

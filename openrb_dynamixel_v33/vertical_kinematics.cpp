@@ -67,15 +67,15 @@ bool y_in_bounds(double _y) {
   return false;
 }
 bool a1_servo_deg_in_bounds(double _a) {
-  bool _b = (_a > -50.0 + EPS) && (_a < 95.0 - EPS);
+  bool _b = (_a > -180.0 + EPS) && (_a < 95.0 - EPS);
   if (_b) return true;
-  serial_printf_verbose("ERR a1_servo_deg_in_bounds a=%.2f\n", _a);
+  serial_printf_verbose("ERR a1_servo_deg_in_bounds a=%.2f expected between %.2f to %.2f\n", _a, -180.0, 95.0);
   return false;
 }
 bool a2_servo_deg_in_bounds(double _a) {
-  bool _b = (_a > -90.0 + EPS) && (_a < 95.0 - EPS);
+  bool _b = (_a > -180.0 + EPS) && (_a < 95.0 - EPS);
   if (_b) return true;
-  serial_printf_verbose("5 a2_servo_deg_in_bounds a=%.2f\n", _a);
+  serial_printf_verbose("ERR a2_servo_deg_in_bounds a=%.2f expected between %.2f to %.2f\n", _a, -180.0, 95.0);
   return false;
 }
 
@@ -298,7 +298,7 @@ double VerticalKinematics::getGdeg() const {
 
 double VerticalKinematics::getGdeg_for_vertical() const {  //TODO check
   // 0° = gripper vertical; positive tilts along Arm2
-  return -a2_servo_deg - a1_servo_deg + 180; //TODO changed per latest installation of hw
+  return -a2_servo_deg - a1_servo_deg + 180;  //TODO changed per latest installation of hw
 }
 
 double VerticalKinematics::getGdeg_for_horizontal() const {  //TODO check // mount gripper 90 towards right vs others

@@ -4,6 +4,7 @@
 #include "vertical_kinematics.h"
 #include "movement.h"
 #include "cmd_parser.h"
+#include "color_read.h"
 #include <Dynamixel2Arduino.h>
 #include <math.h>
 #include <algorithm>
@@ -21,6 +22,8 @@ bool verboseOn = true;  // default at boot = ON
 void setup() {
   Serial.begin(115200);
   while (!Serial) {}
+
+  init_tcs_led();
 
   dxl.begin(57600);
   dxl.setPortProtocolVersion(PROTOCOL);
