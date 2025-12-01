@@ -1,0 +1,1 @@
+String read_color(uint8_t samples = 8);
