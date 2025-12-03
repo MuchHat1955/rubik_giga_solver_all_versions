@@ -29,21 +29,24 @@ struct ColorRef {
   float r, g, b;
 };
 
+// NEW calibrated values (your real cube at 2 cm + tube)
 ColorRef refs[] = {
-  { "R", 0.514, 0.309, 0.274 },
-  { "G", 0.327, 0.403, 0.353 },
-  { "B", 0.331, 0.388, 0.540 },
-  { "Y", 0.40, 0.40, 0.21 },
-  { "W", 0.26, 0.34, 0.36 },
-  { "O", 0.456, 0.297, 0.219 }
+  { "R", 0.481, 0.240, 0.275 },
+  { "O", 0.492, 0.254, 0.212 },
+  { "Y", 0.387, 0.367, 0.206 },
+  { "G", 0.250, 0.412, 0.294 },
+  { "B", 0.194, 0.290, 0.452 },
+  { "W", 0.301, 0.323, 0.339 }
 };
 
 String classify_color(float r, float g, float b, float c) {
+
+  // Normalize
   float rn = r / c;
   float gn = g / c;
   float bn = b / c;
 
-  serial_printf("avg_norm: %.3f,%.3f,%.3f\n", rn, gn, bn);
+  serial_printf_verbose("avg_norm: %.3f,%.3f,%.3f\n", rn, gn, bn);
 
   float bestDist = 999.0;
   const char* best = "X";
@@ -53,7 +56,9 @@ String classify_color(float r, float g, float b, float c) {
     float dg = gn - ref.g;
     float db = bn - ref.b;
 
-    float dist = dr * dr + dg * dg + db * db;
+    float dist = dr*dr + dg*dg + db*db;
+
+    serial_printf_verbose("  compare %s => dist=%.4f\n", ref.name, dist);
 
     if (dist < bestDist) {
       bestDist = dist;
@@ -61,20 +66,21 @@ String classify_color(float r, float g, float b, float c) {
     }
   }
 
-  // Optional: confidence check
-  if (bestDist > 0.02)  // tune this threshold
+  serial_printf_verbose("bestDist = %.4f\n", bestDist);
+
+  // Confidence gate — tune if needed, 0.02 works well
+  if (bestDist > 0.02)
     return "X";
 
   return String(best);
 }
 
-
 String read_color(uint8_t samples = 8) {
 
-  serial_printf("start read color");
+  serial_printf_verbose("start read color\n");
 
   if (!tcs_initialized) {
-    serial_printf("start tcs begin");
+    serial_printf_verbose("start tcs begin");
     if (!tcs.begin()) {
       serial_printf_verbose("ERR TCS34725 not found!");
       return "na";
@@ -89,20 +95,21 @@ String read_color(uint8_t samples = 8) {
 
   float sum_r = 0, sum_g = 0, sum_b = 0, sum_c = 0;
 
-  serial_printf("raw_samples:\n");
+  serial_printf_verbose("raw_samples:\n");
 
-  for (uint8_t i = 0; i < samples; i++) {
+  // skip reading 0
+  for (uint8_t i = 0; i <= samples; i++) {
     uint16_t r, g, b, c;
+    delay(20);
     tcs.getRawData(&r, &g, &b, &c);
+    if (i == 0) continue;
 
-    serial_printf("%u: %u,%u,%u,%u\n", i, r, g, b, c);
+    serial_printf_verbose("%u: %u,%u,%u,%u\n", i, r, g, b, c);
 
     sum_r += r;
     sum_g += g;
     sum_b += b;
     sum_c += c;
-
-    delay(10);
   }
 
   tcs.setInterrupt(true);  // LED OFF
@@ -113,12 +120,12 @@ String read_color(uint8_t samples = 8) {
   float avg_b = sum_b / samples;
   float avg_c = sum_c / samples;
 
-  serial_printf("calling clasify color with: %.1f,%.1f,%.1f,%.1f\n",
+  serial_printf_verbose("calling clasify color with: %.1f,%.1f,%.1f,%.1f\n",
                 avg_r, avg_g, avg_b, avg_c);
 
   String ret = classify_color(avg_r, avg_g, avg_b, avg_c);
 
-  serial_printf("final color: %s\n",
+  serial_printf_verbose("final color: %s\n",
                 ret.c_str());
   return ret;
 }

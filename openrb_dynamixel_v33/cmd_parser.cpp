@@ -273,27 +273,29 @@ bool cmd_help(int argc, double *argv) {
 #define Y_MID 97
 #define Y_UP 117
 #define Y_DOWN 40
+#define Y_ROTATE_BASE 88
 
 // ---- y read color poses
-#define Y_C_TOP 73
-#define Y_C_MID 52
+#define Y_C_TOP 65
+#define Y_C_MID 48
 
 // ---- x poses
 #define X_CENTER -2.0
 
 // ---- x read color poses
-#define X_C_LEFT -18.0
-#define X_C_RIGHT 18.0
+#define X_C_LEFT -14.0
+#define X_C_RIGHT 16.0
+#define X_C_CENTER 4.0
 
 // ---- w poses
-#define W_HORIZ -90
-#define W_RIGHT 0
+#define W_HORIZ -85
+#define W_RIGHT 5
 
 // ---- g poses
-#define G_OPEN 35
-#define G_WIDE_OPEN 2
-#define G_CLOSE 95
-#define G_SOFT_CLOSE 65
+#define G_OPEN 22
+#define G_WIDE_OPEN 0
+#define G_CLOSE 100
+#define G_SOFT_CLOSE 45
 #define G_ALIGN_LEFT 100
 #define G_ALIGN_RIGHT 100
 
@@ -358,12 +360,13 @@ bool cmd_run(int argc, double *argv) {
   if (run_no == 0) {
     if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveYmm(Y_CENTER)) return false;
+    if (!cmdMoveYmm(Y_ROTATE_BASE)) return false;
     if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
     if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
     if (!cmdMoveGripperPer(G_OPEN)) return false;
     if (!cmdMoveYmm(Y_DOWN)) return false;
     if (!cmdMoveGripperPer(G_SOFT_CLOSE)) return false;
+    if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
     return true;
   }
   // bring faces to base
@@ -385,6 +388,7 @@ bool cmd_run(int argc, double *argv) {
     if (!cmdMoveGripperPer(G_OPEN)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveYmm(Y_CENTER)) return false;
+    if (!cmdMoveGripperPer(G_OPEN)) return false;
     if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
     if (!cmdMoveXmm(Y_CENTER)) return false;
     return true;
@@ -461,11 +465,10 @@ bool cmd_run(int argc, double *argv) {
     if (run_no == 8) {
       String crrColor = "na";
 
-      if (!cmdMoveGripperPer(G_OPEN)) break;
-      if (!resetBase()) break;
       if (!cmdMoveGripperPer(G_WIDE_OPEN)) break;
       if (!cmdMoveWristDegVertical(W_HORIZ)) break;
       if (!cmdMoveXmm(X_CENTER)) break;
+      if (!cmdMoveGripperPer(G_WIDE_OPEN)) break;
 
       speed = 0.25;
 
@@ -474,52 +477,61 @@ bool cmd_run(int argc, double *argv) {
 
       // top right ------------------------------------------------
       if (!cmdMoveXmm(X_C_RIGHT)) break;
+      if (!cmdMoveWristDegVertical(W_HORIZ)) break;
       crrColor = read_color();
-      serial_printf_verbose("COLOR READ TOP_R=%s\n", crrColor);
+      serial_printf("COLOR READ TOP_R=%s\n", crrColor.c_str());
 
       // top center ------------------------------------------------
-      if (!cmdMoveXmm(X_CENTER)) break;
+      if (!cmdMoveXmm(X_C_CENTER)) break;
+      if (!cmdMoveWristDegVertical(W_HORIZ)) break;
       crrColor = read_color();
-      serial_printf_verbose("COLOR READ TOP_C=%s\n", crrColor);
+      serial_printf("COLOR READ TOP_C=%s\n", crrColor.c_str());
 
       // top left --------------------------------------------------
       if (!cmdMoveXmm(X_C_LEFT)) break;
+      if (!cmdMoveWristDegVertical(W_HORIZ)) break;
       crrColor = read_color();
-      serial_printf_verbose("COLOR READ TOP_L=%s\n", crrColor);
+      serial_printf("COLOR READ TOP_L=%s\n", crrColor.c_str());
 
       // mid row ---------------------------------------------------
       if (!cmdMoveYmm(Y_C_MID)) break;
 
       // mid left
       if (!cmdMoveXmm(X_C_LEFT)) break;
+      if (!cmdMoveWristDegVertical(W_HORIZ)) break;
       crrColor = read_color();
-      serial_printf_verbose("COLOR READ MID_L=%s\n", crrColor);
+      serial_printf("COLOR READ MID_L=%s\n", crrColor.c_str());
 
       // mid center
       if (!cmdMoveXmm(X_CENTER)) break;
+      if (!cmdMoveWristDegVertical(W_HORIZ)) break;
       crrColor = read_color();
-      serial_printf_verbose("COLOR READ MID_C=%s\n", crrColor);
+      serial_printf("COLOR READ MID_C=%s\n", crrColor.c_str());
 
       // mid right
       if (!cmdMoveXmm(X_C_RIGHT)) break;
+      if (!cmdMoveWristDegVertical(W_HORIZ)) break;
       crrColor = read_color();
-      serial_printf_verbose("COLOR READ MID_R=%s\n", crrColor);
+      serial_printf("COLOR READ MID_R=%s\n", crrColor.c_str());
 
       // back to main pos
       if (!cmdMoveXmm(X_CENTER)) break;
       if (!cmdMoveXmm(Y_CENTER)) break;
+      if (!cmdMoveWristDegVertical(W_HORIZ)) break;
 
       speed = 1.0;
 
-      if (!cmdMoveGripperPer(G_OPEN)) break;
+      if (!cmdMoveGripperPer(G_WIDE_OPEN)) break;
       return true;
     }
+
+    // TODO add rotate cube but lift the cube at Y_ROTATE_BASE such the sensor tube does not touch
   }
 
   speed = 1.0;
 
   // fix base
-  if (run_no == 8) {
+  if (run_no == 9) {
     if (!alignCube()) return false;
     return true;
   }
@@ -551,8 +563,16 @@ bool cmd_ledoff(int argc, double *argv) {
 // -------------------------------------------------------------------
 void print_info(uint8_t id) {
   if (!dxl.ping(id)) {
-    serial_printf_verbose("Servo %d not found\n", id);
+    serial_printf("ERR Servo %d not found\n", id);
     return;
+  }
+
+  bool _ok = servo_ok(id);
+  serial_printf("SERVO OK id=%d ok=%s\n", id, _ok ? "ok" : "not ok");
+  if (!_ok) {
+    serial_printf("SERVO RESETING id=%d\n", id);
+    reset_servo(id);
+    serial_printf("SERVO OK id=%d ok=%s\n", id, _ok ? "ok" : "not ok");
   }
 
   int op = dxl.readControlTableItem(ControlTableItem::OPERATING_MODE, id);

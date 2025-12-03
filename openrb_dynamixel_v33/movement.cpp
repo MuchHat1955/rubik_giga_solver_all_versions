@@ -266,7 +266,7 @@ void AxisGroupController::writeTicks(const int* posList) {
   for (int i = 0; i < n; i++) {
     uint8_t id = getId(i);
     if (id > 0 && posList[i] >= 0) {
-      safeSetGoalPosition(id, posList[i]);
+      if(!safeSetGoalPosition(id, posList[i]))break;
     }
   }
 }
@@ -564,7 +564,7 @@ static void setPid(uint8_t id, double nP, double nI, double nD) {
   int I = I_MIN + (int)(nI * (I_MAX - I_MIN));
   int D = D_MIN + (int)(nD * (D_MAX - D_MIN));
 
-  serial_printf("PID id=%d P=%d I=%d D=%d\n", id, P, I, D);
+  serial_printf_verbose("PID id=%d P=%d I=%d D=%d\n", id, P, I, D);
 
   dxl.writeControlTableItem(ControlTableItem::POSITION_P_GAIN, id, P);
   dxl.writeControlTableItem(ControlTableItem::POSITION_I_GAIN, id, I);
@@ -652,7 +652,7 @@ static void syncServoMotion(uint8_t id1, uint8_t id2, uint8_t id3,
     dxl.writeControlTableItem(ControlTableItem::PROFILE_ACCELERATION, id3, a3);
   }
 
-  serial_printf("SyncMotion: [%d:%d/%d]  [%d:%d/%d]  [%d:%d/%d]\n",
+  serial_printf_verbose("SyncMotion: [%d:%d/%d]  [%d:%d/%d]  [%d:%d/%d]\n",
                 id1, v1, a1, id2, v2, a2, id3, v3, a3);
 }
 
@@ -1189,7 +1189,10 @@ bool cmdMoveYmm(double goal_ymm) {
 
   serial_printf_verbose("START move_smooth for MODE_XY_VERTICAL\n");
   serial_printf_verbose("existing x=%.2f goal y=%.2f\n", kin.getXmm(), goal_ymm);
+  double prev_speed = speed;
+  if (speed > 0.35) speed = 0.35;  //TODO
   bool ret = move_smooth();
+  speed = prev_speed;
   read_print_xy_status();
   return ret;
 }
@@ -1201,19 +1204,18 @@ bool cmdMoveXmm(double x_mm) {
   double a2_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
   if (!kin.solve_x_y_from_a1_a2(a1_deg, a2_deg)) return false;
 
-  double prev_speed = speed;
-  speed = 0.3; //TODO
-
   axes.setMode(AxisGroupController::AxisRunMode::XY_HORIZONTAL);
   axes.setXGoalMm(x_mm);
   axes.setYGoalMm(kin.getYmm());  // keep Y
-  speed = prev_speed;
 
   if (!axes.init()) return false;
 
   serial_printf_verbose("START move_smooth for MODE_XY_HORIZONTAL\n");
   serial_printf_verbose("goal x=%.2f existing y=%.2f\n", x_mm, kin.getYmm());
+  double prev_speed = speed;
+  if (speed > 0.35) speed = 0.35;  //TODO
   bool ret = move_smooth();
+  speed = prev_speed;
   read_print_xy_status();
   return ret;
 }

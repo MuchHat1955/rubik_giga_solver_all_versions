@@ -5,7 +5,7 @@
 // ============================================================
 
 double l_mm = 60.0;
-double min_ymm = 33.5;
+double min_ymm = 25.0;
 double max_ymm = l_mm * 1.99;
 double max_xmm = 30;
 

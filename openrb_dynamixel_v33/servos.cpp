@@ -41,38 +41,108 @@ extern VerticalKinematics kin;
 //  the LED flashes several times to signal a fault.
 // -------------------------------------------------------------------
 
+void reset_servo(uint8_t id) {
+  Serial.print("Rebooting servo ");
+  Serial.println(id);
+
+  dxl.reboot(id);
+  delay(50);
+
+  // Optional: re-enable torque
+  dxl.torqueOn(id);
+
+  Serial.println("Servo rebooted and torque re-enabled");
+}
+
+bool servo_ok(uint8_t id) {
+
+  // 1) Read hardware error flags
+  int hw_err = dxl.readControlTableItem(ControlTableItem::HARDWARE_ERROR_STATUS, id);
+
+  // -1 means read failed
+  if (hw_err < 0) {
+    serial_printf("DXL %d: failed to read HW_ERROR_STATUS\n", id);
+    return false;
+  }
+
+  // 2) Read SHUTDOWN register (which bits are configured to trigger shutdown)
+  int shutdown = dxl.readControlTableItem(ControlTableItem::SHUTDOWN, id);
+
+  if (shutdown < 0) {
+    serial_printf("DXL %d: failed to read SHUTDOWN\n", id);
+    return false;
+  }
+
+  // Log what we detected
+  serial_printf("DXL %d: hw_err=0x%02X  shutdown=0x%02X\n", id, hw_err, shutdown);
+
+  // If no hardware errors → OK
+  if (hw_err == 0) {
+    return true;
+  }
+
+  // 3) We have errors → try recovery
+  serial_printf("DXL %d ERROR detected, attempting recovery...\n", id);
+
+  // Disable torque before reboot
+  dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, id, 0);
+  delay(20);
+
+  // 4) Reboot the servo to clear hardware errors
+  bool reboot_ok = dxl.reboot(id);
+
+  if (!reboot_ok) {
+    serial_printf("DXL %d: reboot FAILED\n", id);
+    return false;
+  }
+
+  delay(200);
+
+  // 5) Turn torque back on
+  dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, id, 1);
+  delay(20);
+
+  // 6) Re-read error register
+  hw_err = dxl.readControlTableItem(ControlTableItem::HARDWARE_ERROR_STATUS, id);
+
+  serial_printf("DXL %d: post-reboot hw_err=0x%02X\n", id, hw_err);
+
+  return hw_err == 0;
+}
+
+bool servoError = false;
+constexpr int LED_FLASH_COUNT = 3;
+constexpr int LED_FLASH_DELAY_MS = 120;
+
 bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
-  // Read servo current and temperature
-  int curr_mA = dxl.getPresentCurrent(id);
-  int temp_C = dxl.readControlTableItem(ControlTableItem::PRESENT_TEMPERATURE, id);
 
-  // Safety thresholds (same as globals)
-  constexpr int STALL_LIMIT_mA = 500;
-  constexpr int TEMP_LIMIT_C = 70;
-  constexpr int LED_FLASH_COUNT = 3;
-  constexpr int LED_FLASH_DELAY_MS = 120;
+  if (servoError) {
+    serial_printf("ERR servo error, skip everything\n");
+    return false;
+  }
 
-  // Check for stall or overheat
-  if (curr_mA > STALL_LIMIT_mA || temp_C >= TEMP_LIMIT_C) {
-    // Disable torque immediately
-    dxl.torqueOff(id);
+  uint8_t hw_err = dxl.readControlTableItem(ControlTableItem::HARDWARE_ERROR_STATUS, id);
 
-    // Flash LED a few times as a warning
+  if (!servo_ok(id)) {
+    serial_printf("ERR Servo %d error: 0x%02X\n", id, hw_err);
     for (int i = 0; i < LED_FLASH_COUNT; i++) {
       lOn(id);
       delay(LED_FLASH_DELAY_MS);
       lOff(id);
       delay(LED_FLASH_DELAY_MS);
     }
-
-    // Leave LED ON after flashing to indicate persistent fault
-    lOn(id);
-
-    serial_printf_verbose(
-      "[safe move blocked] id=%u curr=%d temp=%d  (⚠ torque off)\n",
-      id, curr_mA, temp_C);
-
-    return false;  // abort move
+    reset_servo(id);
+    for (int i = 0; i < LED_FLASH_COUNT; i++) {
+      lOn(id);
+      delay(LED_FLASH_DELAY_MS);
+      lOff(id);
+      delay(LED_FLASH_DELAY_MS);
+    }
+    if (!servo_ok(id)) {
+      serial_printf("ERR setting the error flag for all because of servo=%d\n", id);
+      servoError = true;
+      return false;
+    }
   }
 
   // Check for min and maxt
