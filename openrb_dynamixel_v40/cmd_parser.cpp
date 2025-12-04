@@ -367,11 +367,10 @@ bool dropCube() {
 
 bool liftCube() {
   if (!cmdMoveXmm(X_CENTER)) return false;
-  if (!cmdMoveYmm(Y_ABOVE_DROP)) return false;
-  if (!cmdMoveXmm(X_CENTER)) return false;
   if (!cmdMoveYmm(Y_DROP)) return false;
   if (!cmdMoveXmm(X_CENTER)) return false;
-  if (!cmdMoveYmm(Y_CENTER)) return false;
+  if (!cmdMoveYmm(Y_ABOVE_DROP)) return false;
+  if (!cmdMoveXmm(X_CENTER)) return false;
   return true;
 }
 
