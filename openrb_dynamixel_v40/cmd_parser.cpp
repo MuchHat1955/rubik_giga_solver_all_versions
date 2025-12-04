@@ -274,13 +274,15 @@ bool cmd_help(int argc, double *argv) {
 #define Y_UP 117
 #define Y_DOWN 33
 #define Y_ROTATE_BASE 88
+#define Y_ABOVE_DROP 82
+#define Y_DROP 75
 
 // ---- y read color poses
 #define Y_C_TOP 65
 #define Y_C_MID 48
 
 // ---- x poses
-#define X_CENTER -1.5
+#define X_CENTER -2.0
 
 // ---- x read color poses
 #define X_C_LEFT -14.0
@@ -524,8 +526,6 @@ bool cmd_run(int argc, double *argv) {
       if (!cmdMoveGripperPer(G_WIDE_OPEN)) break;
       return true;
     }
-
-    // TODO add rotate cube but lift the cube at Y_ROTATE_BASE such the sensor tube does not touch
   }
 
   speed = 1.0;
