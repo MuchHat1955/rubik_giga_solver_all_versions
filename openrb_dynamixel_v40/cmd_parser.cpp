@@ -367,10 +367,9 @@ bool dropCube() {
 
 bool liftCube() {
   if (!cmdMoveXmm(X_CENTER)) return false;
-  if (!cmdMoveYmm(Y_DROP)) return false;
-
-  if (!cmdMoveXmm(X_CENTER)) return false;
   if (!cmdMoveYmm(Y_ABOVE_DROP)) return false;
+  if (!cmdMoveXmm(X_CENTER)) return false;
+  if (!cmdMoveYmm(Y_DROP)) return false;
   if (!cmdMoveXmm(X_CENTER)) return false;
   if (!cmdMoveYmm(Y_CENTER)) return false;
   return true;
@@ -426,8 +425,9 @@ bool cmd_run(int argc, double *argv) {
     if (!cmdMoveGripperPer(G_OPEN)) return false;
     if (!resetBase()) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveYmm(Y_CENTER)) return false;
+    if (!cmdMoveYmm(Y_CENTER + 3)) return false;
     if (!cmdMoveWristDegVertical(W_RIGHT)) return false;
+    if (!cmdMoveYmm(Y_CENTER)) return false;
     if (!cmdMoveGripperClamp()) return false;
     if (!liftCube()) return false;
     if (!cmdMoveYmm(Y_UP)) return false;
@@ -435,6 +435,7 @@ bool cmd_run(int argc, double *argv) {
 
     if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
 
+    if (!dropCube()) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveXmm(Y_CENTER)) return false;
     return true;

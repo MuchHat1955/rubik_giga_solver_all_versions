@@ -1135,8 +1135,8 @@ static int16_t readReg16(uint8_t id, uint16_t addr) {
 }
 
 bool cmdMoveGripperClamp() {
-  if (getPos_per(ID_GRIP1) < 75.0 || getPos_per(ID_GRIP2) < 75.0) {
-    if (!cmdMoveGripperPer(75.0)) return false;
+  if (getPos_per(ID_GRIP1) < 85.0 || getPos_per(ID_GRIP2) < 85.0) {
+    if (!cmdMoveGripperPer(85.0)) return false;
 
     setPid(ID_GRIP1, 0.8, 0.10, 0.35);
     setPid(ID_GRIP2, 0.8, 0.10, 0.35);
