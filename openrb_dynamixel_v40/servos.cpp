@@ -517,6 +517,10 @@ double getPos_deg(int id) {
   return ticks2deg(id, dxl.getPresentPosition(id));
 }
 
+double getPos_per(int id) {
+  return ticks2per(id, dxl.getPresentPosition(id));
+}
+
 void setGoal_deg(int id, double goal_deg) {
   int goal_ticks = deg2ticks(id, goal_deg);
   safeSetGoalPosition(id, goal_ticks);

@@ -205,6 +205,15 @@ bool cmd_move_x(int argc, double *argv) {
   return true;
 }
 
+bool cmd_move_clamp(int argc, double *argv) {
+  if (!dxl.ping(ID_GRIP1) || !dxl.ping(ID_GRIP2)) return false;
+
+  serial_printf_verbose("cmd_move_clamp\n");
+  if (!cmdMoveGripperClamp()) return false;
+  print_servo_status(ID_GRIP1);
+  print_servo_status(ID_GRIP2);
+}
+
 bool cmd_move_gripper(int argc, double *argv) {
   if (!dxl.ping(ID_GRIP1) || !dxl.ping(ID_GRIP2)) return false;
 
@@ -631,8 +640,9 @@ static CommandEntry command_table[] = {
   { "MOVEXYMM", "%f %f", cmd_move_xy, "MOVEXYMM <float mm> <float mm> - lateral then vertical move (-25 to 25)(42 to 102)" },
   { "MOVEGRIPPER", "%f", cmd_move_gripper, "MOVEGRIPPER <percentage> - move both grips to percentage (0 to 100)" },
   { "MOVEWRISTVERTDEG", "%f", cmd_move_wrist_vert, "MOVEWRISTVERTDEG <deg> - move wrist relative to vertical (-5 to 185)" },
+  { "CLAMP", "%f", cmd_move_clamp, "CLAMP <deg> - clamp gripper" },
 
-  { "RUN", "%d", cmd_run, "RUN <no> - 0 center | 1 left down  | 2 right down\n                      | 3 base right | 4 base left | 5 base back\n                      | 6 reset base | 7 align cube | 8 read colors\n" },
+  { "RUN", "%d", cmd_run, "RUN <no> - 0 center | 1 left down  | 2 right down | 10 back down\n                      | 3 base right | 4 base left | 5 base back\n                      | 6 reset base | 7 align cube | 8 read colors\n" },
 
   { "READ", "%d", cmd_read, "READ <id> - show servo summary status" },
   { "INFO", "%d", cmd_info, "INFO <id> - show servo full status" },

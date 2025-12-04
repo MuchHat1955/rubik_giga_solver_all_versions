@@ -134,6 +134,7 @@ bool cmdMoveGripperPer(double goal_per);
 bool cmdMoveWristDegVertical(double goal_deg);
 bool cmdMoveYmm(double goal_ymm);
 bool cmdMoveXmm(double x_mm);
+bool cmdMoveGripperClamp();
 
 void read_print_xy_status();
 void print_all_status();

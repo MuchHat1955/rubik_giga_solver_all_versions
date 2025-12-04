@@ -266,7 +266,7 @@ void AxisGroupController::writeTicks(const int* posList) {
   for (int i = 0; i < n; i++) {
     uint8_t id = getId(i);
     if (id > 0 && posList[i] >= 0) {
-      if(!safeSetGoalPosition(id, posList[i]))break;
+      if (!safeSetGoalPosition(id, posList[i])) break;
     }
   }
 }
@@ -653,7 +653,7 @@ static void syncServoMotion(uint8_t id1, uint8_t id2, uint8_t id3,
   }
 
   serial_printf_verbose("SyncMotion: [%d:%d/%d]  [%d:%d/%d]  [%d:%d/%d]\n",
-                id1, v1, a1, id2, v2, a2, id3, v3, a3);
+                        id1, v1, a1, id2, v2, a2, id3, v3, a3);
 }
 
 static void refineEndPositions(uint8_t id1, uint8_t id2, uint8_t id3,
@@ -1121,6 +1121,88 @@ bool cmdMoveServoPer(int id, double goal_per) {
   if (!cmdMoveServoDeg((uint8_t)id, goal_deg)) return false;
   print_servo_status((uint8_t)id);
   return true;
+}
+
+//------------------------------------------------------
+// RAW 16-bit read (works with your library)
+//------------------------------------------------------
+static int16_t readReg16(uint8_t id, uint16_t addr) {
+  uint8_t data[2] = { 0, 0 };
+  int32_t res = dxl.read(id, addr, 2, data, 2, 20);
+  if (res > 0)
+    return (int16_t)(data[0] | (data[1] << 8));
+  return 0;
+}
+
+bool cmdMoveGripperClamp() {
+  if (getPos_per(ID_GRIP1) < 75.0 || getPos_per(ID_GRIP2) < 75.0) {
+    if (!cmdMoveGripperPer(75.0)) return false;
+
+    setPid(ID_GRIP1, 0.8, 0.10, 0.35);
+    setPid(ID_GRIP2, 0.8, 0.10, 0.35);
+
+    const uint16_t PWM_REG = 124;
+    const int PWM_TOUCH = 90;
+    const double EXTRA = 1.5;
+
+    bool touched1 = false;
+    bool touched2 = false;
+    bool extraDone = false;
+
+    double per1 = getPos_per(ID_GRIP1);
+    double per2 = getPos_per(ID_GRIP2);
+
+    const double STEP = 0.8;  // faster closing
+
+    for (int step = 0; step < 80; step++) {
+      if (!touched1) dxl.setGoalPosition(ID_GRIP1, per2ticks(ID_GRIP1, per1));
+      if (!touched2) dxl.setGoalPosition(ID_GRIP2, per2ticks(ID_GRIP2, per2));
+
+      unsigned long until = millis() + 10;  // faster check
+      while (millis() < until) {
+
+        int16_t pwm1 = readReg16(ID_GRIP1, PWM_REG);
+        int16_t pwm2 = readReg16(ID_GRIP2, PWM_REG);
+
+        if (!touched1 && abs(pwm1) >= PWM_TOUCH) touched1 = true;
+        if (!touched2 && abs(pwm2) >= PWM_TOUCH) touched2 = true;
+
+        delay(2);  // faster update
+      }
+
+      // freeze AFTER marking touch (faster syncing)
+      if (touched1) {
+        int hold = dxl.getPresentPosition(ID_GRIP1);
+        dxl.setGoalPosition(ID_GRIP1, hold);
+      }
+      if (touched2) {
+        int hold = dxl.getPresentPosition(ID_GRIP2);
+        dxl.setGoalPosition(ID_GRIP2, hold);
+      }
+
+      if (!extraDone && touched1 && touched2) {
+        per1 += EXTRA;
+        per2 += EXTRA;
+
+        if (per1 > 105.0) per1 = 105.0;
+        if (per2 > 105.0) per2 = 105.0;
+
+        dxl.setGoalPosition(ID_GRIP1, per2ticks(ID_GRIP1, per1));
+        dxl.setGoalPosition(ID_GRIP2, per2ticks(ID_GRIP2, per2));
+
+        extraDone = true;
+        break;
+      }
+
+      if (!touched1) per1 += STEP;
+      if (!touched2) per2 += STEP;
+
+      if (per1 > 105.0) per1 = 105.0;
+      if (per2 > 105.0) per2 = 105.0;
+    }
+
+    return (touched1 && touched2);
+  }
 }
 
 bool cmdMoveGripperPer(double goal_per) {

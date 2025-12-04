@@ -109,6 +109,7 @@ bool checkStallGroup(const std::vector<uint8_t> &ids);
 
 // ---------------- Position helpers ----------------
 double getPos_deg(int id);
+double getPos_per(int id);
 int getMin_ticks(int id);
 int getMax_ticks(int id);
 void setGoal_deg(int id, double goal_deg);
