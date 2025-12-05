@@ -429,10 +429,29 @@ bool prepBaseForRotation(int baseMove) {
 #define B_BACK -180
 */
 
+// below are relative moves
 bool rotateBase(int baseMove) {
   if (!dxl.ping(ID_BASE)) return false;
 
-  if (baseMove == B_CENTER) return true;
+  double b_pos = getPos_deg(ID_BASE);
+
+  bool isBaseCenter = (b_pos > B_CENTER - B_TOL && b_pos < B_CENTER + B_TOL);
+  bool isBaseRight = (b_pos > B_RIGHT - B_TOL && b_pos < B_RIGHT + B_TOL);
+  bool isBaseLeft = (b_pos > B_LEFT - B_TOL && b_pos < B_LEFT + B_TOL);
+  bool isBaseBack = (b_pos > B_BACK - B_TOL && b_pos < B_BACK + B_TOL);
+
+  if (baseMove == B_RIGHT) {
+    if (isBaseCenter) return true;
+  }
+  if (baseMove == B_LEFT) {
+    if (isBaseLeft) return true;
+  }
+  if (baseMove == B_BACK) {
+    if (isBaseBack) return true;
+  }
+  if (baseMove == B_CENTER) {
+    if (isBaseCenter) return true;
+  }
 
   if (!prepBaseForRotation(baseMove)) return false;
   return cmdMoveServoDeg(ID_BASE, baseMove);
