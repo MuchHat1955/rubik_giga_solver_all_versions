@@ -2,6 +2,7 @@
 #include "movement.h"
 #include "servos.h"
 #include "color_read.h"
+#include "ori.h"
 
 void print_info(uint8_t id);
 
@@ -9,6 +10,7 @@ extern double max_xmm;
 extern double max_ymm;
 extern double min_ymm;
 extern double speed;
+extern RubikOrientation ori;
 
 // -------------------------------------------------------------------
 //                      COMMAND TABLE

@@ -205,3 +205,5 @@ String RubikOrientation::getCubeColors() const {
 
   return out;
 }
+
+RubikOrientation ori;
