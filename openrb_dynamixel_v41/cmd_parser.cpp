@@ -363,25 +363,27 @@ bool cmd_help(int argc, double *argv) {
 
 #define B_TOL 3
 
-bool resetBase(int baseTurnToAccomodate) {
-
+bool prepBaseForRotation(int baseMove) {
   double b_pos = getPos_deg(ID_BASE);
 
-  if (baseTurnToAccomodate == B_LEFT) {
-    // if not already B_LEFT = 90 ok
-    if (b_pos > B_LEFT - B_TOL && b_pos < B_LEFT + B_TOL) return true;
+  bool isBaseCenter = (b_pos > B_CENTER - B_TOL && b_pos < B_CENTER + B_TOL);
+  bool isBaseRight = (b_pos > B_RIGHT - B_TOL && b_pos < B_RIGHT + B_TOL);
+  bool isBaseLeft = (b_pos > B_LEFT - B_TOL && b_pos < B_LEFT + B_TOL);
+  bool isBaseBack = (b_pos > B_BACK - B_TOL && b_pos < B_BACK + B_TOL);
+
+  if (baseMove == B_RIGHT) {
+    if (isBaseCenter) return true;
+    if (isBaseLeft) return true;
+    if (isBaseBack) return true;
   }
-  if (baseTurnToAccomodate == B_RIGHT) {
-    // if not already B_LEFT = 90 ok
-    if (b_pos > B_RIGHT - B_TOL && b_pos < B_RIGHT + B_TOL) return true;
+  if (baseMove == B_LEFT) {
+    if (isBaseCenter) return true;
+    if (isBaseRight) return true;
+    if (isBaseLeft) return true;
   }
-  if (baseTurnToAccomodate == B_BACK) {
-    // has to be center
-    if (b_pos > B_CENTER - B_TOL && b_pos < B_CENTER + B_TOL) return true;
-  }
-  if (baseTurnToAccomodate == B_CENTER) {
-    // has to be center
-    if (b_pos > B_CENTER - B_TOL && b_pos < B_CENTER + B_TOL) return true;
+  if (baseMove == B_BACK) {
+    if (isBaseCenter) return true;
+    if (isBaseRight) return true;
   }
 
   if (!cmdMoveGripperPer(G_OPEN)) return false;
@@ -401,64 +403,12 @@ bool resetBase(int baseTurnToAccomodate) {
 #define B_BACK -180
 */
 
-bool cmdMoveBaseRight() {  //TODO need to check, 180 is more left
+bool rotateBase(int baseMove) {
   if (!dxl.ping(ID_BASE)) return false;
-  double b_pos = getPos_deg(ID_BASE);
 
-  bool isBaseCenter = (b_pos > B_CENTER - B_TOL && b_pos < B_CENTER + B_TOL);
-  bool isBaseRight = (b_pos > B_RIGHT - B_TOL && b_pos < B_RIGHT + B_TOL);
-  bool isBaseLeft = (b_pos > B_LEFT - B_TOL && b_pos < B_LEFT + B_TOL);
-  bool isBaseBack = (b_pos > B_BACK - B_TOL && b_pos < B_BACK + B_TOL);
-
-  if (!isBaseCenter && !isBaseRight && !isBaseLeft && !isBaseBack) {
-    if (!resetBase(B_CENTER)) return false;
-    isBaseCenter = true;
-  }
-
-  if (isBaseRight) return cmdMoveServoDeg(ID_BASE, B_BACK);
-  if (isBaseCenter) return cmdMoveServoDeg(ID_BASE, B_RIGHT);
-  if (isBaseLeft) return cmdMoveServoDeg(ID_BASE, B_CENTER);
-  if (isBaseBack) return cmdMoveServoDeg(ID_BASE, B_LEFT);
-  return false;
-}
-
-bool cmdMoveBaseLeft() {
-  if (!dxl.ping(ID_BASE)) return false;
-  double b_pos = getPos_deg(ID_BASE);
-
-  bool isBaseCenter = (b_pos > B_CENTER - B_TOL && b_pos < B_CENTER + B_TOL);
-  bool isBaseRight = (b_pos > B_RIGHT - B_TOL && b_pos < B_RIGHT + B_TOL);
-  bool isBaseLeft = (b_pos > B_LEFT - B_TOL && b_pos < B_LEFT + B_TOL);
-  bool isBaseBack = (b_pos > B_BACK - B_TOL && b_pos < B_BACK + B_TOL);
-
-  if (isBaseBack) {
-    if (!resetBase(B_CENTER)) return false;
-    isBaseCenter = true;
-  } else if (!isBaseCenter && !isBaseRight && !isBaseLeft && !isBaseBack) {
-    if (!resetBase(B_CENTER)) return false;
-    isBaseCenter = true;
-  }
-
-  if (isBaseRight) return cmdMoveServoDeg(ID_BASE, B_CENTER);
-  if (isBaseCenter) return cmdMoveServoDeg(ID_BASE, B_LEFT);
-  if (isBaseLeft) return cmdMoveServoDeg(ID_BASE, B_BACK);
-  if (isBaseBack) return false;  // should not be in this position
-  return false;
-}
-
-bool cmdMoveBaseBack() {
-  if (!dxl.ping(ID_BASE)) return false;
-  double b_pos = getPos_deg(ID_BASE);
-
-  bool isBaseCenter = (b_pos > B_CENTER - B_TOL && b_pos < B_CENTER + B_TOL);
-  bool isBaseRight = (b_pos > B_RIGHT - B_TOL && b_pos < B_RIGHT + B_TOL);
-  bool isBaseLeft = (b_pos > B_LEFT - B_TOL && b_pos < B_LEFT + B_TOL);
-  bool isBaseBack = (b_pos > B_BACK - B_TOL && b_pos < B_BACK + B_TOL);
-
-  if (!isBaseRight) {
-    if (!resetBase(B_CENTER)) return false;
-  }
-  return cmdMoveServoDeg(ID_BASE, B_BACK);
+  if (!prepBaseForRotation(baseMove)) return false;
+  return cmdMoveServoDeg(ID_BASE, baseMove);
+  ;
 }
 
 bool alignCube() {
@@ -469,7 +419,7 @@ bool alignCube() {
 
   if (!cmdMoveServoPer(ID_GRIP2, G_ALIGN_LEFT)) return false;
   if (!cmdMoveServoDeg(ID_GRIP2, G_OPEN)) return false;
-  if (!cmdMoveServoDeg(ID_GRIP1, G_ALIGN_RIGHT)) return false;  //TODO this can be refined
+  if (!cmdMoveServoDeg(ID_GRIP1, G_ALIGN_RIGHT)) return false;  //TODOadjust
   if (!cmdMoveServoDeg(ID_GRIP1, G_OPEN)) return false;
   if (!cmdMoveGripperPer(G_OPEN)) return false;
 
@@ -514,9 +464,7 @@ bool cmd_run(int argc, double *argv) {
   // the standby position
   if (run_no == RUN_ZERO) {
     if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
-    if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveYmm(Y_ROTATE_BASE)) return false;
-    if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
+    if (!rotateBase(B_CENTER)) return false;
     if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
     if (!cmdMoveGripperPer(G_OPEN)) return false;
     if (!cmdMoveYmm(Y_DOWN)) return false;
@@ -593,13 +541,10 @@ bool cmd_run(int argc, double *argv) {
   if (run_no == RUN_BACK_DOWN) {
     // prep
     if (!cmdMoveGripperPer(G_OPEN)) return false;
-    // if (!resetBase(B_RIGHT)) return false; // done in cmdMoveBaseLeft
+    // if (!prepBaseForRotation(B_RIGHT)) return false; // done in cmdMoveBaseLeft
 
     // rotate base to bring back face on the right
-    if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
-    if (!cmdMoveYmm(Y_ROTATE_BASE)) return false;
-    if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveBaseLeft()) return false;
+    if (!rotateBase(B_LEFT)) return false;
 
     // lift cube to rotate vertically
     if (!cmdMoveYmm(Y_CENTER)) return false;
@@ -638,14 +583,14 @@ bool cmd_run(int argc, double *argv) {
     if (!cmdMoveGripperPer(G_OPEN)) return false;
     // prep the base
     if ((run_no == RUN_BOTTOM_RIGHT))
-      if (!resetBase(B_RIGHT)) return false;
+      if (!prepBaseForRotation(B_RIGHT)) return false;
     if ((run_no == RUN_BOTTOM_LEFT))
-      if (!resetBase(B_LEFT)) return false;
+      if (!prepBaseForRotation(B_LEFT)) return false;
     if ((run_no == RUN_BOTTOM_BACK))
-      if (!resetBase(B_BACK)) return false;
+      if (!prepBaseForRotation(B_BACK)) return false;
 
     // move grip above bottom layer
-    if (!cmdMoveYmm(Y_CENTER)) return false;  //TODO a resetWristHoriz and resetWristVert
+    if (!cmdMoveYmm(Y_CENTER)) return false;  //TODO add resetWristHoriz and resetWristVert maybe
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
     if (!cmdMoveYmm(Y_MID)) return false;
@@ -654,13 +599,13 @@ bool cmd_run(int argc, double *argv) {
 
     // rotate base
     if (run_no == RUN_BOTTOM_RIGHT) {
-      if (!cmdMoveBaseRight()) return false;
+      if (!cmdMoveServoDeg(ID_BASE, B_RIGHT)) return false;
     }
     if (run_no == RUN_BOTTOM_LEFT) {
-      if (!cmdMoveBaseLeft()) return false;
+      if (!cmdMoveServoDeg(ID_BASE, B_LEFT)) return false;
     }
     if (run_no == RUN_BOTTOM_BACK) {
-      if (!cmdMoveBaseBack()) return false;
+      if (!cmdMoveServoDeg(ID_BASE, B_BACK)) return false;
     }
 
     // release clamp
@@ -677,20 +622,17 @@ bool cmd_run(int argc, double *argv) {
 
   // rotate full cube: right, left, back
   if (run_no == RUN_CUBE_RIGHT) {
-    if (!resetBase(B_RIGHT)) return false;
-    //TODO
+    if (!rotateBase(B_RIGHT)) return false;
     return true;
   }
   // 32  turn cube left to front
   if (run_no == RUN_CUBE_LEFT) {
-    if (!resetBase(B_LEFT)) return false;
-    //TODO
+    if (!rotateBase(B_LEFT)) return false;
     return true;
   }
   // 33  turn cube back to front
   if (run_no == RUN_CUBE_BACK) {
-    if (!resetBase(B_BACK)) return false;
-    //TODO
+    if (!rotateBase(B_BACK)) return false;
     return true;
   }
 
@@ -770,17 +712,17 @@ bool cmd_run(int argc, double *argv) {
 
   // reset base needed to turn base right, left, back
   if (run_no == RUN_RESET_RIGHT) {
-    if (!resetBase(B_RIGHT)) return false;
+    if (!prepBaseForRotation(B_RIGHT)) return false;
     return true;
   }
   // reset base needed to turn base left
   if (run_no == 82) {
-    if (!resetBase(B_LEFT)) return false;
+    if (!prepBaseForRotation(B_LEFT)) return false;
     return true;
   }
   // reset base  needed to turn base 180
   if (run_no == RUN_RESET_LEFT) {
-    if (!resetBase(B_BACK)) return false;
+    if (!prepBaseForRotation(B_BACK)) return false;
     return true;
   }
 

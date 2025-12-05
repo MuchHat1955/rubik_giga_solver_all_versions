@@ -1272,7 +1272,7 @@ bool cmdMoveYmm(double goal_ymm) {
   serial_printf_verbose("START move_smooth for MODE_XY_VERTICAL\n");
   serial_printf_verbose("existing x=%.2f goal y=%.2f\n", kin.getXmm(), goal_ymm);
   double prev_speed = speed;
-  if (speed > 0.35) speed = 0.35;  //TODO
+  if (speed > 0.35) speed = 0.35;  //TODOadjust
   bool ret = move_smooth();
   speed = prev_speed;
   read_print_xy_status();
@@ -1295,7 +1295,7 @@ bool cmdMoveXmm(double x_mm) {
   serial_printf_verbose("START move_smooth for MODE_XY_HORIZONTAL\n");
   serial_printf_verbose("goal x=%.2f existing y=%.2f\n", x_mm, kin.getYmm());
   double prev_speed = speed;
-  if (speed > 0.25) speed = 0.25;  //TODO
+  if (speed > 0.25) speed = 0.25;  //TODOadjust
   bool ret = move_smooth();
   speed = prev_speed;
   read_print_xy_status();
