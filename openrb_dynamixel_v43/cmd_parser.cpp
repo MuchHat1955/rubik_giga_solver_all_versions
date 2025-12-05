@@ -432,9 +432,10 @@ bool prepBaseForRotation(int baseMove) {
 bool rotateBase(int baseMove) {
   if (!dxl.ping(ID_BASE)) return false;
 
+  if (baseMove == B_CENTER) return true;
+
   if (!prepBaseForRotation(baseMove)) return false;
   return cmdMoveServoDeg(ID_BASE, baseMove);
-  ;
 }
 
 bool alignCube() {
