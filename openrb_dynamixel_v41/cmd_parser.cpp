@@ -11,6 +11,88 @@ extern double min_ymm;
 extern double speed;
 
 // -------------------------------------------------------------------
+//                      COMMAND TABLE
+// ------------------ -------------------------------------------------
+
+// RUN command constants (placed next to help text)
+static constexpr int RUN_ZERO = 0;
+
+static constexpr int RUN_RIGHT_DOWN = 11;
+static constexpr int RUN_LEFT_DOWN = 12;
+static constexpr int RUN_BACK_DOWN = 13;
+
+static constexpr int RUN_BOTTOM_RIGHT = 21;
+static constexpr int RUN_BOTTOM_LEFT = 22;
+static constexpr int RUN_BOTTOM_BACK = 23;
+
+static constexpr int RUN_CUBE_RIGHT = 31;
+static constexpr int RUN_CUBE_LEFT = 32;
+static constexpr int RUN_CUBE_BACK = 33;
+
+static constexpr int RUN_RESET_RIGHT = 41;
+static constexpr int RUN_RESET_LEFT = 42;
+static constexpr int RUN_RESET_BACK = 43;
+
+static constexpr int RUN_READ_COLORS = 50;
+
+static constexpr int RUN_ALIGN_CUBE = 60;
+
+const char runHelp[] PROGMEM =
+  "RUN <no>\n"
+  "      0 pos zero |\n"
+  "     11 right down   | 12 left down    | 13 back down\n"
+  "     21 bottom right | 22 bottom right | 23 bottom back\n"
+  "     31 cube right   | 32 cube left    | 33 cube back\n"
+  "     41 reset right  | 42 reset left   | 143 reset back\n"
+  "     50 read colors\n"
+  "     60 align\n";
+
+struct CommandEntry {
+  const char *name;
+  const char *fmt;
+  bool (*handler)(int argc, double *argv);
+  const char *desc;
+};
+
+static CommandEntry command_table[] = {
+  { "VERBOSEON", "", cmd_verbose_on, "VERBOSEON - enable verbose output" },
+  { "VERBOSEOFF", "", cmd_verbose_off, "VERBOSEOFF - disable verbose output" },
+
+  // TODO need an external FRAM RB does not have EEPRO
+
+  { "SETMIN", "%d %d", cmd_set_min, "SETMIN <id> <ticks> - set the min ticks" },
+  { "SETMAX", "%d %d", cmd_set_max, "SETMAX <id> <ticks> - set the max ticks" },
+  // { "SETZERO", "%d %d", cmd_set_zero, "SETZERO <id> <ticks> - set the zero pos in ticks" },
+  // { "SETDIRPLUS", "%d", cmd_set_dir_plus, "SETDIRPLUS <id> - set dir using the current pos > zero" },
+  // { "SETDIRMINUS", "%d", cmd_set_dir_minus, "SETDIRMINUS <id> - set dir using the current pos < zero" },
+
+  { "MOVETICKS", "%d %d", cmd_move_ticks, "MOVEDEG <id> <ticks goal> - move one servo to ticks (not smooth)" },
+  { "MOVEDEG", "%d %f", cmd_move_deg, "MOVEDEG <id> <deg goal> - move one servo to degree (smooth)" },
+  { "MOVEPER", "%d %f", cmd_move_per, "MOVEPER <id> <per goal> - move one servo to percent (smooth)" },
+  // { "MOVECENTER", "", cmd_move_center, "MOVECENTER - move all to center" },
+  { "MOVEYMM", "%f", cmd_move_y, "MOVEYMM <float mm> - vertical move (42 to 102)" },
+  { "MOVEXMM", "%f", cmd_move_x, "MOVEXMM <float mm> - lateral move (-30 to 30)" },
+  { "MOVEXYMM", "%f %f", cmd_move_xy, "MOVEXYMM <float mm> <float mm> - lateral then vertical move (-25 to 25)(42 to 102)" },
+  { "MOVEGRIPPER", "%f", cmd_move_gripper, "MOVEGRIPPER <percentage> - move both grips to percentage (0 to 100)" },
+  { "MOVEWRISTVERTDEG", "%f", cmd_move_wrist_vert, "MOVEWRISTVERTDEG <deg> - move wrist relative to vertical (-5 to 185)" },
+  { "CLAMP", "", cmd_move_clamp, "CLAMP - clamp gripper" },
+
+  { "RUN", "%d", cmd_run, runHelp },
+
+  { "READ", "%d", cmd_read, "READ <id> - show servo summary status" },
+  { "INFO", "%d", cmd_info, "INFO <id> - show servo full status" },
+
+  { "COLOR", "%d", cmd_color, "COLOR <count> - read color <count> times" },
+
+  { "LEDON", "%d", cmd_ledon, "LEDON <id> - turn servo LED on" },
+  { "LEDOFF", "%d", cmd_ledoff, "LEDOFF <id> - turn servo LED off" },
+
+  { "HELP", "", cmd_help, "HELP list of commands" },
+};
+
+static constexpr int COMMAND_COUNT = sizeof(command_table) / sizeof(command_table[0]);
+
+// -------------------------------------------------------------------
 //                            PARSE HELPERS
 // -------------------------------------------------------------------
 
@@ -38,30 +120,6 @@ static int parse_args(const String &line, const char *fmt, double *out, int max_
     pos = next_space + 1;
   }
   return argc;
-}
-
-// -------------------------------------------------------------------
-//                       ID RESOLVER (Name or Number)
-// -------------------------------------------------------------------
-
-static int resolve_id_or_name(const String &token) {
-  // purely numeric
-  bool numeric = true;
-  for (unsigned int i = 0; i < token.length(); i++) {
-    if (!isdigit(token[i])) {
-      numeric = false;
-      break;
-    }
-  }
-  if (numeric) return token.toInt();
-
-  // try by name
-  ServoConfig *s = find_servo(token.c_str());
-  if (s) return s->get_id();
-
-  serial_printf_verbose(
-    "Unknown servo name '%s'\n", token.c_str());
-  return 0;
 }
 
 // -------------------------------------------------------------------
@@ -317,21 +375,37 @@ bool cmd_help(int argc, double *argv) {
 #define B_BACK -180
 #define B_ERR 3
 
-bool resetBase() {
+#define B_TOL 3
+
+bool resetBase(int baseTurnToAccomodate) {
+
   double b_pos = getPos_deg(ID_BASE);
-  if (b_pos > B_CENTER - 3 && b_pos < B_CENTER + 3) return true;
+
+  if (baseTurnToAccomodate == B_LEFT) {
+    // if not already B_LEFT = 90 ok
+    if (b_pos > B_LEFT - B_TOL && b_pos < B_LEFT + B_TOL) return true;
+  }
+  if (baseTurnToAccomodate == B_RIGHT) {
+    // if not already B_LEFT = 90 ok
+    if (b_pos > B_RIGHT - B_TOL && b_pos < B_RIGHT + B_TOL) return true;
+  }
+  if (baseTurnToAccomodate == B_BACK) {
+    // has to be center
+    if (b_pos > B_CENTER - B_TOL && b_pos < B_CENTER + B_TOL) return true;
+  }
+  if (baseTurnToAccomodate == B_CENTER) {
+    // has to be center
+    if (b_pos > B_CENTER - B_TOL && b_pos < B_CENTER + B_TOL) return true;
+  }
 
   if (!cmdMoveGripperPer(G_OPEN)) return false;
   if (!cmdMoveXmm(X_CENTER)) return false;
   if (!cmdMoveYmm(Y_CENTER)) return false;
   if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
   if (!cmdMoveGripperClamp()) return false;
-  if (!cmdMoveYmm(Y_MID)) return false;
+  if (!cmdMoveYmm(Y_ROTATE_BASE)) return false;
   if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
-  if (!cmdMoveYmm(Y_CENTER)) return false;
-  if (!cmdMoveGripperPer(G_OPEN)) return false;
-  if (!cmdMoveYmm(Y_CENTER)) return false;
-  if (!cmdMoveXmm(X_CENTER)) return false;
+  if (!dropCube()) return false;
   return true;
 }
 
@@ -350,6 +424,7 @@ bool alignCube() {
   if (!cmdMoveYmm(Y_ALIGN)) return false;
   if (!cmdMoveGripperClamp()) return false;
   if (!cmdMoveGripperPer(G_OPEN)) return false;
+  if (!cmdMoveXmm(X_CENTER)) return false;
   if (!cmdMoveYmm(Y_CENTER)) return false;
   if (!cmdMoveXmm(X_CENTER)) return false;
 
@@ -384,7 +459,10 @@ bool cmd_run(int argc, double *argv) {
 
   int run_no = (int)argv[0];
 
-  if (run_no == 0) {
+  // #define RUN_ZERO 0
+
+  // the standby position
+  if (run_no == RUN_ZERO) {
     if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveYmm(Y_ROTATE_BASE)) return false;
@@ -396,10 +474,14 @@ bool cmd_run(int argc, double *argv) {
     if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
     return true;
   }
-  // bring faces to base
-  if (run_no == 1) {
+
+  // #define RUN_RIGHT_DOWN 11
+  // #define RUN_LEFT_DOWN 12
+  // #define RUN_BACK_DOWN 13
+
+  // bring right face to down
+  if (run_no == RUN_RIGHT_DOWN) {
     if (!cmdMoveGripperPer(G_OPEN)) return false;
-    if (!resetBase()) return false;
 
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveYmm(Y_CENTER)) return false;
@@ -419,10 +501,9 @@ bool cmd_run(int argc, double *argv) {
     if (!cmdMoveXmm(Y_CENTER)) return false;
     return true;
   }
-  // bring faces to base
-  if (run_no == 2) {
+  // bring left face to down
+  if (run_no == RUN_LEFT_DOWN) {
     if (!cmdMoveGripperPer(G_OPEN)) return false;
-    if (!resetBase()) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveYmm(Y_CENTER + 3)) return false;
     if (!cmdMoveWristDegVertical(W_RIGHT)) return false;
@@ -439,26 +520,61 @@ bool cmd_run(int argc, double *argv) {
     if (!cmdMoveXmm(Y_CENTER)) return false;
     return true;
   }
-  // rotate base
-  if (run_no == 3 || run_no == 4 || run_no == 5) {
+  // bring back face to down
+  // TODO
+  if (run_no == RUN_BACK_DOWN) {
     if (!cmdMoveGripperPer(G_OPEN)) return false;
-    if (!resetBase()) return false;
+    if (!resetBase(B_BACK)) return false;
+    if (!cmdMoveXmm(X_CENTER)) return false;
+    if (!cmdMoveYmm(Y_CENTER + 3)) return false;
+    if (!cmdMoveWristDegVertical(W_RIGHT)) return false;
+    if (!cmdMoveYmm(Y_CENTER)) return false;
+    if (!cmdMoveGripperClamp()) return false;
+    if (!liftCube()) return false;
+    if (!cmdMoveYmm(Y_UP)) return false;
+    if (!cmdMoveXmm(X_CENTER)) return false;
+
+    if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+
+    if (!dropCube()) return false;
+    if (!cmdMoveXmm(X_CENTER)) return false;
+    if (!cmdMoveXmm(Y_CENTER)) return false;
+    return true;
+  }
+
+  // #define RUN_BOTTOM_RIGHT 21
+  // #define RUN_BOTTOM_LEFT 22
+  // #define RUN_BOTTOM_BACK 23
+
+  // rotate bottom layer only: right, left, back
+  if (run_no == RUN_BOTTOM_RIGHT ||  //
+      run_no == RUN_BOTTOM_LEFT ||   //
+      run_no == RUN_BOTTOM_BACK) {
+    if (!cmdMoveGripperPer(G_OPEN)) return false;
+
+    if ((run_no == RUN_BOTTOM_RIGHT))
+      if (!resetBase(B_RIGHT)) return false;
+    if ((run_no == RUN_BOTTOM_LEFT))
+      if (!resetBase(B_LEFT)) return false;
+    if ((run_no == RUN_BOTTOM_BACK))
+      if (!resetBase(B_BACK)) return false;
+
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveYmm(Y_MID)) return false;
     if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
     if (!cmdMoveGripperClamp()) return false;
 
-    if (run_no == 3) {
+    if (run_no == RUN_BOTTOM_RIGHT) {
       if (!cmdMoveServoDeg(ID_BASE, B_RIGHT + B_ERR)) return false;
       if (!cmdMoveGripperPer(G_OPEN)) return false;
       if (!cmdMoveServoDeg(ID_BASE, B_RIGHT)) return false;
     }
-    if (run_no == 4) {
+    if (run_no == RUN_BOTTOM_LEFT) {
       if (!cmdMoveServoDeg(ID_BASE, B_LEFT - B_ERR)) return false;
       if (!cmdMoveGripperPer(G_OPEN)) return false;
       if (!cmdMoveServoDeg(ID_BASE, B_LEFT)) return false;
     }
-    if (run_no == 5) {
+    if (run_no == RUN_BOTTOM_BACK) {
       if (!cmdMoveServoDeg(ID_BASE, B_BACK - B_ERR)) return false;
       if (!cmdMoveGripperPer(G_OPEN)) return false;
       if (!cmdMoveServoDeg(ID_BASE, B_BACK)) return false;
@@ -469,26 +585,36 @@ bool cmd_run(int argc, double *argv) {
     if (!cmdMoveYmm(Y_CENTER)) return false;
     if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
 
-    // align TODO
-    // if (!alignCube()) return false;
-    return true;
-  }
-  // reset base
-  if (run_no == 6) {
-    if (!resetBase()) return false;
-    return true;
-  }
-  // align cube
-  if (run_no == 7) {
-    if (!alignCube()) return false;
     return true;
   }
 
-  while (1) {
-    // read colors front
-    if (run_no == 8) {
-      String crrColor = "na";
+  // #define RUN_CUBE_RIGHT 31
+  // #define RUN_CUBE_LEFT 32
+  // #define RUN_CUBE_BACK 33
 
+  // rotate full cube: right, left, back
+  if (run_no == RUN_CUBE_RIGHT) {
+    if (!resetBase(B_RIGHT)) return false;
+    //TODO
+  }
+  // 32  turn cube left to front
+  if (run_no == RUN_CUBE_LEFT) {
+    if (!resetBase(B_LEFT)) return false;
+    //TODO
+  }
+  // 33  turn cube back to front
+  if (run_no == RUN_CUBE_BACK) {
+    if (!resetBase(B_BACK)) return false;
+    //TODO
+  }
+
+  // #define RUN_READ_COLORS 40
+
+  // read colors on front face
+  if (run_no == RUN_READ_COLORS) {
+    String crrColor = "na";
+
+    while (1) {
       if (!cmdMoveGripperPer(G_WIDE_OPEN)) break;
       if (!cmdMoveWristDegVertical(W_HORIZ)) break;
       if (!cmdMoveXmm(X_CENTER)) break;
@@ -543,20 +669,44 @@ bool cmd_run(int argc, double *argv) {
       if (!cmdMoveXmm(Y_CENTER)) break;
       if (!cmdMoveWristDegVertical(W_HORIZ)) break;
 
-      speed = 1.0;
-
       if (!cmdMoveGripperPer(G_WIDE_OPEN)) break;
-      return true;
+      break;
     }
+
+    speed = 1.0;
+    return true;
+  }
+
+  // #define RUN_RESET_RIGHT 51
+  // #define RUN_RESET_LEFT 52
+  // #define RUN_RESET_BACK 53
+
+  // reset base needed to turn base right, left, back
+  if (run_no == RUN_RESET_RIGHT) {
+    if (!resetBase(B_RIGHT)) return false;
+    return true;
+  }
+  // reset base needed to turn base left
+  if (run_no == 82) {
+    if (!resetBase(B_LEFT)) return false;
+    return true;
+  }
+  // reset base  needed to turn base 180
+  if (run_no == RUN_RESET_LEFT) {
+    if (!resetBase(B_BACK)) return false;
+    return true;
+  }
+
+  // #define RUN_ALIGN_CUBE 60
+
+  // align cube
+  if (run_no == RUN_ALIGN_CUBE) {
+    if (!alignCube()) return false;
+    return true;
   }
 
   speed = 1.0;
 
-  // fix base
-  if (run_no == 9) {
-    if (!alignCube()) return false;
-    return true;
-  }
   return false;
 }
 
@@ -622,59 +772,11 @@ void print_info(uint8_t id) {
 }
 
 // -------------------------------------------------------------------
-//                      COMMAND TABLE
-// ------------------ -------------------------------------------------
-
-struct CommandEntry {
-  const char *name;
-  const char *fmt;
-  bool (*handler)(int argc, double *argv);
-  const char *desc;
-};
-
-static CommandEntry command_table[] = {
-  { "VERBOSEON", "", cmd_verbose_on, "VERBOSEON - enable verbose output" },
-  { "VERBOSEOFF", "", cmd_verbose_off, "VERBOSEOFF - disable verbose output" },
-
-  // TODO need an external FRAM RB does not have EEPRO
-
-  { "SETMIN", "%d %d", cmd_set_min, "SETMIN <id> <ticks> - set the min ticks" },
-  { "SETMAX", "%d %d", cmd_set_max, "SETMAX <id> <ticks> - set the max ticks" },
-  // { "SETZERO", "%d %d", cmd_set_zero, "SETZERO <id> <ticks> - set the zero pos in ticks" },
-  // { "SETDIRPLUS", "%d", cmd_set_dir_plus, "SETDIRPLUS <id> - set dir using the current pos > zero" },
-  // { "SETDIRMINUS", "%d", cmd_set_dir_minus, "SETDIRMINUS <id> - set dir using the current pos < zero" },
-
-  { "MOVETICKS", "%d %d", cmd_move_ticks, "MOVEDEG <id> <ticks goal> - move one servo to ticks (not smooth)" },
-  { "MOVEDEG", "%d %f", cmd_move_deg, "MOVEDEG <id> <deg goal> - move one servo to degree (smooth)" },
-  { "MOVEPER", "%d %f", cmd_move_per, "MOVEPER <id> <per goal> - move one servo to percent (smooth)" },
-  // { "MOVECENTER", "", cmd_move_center, "MOVECENTER - move all to center" },
-  { "MOVEYMM", "%f", cmd_move_y, "MOVEYMM <float mm> - vertical move (42 to 102)" },
-  { "MOVEXMM", "%f", cmd_move_x, "MOVEXMM <float mm> - lateral move (-30 to 30)" },
-  { "MOVEXYMM", "%f %f", cmd_move_xy, "MOVEXYMM <float mm> <float mm> - lateral then vertical move (-25 to 25)(42 to 102)" },
-  { "MOVEGRIPPER", "%f", cmd_move_gripper, "MOVEGRIPPER <percentage> - move both grips to percentage (0 to 100)" },
-  { "MOVEWRISTVERTDEG", "%f", cmd_move_wrist_vert, "MOVEWRISTVERTDEG <deg> - move wrist relative to vertical (-5 to 185)" },
-  { "CLAMP", "", cmd_move_clamp, "CLAMP - clamp gripper" },
-
-  { "RUN", "%d", cmd_run, "RUN <no> - 0 center | 1 left down  | 2 right down | 10 back down\n                      | 3 base right | 4 base left | 5 base back\n                      | 6 reset base | 7 align cube | 8 read colors\n" },
-
-  { "READ", "%d", cmd_read, "READ <id> - show servo summary status" },
-  { "INFO", "%d", cmd_info, "INFO <id> - show servo full status" },
-
-  { "COLOR", "%d", cmd_color, "COLOR <count> - read color <count> times" },
-
-  { "LEDON", "%d", cmd_ledon, "LEDON <id> - turn servo LED on" },
-  { "LEDOFF", "%d", cmd_ledoff, "LEDOFF <id> - turn servo LED off" },
-
-  { "HELP", "", cmd_help, "HELP list of commands" },
-};
-
-static constexpr int COMMAND_COUNT = sizeof(command_table) / sizeof(command_table[0]);
-
-// -------------------------------------------------------------------
 //                        GET HELP TEXT
 // -------------------------------------------------------------------
 
-String get_help_text() {
+String
+get_help_text() {
   String help = "Supported Commands:\n";
   for (int i = 0; i < COMMAND_COUNT; i++) {
     help += "  ";
@@ -724,10 +826,12 @@ void process_serial_command(String &line) {
       }
 
       // ---------------- Execute Command ----------------
-      serial_printf("%s START ", cmd.name);
+      double p1 = 0;
+      if (argc > 0) p1 = (double)argv[0];
+      serial_printf("%s %.1f START | ", p1, cmd.name);
       print_all_status();
       bool ok = cmd.handler(argc, argv);
-      serial_printf("%s END completed=%d ", cmd.name, ok ? 1 : 0);
+      serial_printf("%s %.1f END completed=%d ", p1, cmd.name, ok ? 1 : 0);
       print_all_status();
       return;
     }
