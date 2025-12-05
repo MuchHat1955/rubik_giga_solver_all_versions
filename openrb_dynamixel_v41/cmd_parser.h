@@ -23,7 +23,7 @@ String get_help_text();
 
 bool resetBase(int baseTurnToAccomodate);
 bool liftCube();
-bool dropCube();
+bool lowerCube();
 
 
 // ============================================================

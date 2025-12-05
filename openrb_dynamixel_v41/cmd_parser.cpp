@@ -58,18 +58,13 @@ static CommandEntry command_table[] = {
   { "VERBOSEON", "", cmd_verbose_on, "VERBOSEON - enable verbose output" },
   { "VERBOSEOFF", "", cmd_verbose_off, "VERBOSEOFF - disable verbose output" },
 
-  // TODO need an external FRAM RB does not have EEPRO
-
   { "SETMIN", "%d %d", cmd_set_min, "SETMIN <id> <ticks> - set the min ticks" },
   { "SETMAX", "%d %d", cmd_set_max, "SETMAX <id> <ticks> - set the max ticks" },
-  // { "SETZERO", "%d %d", cmd_set_zero, "SETZERO <id> <ticks> - set the zero pos in ticks" },
-  // { "SETDIRPLUS", "%d", cmd_set_dir_plus, "SETDIRPLUS <id> - set dir using the current pos > zero" },
-  // { "SETDIRMINUS", "%d", cmd_set_dir_minus, "SETDIRMINUS <id> - set dir using the current pos < zero" },
 
   { "MOVETICKS", "%d %d", cmd_move_ticks, "MOVEDEG <id> <ticks goal> - move one servo to ticks (not smooth)" },
   { "MOVEDEG", "%d %f", cmd_move_deg, "MOVEDEG <id> <deg goal> - move one servo to degree (smooth)" },
   { "MOVEPER", "%d %f", cmd_move_per, "MOVEPER <id> <per goal> - move one servo to percent (smooth)" },
-  // { "MOVECENTER", "", cmd_move_center, "MOVECENTER - move all to center" },
+
   { "MOVEYMM", "%f", cmd_move_y, "MOVEYMM <float mm> - vertical move (42 to 102)" },
   { "MOVEXMM", "%f", cmd_move_x, "MOVEXMM <float mm> - lateral move (-30 to 30)" },
   { "MOVEXYMM", "%f %f", cmd_move_xy, "MOVEXYMM <float mm> <float mm> - lateral then vertical move (-25 to 25)(42 to 102)" },
@@ -228,15 +223,6 @@ bool cmd_set_max(int argc, double *argv) {
     return true;
   }
   return false;
-}
-
-bool cmd_move_center(int argc, double *argv) {
-  return false;
-  // could cause colisions now TODO
-
-  for (int i = 0; i < SERVO_COUNT; i++)
-    safeSetGoalPosition(all_servos[i]->get_id(), 2048);
-  return true;
 }
 
 bool cmd_move_y(int argc, double *argv) {
@@ -405,8 +391,68 @@ bool resetBase(int baseTurnToAccomodate) {
   if (!cmdMoveGripperClamp()) return false;
   if (!cmdMoveYmm(Y_ROTATE_BASE)) return false;
   if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
-  if (!dropCube()) return false;
+  if (!lowerCube()) return false;
   return true;
+}
+
+bool cmdMoveBaseRight() {
+  if (!dxl.ping(ID_BASE)) return false;
+  double b_pos = getPos_deg(ID_BASE);
+
+  bool isBaseCenter = (b_pos > B_CENTER - B_TOL && b_pos < B_CENTER + B_TOL);
+  bool isBaseRight = (b_pos > B_RIGHT - B_TOL && b_pos < B_RIGHT + B_TOL);
+  bool isBaseLeft = (b_pos > B_LEFT - B_TOL && b_pos < B_LEFT + B_TOL);
+  bool isBaseBack = (b_pos > B_BACK - B_TOL && b_pos < B_BACK + B_TOL);
+
+  if (!isBaseCenter && !isBaseRight && !isBaseLeft && !isBaseBack) {
+    if (!resetBase(B_CENTER)) return false;
+    isBaseCenter = true;
+  }
+
+  if (isBaseRight) return cmdMoveServoDeg(ID_BASE, B_BACK);
+  if (isBaseCenter) return cmdMoveServoDeg(ID_BASE, B_RIGHT);
+  if (isBaseLeft) return cmdMoveServoDeg(ID_BASE, B_CENTER);
+  if (isBaseBack) return cmdMoveServoDeg(ID_BASE, B_LEFT);
+  return false;
+}
+
+bool cmdMoveBaseLeft() {
+  if (!dxl.ping(ID_BASE)) return false;
+  double b_pos = getPos_deg(ID_BASE);
+
+  bool isBaseCenter = (b_pos > B_CENTER - B_TOL && b_pos < B_CENTER + B_TOL);
+  bool isBaseRight = (b_pos > B_RIGHT - B_TOL && b_pos < B_RIGHT + B_TOL);
+  bool isBaseLeft = (b_pos > B_LEFT - B_TOL && b_pos < B_LEFT + B_TOL);
+  bool isBaseBack = (b_pos > B_BACK - B_TOL && b_pos < B_BACK + B_TOL);
+
+  if (isBaseBack) {
+    if (!resetBase(B_CENTER)) return false;
+    isBaseCenter = true;
+  } else if (!isBaseCenter && !isBaseRight && !isBaseLeft && !isBaseBack) {
+    if (!resetBase(B_CENTER)) return false;
+    isBaseCenter = true;
+  }
+
+  if (isBaseRight) return cmdMoveServoDeg(ID_BASE, B_CENTER);
+  if (isBaseCenter) return cmdMoveServoDeg(ID_BASE, B_LEFT);
+  if (isBaseLeft) return cmdMoveServoDeg(ID_BASE, B_BACK);
+  if (isBaseBack) return false;  // should not be in this position
+  return false;
+}
+
+bool cmdMoveBaseBack() {
+  if (!dxl.ping(ID_BASE)) return false;
+  double b_pos = getPos_deg(ID_BASE);
+
+  bool isBaseCenter = (b_pos > B_CENTER - B_TOL && b_pos < B_CENTER + B_TOL);
+  bool isBaseRight = (b_pos > B_RIGHT - B_TOL && b_pos < B_RIGHT + B_TOL);
+  bool isBaseLeft = (b_pos > B_LEFT - B_TOL && b_pos < B_LEFT + B_TOL);
+  bool isBaseBack = (b_pos > B_BACK - B_TOL && b_pos < B_BACK + B_TOL);
+
+  if (!isBaseRight) {
+    if (!resetBase(B_CENTER)) return false;
+  }
+  return cmdMoveServoDeg(ID_BASE, B_BACK);
 }
 
 bool alignCube() {
@@ -417,7 +463,7 @@ bool alignCube() {
 
   if (!cmdMoveServoPer(ID_GRIP2, G_ALIGN_LEFT)) return false;
   if (!cmdMoveServoDeg(ID_GRIP2, G_OPEN)) return false;
-  if (!cmdMoveServoDeg(ID_GRIP1, G_ALIGN_RIGHT)) return false;  //TODOTODO this is not working
+  if (!cmdMoveServoDeg(ID_GRIP1, G_ALIGN_RIGHT)) return false;  //TODO this can be refined
   if (!cmdMoveServoDeg(ID_GRIP1, G_OPEN)) return false;
   if (!cmdMoveGripperPer(G_OPEN)) return false;
 
@@ -431,7 +477,7 @@ bool alignCube() {
   return true;
 }
 
-bool dropCube() {
+bool lowerCube() {
   if (!cmdMoveXmm(X_CENTER)) return false;
   if (!cmdMoveYmm(Y_ABOVE_DROP)) return false;
   if (!cmdMoveXmm(X_CENTER)) return false;
@@ -441,8 +487,6 @@ bool dropCube() {
 }
 
 bool liftCube() {
-  if (!cmdMoveXmm(X_CENTER)) return false;
-  if (!cmdMoveYmm(Y_DROP)) return false;
   if (!cmdMoveXmm(X_CENTER)) return false;
   if (!cmdMoveYmm(Y_ABOVE_DROP)) return false;
   if (!cmdMoveXmm(X_CENTER)) return false;
@@ -481,64 +525,98 @@ bool cmd_run(int argc, double *argv) {
 
   // bring right face to down
   if (run_no == RUN_RIGHT_DOWN) {
+    // prep
     if (!cmdMoveGripperPer(G_OPEN)) return false;
 
-    if (!cmdMoveXmm(X_CENTER)) return false;
+    // lift cube to rotate vertically
     if (!cmdMoveYmm(Y_CENTER)) return false;
-    if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
-    if (!cmdMoveGripperClamp()) return false;
-    if (!cmdMoveYmm(Y_UP)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
+    if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+    if (!cmdMoveXmm(X_CENTER)) return false;
+    if (!cmdMoveGripperClamp()) return false;
+    if (!liftCube()) return false;
+    if (!cmdMoveYmm(Y_UP)) return false;
 
+    // rotate cube vertical right
+    if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveWristDegVertical(W_RIGHT)) return false;
 
-    if (!dropCube()) return false;
+    // lower cube
+    if (!lowerCube()) return false;
+    if (!cmdMoveGripperPer(G_OPEN)) return false;
 
-    if (!cmdMoveGripperPer(G_OPEN + 2)) return false;
+    // reset
     if (!cmdMoveYmm(Y_CENTER + 3)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
-    if (!cmdMoveXmm(Y_CENTER)) return false;
+
     return true;
   }
   // bring left face to down
   if (run_no == RUN_LEFT_DOWN) {
+    // prep
     if (!cmdMoveGripperPer(G_OPEN)) return false;
+
+    // lift cube to rotate vertically
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveYmm(Y_CENTER + 3)) return false;
     if (!cmdMoveWristDegVertical(W_RIGHT)) return false;
     if (!cmdMoveYmm(Y_CENTER)) return false;
+    if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveGripperClamp()) return false;
     if (!liftCube()) return false;
     if (!cmdMoveYmm(Y_UP)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
 
+    // rotate cube vertical left
     if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
 
-    if (!dropCube()) return false;
+    // lower cube
+    if (!lowerCube()) return false;
+    if (!cmdMoveGripperPer(G_OPEN)) return false;
+
+    // reset
+    if (!cmdMoveYmm(Y_CENTER + 3)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveXmm(Y_CENTER)) return false;
+    if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+
     return true;
   }
+
   // bring back face to down
-  // TODO
   if (run_no == RUN_BACK_DOWN) {
+    // prep
     if (!cmdMoveGripperPer(G_OPEN)) return false;
-    if (!resetBase(B_BACK)) return false;
+    // if (!resetBase(B_RIGHT)) return false; // done in cmdMoveBaseLeft
+
+    // rotate base to bring back face on the right
+    if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+    if (!cmdMoveYmm(Y_ROTATE_BASE)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveYmm(Y_CENTER + 3)) return false;
-    if (!cmdMoveWristDegVertical(W_RIGHT)) return false;
+    if (!cmdMoveBaseLeft()) return false;
+
+    // lift cube to rotate vertically
     if (!cmdMoveYmm(Y_CENTER)) return false;
+    if (!cmdMoveXmm(X_CENTER)) return false;
+    if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+    if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveGripperClamp()) return false;
     if (!liftCube()) return false;
     if (!cmdMoveYmm(Y_UP)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
 
+    // rotate cube vertical right
+    if (!cmdMoveWristDegVertical(W_RIGHT)) return false;
+
+    // lower cube
+    if (!lowerCube()) return false;
+    if (!cmdMoveGripperPer(G_OPEN)) return false;
+
+    // reset
+    if (!cmdMoveYmm(Y_CENTER + 3)) return false;
+    if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
 
-    if (!dropCube()) return false;
-    if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveXmm(Y_CENTER)) return false;
     return true;
   }
 
@@ -550,8 +628,9 @@ bool cmd_run(int argc, double *argv) {
   if (run_no == RUN_BOTTOM_RIGHT ||  //
       run_no == RUN_BOTTOM_LEFT ||   //
       run_no == RUN_BOTTOM_BACK) {
+    // prep
     if (!cmdMoveGripperPer(G_OPEN)) return false;
-
+    // prep the base
     if ((run_no == RUN_BOTTOM_RIGHT))
       if (!resetBase(B_RIGHT)) return false;
     if ((run_no == RUN_BOTTOM_LEFT))
@@ -559,11 +638,14 @@ bool cmd_run(int argc, double *argv) {
     if ((run_no == RUN_BOTTOM_BACK))
       if (!resetBase(B_BACK)) return false;
 
+    // move grip above bottom layer
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveYmm(Y_MID)) return false;
     if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+    if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveGripperClamp()) return false;
 
+    // rotate base
     if (run_no == RUN_BOTTOM_RIGHT) {
       if (!cmdMoveServoDeg(ID_BASE, B_RIGHT + B_ERR)) return false;
       if (!cmdMoveGripperPer(G_OPEN)) return false;
@@ -580,10 +662,10 @@ bool cmd_run(int argc, double *argv) {
       if (!cmdMoveServoDeg(ID_BASE, B_BACK)) return false;
     }
 
+    // release clamp
     if (!cmdMoveGripperPer(G_OPEN)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveYmm(Y_CENTER)) return false;
-    if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
 
     return true;
   }
@@ -596,16 +678,19 @@ bool cmd_run(int argc, double *argv) {
   if (run_no == RUN_CUBE_RIGHT) {
     if (!resetBase(B_RIGHT)) return false;
     //TODO
+    return true;
   }
   // 32  turn cube left to front
   if (run_no == RUN_CUBE_LEFT) {
     if (!resetBase(B_LEFT)) return false;
     //TODO
+    return true;
   }
   // 33  turn cube back to front
   if (run_no == RUN_CUBE_BACK) {
     if (!resetBase(B_BACK)) return false;
     //TODO
+    return true;
   }
 
   // #define RUN_READ_COLORS 40
@@ -670,11 +755,12 @@ bool cmd_run(int argc, double *argv) {
       if (!cmdMoveWristDegVertical(W_HORIZ)) break;
 
       if (!cmdMoveGripperPer(G_WIDE_OPEN)) break;
-      break;
+      speed = 1.0;
+      return true;
     }
 
     speed = 1.0;
-    return true;
+    return false;
   }
 
   // #define RUN_RESET_RIGHT 51
