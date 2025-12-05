@@ -10,11 +10,11 @@ extern double max_xmm;
 extern double max_ymm;
 extern double min_ymm;
 extern double speed;
-extern RubikOrientation ori;
+extern CubeOri ori;
 
 // -------------------------------------------------------------------
 //                      COMMAND TABLE
-// ------------------ -------------------------------------------------
+// -------------------------------------------------------------------
 
 // RUN command constants (placed next to help text)
 static constexpr int RUN_ZERO = 0;
@@ -83,6 +83,10 @@ static CommandEntry command_table[] = {
 
   { "LEDON", "%d", cmd_ledon, "LEDON <id> - turn servo LED on" },
   { "LEDOFF", "%d", cmd_ledoff, "LEDOFF <id> - turn servo LED off" },
+
+  // NEW: string-based move commands using CubeOri
+  { "MOVEROBOT", "<moves>", nullptr, "MOVEROBOT <moves> - robot moves (y+, y', z2, d+, etc; space-separated list allowed)" },
+  { "MOVECUBE", "<moves>", nullptr, "MOVECUBE <moves> - cube moves (F, R', U2, etc; space-separated list allowed)" },
 
   { "HELP", "", cmd_help, "HELP list of commands" },
 };
@@ -839,6 +843,65 @@ void process_serial_command(String &line) {
   for (int i = 0; i < COMMAND_COUNT; i++) {
     const CommandEntry &cmd = command_table[i];
     if (U.startsWith(cmd.name)) {
+      // -----------------------------------------------------------
+      // Special handling for MOVEROBOT and MOVECUBE (string commands)
+      // -----------------------------------------------------------
+      if (strcmp(cmd.name, "MOVEROBOT") == 0 || strcmp(cmd.name, "MOVECUBE") == 0) {
+        // Extract everything after the command name
+        int space_idx = line.indexOf(' ');
+        if (space_idx < 0) {
+          serial_printf("ERR %s missing argument\n", cmd.name);
+          return;
+        }
+        String params = line.substring(space_idx + 1);
+        params.trim();
+        if (params.length() == 0) {
+          serial_printf("ERR %s missing argument\n", cmd.name);
+          return;
+        }
+
+        // MOVECUBE: pass full string to ori.cube_move(), which parses "F R U' D2"
+        if (strcmp(cmd.name, "MOVECUBE") == 0) {
+          serial_printf_verbose("---- START MOVECUBE %s ----\n", params.c_str());
+          print_all_status();
+
+          bool ok = ori.cube_move(params);
+
+          serial_printf("MOVECUBE END completed=%d ", ok ? 1 : 0);
+          print_all_status();
+          return;
+        }
+
+        // MOVEROBOT: split by spaces → call ori.robot_move() for each token
+        // Re-use parse_args to get tokens as Strings
+        double dummy[16];
+        String tokens[16];
+        int argc_tokens = parse_args(line, "", dummy, 16, tokens);
+        if (argc_tokens <= 0) {
+          serial_printf("ERR MOVEROBOT missing moves\n");
+          return;
+        }
+
+        serial_printf_verbose("---- START MOVEROBOT %s ----\n", params.c_str());
+        print_all_status();
+
+        bool ok = true;
+        for (int t = 0; t < argc_tokens; t++) {
+          String mv = tokens[t];
+          mv.trim();
+          if (mv.length() == 0) continue;
+          if (!ori.robot_move(mv)) {
+            ok = false;
+            break;
+          }
+        }
+
+        serial_printf("MOVEROBOT END completed=%d ", ok ? 1 : 0);
+        print_all_status();
+        return;
+      }
+
+      // ---------------- Existing numeric-command path ----------------
       serial_printf_verbose(
         "---- START %s params: %s ----\n", cmd.name, line.c_str());
 
@@ -868,8 +931,6 @@ void process_serial_command(String &line) {
     }
   }
 
-  Serial.println("ERR Unknown command\n");
-  Serial.println();
-  Serial.println(get_help_text());
-  Serial.println();
+  serial_printf("ERR Unknown command\n\n");
+  serial_printf("%s\n\n",get_help_text().c_str());
 }

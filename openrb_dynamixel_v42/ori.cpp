@@ -1,209 +1,557 @@
 #include "ori.h"
 
-#include "RubikOrientation.h"
+// ------------------------------------------------------------
+// CONSTRUCTOR / RESET / SET CALLBACK
+// ------------------------------------------------------------
 
-// ------------------------------------------------------------
-// Constructor
-// ------------------------------------------------------------
-RubikOrientation::RubikOrientation() {
+CubeOri::CubeOri(robot_move_cb_t cb)
+  : robot_cb_(cb) {
   reset();
 }
 
-// ------------------------------------------------------------
-// Reset orientation + color strings
-// ------------------------------------------------------------
-void RubikOrientation::reset() {
-  face_map['F'] = 'F';
-  face_map['B'] = 'B';
-  face_map['R'] = 'R';
-  face_map['L'] = 'L';
-  face_map['U'] = 'U';
-  face_map['D'] = 'D';
+void CubeOri::reset() {
+  // Identity orientation: directions map to same-named logical faces.
+  ori_.up    = 'U';
+  ori_.down  = 'D';
+  ori_.front = 'F';
+  ori_.back  = 'B';
+  ori_.left  = 'L';
+  ori_.right = 'R';
+  orientation_log_str_ = "";
+}
 
-  // Initialize all faces to "XXXXXXXXX"
-  for (int i = 0; i < 6; i++)
-    face_str[i] = "XXXXXXXXX";
+void CubeOri::set_robot_callback(robot_move_cb_t cb) {
+  robot_cb_ = cb;
 }
 
 // ------------------------------------------------------------
-// Log orientation mapping
+// UTILS: NORMALIZATION / PARSING
 // ------------------------------------------------------------
-void RubikOrientation::logOrientation() const {
-  Serial.print("[ORI] ");
-  Serial.print("F->"); Serial.print(face_map.at('F')); Serial.print("  ");
-  Serial.print("R->"); Serial.print(face_map.at('R')); Serial.print("  ");
-  Serial.print("U->"); Serial.print(face_map.at('U')); Serial.print("  ");
-  Serial.print("B->"); Serial.print(face_map.at('B')); Serial.print("  ");
-  Serial.print("L->"); Serial.print(face_map.at('L')); Serial.print("  ");
-  Serial.print("D->"); Serial.print(face_map.at('D'));
-  Serial.println();
-}
 
-// ------------------------------------------------------------
-// Map a logical move "F+" into physical "R+"
-// ------------------------------------------------------------
-String RubikOrientation::mapMove(const String &move) {
-  if (move.length() < 2) return move;
+String CubeOri::normalize_robot_move_token_(const String &in) {
+  String t = in;
+  t.trim();
+  if (t.length() == 0) return String("");
 
-  char face   = move.charAt(0);
-  char suffix = move.charAt(1);
+  char axis = tolower(t.charAt(0));
+  if (axis != 'y' && axis != 'z' && axis != 'd') {
+    return String("");
+  }
 
-  char phys = face_map[face];
+  char suffix = '+';  // default
+  if (t.length() >= 2) {
+    char c1 = t.charAt(1);
+    if (c1 == '+' || c1 == ' ') {
+      suffix = '+';
+    } else if (c1 == '\'' || c1 == '-') {
+      suffix = '-';
+    } else if (c1 == '2') {
+      suffix = '2';
+    } else {
+      return String("");
+    }
+  }
+
+  // Validate combinations.
+  if (axis == 'y') {
+    if (suffix == '2') return String("");  // y2 not allowed by hardware
+  }
+  if (axis == 'z') {
+    // z+, z', z2 all ok
+  }
+  if (axis == 'd') {
+    // d+, d', d2 ok
+  }
 
   String out;
-  out += phys;
-  out += suffix;
+  out.reserve(3);
+  out += axis;
+  if (suffix == '+') {
+    out += '+';
+  } else if (suffix == '-') {
+    out += '\'';   // canonical prime
+  } else if (suffix == '2') {
+    out += '2';
+  }
   return out;
 }
 
-// ------------------------------------------------------------
-// Rotation dispatcher
-// ------------------------------------------------------------
-void RubikOrientation::rotate(int angle_x, int angle_y, int angle_z) {
-  applyRotationX(angle_x);
-  applyRotationY(angle_y);
-  applyRotationZ(angle_z);
+bool CubeOri::parse_cube_move_token_(const String &token,
+                                     char &face_char,
+                                     int &quarter_turns) {
+  if (token.length() == 0) return false;
+
+  char f = toupper(token.charAt(0));
+  if (f != 'F' && f != 'B' && f != 'R' &&
+      f != 'L' && f != 'U' && f != 'D') {
+    return false;
+  }
+
+  char suffix = '+';
+  if (token.length() >= 2) {
+    char c1 = token.charAt(1);
+    if (c1 == '+' || c1 == ' ') {
+      suffix = '+';
+    } else if (c1 == '\'' || c1 == '-') {
+      suffix = '-';
+    } else if (c1 == '2') {
+      suffix = '2';
+    } else {
+      return false;
+    }
+  }
+
+  face_char = f;
+  if (suffix == '+') {
+    quarter_turns = 1;
+  } else if (suffix == '-') {
+    quarter_turns = -1;
+  } else {  // '2'
+    quarter_turns = 2;
+  }
+  return true;
 }
 
 // ------------------------------------------------------------
-// Normalize angle: ensure only 0, 90, -90, 180
+// ROBOT MOVE
 // ------------------------------------------------------------
-int RubikOrientation::normalize(int a) {
-  a %= 360;
 
-  if (a == 270)  return -90;
-  if (a == -270) return 90;
-  if (a == -180) return 180;
+bool CubeOri::robot_move(const String &move_str) {
+  String canon = normalize_robot_move_token_(move_str);
+  if (canon.length() == 0) {
+    return false;  // invalid physical move
+  }
 
-  return a;  // 0, 90, -90, 180 remain valid
+  // Hardware callback
+  if (robot_cb_) {
+    robot_cb_(canon);
+  }
+
+  // Update orientation if it's a whole-cube rotation.
+  char axis = canon.charAt(0);
+  char mod  = canon.charAt(1);
+
+  if (axis == 'y') {
+    if (mod == '+') {
+      rotate_y_plus_(ori_);
+    } else {  // y'
+      rotate_y_minus_(ori_);
+    }
+  } else if (axis == 'z') {
+    if (mod == '+') {
+      rotate_z_plus_(ori_);
+    } else if (mod == '\'') {
+      rotate_z_minus_(ori_);
+    } else {  // z2
+      rotate_z_plus_(ori_);
+      rotate_z_plus_(ori_);
+    }
+  } else {
+    // d+, d', d2 -> do NOT change orientation (face twist only).
+  }
+
+  if (orientation_log_str_.length() > 0) orientation_log_str_ += ' ';
+  orientation_log_str_ += canon;
+
+  return true;
 }
 
 // ------------------------------------------------------------
-// Apply X rotation
+// CUBE MOVE (LOGICAL)
 // ------------------------------------------------------------
-void RubikOrientation::applyRotationX(int a) {
-  a = normalize(a);
-  if (a == 0) return;
 
-  if (a == 90) {
-    remap({ {'U','F'}, {'F','D'}, {'D','B'}, {'B','U'} });
-  } else if (a == -90) {
-    remap({ {'U','B'}, {'B','D'}, {'D','F'}, {'F','U'} });
-  } else if (a == 180) {
-    remap({ {'U','D'}, {'D','U'}, {'F','B'}, {'B','F'} });
+void CubeOri::split_moves_(const String &moves_str,
+                           String tokens[], int &count, int max_tokens) {
+  count = 0;
+  String current;
+
+  int n = moves_str.length();
+  for (int i = 0; i < n; ++i) {
+    char c = moves_str.charAt(i);
+    bool is_sep =
+        (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == ',');
+
+    if (is_sep) {
+      if (current.length() > 0) {
+        if (count < max_tokens) {
+          tokens[count++] = current;
+        }
+        current = "";
+      }
+    } else {
+      current += c;
+    }
+    if (count >= max_tokens) break;
+  }
+  if (current.length() > 0 && count < max_tokens) {
+    tokens[count++] = current;
   }
 }
 
-// ------------------------------------------------------------
-// Apply Y rotation
-// ------------------------------------------------------------
-void RubikOrientation::applyRotationY(int a) {
-  a = normalize(a);
-  if (a == 0) return;
+bool CubeOri::cube_move(const String &moves_str) {
+  // Split into tokens.
+  const int MAX_TOKENS = 64;  // adjust if you need longer sequences
+  String tokens[MAX_TOKENS];
+  int token_count = 0;
+  split_moves_(moves_str, tokens, token_count, MAX_TOKENS);
 
-  if (a == 90) {
-    remap({ {'F','L'}, {'L','B'}, {'B','R'}, {'R','F'} });
-  } else if (a == -90) {
-    remap({ {'F','R'}, {'R','B'}, {'B','L'}, {'L','F'} });
-  } else if (a == 180) {
-    remap({ {'F','B'}, {'B','F'}, {'R','L'}, {'L','R'} });
+  if (token_count == 0) return true;  // nothing to do
+
+  for (int i = 0; i < token_count; ++i) {
+    String t = tokens[i];
+    t.trim();
+    if (t.length() == 0) continue;
+
+    char face_char;
+    int quarter_turns;
+    if (!parse_cube_move_token_(t, face_char, quarter_turns)) {
+      return false;
+    }
+
+    if (!execute_single_cube_move_(face_char, quarter_turns)) {
+      return false;
+    }
   }
+
+  return true;
+}
+
+bool CubeOri::execute_single_cube_move_(char face_char, int quarter_turns) {
+  // 1) Find where this logical face currently is.
+  int dir_idx = find_face_direction_index_(face_char);
+  if (dir_idx < 0) return false;
+
+  // 2) Bring that direction to DOWN using only y+, y', z+, z', z2
+  if (!bring_direction_to_down_(dir_idx)) return false;
+
+  // At this point, ori_.down should be == face_char.
+
+  // 3) Turn the D face physically (one or two quarter-turns, but we use d2).
+  if (quarter_turns == 2 || quarter_turns == -2) {
+    // Half-turn: direct d2
+    if (!robot_move("d2")) return false;
+  } else if (quarter_turns == 1) {
+    if (!robot_move("d+")) return false;
+  } else if (quarter_turns == -1) {
+    if (!robot_move("d'")) return false;
+  }
+
+  // 4) Turning D does NOT change orientation for directions,
+  //    so ori_ stays as-is here.
+
+  return true;
 }
 
 // ------------------------------------------------------------
-// Apply Z rotation
+// FIND FACE DIRECTION / BRING DIRECTION TO DOWN
 // ------------------------------------------------------------
-void RubikOrientation::applyRotationZ(int a) {
-  a = normalize(a);
-  if (a == 0) return;
 
-  if (a == 90) {
-    remap({ {'U','R'}, {'R','D'}, {'D','L'}, {'L','U'} });
-  } else if (a == -90) {
-    remap({ {'U','L'}, {'L','D'}, {'D','R'}, {'R','U'} });
-  } else if (a == 180) {
-    remap({ {'U','D'}, {'D','U'}, {'R','L'}, {'L','R'} });
-  }
-}
-
-// ------------------------------------------------------------
-// Remap helper
-// ------------------------------------------------------------
-void RubikOrientation::remap(const std::map<char,char> &m) {
-  std::map<char,char> new_map = face_map;
-  for (auto &kv : m)
-    new_map[kv.first] = face_map[kv.second];
-  face_map = new_map;
-}
-
-// ------------------------------------------------------------
-// Convert face char → internal index
-// ------------------------------------------------------------
-int RubikOrientation::faceIndex(char f) const {
-  switch (f) {
-    case 'F': return 0;
-    case 'R': return 1;
-    case 'U': return 2;
-    case 'B': return 3;
-    case 'L': return 4;
-    case 'D': return 5;
-  }
+int CubeOri::find_face_direction_index_(char face_char) const {
+  if (ori_.up == face_char)    return DIR_U;
+  if (ori_.down == face_char)  return DIR_D;
+  if (ori_.front == face_char) return DIR_F;
+  if (ori_.back == face_char)  return DIR_B;
+  if (ori_.left == face_char)  return DIR_L;
+  if (ori_.right == face_char) return DIR_R;
   return -1;
 }
 
-// ------------------------------------------------------------
-// Update front face (top 2 rows only)
-// ------------------------------------------------------------
-void RubikOrientation::updateFrontColors(const char colors[6]) {
-  char logical_face = face_map.at('F');
-  int idx = faceIndex(logical_face);
-  if (idx < 0) return;
+bool CubeOri::bring_direction_to_down_(int dir_index) {
+  // The sequences below depend ONLY on the *direction* where the target face
+  // currently sits; they work for any orientation.
+  //
+  // Precomputed minimal sequences (using y+, y', z+, z'):
+  //
+  // Start direction -> sequence to bring that direction to DOWN:
+  //   U : y+ y+
+  //   D : (none)
+  //   F : z+ y+
+  //   B : z+ y'
+  //   L : y'
+  //   R : y+
+  //
+  // These sequences were derived with the rotation definitions in
+  // rotate_y_plus_/rotate_y_minus_ and rotate_z_plus_/rotate_z_minus_.
 
-  String &f = face_str[idx];
+  switch (dir_index) {
+    case DIR_D:
+      // Already down, nothing to do.
+      return true;
 
-  f.setCharAt(0, colors[0]);
-  f.setCharAt(1, colors[1]);
-  f.setCharAt(2, colors[2]);
-  f.setCharAt(3, colors[3]);
-  f.setCharAt(4, colors[4]);
-  f.setCharAt(5, colors[5]);
+    case DIR_U:
+      if (!robot_move("y+")) return false;
+      if (!robot_move("y+")) return false;
+      return true;
 
-  Serial.print("[ORI] Updated colors for logical face ");
-  Serial.println(logical_face);
+    case DIR_F:
+      if (!robot_move("z+")) return false;
+      if (!robot_move("y+")) return false;
+      return true;
+
+    case DIR_B:
+      if (!robot_move("z+")) return false;
+      if (!robot_move("y'")) return false;
+      return true;
+
+    case DIR_L:
+      if (!robot_move("y'")) return false;
+      return true;
+
+    case DIR_R:
+      if (!robot_move("y+")) return false;
+      return true;
+
+    default:
+      return false;
+  }
 }
 
 // ------------------------------------------------------------
-// Manually update any single sticker
+// ORIENTATION ROTATIONS
 // ------------------------------------------------------------
-void RubikOrientation::updateSticker(char face, int index, char color) {
-  int idx = faceIndex(face);
-  if (idx < 0 || index < 0 || index > 8) return;
 
-  face_str[idx].setCharAt(index, color);
+void CubeOri::rotate_y_plus_(orientation_t &o) {
+  // y+ : rotate around front-back axis so that:
+  //   U -> R
+  //   R -> D
+  //   D -> L
+  //   L -> U
+  //   F, B unchanged
+  char old_u = o.up;
+  char old_d = o.down;
+  char old_l = o.left;
+  char old_r = o.right;
+
+  o.up    = old_l;
+  o.down  = old_r;
+  o.left  = old_d;
+  o.right = old_u;
+  // front/back stay
 }
 
-// ------------------------------------------------------------
-// Produce Kociemba format: U R F D L B
-// ------------------------------------------------------------
-String RubikOrientation::getCubeColors() const {
-  const String &F = face_str[0];
-  const String &R = face_str[1];
-  const String &U = face_str[2];
-  const String &B = face_str[3];
-  const String &L = face_str[4];
-  const String &D = face_str[5];
+void CubeOri::rotate_y_minus_(orientation_t &o) {
+  // Inverse of y+:
+  //   U -> L
+  //   L -> D
+  //   D -> R
+  //   R -> U
+  char old_u = o.up;
+  char old_d = o.down;
+  char old_l = o.left;
+  char old_r = o.right;
 
-  String out;
-  out.reserve(54);
+  o.up    = old_r;
+  o.down  = old_l;
+  o.left  = old_u;
+  o.right = old_d;
+  // front/back stay
+}
 
-  out += U;
-  out += R;
-  out += F;
-  out += D;
-  out += L;
-  out += B;
+void CubeOri::rotate_z_plus_(orientation_t &o) {
+  // z+ : rotate around up-down axis so that:
+  //   F -> R
+  //   R -> B
+  //   B -> L
+  //   L -> F
+  //   U, D unchanged
+  char old_f = o.front;
+  char old_b = o.back;
+  char old_l = o.left;
+  char old_r = o.right;
 
+  o.front = old_l;
+  o.back  = old_r;
+  o.left  = old_b;
+  o.right = old_f;
+}
+
+void CubeOri::rotate_z_minus_(orientation_t &o) {
+  // Inverse of z+
+  char old_f = o.front;
+  char old_b = o.back;
+  char old_l = o.left;
+  char old_r = o.right;
+
+  o.front = old_r;
+  o.back  = old_l;
+  o.left  = old_f;
+  o.right = old_b;
+}
+
+void CubeOri::apply_rotation_in_place_(const String &move_str) {
+  char axis = move_str.charAt(0);
+  char mod  = move_str.charAt(1);
+
+  if (axis == 'y') {
+    if (mod == '+') {
+      rotate_y_plus_(ori_);
+    } else {  // y'
+      rotate_y_minus_(ori_);
+    }
+  } else if (axis == 'z') {
+    if (mod == '+') {
+      rotate_z_plus_(ori_);
+    } else if (mod == '\'') {
+      rotate_z_minus_(ori_);
+    } else {  // z2
+      rotate_z_plus_(ori_);
+      rotate_z_plus_(ori_);
+    }
+  }
+}
+
+CubeOri::orientation_t CubeOri::apply_rotation_to_orientation_(
+    const orientation_t &in,
+    const String &move_str) {
+
+  orientation_t out = in;
+  char axis = move_str.charAt(0);
+  char mod  = move_str.charAt(1);
+
+  if (axis == 'y') {
+    if (mod == '+') {
+      rotate_y_plus_(out);
+    } else {
+      rotate_y_minus_(out);
+    }
+  } else if (axis == 'z') {
+    if (mod == '+') {
+      rotate_z_plus_(out);
+    } else if (mod == '\'') {
+      rotate_z_minus_(out);
+    } else {  // z2
+      rotate_z_plus_(out);
+      rotate_z_plus_(out);
+    }
+  }
   return out;
 }
 
-RubikOrientation ori;
+bool CubeOri::orientations_equal_(const orientation_t &a,
+                                  const orientation_t &b) {
+  return a.up    == b.up    &&
+         a.down  == b.down  &&
+         a.front == b.front &&
+         a.back  == b.back  &&
+         a.left  == b.left  &&
+         a.right == b.right;
+}
+
+// ------------------------------------------------------------
+// RESTORE ORIENTATION  (BFS on orientation group)
+// ------------------------------------------------------------
+
+bool CubeOri::restore_orientation() {
+  // Target is identity orientation:
+  orientation_t target;
+  target.up    = 'U';
+  target.down  = 'D';
+  target.front = 'F';
+  target.back  = 'B';
+  target.left  = 'L';
+  target.right = 'R';
+
+  if (orientations_equal_(ori_, target)) {
+    return true;  // already aligned
+  }
+
+  // BFS over at most 24 states using moves: y+, y', z+, z'
+  const String moves[4] = { "y+", "y'", "z+", "z'" };
+
+  const int MAX_STATES = 24;
+  orientation_t states[MAX_STATES];
+  int parent_idx[MAX_STATES];
+  String move_from_parent[MAX_STATES];
+
+  int queue[MAX_STATES];
+  int q_head = 0;
+  int q_tail = 0;
+
+  // Init
+  states[0] = ori_;
+  parent_idx[0] = -1;
+  queue[q_tail++] = 0;
+  int state_count = 1;
+
+  int found_idx = -1;
+
+  while (q_head < q_tail && found_idx < 0) {
+    int cur = queue[q_head++];
+    orientation_t cur_o = states[cur];
+
+    // Expand neighbors
+    for (int m = 0; m < 4; ++m) {
+      orientation_t next_o = apply_rotation_to_orientation_(cur_o, moves[m]);
+
+      // Check if we've already seen this orientation
+      bool seen_bool = false;
+      int seen_idx = -1;
+      for (int i = 0; i < state_count; ++i) {
+        if (orientations_equal_(states[i], next_o)) {
+          seen_bool = true;
+          seen_idx = i;
+          break;
+        }
+      }
+      if (seen_bool) continue;
+
+      if (state_count >= MAX_STATES) break;
+
+      int idx = state_count++;
+      states[idx] = next_o;
+      parent_idx[idx] = cur;
+      move_from_parent[idx] = moves[m];
+      queue[q_tail++] = idx;
+
+      if (orientations_equal_(next_o, target)) {
+        found_idx = idx;
+        break;
+      }
+    }
+  }
+
+  if (found_idx < 0) {
+    // Should never happen for a proper rotation group.
+    return false;
+  }
+
+  // Reconstruct path from found_idx back to 0.
+  String path_moves[16];  // path length will be small (<= 6)
+  int path_len = 0;
+
+  int cur = found_idx;
+  while (cur >= 0 && parent_idx[cur] >= 0 && path_len < 16) {
+    path_moves[path_len++] = move_from_parent[cur];
+    cur = parent_idx[cur];
+  }
+
+  // Apply moves in reverse order (from start to target).
+  for (int i = path_len - 1; i >= 0; --i) {
+    if (!robot_move(path_moves[i])) return false;
+  }
+
+  // Now ori_ should be equal to target (identity).
+  return true;
+}
+
+// ------------------------------------------------------------
+// HUMAN-READABLE ORIENTATION STRING
+// ------------------------------------------------------------
+
+String CubeOri::get_orientation_string() const {
+  String s;
+  s.reserve(32);
+  s += "U=";
+  s += ori_.up;
+  s += " D=";
+  s += ori_.down;
+  s += " F=";
+  s += ori_.front;
+  s += " B=";
+  s += ori_.back;
+  s += " L=";
+  s += ori_.left;
+  s += " R=";
+  s += ori_.right;
+  return s;
+}

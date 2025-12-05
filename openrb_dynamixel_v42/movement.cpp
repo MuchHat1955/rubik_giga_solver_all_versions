@@ -6,6 +6,7 @@
 
 #include "Dynamixel2Arduino.h"
 #include "vertical_kinematics.h"
+#include "ori.h"
 
 // ----------------------------------------------------------------------
 // Externals from elsewhere in the project
@@ -1301,3 +1302,9 @@ bool cmdMoveXmm(double x_mm) {
   read_print_xy_status();
   return ret;
 }
+
+void robot_move_callback(const String& mv) {
+  serial_printf_verbose("HW executes: %s ", mv.c_str());
+}
+
+CubeOri ori(robot_move_callback);
