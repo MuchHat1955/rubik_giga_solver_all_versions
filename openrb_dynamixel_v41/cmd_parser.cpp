@@ -326,7 +326,7 @@ bool cmd_help(int argc, double *argv) {
 #define Y_MID 97
 #define Y_UP 117
 #define Y_DOWN 33
-#define Y_ROTATE_BASE 88
+#define Y_ROTATE_BASE 92
 #define Y_ABOVE_DROP 86
 #define Y_DROP 78
 
@@ -395,7 +395,13 @@ bool resetBase(int baseTurnToAccomodate) {
   return true;
 }
 
-bool cmdMoveBaseRight() {
+/*
+#define B_RIGHT 90
+#define B_LEFT -90
+#define B_BACK -180
+*/
+
+bool cmdMoveBaseRight() {  //TODO need to check, 180 is more left
   if (!dxl.ping(ID_BASE)) return false;
   double b_pos = getPos_deg(ID_BASE);
 
@@ -639,33 +645,28 @@ bool cmd_run(int argc, double *argv) {
       if (!resetBase(B_BACK)) return false;
 
     // move grip above bottom layer
+    if (!cmdMoveYmm(Y_CENTER)) return false;  //TODO a resetWristHoriz and resetWristVert
     if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveYmm(Y_MID)) return false;
     if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+    if (!cmdMoveYmm(Y_MID)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveGripperClamp()) return false;
 
     // rotate base
     if (run_no == RUN_BOTTOM_RIGHT) {
-      if (!cmdMoveServoDeg(ID_BASE, B_RIGHT + B_ERR)) return false;
-      if (!cmdMoveGripperPer(G_OPEN)) return false;
-      if (!cmdMoveServoDeg(ID_BASE, B_RIGHT)) return false;
+      if (!cmdMoveBaseRight()) return false;
     }
     if (run_no == RUN_BOTTOM_LEFT) {
-      if (!cmdMoveServoDeg(ID_BASE, B_LEFT - B_ERR)) return false;
-      if (!cmdMoveGripperPer(G_OPEN)) return false;
-      if (!cmdMoveServoDeg(ID_BASE, B_LEFT)) return false;
+      if (!cmdMoveBaseLeft()) return false;
     }
     if (run_no == RUN_BOTTOM_BACK) {
-      if (!cmdMoveServoDeg(ID_BASE, B_BACK - B_ERR)) return false;
-      if (!cmdMoveGripperPer(G_OPEN)) return false;
-      if (!cmdMoveServoDeg(ID_BASE, B_BACK)) return false;
+      if (!cmdMoveBaseBack()) return false;
     }
 
     // release clamp
     if (!cmdMoveGripperPer(G_OPEN)) return false;
-    if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveYmm(Y_CENTER)) return false;
+    if (!cmdMoveXmm(X_CENTER)) return false;
 
     return true;
   }
