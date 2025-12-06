@@ -935,12 +935,19 @@ String read_color_rows_cb(bool read_two_rows) {
 }
 
 bool cmd_read_cube_colors(int argc, double *argv) {
+
+  String all54 = color_reader.get_cube_colors_string();
+  serial_printf("before read cube colors= %s\n", all54.c_str());
+
   ori.clear_orientation_data();
   ori.clear_move_log();
 
   if (color_reader.read_full_cube()) {
-    String all54 = color_reader.get_cube_colors_string();
-    serial_printf("cube colors= %s\n", all54.c_str());
+    all54 = color_reader.get_cube_colors_string();
+    serial_printf("read cube colors= %s\n", all54.c_str());
+    // restore orintation to match the color string
+    static double arg = 0;
+    cmd_restore_ori(1, &arg);
   } else {
     Serial.println("ERR: read_full_cube failed");
     return false;
