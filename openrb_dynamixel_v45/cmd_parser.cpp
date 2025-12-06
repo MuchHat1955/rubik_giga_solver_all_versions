@@ -16,6 +16,9 @@ extern double speed;
 extern CubeOri ori;
 extern CubeColorReader color_reader;
 
+
+String read_colors_log = "";
+
 // -------------------------------------------------------------------
 //                      COMMAND TABLE
 // -------------------------------------------------------------------
@@ -158,7 +161,7 @@ bool cmd_reset_ori(int argc, double *argv) {
 }
 
 bool cmd_restore_ori(int argc, double *argv) {
-  ori.restore_orientation();
+  ori.restore_cube_orientation();
   ori.reset();
   ori.clear_move_log();
   serial_printf("ORI reset\n");
@@ -707,6 +710,7 @@ bool cmd_run(int argc, double *argv) {
   // read colors on front face
   if (run_no == RUN_READ_COLORS) {
     String crrColor = "na";
+    read_colors_log = "xxxxxxxxx";
 
     while (1) {
       if (!cmdMoveGripperPer(G_WIDE_OPEN)) break;
@@ -724,18 +728,21 @@ bool cmd_run(int argc, double *argv) {
       if (!cmdMoveWristDegVertical(W_HORIZ)) break;
       crrColor = read_color();
       serial_printf("COLOR READ TOP_R=%s\n", crrColor.c_str());
+      read_colors_log.setCharAt(2, crrColor.charAt(0));
 
       // top center ------------------------------------------------
       if (!cmdMoveXmm(X_C_CENTER)) break;
       if (!cmdMoveWristDegVertical(W_HORIZ)) break;
       crrColor = read_color();
       serial_printf("COLOR READ TOP_C=%s\n", crrColor.c_str());
+      read_colors_log.setCharAt(1, crrColor.charAt(0));
 
       // top left --------------------------------------------------
       if (!cmdMoveXmm(X_C_LEFT)) break;
       if (!cmdMoveWristDegVertical(W_HORIZ)) break;
       crrColor = read_color();
       serial_printf("COLOR READ TOP_L=%s\n", crrColor.c_str());
+      read_colors_log.setCharAt(0, crrColor.charAt(0));
 
       // mid row ---------------------------------------------------
       if (!cmdMoveYmm(Y_C_MID)) break;
@@ -745,18 +752,21 @@ bool cmd_run(int argc, double *argv) {
       if (!cmdMoveWristDegVertical(W_HORIZ)) break;
       crrColor = read_color();
       serial_printf("COLOR READ MID_L=%s\n", crrColor.c_str());
+      read_colors_log.setCharAt(3, crrColor.charAt(0));
 
       // mid center
       if (!cmdMoveXmm(X_CENTER)) break;
       if (!cmdMoveWristDegVertical(W_HORIZ)) break;
       crrColor = read_color();
       serial_printf("COLOR READ MID_C=%s\n", crrColor.c_str());
+      read_colors_log.setCharAt(4, crrColor.charAt(0));
 
       // mid right
       if (!cmdMoveXmm(X_C_RIGHT)) break;
       if (!cmdMoveWristDegVertical(W_HORIZ)) break;
       crrColor = read_color();
       serial_printf("COLOR READ MID_R=%s\n", crrColor.c_str());
+      read_colors_log.setCharAt(0, crrColor.charAt(4));
 
       // back to main pos
       if (!cmdMoveXmm(X_CENTER)) break;
@@ -899,8 +909,12 @@ String read_color_rows_cb(bool read_two_rows) {
   // or
   // return "rbgxxxxxx";
 
-  // For now, just a dummy:
-  return "xxxxxxxxx";
+  double arg = RUN_READ_COLORS;
+  bool result = cmd_run(1, &arg);
+
+  if (!result) return "xxxxxxxxx";
+
+  return read_colors_log;
 }
 
 bool cmd_read_cube_colors(int argc, double *argv) {
@@ -909,8 +923,7 @@ bool cmd_read_cube_colors(int argc, double *argv) {
 
   if (color_reader.read_full_cube()) {
     String all54 = color_reader.get_cube_colors_string();
-    Serial.print("CUBE = ");
-    Serial.println(all54);
+    serial_printf("cube colors= %s\n", all54.c_str());
   } else {
     Serial.println("ERR: read_full_cube failed");
     return false;

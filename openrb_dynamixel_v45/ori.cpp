@@ -1,8 +1,8 @@
 #include "ori.h"
 #include "utils.h"
+#include "color_reader.h"
 
-#include "ori.h"
-#include "utils.h"  // for serial_printf, adjust if your logging is elsewhere
+extern CubeColorReader color_reader;
 
 // ============================================================
 // Tables
@@ -99,8 +99,162 @@ void CubeOri::reset() {
   orientation_log_ = "";
 }
 
-bool CubeOri::restore_orientation() {
-  return false;
+bool CubeOri::restore_cube_orientation() {
+  // Goal (identity orientation)
+  Orientation target;
+  target.U = 'U';
+  target.D = 'D';
+  target.F = 'F';
+  target.B = 'B';
+  target.L = 'L';
+  target.R = 'R';
+
+  // Already aligned?
+  if (orientations_equal_(ori_, target)) {
+    return true;
+  }
+
+  //
+  // BFS over the 24 possible cube orientations.
+  // We only use: y+, y', z+, z'.
+  //
+
+  const String moves[4] = { "y+", "y'", "z+", "z'" };
+
+  const int MAX_STATES = 24;
+
+  Orientation states[MAX_STATES];
+  int parent_idx[MAX_STATES];
+  String move_from_parent[MAX_STATES];
+
+  int queue[MAX_STATES];
+  int q_head = 0;
+  int q_tail = 0;
+
+  // Initial state
+  states[0] = ori_;
+  parent_idx[0] = -1;
+  queue[q_tail++] = 0;
+
+  int state_count = 1;
+  int found_idx = -1;
+
+  // BFS loop
+  while (q_head < q_tail && found_idx < 0) {
+    int cur = queue[q_head++];
+    Orientation cur_o = states[cur];
+
+    // Try applying each legal rotation
+    for (int m = 0; m < 4; ++m) {
+      Orientation next_o = apply_rotation_to_orientation_(cur_o, moves[m]);
+
+      // Check if visited
+      bool seen = false;
+      for (int i = 0; i < state_count; i++) {
+        if (orientations_equal_(states[i], next_o)) {
+          seen = true;
+          break;
+        }
+      }
+      if (seen) continue;
+
+      if (state_count >= MAX_STATES) break;  // Should never overflow
+
+      int idx = state_count++;
+      states[idx] = next_o;
+      parent_idx[idx] = cur;
+      move_from_parent[idx] = moves[m];
+      queue[q_tail++] = idx;
+
+      if (orientations_equal_(next_o, target)) {
+        found_idx = idx;
+        break;
+      }
+    }
+  }
+
+  if (found_idx < 0) {
+    // Should never happen for a valid orientation group
+    return false;
+  }
+
+  //
+  // Reconstruct path from found_idx back to state 0 (reverse order)
+  //
+  String path_moves[16];
+  int path_len = 0;
+
+  int cur = found_idx;
+  while (cur >= 0 && parent_idx[cur] >= 0 && path_len < 16) {
+    path_moves[path_len++] = move_from_parent[cur];
+    cur = parent_idx[cur];
+  }
+
+  //
+  // Replay moves forward (reverse order)
+  //
+  for (int i = path_len - 1; i >= 0; --i) {
+    if (!robot_move(path_moves[i])) {
+      serial_printf("ERR restore_cube_orientation robot move failed: %s\n",
+                    path_moves[i].c_str());
+      return false;
+    }
+  }
+
+  return true;
+}
+
+// ============================================================
+// Compare two Orientation objects
+// ============================================================
+bool CubeOri::orientations_equal_(const Orientation &a, const Orientation &b) const {
+  return (a.U == b.U && a.R == b.R && a.F == b.F && a.D == b.D && a.L == b.L && a.B == b.B);
+}
+
+// ============================================================
+// Apply a single rotation ("y+", "y'", "z+", "z'") to an Orientation
+// (used only inside BFS restore logic)
+// ============================================================
+CubeOri::Orientation
+
+CubeOri::apply_rotation_to_orientation_(const Orientation &o, const String &move) const {
+  Orientation n = o;
+
+  if (move.equalsIgnoreCase("y+")) {
+    n.U = o.R;
+    n.R = o.D;
+    n.D = o.L;
+    n.L = o.U;
+    // F and B unchanged
+    n.F = o.F;
+    n.B = o.B;
+  } else if (move.equalsIgnoreCase("y'")) {
+    n.U = o.L;
+    n.L = o.D;
+    n.D = o.R;
+    n.R = o.U;
+    n.F = o.F;
+    n.B = o.B;
+  } else if (move.equalsIgnoreCase("z+")) {
+    n.F = o.L;
+    n.L = o.B;
+    n.B = o.R;
+    n.R = o.F;
+    n.U = o.U;
+    n.D = o.D;
+  } else if (move.equalsIgnoreCase("z'")) {
+    n.F = o.R;
+    n.R = o.B;
+    n.B = o.L;
+    n.L = o.F;
+    n.U = o.U;
+    n.D = o.D;
+  } else {
+    // Should not happen for restore logic
+    return o;
+  }
+
+  return n;
 }
 
 // ============================================================

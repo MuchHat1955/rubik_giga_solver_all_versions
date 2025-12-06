@@ -23,33 +23,27 @@ public:
     robot_cb_ = cb;
   }
 
+  // ------------------------------------------------------------
+  // PUBLIC API
+  // ------------------------------------------------------------
+
   // Execute a single robot move (y+, y', z+, z', z2, d+, d', d2).
-  // - Calls the callback
-  // - Updates orientation using k_ori_move_table
-  // - Appends to move log
   bool robot_move(const String &move_str);
 
   // Execute a sequence of cube logical moves, e.g. "F R' U2".
-  // Uses k_cube_to_robot_table and current orientation.
   bool cube_move(const String &moves_str);
 
-  // move cube back to f->f, b->b etc
-  bool restore_orientation();
+  // Restore cube orientation back to identity: U->U, R->R ...
+  bool restore_cube_orientation();  // <-- You were missing this
 
   // Return mapping of original logical faces to current physical faces.
-  // out[0] = "U->X"
-  // out[1] = "R->X"
-  // out[2] = "F->X"
-  // out[3] = "D->X"
-  // out[4] = "L->X"
-  // out[5] = "B->X"
   void get_face_mapping(String out[6]) const;
 
-  // Convenience: one-line orientation string:
+  // One-line orientation string like:
   // "U->F R->R F->D D->B L->U B->L"
   String get_orientation_string() const;
 
-  // Log of all robot moves applied (space separated)
+  // Move-log helpers
   String get_move_log() const {
     return orientation_log_;
   }
@@ -58,9 +52,21 @@ public:
   }
 
 private:
-  // Orientation: for each *physical* face, which *logical* face is there.
-  // At identity:
-  //   U='U', R='R', F='F', D='D', L='L', B='B'
+
+  // ============================================================
+  // Orientation struct
+  //
+  // Stores, for each PHYSICAL face (U,R,F,D,L,B),
+  // which LOGICAL face is currently sitting there.
+  //
+  // Identity:
+  //   ori_.U='U'
+  //   ori_.R='R'
+  //   ori_.F='F'
+  //   ori_.D='D'
+  //   ori_.L='L'
+  //   ori_.B='B'
+  // ============================================================
   struct Orientation {
     char U;
     char R;
@@ -74,26 +80,30 @@ private:
   robot_move_cb_t robot_cb_;
   String orientation_log_;
 
-  // ----------------- Helpers -----------------
+  // ------------------------------------------------------------
+  // Private helpers
+  // ------------------------------------------------------------
 
   // Normalize robot move to canonical form: "y+", "y'", "z2", "d+"
-  // Returns "" on error.
   String normalize_robot_move_token_(const String &in);
 
-  // Split "a b c" or "a,b,c" style lists into tokens
+  // Split "a b c" or "a,b,c" etc
   void split_moves_(const String &in, String *out, int &count, int max_count) const;
 
-  // Apply orientation change from the table for a given robot move
+  // Update orientation using lookup table
   void apply_ori_table_(const String &robot_move);
 
-  // Execute one cube move given the *logical* face and quarter turns:
-  // qt = +1, -1, or 2
-  bool execute_single_cube_move_(char logical_face, int qt);
-
-  // Parse cube token "F", "R'", "U2" into (face, quarter_turns)
+  // Parse cube token "F", "R'", "U2"
   bool parse_cube_token_(const String &tok, char &face, int &qt) const;
 
-  // Find which physical face currently holds a given logical face.
-  // Returns 'U','R','F','D','L','B' or '\0' if not found.
+  // Find which PHYSICAL direction holds a logical face:
+  // returns 'U','R','F','D','L','B'
   char find_physical_dir_for_logical_(char logical_face) const;
+
+  // Execute one cube move (already parsed)
+  bool execute_single_cube_move_(char logical_face, int qt);
+
+  bool orientations_equal_(const Orientation &a, const Orientation &b) const;
+
+  Orientation apply_rotation_to_orientation_(const Orientation &o, const String &move) const;
 };

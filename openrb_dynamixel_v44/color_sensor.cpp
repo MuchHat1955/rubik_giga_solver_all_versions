@@ -1,5 +1,5 @@
 #include <Adafruit_TCS34725.h>
-#include "utils.h"
+#include "color_sensor.h"
 
 // Global sensor instance
 static Adafruit_TCS34725 tcs = Adafruit_TCS34725(
@@ -56,7 +56,7 @@ String classify_color(float r, float g, float b, float c) {
     float dg = gn - ref.g;
     float db = bn - ref.b;
 
-    float dist = dr*dr + dg*dg + db*db;
+    float dist = dr * dr + dg * dg + db * db;
 
     serial_printf_verbose("  compare %s => dist=%.4f\n", ref.name, dist);
 
@@ -75,7 +75,9 @@ String classify_color(float r, float g, float b, float c) {
   return String(best);
 }
 
-String read_color(uint8_t samples = 8) {
+String read_color() {
+
+  uint8_t samples = 8;
 
   serial_printf_verbose("start read color\n");
 
@@ -121,11 +123,11 @@ String read_color(uint8_t samples = 8) {
   float avg_c = sum_c / samples;
 
   serial_printf_verbose("calling clasify color with: %.1f,%.1f,%.1f,%.1f\n",
-                avg_r, avg_g, avg_b, avg_c);
+                        avg_r, avg_g, avg_b, avg_c);
 
   String ret = classify_color(avg_r, avg_g, avg_b, avg_c);
 
   serial_printf_verbose("final color: %s\n",
-                ret.c_str());
+                        ret.c_str());
   return ret;
 }
