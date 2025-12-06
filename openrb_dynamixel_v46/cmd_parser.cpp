@@ -5,14 +5,13 @@
 #include "ori.h"
 #include "color_reader.h"
 
-extern CubeOri ori;
-
 void print_info(uint8_t id);
 
 extern double max_xmm;
 extern double max_ymm;
 extern double min_ymm;
 extern double speed;
+
 extern CubeOri ori;
 extern CubeColorReader color_reader;
 
@@ -95,8 +94,8 @@ static CommandEntry command_table[] = {
   { "MOVEROBOT", "<moves>", nullptr, "MOVEROBOT <moves> - robot moves (y+, y', z2, d+, etc; space-separated list allowed)" },
   { "MOVECUBE", "<moves>", nullptr, "MOVECUBE <moves> - cube moves (F, R', U2, etc; space-separated list allowed)" },
 
-  { "GETORI", "", cmd_getori, "GETORI - print orientation move log" },
-  { "RESETORI", "", cmd_reset_ori, "RESETORI - reset orientation data" },
+  { "GETORIDATA", "", cmd_getori_data, "GETORIDATA - print orientation move log" },
+  { "CLEARORIDATA", "", cmd_clear_ori_data, "CLEARORIDATA - reset orientation data" },
   { "RESTOREORI", "", cmd_restore_ori, "RESTOREORI - move cube back in the original orientation" },
   { "CUBECOLORS", "", cmd_read_cube_colors, "CUBECOLORS - read full cube colors" },
 
@@ -142,29 +141,47 @@ static int parse_args(const String &line, const char *fmt, double *out, int max_
 // ------------------------------------------------------------
 // GETORI
 // ------------------------------------------------------------
-bool cmd_getori(int argc, double *argv) {
+bool cmd_getori_data(int argc, double *argv) {
   String s = ori.get_orientation_string();
-  serial_printf("ORI %s\n", s.c_str());
+  serial_printf("ORI orientation=%s\n", s.c_str());
   String log = ori.get_move_log();
-  serial_printf("ORI LOG %s\n", log.c_str());
+  serial_printf("ORI move log= %s\n", log.c_str());
   return true;
 }
 
 // ------------------------------------------------------------
 // RESETORI
 // ------------------------------------------------------------
-bool cmd_reset_ori(int argc, double *argv) {
-  ori.reset();
+bool cmd_clear_ori_data(int argc, double *argv) {
+  ori.clear_orientation_data();
   ori.clear_move_log();
   serial_printf("ORI reset\n");
+  String s = ori.get_orientation_string();
+  serial_printf("ORI orientation=%s\n", s.c_str());
+  String log = ori.get_move_log();
+  serial_printf("ORI move log= %s\n", log.c_str());
   return true;
 }
 
 bool cmd_restore_ori(int argc, double *argv) {
-  ori.restore_cube_orientation();
-  ori.reset();
+  if (!ori.restore_cube_orientation()) {
+    serial_printf("ERR failed to restore orientation\n");
+    String s = ori.get_orientation_string();
+    serial_printf("ORI orientation=%s\n", s.c_str());
+    String log = ori.get_move_log();
+    serial_printf("ORI move log= %s\n", log.c_str());
+    return false;
+  }
+
+  // At this point ori_ is already identity.
+  // Only clear the move log.
   ori.clear_move_log();
-  serial_printf("ORI reset\n");
+
+  serial_printf("ORI restored to identity\n");
+  String s = ori.get_orientation_string();
+  serial_printf("ORI orientation=%s\n", s.c_str());
+  String log = ori.get_move_log();
+  serial_printf("ORI move log= %s\n", log.c_str());
   return true;
 }
 
@@ -766,11 +783,11 @@ bool cmd_run(int argc, double *argv) {
       if (!cmdMoveWristDegVertical(W_HORIZ)) break;
       crrColor = read_color();
       serial_printf("COLOR READ MID_R=%s\n", crrColor.c_str());
-      read_colors_log.setCharAt(0, crrColor.charAt(4));
+      read_colors_log.setCharAt(5, crrColor.charAt(0));
 
       // back to main pos
       if (!cmdMoveXmm(X_CENTER)) break;
-      if (!cmdMoveXmm(Y_CENTER)) break;
+      if (!cmdMoveYmm(Y_CENTER)) break;
       if (!cmdMoveWristDegVertical(W_HORIZ)) break;
 
       if (!cmdMoveGripperPer(G_WIDE_OPEN)) break;
@@ -797,7 +814,7 @@ bool cmd_run(int argc, double *argv) {
     return true;
   }
   // reset base  needed to turn base 180
-  if (run_no == RUN_RESET_LEFT) {
+  if (run_no == RUN_RESET_BACK) {
     if (!prepBaseForRotation(B_BACK)) return false;
     return true;
   }
@@ -857,35 +874,35 @@ bool robot_move_callback(const String &mv) {
   serial_printf_verbose("HW executes: %s\n", mv.c_str());
 
   if (mv == "y+") {
-    double arg = RUN_RIGHT_DOWN;
+    static double arg = RUN_RIGHT_DOWN;
     return cmd_run(1, &arg);
   }
   if (mv == "y'") {
-    double arg = RUN_LEFT_DOWN;
+    static double arg = RUN_LEFT_DOWN;
     return cmd_run(1, &arg);
   }
   if (mv == "z+") {
-    double arg = RUN_CUBE_LEFT;
+    static double arg = RUN_CUBE_LEFT;
     return cmd_run(1, &arg);
   }
   if (mv == "z'") {
-    double arg = RUN_CUBE_RIGHT;
+    static double arg = RUN_CUBE_RIGHT;
     return cmd_run(1, &arg);
   }
   if (mv == "z2") {
-    double arg = RUN_CUBE_BACK;
+    static double arg = RUN_CUBE_BACK;
     return cmd_run(1, &arg);
   }
   if (mv == "d+") {
-    double arg = RUN_BOTTOM_LEFT;
+    static double arg = RUN_BOTTOM_LEFT;
     return cmd_run(1, &arg);
   }
   if (mv == "d'") {
-    double arg = RUN_BOTTOM_RIGHT;
+    static double arg = RUN_BOTTOM_RIGHT;
     return cmd_run(1, &arg);
   }
   if (mv == "d2") {
-    double arg = RUN_BOTTOM_BACK;
+    static double arg = RUN_BOTTOM_BACK;
     return cmd_run(1, &arg);
   }
 
@@ -909,7 +926,7 @@ String read_color_rows_cb(bool read_two_rows) {
   // or
   // return "rbgxxxxxx";
 
-  double arg = RUN_READ_COLORS;
+  static double arg = RUN_READ_COLORS;
   bool result = cmd_run(1, &arg);
 
   if (!result) return "xxxxxxxxx";
@@ -918,7 +935,7 @@ String read_color_rows_cb(bool read_two_rows) {
 }
 
 bool cmd_read_cube_colors(int argc, double *argv) {
-  ori.reset();
+  ori.clear_orientation_data();
   ori.clear_move_log();
 
   if (color_reader.read_full_cube()) {

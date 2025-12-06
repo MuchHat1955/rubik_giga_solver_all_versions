@@ -77,9 +77,9 @@ bool cmd_ledoff(int argc, double *argv);
 // Help
 bool cmd_help(int argc, double *argv);
 
-bool cmd_getori(int argc, double *argv);
+bool cmd_getori_data(int argc, double *argv);
 
-bool cmd_reset_ori(int argc, double *argv);
+bool cmd_clear_ori_data(int argc, double *argv);
 
 bool cmd_restore_ori(int argc, double *argv);
 

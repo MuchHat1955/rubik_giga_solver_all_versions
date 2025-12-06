@@ -16,7 +16,7 @@ public:
   CubeOri(robot_move_cb_t cb = nullptr);
 
   // Reset orientation to identity (U,R,F,D,L,B) and clear log
-  void reset();
+  void clear_orientation_data();
 
   // Set hardware callback
   void set_robot_callback(robot_move_cb_t cb) {

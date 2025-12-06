@@ -85,10 +85,10 @@ static const int k_cube_to_robot_count =
 
 CubeOri::CubeOri(robot_move_cb_t cb)
   : robot_cb_(cb) {
-  reset();
+  clear_orientation_data();
 }
 
-void CubeOri::reset() {
+void CubeOri::clear_orientation_data() {
   ori_.U = 'U';
   ori_.R = 'R';
   ori_.F = 'F';
