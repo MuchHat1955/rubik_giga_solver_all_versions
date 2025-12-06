@@ -46,14 +46,14 @@ static constexpr int RUN_READ_COLORS = 50;
 static constexpr int RUN_ALIGN_CUBE = 60;
 
 const char runHelp[] PROGMEM =
-  "RUN <no>\n"
+  "TEST <no>\n"
   "      0 pos zero |\n"
   "     11 right down   | 12 left down    | 13 back down\n"
   "     21 bottom right | 22 bottom right | 23 bottom back\n"
   "     31 cube right   | 32 cube left    | 33 cube back\n"
   "     41 reset right  | 42 reset left   | 143 reset back\n"
   "     50 read colors\n"
-  "     60 align\n";
+  "     60 align";
 
 struct CommandEntry {
   const char *name;
@@ -69,6 +69,8 @@ static CommandEntry command_table[] = {
   { "SETMIN", "%d %d", cmd_set_min, "SETMIN <id> <ticks> - set the min ticks" },
   { "SETMAX", "%d %d", cmd_set_max, "SETMAX <id> <ticks> - set the max ticks" },
 
+  { "TEST", "%d", cmd_run, runHelp },
+
   { "MOVETICKS", "%d %d", cmd_move_ticks, "MOVEDEG <id> <ticks goal> - move one servo to ticks (not smooth)" },
   { "MOVEDEG", "%d %f", cmd_move_deg, "MOVEDEG <id> <deg goal> - move one servo to degree (smooth)" },
   { "MOVEPER", "%d %f", cmd_move_per, "MOVEPER <id> <per goal> - move one servo to percent (smooth)" },
@@ -80,24 +82,22 @@ static CommandEntry command_table[] = {
   { "MOVEWRISTVERTDEG", "%f", cmd_move_wrist_vert, "MOVEWRISTVERTDEG <deg> - move wrist relative to vertical (-5 to 185)" },
   { "CLAMP", "", cmd_move_clamp, "CLAMP - clamp gripper" },
 
-  { "RUN", "%d", cmd_run, runHelp },
-
   { "READ", "%d", cmd_read, "READ <id> - show servo summary status" },
   { "INFO", "%d", cmd_info, "INFO <id> - show servo full status" },
 
-  { "COLOR", "%d", cmd_color, "COLOR <count> - read color <count> times" },
+  { "COLORSENSOR", "%d", cmd_color, "COLORSENSOR <count> - read color <count> times" },
 
   { "LEDON", "%d", cmd_ledon, "LEDON <id> - turn servo LED on" },
   { "LEDOFF", "%d", cmd_ledoff, "LEDOFF <id> - turn servo LED off" },
 
   // NEW: string-based move commands using CubeOri
-  { "MOVEROBOT", "<moves>", nullptr, "MOVEROBOT <moves> - robot moves (y+, y', z2, d+, etc; space-separated list allowed)" },
-  { "MOVECUBE", "<moves>", nullptr, "MOVECUBE <moves> - cube moves (F, R', U2, etc; space-separated list allowed)" },
+  { "MOVEROBOT", "<moves>", nullptr, "MOVEROBOT <moves> - robot moves space-separated list (y+ y' z+ z' z2 d+ d' d2)" },
+  { "MOVECUBE", "<moves>", nullptr, "MOVECUBE <moves> - cube moves space-separated list (F F' F2 B B' B2 R R' R2 L L' L2 U U' U2 D D' D2)" },
 
   { "GETORIDATA", "", cmd_getori_data, "GETORIDATA - print orientation move log" },
   { "CLEARORIDATA", "", cmd_clear_ori_data, "CLEARORIDATA - reset orientation data" },
   { "RESTOREORI", "", cmd_restore_ori, "RESTOREORI - move cube back in the original orientation" },
-  { "CUBECOLORS", "", cmd_read_cube_colors, "CUBECOLORS - read full cube colors" },
+  { "READCUBECOLORS", "", cmd_read_cube_colors, "READCUBECOLORS - read full cube colors" },
 
   { "HELP", "", cmd_help, "HELP list of commands" },
 };
