@@ -945,7 +945,7 @@ bool cmdMoveGripperClamp() {
 
     const uint16_t PWM_REG = 124;
     const int PWM_TOUCH = 90;
-    const double EXTRA = 1.5;
+    const double EXTRA = 2.5; //TODO was 1.5
 
     bool touched1 = false;
     bool touched2 = false;

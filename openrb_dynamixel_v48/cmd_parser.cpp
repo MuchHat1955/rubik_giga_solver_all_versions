@@ -400,7 +400,7 @@ bool cmd_help(int argc, double *argv) {
 // ---- x read color poses
 #define X_C_LEFT -14.0
 #define X_C_RIGHT 16.0
-#define X_C_CENTER 4.0
+#define X_C_CENTER -2.0 // was 4.0
 
 // ---- w poses
 #define W_HORIZ -85
