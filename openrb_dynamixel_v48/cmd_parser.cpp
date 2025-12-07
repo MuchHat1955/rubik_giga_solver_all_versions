@@ -959,11 +959,11 @@ bool robot_move_callback(const String &mv) {
     return cmd_run(1, &arg);
   }
   if (mv == "d+") {
-    static double arg = RUN_BOTTOM_LEFT;
+    static double arg = RUN_BOTTOM_RIGHT;
     return cmd_run(1, &arg);
   }
   if (mv == "d'") {
-    static double arg = RUN_BOTTOM_RIGHT;
+    static double arg = RUN_BOTTOM_LEFT;
     return cmd_run(1, &arg);
   }
   if (mv == "d2") {
