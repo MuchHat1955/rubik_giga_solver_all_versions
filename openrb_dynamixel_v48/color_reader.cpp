@@ -38,9 +38,17 @@ int CubeColorReader::face_base_index_(char face) const {
 }
 
 // Apply a read color for a single slot of a face:
+// slot = 1..6, band semantics:
+//   non-mirrored: 1,2,3 = top row (L,C,R), 4,5,6 = middle row (L,C,R)
+//   mirrored:     1,2,3 = bottom row (L,C,R)
 void CubeColorReader::apply_slot_to_face_(char face, int slot, char color, bool mirrored) {
   int base = face_base_index_(face);
   if (base < 0) return;
+
+  if (slot < 1 || slot > 6) {
+    serial_printf("ERR ColorReader: invalid slot %d for face %c\n", slot, face);
+    return;
+  }
 
   int offset = -1;
 
@@ -50,20 +58,22 @@ void CubeColorReader::apply_slot_to_face_(char face, int slot, char color, bool 
       case 1: offset = 0; break;  // top-left
       case 2: offset = 1; break;  // top-center
       case 3: offset = 2; break;  // top-right
-      case 6: offset = 5; break;  // mid-right
-      case 5: offset = 4; break;  // mid-center
       case 4: offset = 3; break;  // mid-left
+      case 5: offset = 4; break;  // mid-center
+      case 6: offset = 5; break;  // mid-right
     }
   } else {
-    // Mirrored (bottom band)
-    // Order "231" means:
-    //   slot 2 → bottom-left   (6)
-    //   slot 3 → bottom-center (7)
-    //   slot 1 → bottom-right  (8)
+    // Mirrored bottom band:
+    // 1 → bottom-left, 2 → bottom-center, 3 → bottom-right
     switch (slot) {
-      case 2: offset = 6; break;
-      case 3: offset = 7; break;
-      case 1: offset = 8; break;
+      case 1: offset = 6; break;  // bottom-left
+      case 2: offset = 7; break;  // bottom-center
+      case 3: offset = 8; break;  // bottom-right
+      default:
+        // slots 4,5,6 shouldn't be used in mirrored mode
+        serial_printf("WARN ColorReader: mirrored with slot %d on face %c\n",
+                      slot, face);
+        return;
     }
   }
 
@@ -86,7 +96,7 @@ void CubeColorReader::print_face_compact_(char face) const {
 // Mapping table (with explicit mirrored flag)
 // ============================================================
 struct color_map_step_t {
-  const char *robot_move;   // movement: "z+", "z'", "y2", …
+  const char *robot_move;   // movement: "z+", "z'", "y'", "z2", …
   const char *face;         // face to read: "f","r","u","", …
   bool mirrored;            // true = bottom band (mirror), false = normal
   const char *order;        // slot order: "236541" or "231"
@@ -146,6 +156,7 @@ bool CubeColorReader::process_step_(int step_index,
                                     bool mirrored,
                                     const char *order) {
 
+  // Robot move (if any)
   if (robot_move && robot_move[0] != '\0' && strcmp(robot_move, "na") != 0) {
     if (!ori_.robot_move(robot_move)) {
       serial_printf("err step %d: robot move %s failed\n",
@@ -154,10 +165,11 @@ bool CubeColorReader::process_step_(int step_index,
     }
   }
 
+  // No read on this step?
   if (!face || face[0] == '\0' || !order || order[0] == '\0')
     return true;
 
-  char F = face[0];
+  char F = tolower(face[0]);  // ensure lowercase for face_base_index_()
 
   // Read all slots in this step
   for (int i = 0; order[i] != '\0'; i++) {
@@ -170,6 +182,7 @@ bool CubeColorReader::process_step_(int step_index,
 
     apply_slot_to_face_(F, slot, color, mirrored);
 
+    // log single read
     serial_printf("   ---%d %c%d c=%c  ",
                   step_index,
                   F,
@@ -179,11 +192,11 @@ bool CubeColorReader::process_step_(int step_index,
     serial_printf("\n");
   }
 
+  // log completion of this step for this face
   serial_printf("[step] %d move=%s face=%c  ",
                 step_index,
                 robot_move ? robot_move : "",
                 F);
-
   print_face_compact_(F);
   serial_printf("\n");
 
@@ -201,6 +214,7 @@ bool CubeColorReader::read_full_cube() {
 
   fill_unknown_();
 
+  // Ensure starting orientation
   if (!ori_.restore_cube_orientation()) {
     serial_printf("err ColorReader: initial restore failed\n");
     return false;
@@ -215,6 +229,7 @@ bool CubeColorReader::read_full_cube() {
     }
   }
 
+  // Final restore
   if (!ori_.restore_cube_orientation()) {
     serial_printf("err ColorReader: final restore failed\n");
     return false;

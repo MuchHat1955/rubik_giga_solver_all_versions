@@ -395,17 +395,12 @@ bool cmd_help(int argc, double *argv) {
 #define Y_C_MID 48
 
 // ---- x poses
-#define X_CENTER -2.0
+#define X_CENTER 1.0 // was -2
 
 // ---- x read color poses
 #define X_C_LEFT -14.0
-#define X_C_RIGHT 16.0
-#define X_C_CENTER -2.0 // was 4.0
-
-// ---- w poses
-#define W_HORIZ -85
-#define W_RIGHT 5
-#define W_LEFT 95
+#define X_C_RIGHT 20.0
+#define X_C_CENTER 2 // was 4.0
 
 // ---- g poses
 #define G_OPEN 22
@@ -465,7 +460,7 @@ bool prepBaseForRotation(double nextBaseMoveRelative) {
   if (!cmdMoveGripperPer(G_OPEN)) return false;
   if (!cmdMoveXmm(X_CENTER)) return false;
   if (!cmdMoveYmm(Y_CENTER)) return false;
-  if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+  if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
   if (!cmdMoveGripperClamp()) return false;
   if (!cmdMoveYmm(Y_ROTATE_BASE)) return false;
   if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
@@ -552,7 +547,7 @@ bool alignCube() {
   if (!cmdMoveGripperPer(G_OPEN)) return false;
   if (!cmdMoveXmm(X_CENTER)) return false;
   if (!cmdMoveYmm(Y_CENTER)) return false;
-  if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+  if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
 
   if (!cmdMoveServoPer(ID_GRIP2, G_ALIGN_LEFT)) return false;
   if (!cmdMoveServoDeg(ID_GRIP2, G_OPEN)) return false;
@@ -600,7 +595,7 @@ bool cmd_read_one_color(int argc, double *argv) {
 
   while (1) {
     if (!cmdMoveGripperPer(G_WIDE_OPEN)) break;
-    if (!cmdMoveWristDegVertical(W_HORIZ)) break;
+    if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) break;
 
     speed = 0.25;
 
@@ -628,6 +623,7 @@ bool cmd_read_one_color(int argc, double *argv) {
       if (!cmdMoveYmm(Y_C_MID)) break;
       if (!cmdMoveXmm(X_C_RIGHT)) break;
     }
+    if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) break;
 
     crrColorChar = read_color().charAt(0);
     serial_printf_verbose("COLOR READ C%d=%c\n", slot, crrColorChar);
@@ -657,7 +653,7 @@ bool cmd_run(int argc, double *argv) {
     if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!rotateBaseRelative(B_CENTER)) return false;
-    if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+    if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
     if (!cmdMoveGripperPer(G_OPEN)) return false;
     if (!cmdMoveYmm(Y_DOWN)) return false;
     if (!cmdMoveGripperPer(G_SOFT_CLOSE)) return false;
@@ -678,7 +674,7 @@ bool cmd_run(int argc, double *argv) {
     // lift cube to rotate vertically
     if (!cmdMoveYmm(Y_CENTER)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+    if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveGripperClamp()) return false;
     if (!liftCube()) return false;
@@ -686,7 +682,7 @@ bool cmd_run(int argc, double *argv) {
 
     // rotate cube vertical right
     if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveWristDegVertical(W_RIGHT)) return false;
+    if (!cmdMoveWristDegVertical(W_VERT)) return false;
 
     // lower cube
     if (!lowerCube()) return false;
@@ -695,7 +691,7 @@ bool cmd_run(int argc, double *argv) {
     // reset
     if (!cmdMoveYmm(Y_CENTER + 3)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+    if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
 
     return true;
   }
@@ -707,7 +703,7 @@ bool cmd_run(int argc, double *argv) {
     // lift cube to rotate vertically
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveYmm(Y_CENTER + 3)) return false;
-    if (!cmdMoveWristDegVertical(W_RIGHT)) return false;
+    if (!cmdMoveWristDegVertical(W_VERT)) return false;
     if (!cmdMoveYmm(Y_CENTER)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveGripperClamp()) return false;
@@ -716,7 +712,7 @@ bool cmd_run(int argc, double *argv) {
     if (!cmdMoveXmm(X_CENTER)) return false;
 
     // rotate cube vertical left
-    if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+    if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
 
     // lower cube
     if (!lowerCube()) return false;
@@ -725,7 +721,7 @@ bool cmd_run(int argc, double *argv) {
     // reset
     if (!cmdMoveYmm(Y_CENTER + 3)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+    if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
 
     return true;
   }
@@ -738,7 +734,7 @@ bool cmd_run(int argc, double *argv) {
     // lift cube to rotate vertically
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveYmm(Y_CENTER + 3)) return false;
-    if (!cmdMoveWristDegVertical(W_LEFT)) return false;
+    if (!cmdMoveWristDegVertical(W_HORIZ_LEFT)) return false;
     if (!cmdMoveYmm(Y_CENTER)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveGripperClamp()) return false;
@@ -747,7 +743,7 @@ bool cmd_run(int argc, double *argv) {
     if (!cmdMoveXmm(X_CENTER)) return false;
 
     // rotate cube vertical 180
-    if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+    if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
 
     // lower cube
     if (!lowerCube()) return false;
@@ -756,7 +752,7 @@ bool cmd_run(int argc, double *argv) {
     // reset
     if (!cmdMoveYmm(Y_CENTER + 3)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+    if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
 
     return true;
   }
@@ -773,7 +769,7 @@ bool cmd_run(int argc, double *argv) {
     // lift cube to rotate vertically
     if (!cmdMoveYmm(Y_CENTER)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+    if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveGripperClamp()) return false;
     if (!liftCube()) return false;
@@ -781,7 +777,7 @@ bool cmd_run(int argc, double *argv) {
     if (!cmdMoveXmm(X_CENTER)) return false;
 
     // rotate cube vertical right
-    if (!cmdMoveWristDegVertical(W_RIGHT)) return false;
+    if (!cmdMoveWristDegVertical(W_VERT)) return false;
 
     // lower cube
     if (!lowerCube()) return false;
@@ -790,7 +786,7 @@ bool cmd_run(int argc, double *argv) {
     // reset
     if (!cmdMoveYmm(Y_CENTER + 3)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+    if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
 
     return true;
   }
@@ -816,7 +812,7 @@ bool cmd_run(int argc, double *argv) {
     // move grip above bottom layer
     if (!cmdMoveYmm(Y_MID)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+    if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
     if (!cmdMoveYmm(Y_MID)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveGripperClamp()) return false;

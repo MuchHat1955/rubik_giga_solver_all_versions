@@ -294,19 +294,25 @@ double VerticalKinematics::getGdeg() const {
   return g_servo_deg;
 }
 
-double VerticalKinematics::getGdeg_for_vertical() const {  //TODO check
+/*
+#define W_HORIZ_RIGHT -90 + VERT_CORRECTION // -85
+#define W_VERT 0 + VERT_CORRECTION // 5
+#define W_HORIZ_LEFT 90 + VERT_CORRECTION //95
+*/
+
+double VerticalKinematics::getGdeg_for_vertical() const { 
   // 0° = gripper vertical; positive tilts along Arm2
-  return -a2_servo_deg - a1_servo_deg + 180;
+  return -a2_servo_deg - a1_servo_deg + W_VERT + 180; // was + 180
 }
 
 double VerticalKinematics::getGdeg_for_horizontal_right() const { 
   // 0° = gripper vertical; positive tilts along Arm2
-  return getGdeg_for_vertical() - 90.0;
+  return getGdeg_for_vertical() + W_HORIZ_RIGHT; // was -90
 }
 
 double VerticalKinematics::getGdeg_for_horizontal_left() const {
   // 0° = gripper vertical; positive tilts along Arm2
-  return getGdeg_for_vertical() + 90.0;
+  return getGdeg_for_vertical() + W_HORIZ_LEFT; // was + 90
 }
 
 int VerticalKinematics::getGticks() const {
