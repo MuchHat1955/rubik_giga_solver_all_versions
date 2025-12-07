@@ -15,9 +15,6 @@ extern double speed;
 extern CubeOri ori;
 extern CubeColorReader color_reader;
 
-
-String read_colors_log = "";
-
 // -------------------------------------------------------------------
 //                      COMMAND TABLE
 // -------------------------------------------------------------------
@@ -28,6 +25,7 @@ static constexpr int RUN_ZERO = 0;
 static constexpr int RUN_RIGHT_DOWN = 11;
 static constexpr int RUN_LEFT_DOWN = 12;
 static constexpr int RUN_BACK_DOWN = 13;
+static constexpr int RUN_TOP_DOWN = 14;
 
 static constexpr int RUN_BOTTOM_RIGHT = 21;
 static constexpr int RUN_BOTTOM_LEFT = 22;
@@ -41,18 +39,15 @@ static constexpr int RUN_RESET_RIGHT = 41;
 static constexpr int RUN_RESET_LEFT = 42;
 static constexpr int RUN_RESET_BACK = 43;
 
-static constexpr int RUN_READ_COLORS = 50;
-
 static constexpr int RUN_ALIGN_CUBE = 60;
 
 const char runHelp[] PROGMEM =
   "TEST <no>\n"
   "      0 pos zero |\n"
-  "     11 right down   | 12 left down    | 13 back down\n"
+  "     11 right down   | 12 left down    | 13 back down   | 14 top down\n"
   "     21 bottom right | 22 bottom right | 23 bottom back\n"
   "     31 cube right   | 32 cube left    | 33 cube back\n"
   "     41 reset right  | 42 reset left   | 143 reset back\n"
-  "     50 read colors\n"
   "     60 align";
 
 struct CommandEntry {
@@ -86,6 +81,7 @@ static CommandEntry command_table[] = {
   { "INFO", "%d", cmd_info, "INFO <id> - show servo full status" },
 
   { "COLORSENSOR", "%d", cmd_color, "COLORSENSOR <count> - read color <count> times" },
+  { "ONECOLOR", "", cmd_read_one_color, "ONECOLOR - read one slot 1...6" },
 
   { "LEDON", "%d", cmd_ledon, "LEDON <id> - turn servo LED on" },
   { "LEDOFF", "%d", cmd_ledoff, "LEDOFF <id> - turn servo LED off" },
@@ -97,7 +93,7 @@ static CommandEntry command_table[] = {
   { "GETORIDATA", "", cmd_getori_data, "GETORIDATA - print orientation move log" },
   { "CLEARORIDATA", "", cmd_clear_ori_data, "CLEARORIDATA - reset orientation data" },
   { "RESTOREORI", "", cmd_restore_ori, "RESTOREORI - move cube back in the original orientation" },
-  { "READCUBECOLORS", "", cmd_read_cube_colors, "READCUBECOLORS - read full cube colors" },
+  { "COLORSREAD", "", cmd_read_cube_colors, "COLORSREAD - read full cube colors" },
 
   { "HELP", "", cmd_help, "HELP list of commands" },
 };
@@ -409,6 +405,7 @@ bool cmd_help(int argc, double *argv) {
 // ---- w poses
 #define W_HORIZ -85
 #define W_RIGHT 5
+#define W_LEFT 95
 
 // ---- g poses
 #define G_OPEN 22
@@ -589,6 +586,60 @@ bool liftCube() {
   return true;
 }
 
+char crrColorChar = '.';
+
+bool cmd_read_one_color(int argc, double *argv) {
+  if (argc < 1) return false;
+
+  double d_slot = (double)argv[0];
+  int slot =  (int)d_slot;
+
+  // read one color for slot
+  crrColorChar = '.';
+  int prev_speed = speed;
+
+  while (1) {
+    if (!cmdMoveGripperPer(G_WIDE_OPEN)) break;
+    if (!cmdMoveWristDegVertical(W_HORIZ)) break;
+
+    speed = 0.25;
+
+    if (slot == 1) {
+      if (!cmdMoveYmm(Y_C_TOP)) break;
+      if (!cmdMoveXmm(X_C_LEFT)) break;
+    }
+    if (slot == 2) {
+      if (!cmdMoveYmm(Y_C_TOP)) break;
+      if (!cmdMoveXmm(X_C_CENTER)) break;
+    }
+    if (slot == 3) {
+      if (!cmdMoveYmm(Y_C_TOP)) break;
+      if (!cmdMoveXmm(X_C_RIGHT)) break;
+    }
+    if (slot == 4) {
+      if (!cmdMoveYmm(Y_C_MID)) break;
+      if (!cmdMoveXmm(X_C_LEFT)) break;
+    }
+    if (slot == 5) {
+      if (!cmdMoveYmm(Y_C_MID)) break;
+      if (!cmdMoveXmm(X_C_CENTER)) break;
+    }
+    if (slot == 6) {
+      if (!cmdMoveYmm(Y_C_MID)) break;
+      if (!cmdMoveXmm(X_C_RIGHT)) break;
+    }
+
+    crrColorChar = read_color().charAt(0);
+    serial_printf_verbose("COLOR READ C%d=%c\n", slot, crrColorChar);
+
+    speed = prev_speed;
+    return true;
+  }
+
+  speed = prev_speed;
+  return true;
+}
+
 bool cmd_run(int argc, double *argv) {
   if (argc < 1) {
     serial_printf("ERR: TESTNO missing argument\n");
@@ -617,6 +668,7 @@ bool cmd_run(int argc, double *argv) {
   // #define RUN_RIGHT_DOWN 11
   // #define RUN_LEFT_DOWN 12
   // #define RUN_BACK_DOWN 13
+  // #define RUN_TOP_DOWN 14
 
   // bring right face to down
   if (run_no == RUN_RIGHT_DOWN) {
@@ -664,6 +716,37 @@ bool cmd_run(int argc, double *argv) {
     if (!cmdMoveXmm(X_CENTER)) return false;
 
     // rotate cube vertical left
+    if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+
+    // lower cube
+    if (!lowerCube()) return false;
+    if (!cmdMoveGripperPer(G_OPEN)) return false;
+
+    // reset
+    if (!cmdMoveYmm(Y_CENTER + 3)) return false;
+    if (!cmdMoveXmm(X_CENTER)) return false;
+    if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
+
+    return true;
+  }
+
+  // bring left face to down
+  if (run_no == RUN_TOP_DOWN) {
+    // prep
+    if (!cmdMoveGripperPer(G_OPEN)) return false;
+
+    // lift cube to rotate vertically
+    if (!cmdMoveXmm(X_CENTER)) return false;
+    if (!cmdMoveYmm(Y_CENTER + 3)) return false;
+    if (!cmdMoveWristDegVertical(W_LEFT)) return false;
+    if (!cmdMoveYmm(Y_CENTER)) return false;
+    if (!cmdMoveXmm(X_CENTER)) return false;
+    if (!cmdMoveGripperClamp()) return false;
+    if (!liftCube()) return false;
+    if (!cmdMoveYmm(Y_UP)) return false;
+    if (!cmdMoveXmm(X_CENTER)) return false;
+
+    // rotate cube vertical 180
     if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
 
     // lower cube
@@ -777,83 +860,6 @@ bool cmd_run(int argc, double *argv) {
     return true;
   }
 
-  // #define RUN_READ_COLORS 40
-
-  // read colors on front face
-  if (run_no == RUN_READ_COLORS) {
-    String crrColor = "na";
-    read_colors_log = "xxxxxxxxx";
-
-    while (1) {
-      if (!cmdMoveGripperPer(G_WIDE_OPEN)) break;
-      if (!cmdMoveWristDegVertical(W_HORIZ)) break;
-      if (!cmdMoveXmm(X_CENTER)) break;
-      if (!cmdMoveGripperPer(G_WIDE_OPEN)) break;
-
-      speed = 0.25;
-
-      // top row --------------------------------------------------
-      if (!cmdMoveYmm(Y_C_TOP)) break;
-
-      // top right ------------------------------------------------
-      if (!cmdMoveXmm(X_C_RIGHT)) break;
-      if (!cmdMoveWristDegVertical(W_HORIZ)) break;
-      crrColor = read_color();
-      serial_printf("COLOR READ TOP_R=%s\n", crrColor.c_str());
-      read_colors_log.setCharAt(2, crrColor.charAt(0));
-
-      // top center ------------------------------------------------
-      if (!cmdMoveXmm(X_C_CENTER)) break;
-      if (!cmdMoveWristDegVertical(W_HORIZ)) break;
-      crrColor = read_color();
-      serial_printf("COLOR READ TOP_C=%s\n", crrColor.c_str());
-      read_colors_log.setCharAt(1, crrColor.charAt(0));
-
-      // top left --------------------------------------------------
-      if (!cmdMoveXmm(X_C_LEFT)) break;
-      if (!cmdMoveWristDegVertical(W_HORIZ)) break;
-      crrColor = read_color();
-      serial_printf("COLOR READ TOP_L=%s\n", crrColor.c_str());
-      read_colors_log.setCharAt(0, crrColor.charAt(0));
-
-      // mid row ---------------------------------------------------
-      if (!cmdMoveYmm(Y_C_MID)) break;
-
-      // mid left
-      if (!cmdMoveXmm(X_C_LEFT)) break;
-      if (!cmdMoveWristDegVertical(W_HORIZ)) break;
-      crrColor = read_color();
-      serial_printf("COLOR READ MID_L=%s\n", crrColor.c_str());
-      read_colors_log.setCharAt(3, crrColor.charAt(0));
-
-      // mid center
-      if (!cmdMoveXmm(X_CENTER)) break;
-      if (!cmdMoveWristDegVertical(W_HORIZ)) break;
-      crrColor = read_color();
-      serial_printf("COLOR READ MID_C=%s\n", crrColor.c_str());
-      read_colors_log.setCharAt(4, crrColor.charAt(0));
-
-      // mid right
-      if (!cmdMoveXmm(X_C_RIGHT)) break;
-      if (!cmdMoveWristDegVertical(W_HORIZ)) break;
-      crrColor = read_color();
-      serial_printf("COLOR READ MID_R=%s\n", crrColor.c_str());
-      read_colors_log.setCharAt(5, crrColor.charAt(0));
-
-      // back to main pos
-      if (!cmdMoveXmm(X_CENTER)) break;
-      if (!cmdMoveYmm(Y_CENTER)) break;
-      if (!cmdMoveWristDegVertical(W_HORIZ)) break;
-
-      if (!cmdMoveGripperPer(G_WIDE_OPEN)) break;
-      speed = 1.0;
-      return true;
-    }
-
-    speed = 1.0;
-    return false;
-  }
-
   // #define RUN_RESET_RIGHT 51
   // #define RUN_RESET_LEFT 52
   // #define RUN_RESET_BACK 53
@@ -920,7 +926,7 @@ bool cmd_run(int argc, double *argv) {
 // RUN_RESET_LEFT = 42;
 // RUN_RESET_BACK = 43;
 
-// RUN_READ_COLORS = 50;
+// RUN_READ_ONE_COLOR = 50;
 
 // RUN_ALIGN_CUBE = 60;
 
@@ -934,6 +940,10 @@ bool robot_move_callback(const String &mv) {
   }
   if (mv == "y'") {
     static double arg = RUN_LEFT_DOWN;
+    return cmd_run(1, &arg);
+  }
+  if (mv == "y2") {
+    static double arg = RUN_TOP_DOWN;
     return cmd_run(1, &arg);
   }
   if (mv == "z+") {
@@ -969,24 +979,10 @@ bool robot_move_callback(const String &mv) {
 //---------------------------------------------------------------------------
 
 // Your callback implementation
-String read_color_rows_cb(bool read_two_rows) {
-  // TODO: move arms / wrist / sensor
-  // - If read_two_rows == true  -> read more (e.g., top+middle)
-  // - If read_two_rows == false -> read remaining band or refine
-  //
-  // MUST return 9 characters, 'x' for not actually read.
-  //
-  // Placeholder example:
-  // return "rybbwrxxx";
-  // or
-  // return "rbgxxxxxx";
-
-  static double arg = RUN_READ_COLORS;
-  bool result = cmd_run(1, &arg);
-
-  if (!result) return "xxxxxxxxx";
-
-  return read_colors_log;
+char read_one_color_cb(int slot) {
+  double arg = (double)slot;
+  if (!cmd_read_one_color(1, &arg)) return '.';
+  return crrColorChar;
 }
 
 bool cmd_read_cube_colors(int argc, double *argv) {

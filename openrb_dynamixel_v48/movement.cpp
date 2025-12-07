@@ -19,6 +19,12 @@ extern double min_ymm;
 
 double speed = 1.0;
 
+enum WristPos {
+  WRIST_VERT,
+  WRIST_HORIZ_LEFT,
+  WRIST_HORIZ_RIGHT
+};
+
 // ----------------------------------------------------------------------
 // NudgeController implementation
 // ----------------------------------------------------------------------
@@ -262,63 +268,6 @@ void AxisGroupController::readPresentTicks(int* posList) {
   }
 }
 
-void AxisGroupController::writeTicks(const int* posList) {
-  int n = axesCount();
-  for (int i = 0; i < n; i++) {
-    uint8_t id = getId(i);
-    if (id > 0 && posList[i] >= 0) {
-      if (!safeSetGoalPosition(id, posList[i])) break;
-    }
-  }
-}
-
-// Compute synchronized tick for slave axis using kinematics (XY) or
-// percentage catch-up (gripper).
-int AxisGroupController::getSyncGoal(uint8_t slaveIndex, int masterTicks) {
-  if (slaveIndex == 0) return masterTicks;  // master itself
-
-  switch (mode) {
-    case AxisRunMode::XY_VERTICAL:
-    case AxisRunMode::XY_HORIZONTAL:
-      {
-        // master is arm1 (index 0)
-        double a1_deg = ticks2deg(getId(0), masterTicks);
-
-        if (mode == AxisRunMode::XY_VERTICAL) {
-          if (!kinPtr->solve_a2_y_from_a1_x(a1_deg, goal_mm_x))
-            return curr_ticks[slaveIndex];
-        } else {
-          if (!kinPtr->solve_a2_x_from_a1_y(a1_deg, goal_mm_y))
-            return curr_ticks[slaveIndex];
-        }
-
-        if (slaveIndex == 1) return kinPtr->getA2ticks();
-        if (slaveIndex == 2) return kinPtr->getGticks_closest_aligned();
-        return curr_ticks[slaveIndex];
-      }
-
-    case AxisRunMode::GRIPPER:
-      {
-        // master index 0, slave index 1
-        if (slaveIndex != 1) return curr_ticks[slaveIndex];
-        int masterTravelLeft = abs(goal_ticks[0] - curr_ticks[0]);
-        int slaveTravelTotal = abs(goal_ticks[1] - start_ticks[1]);
-        int mBehind = slaveTravelTotal - masterTravelLeft;
-
-        if (mBehind < 0) {
-          // slave waits
-          return start_ticks[1];
-        }
-
-        int slaveGoal = goal_ticks[1] - masterTravelLeft * (int)dir_list[1];
-        return slaveGoal;
-      }
-
-    default:
-      return masterTicks;
-  }
-}
-
 // -------------------------- init helpers --------------------------
 
 bool AxisGroupController::initSingle() {
@@ -358,12 +307,17 @@ bool AxisGroupController::initSingle() {
 }
 
 bool AxisGroupController::initXY(bool keepX) {
-  // IDs like ID_ARM1, ID_ARM2, ID_WRIST must be defined elsewhere
-  if (!dxlPtr->ping(ID_ARM1) || !dxlPtr->ping(ID_ARM2) || !dxlPtr->ping(ID_WRIST)) {
-    serial_printf_verbose("[INIT XY] ⚠ Missing servo(s): ping arm1=%d ping arm2=%d ping wrist=%d\n",
-                          dxlPtr->ping(ID_ARM1),
-                          dxlPtr->ping(ID_ARM2),
-                          dxlPtr->ping(ID_WRIST));
+
+  // ----------------------------------------------------------
+  // Servo presence validation
+  // ----------------------------------------------------------
+  bool ping1 = dxlPtr->ping(ID_ARM1);
+  bool ping2 = dxlPtr->ping(ID_ARM2);
+  bool pingW = dxlPtr->ping(ID_WRIST);
+
+  if (!ping1 || !ping2 || !pingW) {
+    serial_printf_verbose("[INIT XY] ⚠ Missing servo(s): arm1=%d arm2=%d wrist=%d\n",
+                          ping1, ping2, pingW);
     return false;
   }
 
@@ -375,51 +329,123 @@ bool AxisGroupController::initXY(bool keepX) {
   start_ticks[1] = dxlPtr->getPresentPosition(ID_ARM2);
   start_ticks[2] = dxlPtr->getPresentPosition(ID_WRIST);
 
+  // ----------------------------------------------------------
+  // Compute current XY based on A1/A2
+  // ----------------------------------------------------------
   double a1_center_deg = ticks2deg(ID_ARM1, start_ticks[0]);
   double a2_center_deg = ticks2deg(ID_ARM2, start_ticks[1]);
+
   if (!kinPtr->solve_x_y_from_a1_a2(a1_center_deg, a2_center_deg))
     return false;
 
   double x_now = kinPtr->getXmm();
   double y_now = kinPtr->getYmm();
 
-  double g_vert = kinPtr->getGdeg_for_vertical();
-  double g_horiz = kinPtr->getGdeg_for_horizontal();
-  double g_present = kinPtr->getGdeg();
+  // ----------------------------------------------------------
+  // Wrist orientation classification (VERT, LEFT, RIGHT)
+  // ----------------------------------------------------------
 
-  auto norm360 = [](double d) {
-    while (d < 0) d += 360.0;
-    while (d >= 360) d -= 360.0;
+  double g_vert        = kinPtr->getGdeg_for_vertical();
+  double g_horiz_left  = kinPtr->getGdeg_for_horizontal_left();
+  double g_horiz_right = kinPtr->getGdeg_for_horizontal_right();
+  double g_present     = kinPtr->getGdeg();
+
+  // persistent state for hysteresis
+  static WristPos wrist_last_state = WRIST_VERT;
+
+  auto norm180 = [&](double d) {
+    while (d < -180) d += 360.0;
+    while (d >= 180) d -= 360.0;
     return d;
   };
 
-  g_vert = norm360(g_vert);
-  g_horiz = norm360(g_horiz);
-  g_present = norm360(g_present);
+  // normalize
+  g_vert        = norm180(g_vert);
+  g_horiz_left  = norm180(g_horiz_left);
+  g_horiz_right = norm180(g_horiz_right);
+  g_present     = norm180(g_present);
 
-  bool is_vert = (std::fabs(g_present - g_vert) < std::fabs(g_present - g_horiz));
+  auto angDist180 = [&](double a, double b) {
+    return fabs(norm180(a - b));
+  };
 
+  double dV  = angDist180(g_present, g_vert);
+  double dHL = angDist180(g_present, g_horiz_left);
+  double dHR = angDist180(g_present, g_horiz_right);
+
+  // closest raw
+  WristPos best_state = WRIST_VERT;
+  double best = dV;
+
+  if (dHL < best) { best = dHL; best_state = WRIST_HORIZ_LEFT; }
+  if (dHR < best) { best = dHR; best_state = WRIST_HORIZ_RIGHT; }
+
+  // hysteresis
+  const double HYS = 3.0;
+  double dCurrent;
+
+  switch (wrist_last_state) {
+    case WRIST_VERT:        dCurrent = dV;  break;
+    case WRIST_HORIZ_LEFT:  dCurrent = dHL; break;
+    case WRIST_HORIZ_RIGHT: dCurrent = dHR; break;
+  }
+
+  WristPos wrist_pos;
+  if (best < dCurrent - HYS)
+      wrist_pos = best_state;
+  else
+      wrist_pos = wrist_last_state;
+
+  wrist_last_state = wrist_pos;
+
+  // ----------------------------------------------------------
+  // Determine goal XY
+  // ----------------------------------------------------------
   if (keepX) goal_mm_x = x_now;
-  else goal_mm_y = y_now;
+  else       goal_mm_y = y_now;
 
-  serial_printf_verbose("[INIT XY] current XY=(%.2f, %.2f)mm -> goal XY=(%.2f, %.2f)mm, keepX=%d, is_vert=%s\n",
-                        x_now, y_now, goal_mm_x, goal_mm_y, keepX,
-                        is_vert ? "vert" : "horiz");
+  const char* wrist_name =
+      (wrist_pos == WRIST_VERT)        ? "vert" :
+      (wrist_pos == WRIST_HORIZ_LEFT)  ? "left" :
+                                         "right";
 
+  serial_printf_verbose(
+      "[INIT XY] currentXY=(%.2f, %.2f)mm -> goalXY=(%.2f, %.2f)mm, "
+      "keepX=%d, wrist=%s\n",
+      x_now, y_now, goal_mm_x, goal_mm_y, keepX, wrist_name);
+
+  // ----------------------------------------------------------
+  // Solve for new A1/A2 based on target XY
+  // ----------------------------------------------------------
   kinPtr->solve_a1_a2_from_x_y(goal_mm_x, goal_mm_y);
 
   double a1 = kinPtr->getA1deg();
   double a2 = kinPtr->getA2deg();
-  double g = is_vert ? kinPtr->getGdeg_for_vertical()
-                     : kinPtr->getGdeg_for_horizontal();
 
+  // pick G based on wrist state
+  double g;
+  switch (wrist_pos) {
+    case WRIST_VERT:
+      g = kinPtr->getGdeg_for_vertical();
+      break;
+    case WRIST_HORIZ_LEFT:
+      g = kinPtr->getGdeg_for_horizontal_left();
+      break;
+    case WRIST_HORIZ_RIGHT:
+      g = kinPtr->getGdeg_for_horizontal_right();
+      break;
+  }
+
+  // ----------------------------------------------------------
+  // Convert to ticks & direction
+  // ----------------------------------------------------------
   goal_ticks[0] = deg2ticks(ID_ARM1, a1);
   goal_ticks[1] = deg2ticks(ID_ARM2, a2);
   goal_ticks[2] = deg2ticks(ID_WRIST, g);
 
-  nudge_flags[0] = true;   // allow nudging for arm1
-  nudge_flags[1] = true;   // allow nudging for arm2
-  nudge_flags[2] = false;  // no nudge for wrist
+  nudge_flags[0] = true;
+  nudge_flags[1] = true;
+  nudge_flags[2] = false;
 
   dir_list[0] = (goal_ticks[0] - start_ticks[0] >= 0) ? 1.0 : -1.0;
   dir_list[1] = (goal_ticks[1] - start_ticks[1] >= 0) ? 1.0 : -1.0;
@@ -427,8 +453,7 @@ bool AxisGroupController::initXY(bool keepX) {
 
   configured = true;
 
-  serial_printf_verbose("[INIT XY] keep%s | a1=%.2f° a2=%.2f° g=%.2f°\n",
-                        keepX ? "X" : "Y", a1, a2, g);
+  serial_printf_verbose("[INIT XY] a1=%.2f° a2=%.2f° g=%.2f°\n", a1, a2, g);
   serial_printf_verbose("[INIT XY] arm1 start=%d goal=%d Δ=%d\n",
                         start_ticks[0], goal_ticks[0],
                         goal_ticks[0] - start_ticks[0]);
@@ -438,6 +463,7 @@ bool AxisGroupController::initXY(bool keepX) {
   serial_printf_verbose("[INIT XY] wrist start=%d goal=%d Δ=%d\n",
                         start_ticks[2], goal_ticks[2],
                         goal_ticks[2] - start_ticks[2]);
+
   return true;
 }
 
@@ -695,233 +721,6 @@ static void refineEndPositions(uint8_t id1, uint8_t id2, uint8_t id3,
 
 bool move_smooth() {
   return move_smooth_v2();
-}
-
-// ----------------------------------------------------------------------
-// move_smooth_v1  (original step-based + nudge logic)
-// ----------------------------------------------------------------------
-
-bool move_smooth_v1() {
-  const int axes_count = axes.axesCount();
-  if (axes_count == 0) return false;
-
-  axes.start();
-
-  MovePhase currentPhase = MovePhase::ACCEL;
-
-  std::vector<NudgeController*> nudgers;
-  nudgers.reserve(axes_count);
-  for (int i = 0; i < axes_count; i++) {
-    nudgers.push_back(axes.getNudgeController(i));
-  }
-
-  int samePosCount[3] = { 0, 0, 0 };
-  int startTicks[3] = { 0, 0, 0 };
-  int currTicks[3] = { 0, 0, 0 };
-  int prevTicks[3] = { 0, 0, 0 };
-  int errTicks[3] = { 0, 0, 0 };
-  int dirTicks[3] = { 1, 1, 1 };
-  int prevGoalTicks[3] = { 0, 0, 0 };
-  int nextGoalTicks[3] = { 0, 0, 0 };
-  int goalTicks[3] = { 0, 0, 0 };
-  int correctionTicks[3] = { 0, 0, 0 };
-  bool axesDone[3] = { false, false, false };
-
-  axes.readPresentTicks(currTicks);
-  serial_printf_verbose("start move | axes read current ticks={%d,%d,%d}\n",
-                        currTicks[0], currTicks[1], currTicks[2]);
-  serial_printf_verbose("start move | axes goal ticks={%d,%d,%d}\n",
-                        axes.getGoalTicks(0), axes.getGoalTicks(1), axes.getGoalTicks(2));
-
-  for (int i = 0; i < axes_count; i++) {
-    samePosCount[i] = 0;
-    startTicks[i] = currTicks[i];
-    prevTicks[i] = currTicks[i];
-    prevGoalTicks[i] = currTicks[i];
-    errTicks[i] = 0;
-    nextGoalTicks[i] = currTicks[i];
-    goalTicks[i] = axes.getGoalTicks(i);
-    axesDone[i] = false;
-    correctionTicks[i] = 0;
-    dirTicks[i] = (goalTicks[i] >= startTicks[i]) ? 1 : -1;
-
-    uint8_t id = axes.getId(i);
-    if (goalTicks[i] > getMax_ticks(id) - 50)
-      goalTicks[i] = getMax_ticks(id) - 50;
-    if (goalTicks[i] < getMin_ticks(id) + 50)
-      goalTicks[i] = getMin_ticks(id) + 50;
-  }
-
-  int masterStart = startTicks[0];
-  int masterGoal = goalTicks[0];
-  int dist = masterGoal - masterStart;
-  int dirMaster = (dist >= 0) ? 1 : -1;
-  int tol_ticks = 4;
-
-  int total_steps = abs(dist);
-  if (total_steps < tol_ticks) {
-    serial_printf_verbose("end move | already in position dist=%d\n", dist);
-    axes.end();
-    return true;
-  }
-
-  bool inFinalPosition = false;
-
-  // These constants must exist somewhere or you can inline them here
-  const int stepInterval_ms = 25;
-  const int accelSteps = 10;
-  const int decelSteps = 10;
-  const int minStep_ticks = 1;
-  const int maxStep_ticks = 8;
-
-  int accelSpan = accelSteps * (minStep_ticks + maxStep_ticks) / 2;
-  int decelSpan = decelSteps * (minStep_ticks + maxStep_ticks) / 2;
-  int coastSpan = total_steps - (accelSpan + decelSpan);
-  if (coastSpan < 0) coastSpan = 0;
-  int coastSteps = (maxStep_ticks > 0) ? (coastSpan / maxStep_ticks) : 0;
-
-  serial_printf_verbose("start move | start=%d goal=%d total_steps=%d accelSteps=%d coastSteps=%d decelSteps=%d\n\n",
-                        masterStart, masterGoal, masterGoal - masterStart,
-                        accelSteps, coastSteps, decelSteps);
-
-  bool all_good = false;
-  bool skip2final = false;
-  int curr_step = 0;
-
-  auto step_axes = [&](const char* phaseName, int iter, int step_ticks) {
-    axes.readPresentTicks(currTicks);
-
-    for (int ax = 0; ax < axes.axesCount(); ax++) {
-      if (axesDone[ax]) {
-        samePosCount[ax] = 0;
-        prevGoalTicks[ax] = goalTicks[ax];
-        errTicks[ax] = 0;
-        nextGoalTicks[ax] = goalTicks[ax];
-        continue;
-      }
-
-      errTicks[ax] = prevGoalTicks[ax] - currTicks[ax];
-      if (prevGoalTicks[ax] < 0)
-        errTicks[ax] = 0;
-
-      if (abs(currTicks[ax] - goalTicks[ax]) < tol_ticks)
-        axesDone[ax] = true;
-
-      if (axesDone[ax]) {
-        nextGoalTicks[ax] = goalTicks[ax];
-        continue;
-      }
-
-      if (abs(prevTicks[ax] - currTicks[ax]) < 2)
-        samePosCount[ax]++;
-      else
-        samePosCount[ax] = 0;
-
-      samePosCount[ax] = std::min(samePosCount[ax], 6);
-      prevTicks[ax] = currTicks[ax];
-
-      correctionTicks[ax] = 0;
-      if (axes.getNudgeFlag(ax) && nudgers[ax]) {
-        correctionTicks[ax] = nudgers[ax]->computeNudge(errTicks[ax],
-                                                        dirTicks[ax],
-                                                        currentPhase,
-                                                        samePosCount[ax]);
-      }
-
-      logProgress(axes.getMoveName(), startTicks[0], currTicks[0], goalTicks[0]);
-      curr_step += step_ticks;
-
-      bool use_final_goal = false;
-
-      if (ax == 0) {
-        if (currentPhase == MovePhase::FINAL) {
-          if (step_ticks == 0) {
-            use_final_goal = true;
-            nextGoalTicks[0] = goalTicks[0] + correctionTicks[0];
-          } else {
-            nextGoalTicks[0] = currTicks[0] + correctionTicks[0];
-          }
-        } else {
-          nextGoalTicks[0] += dirMaster * step_ticks;
-
-          int err_final = abs(currTicks[0] - goalTicks[0]);
-          if ((dirMaster >= 0 && nextGoalTicks[0] > (goalTicks[0] + tol_ticks)) || (dirMaster < 0 && nextGoalTicks[0] < (goalTicks[0] - tol_ticks)) || err_final < tol_ticks) {
-            nextGoalTicks[0] = goalTicks[0];
-            skip2final = true;
-          }
-        }
-      } else {
-        nextGoalTicks[ax] = axes.getSyncGoal(ax, nextGoalTicks[0]);
-        nextGoalTicks[ax] += correctionTicks[ax];
-      }
-
-      serial_printf_verbose("[%s] axis=%d prev_goal=%d curr=%d err=%d next=%d corr=%d same=%d step=%d x=%.2f y=%.2f skip=%d use_final=%d\n",
-                            phaseName, ax, prevGoalTicks[ax], currTicks[ax],
-                            errTicks[ax], nextGoalTicks[ax], correctionTicks[ax],
-                            samePosCount[ax], step_ticks,
-                            kin.getXmm(), kin.getYmm(), skip2final, use_final_goal);
-      prevGoalTicks[ax] = nextGoalTicks[ax];
-    }
-
-    all_good = true;
-    for (int i = 0; i < axes.axesCount(); i++) {
-      if (!axesDone[i]) {
-        all_good = false;
-        break;
-      }
-    }
-
-    if (!all_good) {
-      int goalsWithSkipDone[3] = { -1, -1, -1 };
-      for (int i = 0; i < axes.axesCount(); i++) {
-        goalsWithSkipDone[i] = axesDone[i] ? -1 : nextGoalTicks[i];
-      }
-      axes.writeTicks(goalsWithSkipDone);
-      delay(stepInterval_ms);
-    }
-  };
-
-  // Accel
-  currentPhase = MovePhase::ACCEL;
-  for (int i = 0; i < accelSteps; i++) {
-    if (all_good || skip2final) break;
-    int step_ticks = map(i, 0, accelSteps - 1, minStep_ticks, maxStep_ticks);
-    step_axes("ACCEL", i, step_ticks);
-  }
-
-  // Coast
-  currentPhase = MovePhase::COAST;
-  for (int i = 0; i < coastSteps; i++) {
-    if (all_good || skip2final) break;
-    step_axes("COAST", i, maxStep_ticks);
-  }
-
-  // Decel
-  currentPhase = MovePhase::DECEL;
-  for (int i = 0; i < decelSteps; i++) {
-    if (all_good || skip2final) break;
-    int step_ticks = map(decelSteps - 1 - i, 0, decelSteps - 1,
-                         minStep_ticks, maxStep_ticks);
-    step_axes("DECEL", i, step_ticks);
-  }
-
-  delay(2 * stepInterval_ms);
-
-  // Final
-  currentPhase = MovePhase::FINAL;
-  const int maxNudges = 8;
-  const int nudgeExtraDelay = 65;
-
-  for (int nu = 0; nu < maxNudges; nu++) {
-    if (all_good) break;
-    int step_ticks = (nu < ((maxNudges - 1) / 2)) ? 1 : 0;
-    step_axes("FINAL", nu, step_ticks);
-    delay(nudgeExtraDelay);
-  }
-
-  serial_printf_verbose("end move | master err=%d\n", errTicks[0]);
-  axes.end();
-  return true;
 }
 
 // ----------------------------------------------------------------------

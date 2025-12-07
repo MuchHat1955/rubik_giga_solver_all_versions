@@ -304,12 +304,6 @@ String CubeOri::normalize_robot_move_token_(const String &in) {
     }
   }
 
-  // y2 is not allowed by hardware
-  if (axis == 'y' && suf == '2') {
-    serial_printf("ERR y2 is not allowed (robot_move %s)\n", in.c_str());
-    return String("");
-  }
-
   String out;
   out.reserve(3);
   out += axis;

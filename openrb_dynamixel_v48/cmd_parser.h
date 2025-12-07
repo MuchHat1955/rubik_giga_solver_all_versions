@@ -85,4 +85,6 @@ bool cmd_restore_ori(int argc, double *argv);
 
 bool cmd_read_cube_colors(int argc, double *argv);
 
-String read_color_rows_cb(bool read_two_rows);
+bool cmd_read_one_color(int argc, double *argv);
+
+char read_one_color_cb(int slot);

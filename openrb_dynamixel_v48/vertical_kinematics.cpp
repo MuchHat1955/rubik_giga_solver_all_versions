@@ -209,7 +209,6 @@ bool VerticalKinematics::solve_x_y_from_a1_a2(double _a1_servo_deg, double _a2_s
   a2_servo_deg = _a2_servo_deg;
   if (_g_servo_deg >= -95.0 && _g_servo_deg <= 185.0) g_servo_deg = _g_servo_deg;
   else g_servo_deg = ticks2deg(ID_WRIST, dxl.getPresentPosition(ID_WRIST));
-  update_g_alignment();
 
   // serial_printf_verbose("        kin | x=%.2f y=%.2f\n", x_mm, y_mm);
   kin_summary("a1=%.1f° a2=%.1f° | x=%.1f y=%.1f", _a1_servo_deg, _a2_servo_deg, x_mm, y_mm);
@@ -255,7 +254,6 @@ bool VerticalKinematics::solve_a1_a2_from_x_y(double _x, double _y, double _g_se
   y_mm = _y;
   if (_g_servo_deg >= -95.0 && _g_servo_deg <= 185.0) g_servo_deg = _g_servo_deg;
   else g_servo_deg = ticks2deg(ID_WRIST, dxl.getPresentPosition(ID_WRIST));
-  update_g_alignment();
 
   // serial_printf_verbose("        kin | x=%.2f y=%.2f\n", x_mm, y_mm);
   kin_summary("x=%.1f y=%.1f | a1=%.1f° a2=%.1f°", _x, _y, a1_servo_deg, a2_servo_deg);
@@ -298,40 +296,21 @@ double VerticalKinematics::getGdeg() const {
 
 double VerticalKinematics::getGdeg_for_vertical() const {  //TODO check
   // 0° = gripper vertical; positive tilts along Arm2
-  return -a2_servo_deg - a1_servo_deg + 180;  //TODO changed per latest installation of hw
+  return -a2_servo_deg - a1_servo_deg + 180;
 }
 
-double VerticalKinematics::getGdeg_for_horizontal() const {  //TODO check // mount gripper 90 towards right vs others
+double VerticalKinematics::getGdeg_for_horizontal_right() const { 
   // 0° = gripper vertical; positive tilts along Arm2
   return getGdeg_for_vertical() - 90.0;
 }
 
-double VerticalKinematics::getGdeg_closest_aligned() {
+double VerticalKinematics::getGdeg_for_horizontal_left() const {
   // 0° = gripper vertical; positive tilts along Arm2
-  update_g_alignment();
-  if (g_closest_horizontal) return getGdeg_for_horizontal();
-  return getGdeg_for_vertical();
+  return getGdeg_for_vertical() + 90.0;
 }
 
 int VerticalKinematics::getGticks() const {
   return deg2ticks(ID_WRIST, getGdeg());
-}
-int VerticalKinematics::getGticks_closest_aligned() {
-  return deg2ticks(ID_WRIST, getGdeg_closest_aligned());
-}
-
-// -------------------------------------------------------------------
-//                     GRIPPER ALIGNMENT
-// -------------------------------------------------------------------
-void VerticalKinematics::update_g_alignment() {
-  double g_vert_deg = getGdeg_for_vertical();
-  double g_horiz_deg = getGdeg_for_horizontal();
-  double err_vert = fabs(g_servo_deg - g_vert_deg);
-  double err_horiz = fabs(g_servo_deg - g_horiz_deg);
-  if (err_horiz < err_vert)
-    g_closest_horizontal = true;
-  else
-    g_closest_horizontal = false;
 }
 
 // -------------------------------------------------------------------
@@ -340,7 +319,7 @@ void VerticalKinematics::update_g_alignment() {
 VerticalKinematics kin;
 
 void print_xy_status() {
-  serial_printf_verbose("STATUS XY X=%.2fmm Y=%.2fmm A1=%.2fdeg A2=%.2fdeg G=%.2fdeg G horiz=%.2fdeg G vert=%.2fdeg G closest=%.2fdeg\n",
+  serial_printf_verbose("STATUS XY X=%.2fmm Y=%.2fmm A1=%.2fdeg A2=%.2fdeg G=%.2fdeg G horiz_r=%.2fdeg G horiz_l=%.2fdeg G vert=%.2fdeg \n",
                         kin.getXmm(), kin.getYmm(), kin.getA1deg(), kin.getA2deg(),
-                        kin.getGdeg(), kin.getGdeg_for_horizontal(), kin.getGdeg_for_vertical(), kin.getGdeg_closest_aligned());
+                        kin.getGdeg(), kin.getGdeg_for_horizontal_right(), kin.getGdeg_for_horizontal_left(), kin.getGdeg_for_vertical());
 }

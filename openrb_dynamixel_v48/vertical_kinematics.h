@@ -30,15 +30,11 @@ public:
   double getYmm() const;
 
   double getGdeg() const;
-  double getGdeg_for_horizontal() const;
+  double getGdeg_for_horizontal_right() const;
+  double getGdeg_for_horizontal_left() const;
   double getGdeg_for_vertical() const;
-  double getGdeg_closest_aligned();
-  int getGticks_closest_aligned();
   int getGticks() const;
   bool update_from_present_pos();
-
-  // ---------------- Gripper alignment ----------------
-  void update_g_alignment();
 
 private:
   double a1_servo_deg = 0.0;

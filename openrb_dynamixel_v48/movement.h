@@ -83,10 +83,6 @@ public:
   void end();    // LEDs off etc.
 
   void readPresentTicks(int* posList);
-  void writeTicks(const int* posList);
-
-  // Slave axis goal, given master ticks
-  int getSyncGoal(uint8_t slaveIndex, int masterTicks);
 
 private:
   bool initSingle();
@@ -124,7 +120,6 @@ extern AxisGroupController axes;
 
 // High-level motion APIs
 bool move_smooth();  // wrapper -> v2
-bool move_smooth_v1();
 bool move_smooth_v2();
 
 // Command wrappers
