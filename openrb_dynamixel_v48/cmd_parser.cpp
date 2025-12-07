@@ -15,6 +15,45 @@ extern double speed;
 extern CubeOri ori;
 extern CubeColorReader color_reader;
 
+// ---- y poses
+#define Y_CENTER 76  // was 73
+#define Y_ALIGN 68
+#define Y_MID 97
+#define Y_UP 115
+#define Y_DOWN 33
+#define Y_ROTATE_BASE 93
+#define Y_ABOVE_DROP 93  // was 86
+#define Y_DROP 83        // was 89
+
+// ---- y read color poses
+#define Y_C_TOP 65
+#define Y_C_MID 48
+
+// ---- x poses
+#define X_CENTER 1.0  // was -2
+
+// ---- x read color poses
+#define X_C_LEFT -14.0
+#define X_C_RIGHT 20.0
+#define X_C_CENTER 2  // was 4.0
+
+// ---- g poses
+#define G_OPEN 28
+#define G_WIDE_OPEN -1
+#define G_CLOSE 100
+#define G_SOFT_CLOSE 60
+#define G_ALIGN_LEFT 100
+#define G_ALIGN_RIGHT 100
+
+// ---- b poses
+#define B_CENTER 0
+#define B_RIGHT 90
+#define B_LEFT -90
+#define B_BACK -180
+#define B_ERR 3
+
+#define B_TOL 3
+
 // -------------------------------------------------------------------
 //                      COMMAND TABLE
 // -------------------------------------------------------------------
@@ -168,6 +207,10 @@ bool cmd_restore_ori(int argc, double *argv) {
     serial_printf("ORI move log= %s\n", log.c_str());
     return false;
   }
+
+  if (!cmdMoveGripperPer(G_OPEN)) return false;
+  if (!cmdMoveYmm(Y_DOWN)) return false;
+  if (!cmdMoveGripperPer(G_SOFT_CLOSE)) return false;
 
   // At this point ori_ is already identity.
   // Only clear the move log.
@@ -380,63 +423,24 @@ bool cmd_help(int argc, double *argv) {
   return true;
 }
 
-// ---- y poses
-#define Y_CENTER 73.0
-#define Y_ALIGN 68
-#define Y_MID 97
-#define Y_UP 117
-#define Y_DOWN 33
-#define Y_ROTATE_BASE 92
-#define Y_ABOVE_DROP 86
-#define Y_DROP 78
-
-// ---- y read color poses
-#define Y_C_TOP 65
-#define Y_C_MID 48
-
-// ---- x poses
-#define X_CENTER 1.0 // was -2
-
-// ---- x read color poses
-#define X_C_LEFT -14.0
-#define X_C_RIGHT 20.0
-#define X_C_CENTER 2 // was 4.0
-
-// ---- g poses
-#define G_OPEN 22
-#define G_WIDE_OPEN 0
-#define G_CLOSE 100
-#define G_SOFT_CLOSE 45
-#define G_ALIGN_LEFT 100
-#define G_ALIGN_RIGHT 100
-
-// ---- b poses
-#define B_CENTER 0
-#define B_RIGHT 90
-#define B_LEFT -90
-#define B_BACK -180
-#define B_ERR 3
-
-#define B_TOL 3
-
 bool prepBaseForRotation(double nextBaseMoveRelative) {
   if (nextBaseMoveRelative == B_CENTER) return true;
 
-  serial_printf_verbose("***** start prep base for rotation %.2f\n", nextBaseMoveRelative);
+  // serial_printf_verbose("***** start prep base for rotation %.2f\n", nextBaseMoveRelative);
 
   double b_pos = getPos_deg(ID_BASE);
 
-  serial_printf_verbose("***** before prep base at %.2f\n", b_pos);
+  // serial_printf_verbose("***** before prep base at %.2f\n", b_pos);
 
   bool isBaseCenter = (b_pos > B_CENTER - B_TOL && b_pos < B_CENTER + B_TOL);
   bool isBaseRight = (b_pos > B_RIGHT - B_TOL && b_pos < B_RIGHT + B_TOL);
   bool isBaseLeft = (b_pos > B_LEFT - B_TOL && b_pos < B_LEFT + B_TOL);
   bool isBaseBack = (b_pos > B_BACK - B_TOL && b_pos < B_BACK + B_TOL);
 
-  serial_printf_verbose("***** base at center : %s\n", isBaseCenter ? "yes" : "no");
-  serial_printf_verbose("***** base at right : %s\n", isBaseRight ? "yes" : "no");
-  serial_printf_verbose("***** base at left : %s\n", isBaseLeft ? "yes" : "no");
-  serial_printf_verbose("***** base at back : %s\n", isBaseBack ? "yes" : "no");
+  // serial_printf_verbose("***** base at center : %s\n", isBaseCenter ? "yes" : "no");
+  // serial_printf_verbose("***** base at right : %s\n", isBaseRight ? "yes" : "no");
+  // serial_printf_verbose("***** base at left : %s\n", isBaseLeft ? "yes" : "no");
+  // serial_printf_verbose("***** base at back : %s\n", isBaseBack ? "yes" : "no");
 
   // move one pos to right
   if (nextBaseMoveRelative == B_RIGHT) {
@@ -455,10 +459,10 @@ bool prepBaseForRotation(double nextBaseMoveRelative) {
     if (isBaseRight) return true;
   }
 
-  serial_printf_verbose("***** prep base for rotation move to center\n");
+  // serial_printf_verbose("***** prep base for rotation move to center\n");
 
-  if (!cmdMoveGripperPer(G_OPEN)) return false;
   if (!cmdMoveXmm(X_CENTER)) return false;
+  if (!cmdMoveGripperPer(G_OPEN)) return false;
   if (!cmdMoveYmm(Y_CENTER)) return false;
   if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
   if (!cmdMoveGripperClamp()) return false;
@@ -466,9 +470,9 @@ bool prepBaseForRotation(double nextBaseMoveRelative) {
   if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
   if (!lowerCube()) return false;
 
-  serial_printf_verbose("***** move to center done\n");
+  // serial_printf_verbose("***** move to center done\n");
 
-  serial_printf_verbose("***** after prep base at %.2f\n", getPos_deg(ID_BASE));
+  // serial_printf_verbose("***** after prep base at %.2f\n", getPos_deg(ID_BASE));
 
   return true;
 }
@@ -483,8 +487,8 @@ bool prepBaseForRotation(double nextBaseMoveRelative) {
 bool rotateBaseRelative(double baseMoveRelative, bool gripperOn = false) {
   if (!dxl.ping(ID_BASE)) return false;
 
-  serial_printf_verbose("***** start rotate base relative with %.2f\n", baseMoveRelative);
-  serial_printf_verbose("***** base before prepared pos is %.2f\n", getPos_deg(ID_BASE));
+  // serial_printf_verbose("***** start rotate base relative with %.2f\n", baseMoveRelative);
+  // serial_printf_verbose("***** base before prepared pos is %.2f\n", getPos_deg(ID_BASE));
 
   if (baseMoveRelative == B_CENTER) return true;  // no move
 
@@ -492,21 +496,21 @@ bool rotateBaseRelative(double baseMoveRelative, bool gripperOn = false) {
 
   double b_pos = getPos_deg(ID_BASE);
 
-  serial_printf_verbose("***** base after prep pos is %.2f\n", b_pos);
+  // serial_printf_verbose("***** base after prep pos is %.2f\n", b_pos);
 
   bool isBaseCenter = (b_pos > B_CENTER - B_TOL && b_pos < B_CENTER + B_TOL);
   bool isBaseRight = (b_pos > B_RIGHT - B_TOL && b_pos < B_RIGHT + B_TOL);
   bool isBaseLeft = (b_pos > B_LEFT - B_TOL && b_pos < B_LEFT + B_TOL);
   bool isBaseBack = (b_pos > B_BACK - B_TOL && b_pos < B_BACK + B_TOL);
 
-  serial_printf_verbose("***** base at center : %s\n", isBaseCenter ? "yes" : "no");
-  serial_printf_verbose("***** base at right : %s\n", isBaseRight ? "yes" : "no");
-  serial_printf_verbose("***** base at left : %s\n", isBaseLeft ? "yes" : "no");
-  serial_printf_verbose("***** base at back : %s\n", isBaseBack ? "yes" : "no");
+  // serial_printf_verbose("***** base at center : %s\n", isBaseCenter ? "yes" : "no");
+  // serial_printf_verbose("***** base at right : %s\n", isBaseRight ? "yes" : "no");
+  // serial_printf_verbose("***** base at left : %s\n", isBaseLeft ? "yes" : "no");
+  // serial_printf_verbose("***** base at back : %s\n", isBaseBack ? "yes" : "no");
 
   double baseNextMove = B_CENTER;
 
-  serial_printf_verbose("***** rotate base relative with %.2f\n", baseMoveRelative);
+  // serial_printf_verbose("***** rotate base relative with %.2f\n", baseMoveRelative);
 
   // move from center
   if (isBaseCenter) {
@@ -532,7 +536,7 @@ bool rotateBaseRelative(double baseMoveRelative, bool gripperOn = false) {
     if (baseMoveRelative == B_LEFT) return false;
     if (baseMoveRelative == B_BACK) baseNextMove = B_CENTER;
   }
-  serial_printf_verbose("***** rotate base to next move %.2f\n", baseNextMove);
+  // serial_printf_verbose("***** rotate base to next move %.2f\n", baseNextMove);
 
   if (!gripperOn)
     if (!cmdMoveYmm(Y_ROTATE_BASE)) return false;
@@ -569,6 +573,7 @@ bool lowerCube() {
   if (!cmdMoveXmm(X_CENTER)) return false;
   if (!cmdMoveYmm(Y_ABOVE_DROP)) return false;
   if (!cmdMoveXmm(X_CENTER)) return false;
+  if (!cmdMoveXmm(X_CENTER)) return false;
   if (!cmdMoveYmm(Y_DROP)) return false;
   if (!cmdMoveGripperPer(G_OPEN)) return false;
   return true;
@@ -587,7 +592,7 @@ bool cmd_read_one_color(int argc, double *argv) {
   if (argc < 1) return false;
 
   double d_slot = (double)argv[0];
-  int slot =  (int)d_slot;
+  int slot = (int)d_slot;
 
   // read one color for slot
   crrColorChar = '.';
@@ -657,7 +662,6 @@ bool cmd_run(int argc, double *argv) {
     if (!cmdMoveGripperPer(G_OPEN)) return false;
     if (!cmdMoveYmm(Y_DOWN)) return false;
     if (!cmdMoveGripperPer(G_SOFT_CLOSE)) return false;
-    if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
     return true;
   }
 
@@ -928,7 +932,7 @@ bool cmd_run(int argc, double *argv) {
 
 bool robot_move_callback(const String &mv) {
 
-  serial_printf("[robot move] called with: %s\n", mv.c_str());
+  serial_printf("  [robot move] %s\n", mv.c_str());
 
   if (mv == "y+") {
     static double arg = RUN_RIGHT_DOWN;

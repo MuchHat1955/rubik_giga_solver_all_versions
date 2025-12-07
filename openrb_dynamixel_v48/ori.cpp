@@ -56,39 +56,43 @@ struct CubeToRobotEntry {
 static const CubeToRobotEntry k_cube_to_robot_table[] = {
 
   // ===== FRONT (F) =====
-  // F (physical) after z+ becomes L
-  // L -> D using y'
-  { "F+", "z+ y' d+" },
-  { "F'", "z+ y' d'" },
-  { "F2", "z+ y' d2" },
+  // F → rotate cube so F becomes Down → F is already oriented by z' (not z+)
+  // Best minimal sequence:
+  //   F+  → z' d+
+  //   F'  → z' d'
+  //   F2  → z' d2
+  { "F+", "z' d+" },
+  { "F'", "z' d'" },
+  { "F2", "z' d2" },
 
   // ===== BACK (B) =====
-  // B after z+ becomes R
-  // R -> D using y+
-  { "B+", "z+ y+ d+" },
-  { "B'", "z+ y+ d'" },
-  { "B2", "z+ y+ d2" },
+  // B → rotate cube so B becomes Down
+  // Best minimal sequence:
+  //   B+  → z+ d+
+  { "B+", "z+ d+" },
+  { "B'", "z+ d'" },
+  { "B2", "z+ d2" },
 
   // ===== RIGHT (R) =====
-  // R -> D using y+
+  // R is one y+ away from being Down
   { "R+", "y+ d+" },
   { "R'", "y+ d'" },
   { "R2", "y+ d2" },
 
   // ===== LEFT (L) =====
-  // L -> D using y'
+  // L is one y′ away
   { "L+", "y' d+" },
   { "L'", "y' d'" },
   { "L2", "y' d2" },
 
   // ===== UP (U) =====
-  // U -> D using y+ y+ (roll twice)
-  { "U+", "y+ y+ d+" },
-  { "U'", "y+ y+ d'" },
-  { "U2", "y+ y+ d2" },
+  // U → D requires 180° around Y → minimal is y2
+  { "U+", "y2 d+" },
+  { "U'", "y2 d'" },
+  { "U2", "y2 d2" },
 
   // ===== DOWN (D) =====
-  // already physically down
+  // already Down
   { "D+", "d+" },
   { "D'", "d'" },
   { "D2", "d2" },
@@ -546,10 +550,17 @@ bool CubeOri::cube_move(const String &moves_str) {
       return false;
     }
 
-    serial_printf_verbose("[cube_move] parsed: face=%c, qt=%d\n",
-                          face, qt);
+    serial_printf_verbose("[cube_move] parsed: face=%c, qt=%d\n", face, qt);
 
-    // This will indirectly call robot_move(), which will log too.
+    // format logging: lowercase face + suffix (+, ', 2)
+    char face_l = tolower(face);
+    char suf;
+    if (qt == 1) suf = '+';
+    else if (qt == -1) suf = '\'';
+    else suf = '2';
+
+    serial_printf("[cube_move] %c%c\n", face_l, suf);
+
     if (!execute_single_cube_move_(face, qt)) {
       serial_printf("ERR [cube_move] failed executing: %s\n", t.c_str());
       return false;
