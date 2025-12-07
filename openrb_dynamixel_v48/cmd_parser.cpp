@@ -71,7 +71,7 @@ static CommandEntry command_table[] = {
 
   { "TEST", "%d", cmd_run, runHelp },
 
-  { "MOVETICKS", "%d %d", cmd_move_ticks, "MOVEDEG <id> <ticks goal> - move one servo to ticks (not smooth)" },
+  { "MOVETICKS", "%d %d", cmd_move_ticks, "MOVETICKS <id> <ticks goal> - move one servo to ticks (not smooth)" },
   { "MOVEDEG", "%d %f", cmd_move_deg, "MOVEDEG <id> <deg goal> - move one servo to degree (smooth)" },
   { "MOVEPER", "%d %f", cmd_move_per, "MOVEPER <id> <per goal> - move one servo to percent (smooth)" },
 
@@ -427,30 +427,43 @@ bool cmd_help(int argc, double *argv) {
 
 #define B_TOL 3
 
-bool prepBaseForRotation(int nextBaseMove) {
-  if (nextBaseMove == B_CENTER) return true;
+bool prepBaseForRotation(double nextBaseMoveRelative) {
+  if (nextBaseMoveRelative == B_CENTER) return true;
+
+  serial_printf_verbose("***** start prep base for rotation %.2f\n", nextBaseMoveRelative);
 
   double b_pos = getPos_deg(ID_BASE);
+
+  serial_printf_verbose("***** before prep base at %.2f\n", b_pos);
 
   bool isBaseCenter = (b_pos > B_CENTER - B_TOL && b_pos < B_CENTER + B_TOL);
   bool isBaseRight = (b_pos > B_RIGHT - B_TOL && b_pos < B_RIGHT + B_TOL);
   bool isBaseLeft = (b_pos > B_LEFT - B_TOL && b_pos < B_LEFT + B_TOL);
   bool isBaseBack = (b_pos > B_BACK - B_TOL && b_pos < B_BACK + B_TOL);
 
-  if (nextBaseMove == B_RIGHT) {
+  serial_printf_verbose("***** base at center : %s\n", isBaseCenter ? "yes" : "no");
+  serial_printf_verbose("***** base at right : %s\n", isBaseRight ? "yes" : "no");
+  serial_printf_verbose("***** base at left : %s\n", isBaseLeft ? "yes" : "no");
+  serial_printf_verbose("***** base at back : %s\n", isBaseBack ? "yes" : "no");
+
+  // move one pos to right
+  if (nextBaseMoveRelative == B_RIGHT) {
     if (isBaseCenter) return true;
     if (isBaseLeft) return true;
     if (isBaseBack) return true;
   }
-  if (nextBaseMove == B_LEFT) {
+  // move one pos to left
+  if (nextBaseMoveRelative == B_LEFT) {
     if (isBaseCenter) return true;
     if (isBaseRight) return true;
     if (isBaseLeft) return true;
   }
-  if (nextBaseMove == B_BACK) {
+  if (nextBaseMoveRelative == B_BACK) {
     if (isBaseCenter) return true;
     if (isBaseRight) return true;
   }
+
+  serial_printf_verbose("***** prep base for rotation move to center\n");
 
   if (!cmdMoveGripperPer(G_OPEN)) return false;
   if (!cmdMoveXmm(X_CENTER)) return false;
@@ -460,6 +473,11 @@ bool prepBaseForRotation(int nextBaseMove) {
   if (!cmdMoveYmm(Y_ROTATE_BASE)) return false;
   if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
   if (!lowerCube()) return false;
+
+  serial_printf_verbose("***** move to center done\n");
+
+  serial_printf_verbose("***** after prep base at %.2f\n", getPos_deg(ID_BASE));
+
   return true;
 }
 
@@ -470,31 +488,67 @@ bool prepBaseForRotation(int nextBaseMove) {
 */
 
 // below are relative moves
-bool rotateBase(int baseMove) {
+bool rotateBaseRelative(double baseMoveRelative, bool gripperOn = false) {
   if (!dxl.ping(ID_BASE)) return false;
 
+  serial_printf_verbose("***** start rotate base relative with %.2f\n", baseMoveRelative);
+  serial_printf_verbose("***** base before prepared pos is %.2f\n", getPos_deg(ID_BASE));
+
+  if (baseMoveRelative == B_CENTER) return true;  // no move
+
+  if (!prepBaseForRotation(baseMoveRelative)) return false;
+
   double b_pos = getPos_deg(ID_BASE);
+
+  serial_printf_verbose("***** base after prep pos is %.2f\n", b_pos);
 
   bool isBaseCenter = (b_pos > B_CENTER - B_TOL && b_pos < B_CENTER + B_TOL);
   bool isBaseRight = (b_pos > B_RIGHT - B_TOL && b_pos < B_RIGHT + B_TOL);
   bool isBaseLeft = (b_pos > B_LEFT - B_TOL && b_pos < B_LEFT + B_TOL);
   bool isBaseBack = (b_pos > B_BACK - B_TOL && b_pos < B_BACK + B_TOL);
 
-  if (baseMove == B_RIGHT) {
-    if (isBaseCenter) return true;
-  }
-  if (baseMove == B_LEFT) {
-    if (isBaseLeft) return true;
-  }
-  if (baseMove == B_BACK) {
-    if (isBaseBack) return true;
-  }
-  if (baseMove == B_CENTER) {
-    if (isBaseCenter) return true;
-  }
+  serial_printf_verbose("***** base at center : %s\n", isBaseCenter ? "yes" : "no");
+  serial_printf_verbose("***** base at right : %s\n", isBaseRight ? "yes" : "no");
+  serial_printf_verbose("***** base at left : %s\n", isBaseLeft ? "yes" : "no");
+  serial_printf_verbose("***** base at back : %s\n", isBaseBack ? "yes" : "no");
 
-  if (!prepBaseForRotation(baseMove)) return false;
-  return cmdMoveServoDeg(ID_BASE, baseMove);
+  double baseNextMove = B_CENTER;
+
+  serial_printf_verbose("***** rotate base relative with %.2f\n", baseMoveRelative);
+
+  // move from center
+  if (isBaseCenter) {
+    if (baseMoveRelative == B_RIGHT) baseNextMove = B_RIGHT;
+    if (baseMoveRelative == B_LEFT) baseNextMove = B_LEFT;
+    if (baseMoveRelative == B_BACK) baseNextMove = B_BACK;
+  }
+  // move from right
+  else if (isBaseRight) {
+    if (baseMoveRelative == B_RIGHT) return false;
+    if (baseMoveRelative == B_LEFT) baseNextMove = B_CENTER;
+    if (baseMoveRelative == B_BACK) baseNextMove = B_LEFT;
+  }
+  // move from left
+  else if (isBaseLeft) {
+    if (baseMoveRelative == B_RIGHT) baseNextMove = B_CENTER;
+    if (baseMoveRelative == B_LEFT) baseNextMove = B_BACK;
+    if (baseMoveRelative == B_BACK) return false;
+  }
+  // move from back
+  else if (isBaseBack) {
+    if (baseMoveRelative == B_RIGHT) baseNextMove = B_LEFT;
+    if (baseMoveRelative == B_LEFT) return false;
+    if (baseMoveRelative == B_BACK) baseNextMove = B_CENTER;
+  }
+  serial_printf_verbose("***** rotate base to next move %.2f\n", baseNextMove);
+
+  if (!gripperOn)
+    if (!cmdMoveYmm(Y_ROTATE_BASE)) return false;
+  if (!gripperOn)
+    if (!cmdMoveXmm(X_CENTER)) return false;
+  bool r = cmdMoveServoDeg(ID_BASE, baseNextMove);
+
+  return r;
 }
 
 bool alignCube() {
@@ -550,7 +604,8 @@ bool cmd_run(int argc, double *argv) {
   // the standby position
   if (run_no == RUN_ZERO) {
     if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
-    if (!rotateBase(B_CENTER)) return false;
+    if (!cmdMoveXmm(X_CENTER)) return false;
+    if (!rotateBaseRelative(B_CENTER)) return false;
     if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
     if (!cmdMoveGripperPer(G_OPEN)) return false;
     if (!cmdMoveYmm(Y_DOWN)) return false;
@@ -630,7 +685,7 @@ bool cmd_run(int argc, double *argv) {
     // if (!prepBaseForRotation(B_RIGHT)) return false; // done in cmdMoveBaseLeft
 
     // rotate base to bring back face on the right
-    if (!rotateBase(B_LEFT)) return false;
+    if (!rotateBaseRelative(B_LEFT)) return false;
 
     // lift cube to rotate vertically
     if (!cmdMoveYmm(Y_CENTER)) return false;
@@ -676,7 +731,7 @@ bool cmd_run(int argc, double *argv) {
       if (!prepBaseForRotation(B_BACK)) return false;
 
     // move grip above bottom layer
-    if (!cmdMoveYmm(Y_CENTER)) return false;  //TODO add resetWristHoriz and resetWristVert maybe
+    if (!cmdMoveYmm(Y_MID)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveWristDegVertical(W_HORIZ)) return false;
     if (!cmdMoveYmm(Y_MID)) return false;
@@ -685,13 +740,13 @@ bool cmd_run(int argc, double *argv) {
 
     // rotate base
     if (run_no == RUN_BOTTOM_RIGHT) {
-      if (!cmdMoveServoDeg(ID_BASE, B_RIGHT)) return false;
+      if (!rotateBaseRelative(B_RIGHT, true)) return false;
     }
     if (run_no == RUN_BOTTOM_LEFT) {
-      if (!cmdMoveServoDeg(ID_BASE, B_LEFT)) return false;
+      if (!rotateBaseRelative(B_LEFT, true)) return false;
     }
     if (run_no == RUN_BOTTOM_BACK) {
-      if (!cmdMoveServoDeg(ID_BASE, B_BACK)) return false;
+      if (!rotateBaseRelative(B_BACK, true)) return false;
     }
 
     // release clamp
@@ -708,17 +763,17 @@ bool cmd_run(int argc, double *argv) {
 
   // rotate full cube: right, left, back
   if (run_no == RUN_CUBE_RIGHT) {
-    if (!rotateBase(B_RIGHT)) return false;
+    if (!rotateBaseRelative(B_RIGHT)) return false;
     return true;
   }
   // 32  turn cube left to front
   if (run_no == RUN_CUBE_LEFT) {
-    if (!rotateBase(B_LEFT)) return false;
+    if (!rotateBaseRelative(B_LEFT)) return false;
     return true;
   }
   // 33  turn cube back to front
   if (run_no == RUN_CUBE_BACK) {
-    if (!rotateBase(B_BACK)) return false;
+    if (!rotateBaseRelative(B_BACK)) return false;
     return true;
   }
 
@@ -871,7 +926,7 @@ bool cmd_run(int argc, double *argv) {
 
 bool robot_move_callback(const String &mv) {
 
-  serial_printf_verbose("HW executes: %s\n", mv.c_str());
+  serial_printf("[robot move] called with: %s\n", mv.c_str());
 
   if (mv == "y+") {
     static double arg = RUN_RIGHT_DOWN;

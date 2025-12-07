@@ -25,7 +25,10 @@ struct OriMoveMap {
 };
 
 static const OriMoveMap k_ori_move_table[] = {
+  // y+ = roll clockwise (front view): U→R, R→D, D→L, L→U
   { "y+", { "U->R", "R->D", "D->L", "L->U" } },
+
+  // y' = roll counterclockwise: U→L, L→D, D→R, R→U
   { "y'", { "U->L", "L->D", "D->R", "R->U" } },
 
   { "z+", { "F->R", "R->B", "B->L", "L->F" } },
@@ -51,26 +54,41 @@ struct CubeToRobotEntry {
 };
 
 static const CubeToRobotEntry k_cube_to_robot_table[] = {
-  { "F+", "z+ y+ d+" },
-  { "F'", "z+ y+ d'" },
-  { "F2", "z+ y+ d2" },
 
-  { "B+", "z+ y' d+" },
-  { "B'", "z+ y' d'" },
-  { "B2", "z+ y' d2" },
+  // ===== FRONT (F) =====
+  // F (physical) after z+ becomes L
+  // L -> D using y'
+  { "F+", "z+ y' d+" },
+  { "F'", "z+ y' d'" },
+  { "F2", "z+ y' d2" },
 
+  // ===== BACK (B) =====
+  // B after z+ becomes R
+  // R -> D using y+
+  { "B+", "z+ y+ d+" },
+  { "B'", "z+ y+ d'" },
+  { "B2", "z+ y+ d2" },
+
+  // ===== RIGHT (R) =====
+  // R -> D using y+
   { "R+", "y+ d+" },
   { "R'", "y+ d'" },
   { "R2", "y+ d2" },
 
+  // ===== LEFT (L) =====
+  // L -> D using y'
   { "L+", "y' d+" },
   { "L'", "y' d'" },
   { "L2", "y' d2" },
 
+  // ===== UP (U) =====
+  // U -> D using y+ y+ (roll twice)
   { "U+", "y+ y+ d+" },
   { "U'", "y+ y+ d'" },
   { "U2", "y+ y+ d2" },
 
+  // ===== DOWN (D) =====
+  // already physically down
   { "D+", "d+" },
   { "D'", "d'" },
   { "D2", "d2" },
@@ -221,18 +239,19 @@ CubeOri::apply_rotation_to_orientation_(const Orientation &o, const String &move
   Orientation n = o;
 
   if (move.equalsIgnoreCase("y+")) {
-    n.U = o.R;
-    n.R = o.D;
-    n.D = o.L;
-    n.L = o.U;
-    // F and B unchanged
+    // U→R, R→D, D→L, L→U  (roll clockwise)
+    n.U = o.L;  // WRONG earlier → fix it to correct orientation mapping
+    n.R = o.U;
+    n.D = o.R;
+    n.L = o.D;
     n.F = o.F;
     n.B = o.B;
   } else if (move.equalsIgnoreCase("y'")) {
-    n.U = o.L;
-    n.L = o.D;
-    n.D = o.R;
-    n.R = o.U;
+    // U→L, L→D, D→R, R→U  (roll counterclockwise)
+    n.U = o.R;
+    n.L = o.U;
+    n.D = o.L;
+    n.R = o.D;
     n.F = o.F;
     n.B = o.B;
   } else if (move.equalsIgnoreCase("z+")) {
@@ -502,12 +521,21 @@ bool CubeOri::execute_single_cube_move_(char logical_face, int qt) {
 // ============================================================
 // cube_move: "F R' U2" etc
 // ============================================================
+// ============================================================
+// cube_move: "F R' U2" etc
+// ============================================================
 bool CubeOri::cube_move(const String &moves_str) {
+
+  serial_printf("[cube_move] called with: \"%s\"\n", moves_str.c_str());
+
   const int MAX_TOKENS = 64;
   String tokens[MAX_TOKENS];
   int token_count = 0;
 
   split_moves_(moves_str, tokens, token_count, MAX_TOKENS);
+
+  serial_printf_verbose("[cube_move] token_count=%d\n", token_count);
+
   if (token_count == 0) return true;  // nothing to do
 
   for (int i = 0; i < token_count; ++i) {
@@ -515,21 +543,29 @@ bool CubeOri::cube_move(const String &moves_str) {
     t.trim();
     if (t.length() == 0) continue;
 
+    serial_printf_verbose("[cube_move] parsing token: \"%s\"\n", t.c_str());
+
     char face;
     int qt;
     if (!parse_cube_token_(t, face, qt)) {
-      serial_printf("ERR not a cube move: %s\n", t.c_str());
+      serial_printf("ERR [cube_move] not a cube move: %s\n", t.c_str());
       return false;
     }
 
+    serial_printf_verbose("[cube_move] parsed: face=%c, qt=%d\n",
+                          face, qt);
+
+    // This will indirectly call robot_move(), which will log too.
     if (!execute_single_cube_move_(face, qt)) {
-      serial_printf("ERR cube move failed: %s\n", t.c_str());
+      serial_printf("ERR [cube_move] failed executing: %s\n", t.c_str());
       return false;
     }
   }
 
+  serial_printf_verbose("[cube_move] done\n");
   return true;
 }
+
 
 // ============================================================
 // get_face_mapping: logical -> physical mapping in standard order

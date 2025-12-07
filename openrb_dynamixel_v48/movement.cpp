@@ -1104,8 +1104,10 @@ bool cmdMoveServoDeg(uint8_t id, double goal_deg) {
   axes.setGoalDeg(goal_deg);
   if (!axes.init()) return false;
 
-  serial_printf_verbose("START move_smooth for SINGLE_SERVO\n");
-  return move_smooth();
+  serial_printf_verbose("START move_smooth for SINGLE_SERVO %d %.2f************************\n", id, goal_deg);
+  bool r = move_smooth();
+  serial_printf_verbose("END move_smooth for SINGLE_SERVO %d %.2f************************\n", id, goal_deg);
+  return r;
 }
 
 bool cmdMoveServoPer(int id, double goal_per) {
