@@ -549,8 +549,10 @@ bool rotateBaseRelative(double baseMoveRelative, bool gripperOn = false) {
 
     // move past the target and the final move after will reset it
     if (!cmdMoveServoDeg(ID_BASE, baseNextMove + adj)) return false;
+    if (!cmdMoveServoDeg(ID_BASE, baseNextMove - adj)) return false;
+    return true;
   }
-  return cmdMoveServoDeg(ID_BASE, baseNextMove);;
+  return cmdMoveServoDeg(ID_BASE, baseNextMove);
 }
 
 bool alignCube() {
