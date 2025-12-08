@@ -483,6 +483,8 @@ bool prepBaseForRotation(double nextBaseMoveRelative) {
 #define B_BACK -180
 */
 
+TODO use B_ERR 3 when rotating the bottom slice
+
 // below are relative moves
 bool rotateBaseRelative(double baseMoveRelative, bool gripperOn = false) {
   if (!dxl.ping(ID_BASE)) return false;
@@ -823,7 +825,7 @@ bool cmd_run(int argc, double *argv) {
 
     // rotate base
     if (run_no == RUN_BOTTOM_RIGHT) {
-      if (!rotateBaseRelative(B_RIGHT, true)) return false;
+      if (!rotateBaseRelative(B_RIGHT, true)) return false; // TODO add the ERR
     }
     if (run_no == RUN_BOTTOM_LEFT) {
       if (!rotateBaseRelative(B_LEFT, true)) return false;
