@@ -20,25 +20,25 @@ extern CubeColorReader color_reader;
 //
 // and any face not mentioned stays the same.
 struct OriMoveMap {
-  const char *robot_move;  // "right_down", "left_down", "front_right", "front_left", "front_back", "bottom_front_right", "bottom_front_left", "bottom_front_back"
+  const char *robot_move;  // "y+", "y'", "z+", "z'", "z2", "d+", "d'", "d2"
   const char *changes[4];  // up to 4 directional changes "U->R"
 };
 
 static const OriMoveMap k_ori_move_table[] = {
-  // right_bottom = roll clockwise (front view): U→R, R→D, D→L, L→U
-  { "right_down", { "U->R", "R->D", "D->L", "L->U" } },
+  // y+ = roll clockwise (front view): U→R, R→D, D→L, L→U
+  { "y+", { "U->R", "R->D", "D->L", "L->U" } },
 
-  // left_bottom = roll counterclockwise: U→L, L→D, D→R, R→U
-  { "left_down", { "U->L", "L->D", "D->R", "R->U" } },
+  // y' = roll counterclockwise: U→L, L→D, D→R, R→U
+  { "y'", { "U->L", "L->D", "D->R", "R->U" } },
 
-  { "front_right", { "F->R", "R->B", "B->L", "L->F" } },
-  { "front_left", { "F->L", "L->B", "B->R", "R->F" } },
-  { "front_back", { "F->B", "B->F", "L->R", "R->L" } },
+  { "z+", { "F->R", "R->B", "B->L", "L->F" } },
+  { "z'", { "F->L", "L->B", "B->R", "R->F" } },
+  { "z2", { "F->B", "B->F", "L->R", "R->L" } },
 
-  // No orientation change for bottom_front_right, bottom_front_left, bottom_front_back
-  { "bottom_front_right", { "", "", "", "" } },
-  { "bottom_front_left", { "", "", "", "" } },
-  { "bottom_front_back", { "", "", "", "" } },
+  // No orientation change for d+, d', d2
+  { "d+", { "", "", "", "" } },
+  { "d'", { "", "", "", "" } },
+  { "d2", { "", "", "", "" } },
 };
 
 static const int k_ori_move_table_count =
@@ -50,40 +50,40 @@ static const int k_ori_move_table_count =
 // using the orientation state.
 struct CubeToRobotEntry {
   const char *cube_move;    // e.g. "F+", "R'", "U2" (physical direction + suffix)
-  const char *robot_moves;  // e.g. "front_right right_bottom bottom_front_right"
+  const char *robot_moves;  // e.g. "z+ y+ d+"
 };
 
 static const CubeToRobotEntry k_cube_to_robot_table[] = {
 
   // ===== FRONT (F) =====
-  { "F+", "front_left left_bottom bottom_front_right" },
-  { "F'", "front_left left_bottom bottom_front_left" },
-  { "F2", "front_left left_bottom bottom_front_back" },
+  { "F+", "z' y' d+" },
+  { "F'", "z' y' d'" },
+  { "F2", "z' y' d2" },
 
   // ===== BACK (B) =====
-  { "B+", "front_right left_bottom bottom_front_right" },
-  { "B'", "front_right left_bottom bottom_front_left" },
-  { "B2", "front_right left_bottom bottom_front_back" },
+  { "B+", "z+ y' d+" },
+  { "B'", "z+ y' d'" },
+  { "B2", "z+ y' d2" },
 
   // ===== RIGHT (R) =====
-  { "R+", "right_bottom bottom_front_right" },
-  { "R'", "right_bottom bottom_front_left" },
-  { "R2", "right_bottom bottom_front_back" },
+  { "R+", "y+ d+" },
+  { "R'", "y+ d'" },
+  { "R2", "y+ d2" },
 
   // ===== LEFT (L) =====
-  { "L+", "left_bottom bottom_front_right" },
-  { "L'", "left_bottom bottom_front_left" },
-  { "L2", "left_bottom bottom_front_back" },
+  { "L+", "y' d+" },
+  { "L'", "y' d'" },
+  { "L2", "y' d2" },
 
   // ===== UP (U) =====
-  { "U+", "y2 bottom_front_right" },
-  { "U'", "y2 bottom_front_left" },
-  { "U2", "y2 bottom_front_back" },
+  { "U+", "y2 d+" },
+  { "U'", "y2 d'" },
+  { "U2", "y2 d2" },
 
   // ===== DOWN (D) =====
-  { "D+", "bottom_front_right" },
-  { "D'", "bottom_front_left" },
-  { "D2", "bottom_front_back" },
+  { "D+", "d+" },
+  { "D'", "d'" },
+  { "D2", "d2" },
 };
 
 static const int k_cube_to_robot_count =
@@ -126,10 +126,10 @@ bool CubeOri::restore_cube_orientation() {
 
   //
   // BFS over the 24 possible cube orientations.
-  // We only use: right_bottom, left_bottom, front_right, front_left.
+  // We only use: y+, y', z+, z'.
   //
 
-  const String moves[4] = { "right_down", "left_down", "front_right", "front_left" };
+  const String moves[4] = { "y+", "y'", "z+", "z'" };
 
   const int MAX_STATES = 24;
 
@@ -222,7 +222,7 @@ bool CubeOri::orientations_equal_(const Orientation &a, const Orientation &b) co
 }
 
 // ============================================================
-// Apply a single rotation ("right_down", "left_down", "front_right", "front_left") to an Orientation
+// Apply a single rotation ("y+", "y'", "z+", "z'") to an Orientation
 // (used only inside BFS restore logic)
 // ============================================================
 CubeOri::Orientation
@@ -230,7 +230,7 @@ CubeOri::Orientation
 CubeOri::apply_rotation_to_orientation_(const Orientation &o, const String &move) const {
   Orientation n = o;
 
-  if (move.equalsIgnoreCase("right_down")) {
+  if (move.equalsIgnoreCase("y+")) {
     // U→R, R→D, D→L, L→U  (roll clockwise)
     n.U = o.L;  // WRONG earlier → fix it to correct orientation mapping
     n.R = o.U;
@@ -238,7 +238,7 @@ CubeOri::apply_rotation_to_orientation_(const Orientation &o, const String &move
     n.L = o.D;
     n.F = o.F;
     n.B = o.B;
-  } else if (move.equalsIgnoreCase("left_down")) {
+  } else if (move.equalsIgnoreCase("y'")) {
     // U→L, L→D, D→R, R→U  (roll counterclockwise)
     n.U = o.R;
     n.L = o.U;
@@ -246,14 +246,14 @@ CubeOri::apply_rotation_to_orientation_(const Orientation &o, const String &move
     n.R = o.D;
     n.F = o.F;
     n.B = o.B;
-  } else if (move.equalsIgnoreCase("front_right")) {
+  } else if (move.equalsIgnoreCase("z+")) {
     n.F = o.L;
     n.L = o.B;
     n.B = o.R;
     n.R = o.F;
     n.U = o.U;
     n.D = o.D;
-  } else if (move.equalsIgnoreCase("front_left")) {
+  } else if (move.equalsIgnoreCase("z'")) {
     n.F = o.R;
     n.R = o.B;
     n.B = o.L;
@@ -270,8 +270,8 @@ CubeOri::apply_rotation_to_orientation_(const Orientation &o, const String &move
 
 // ============================================================
 // Normalize robot move token
-// in: "right_down", " left_bottom ", "front_back", "d-" etc
-// out: "right_down", "left_down", "front_back", "bottom_front_right"
+// in: "Y+", " y' ", "Z2", "d-" etc
+// out: "y+", "y'", "z2", "d+"
 // ============================================================
 String CubeOri::normalize_robot_move_token_(const String &in) {
   String t = in;
@@ -279,7 +279,7 @@ String CubeOri::normalize_robot_move_token_(const String &in) {
   if (t.length() == 0) return String("");
 
   char axis = tolower(t.charAt(0));
-  if (axis != 'left_bottom && axis != 'front_left && axis != 'bottom_front_left) {
+  if (axis != 'y' && axis != 'z' && axis != 'd') {
     serial_printf("ERR not a robot move: %s\n", in.c_str());
     return String("");
   }

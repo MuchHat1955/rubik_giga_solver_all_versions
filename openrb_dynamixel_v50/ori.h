@@ -27,7 +27,7 @@ public:
   // PUBLIC API
   // ------------------------------------------------------------
 
-  // Execute a single robot move (right_bottom, left_bottom, front_back, front_left, front_back, bottom_front_right, bottom_front_left, bottom_front_back).
+  // Execute a single robot move (y+, y', z+, z', z2, d+, d', d2).
   bool robot_move(const String &move_str);
 
   // Execute a sequence of cube logical moves, e.g. "F R' U2".
@@ -84,7 +84,7 @@ private:
   // Private helpers
   // ------------------------------------------------------------
 
-  // Normalize robot move to canonical form: "right_down", "left_down", "front_back", "bottom_front_right"
+  // Normalize robot move to canonical form: "y+", "y'", "z2", "d+"
   String normalize_robot_move_token_(const String &in);
 
   // Split "a b c" or "a,b,c" etc

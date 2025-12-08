@@ -30,7 +30,7 @@ int CubeColorReader::face_base_index_(char face) const {
     case 'u': return 0;
     case 'r': return 9;
     case 'f': return 18;
-    case 'bottom_front_left: return 27;
+    case 'd': return 27;
     case 'l': return 36;
     case 'b': return 45;
   }
@@ -96,7 +96,7 @@ void CubeColorReader::print_face_compact_(char face) const {
 // Mapping table (with explicit mirrored flag)
 // ============================================================
 struct color_map_step_t {
-  const char *robot_move;   // movement: "front_right", "front_left", "left_down", "front_back", …
+  const char *robot_move;   // movement: "z+", "z'", "y'", "z2", …
   const char *face;         // face to read: "f","r","u","", …
   bool mirrored;            // true = bottom band (mirror), false = normal
   const char *order;        // slot order: "236541" or "231"
@@ -107,41 +107,41 @@ static const color_map_step_t k_color_map_steps[] = {
   // 0: read F top+middle
   { "na", "f", false, "236541" },
 
-  // 1: front_left → L
-  { "front_left", "l", false, "236541" },
+  // 1: z' → L
+  { "z'", "l", false, "236541" },
 
-  // 2: front_left → B
-  { "front_left", "b", false, "236541" },
+  // 2: z' → B
+  { "z'", "b", false, "236541" },
 
-  // 3: front_left → R
-  { "front_left", "r", false, "236541" },
+  // 3: z' → R
+  { "z'", "r", false, "236541" },
 
-  // 4: left_bottom → R bottom band (was top_bottom + right_bottom)
-  { "left_bottom", "r", true,  "231" },
+  // 4: y' → R bottom band (was y2 + y+)
+  { "y'", "r", true,  "231" },
 
-  // 5: front_right → F bottom band
-  { "front_right", "f", true,  "231" },
+  // 5: z+ → F bottom band
+  { "z+", "f", true,  "231" },
 
-  // 6: front_right → L bottom band
-  { "front_right", "l", true,  "231" },
+  // 6: z+ → L bottom band
+  { "z+", "l", true,  "231" },
 
-  // 7: front_right → B bottom band
-  { "front_right", "b", true,  "231" },
+  // 7: z+ → B bottom band
+  { "z+", "b", true,  "231" },
 
-  // 8: right_bottom → U bottom band
-  { "right_bottom", "u", true,  "231" },
+  // 8: y+ → U bottom band
+  { "y+", "u", true,  "231" },
 
-  // 9: front_back → U top+middle
-  { "front_back", "u", false, "236541" },
+  // 9: z2 → U top+middle
+  { "z2", "u", false, "236541" },
 
-  // 10: front_back → D top+middle
-  { "front_back", "d", false, "236541" },
+  // 10: z2 → D top+middle
+  { "z2", "d", false, "236541" },
 
-  // 11: left_bottom → D bottom band (was top_bottom + right_bottom)
-  { "left_bottom", "d", true,  "231" },
+  // 11: y' → D bottom band (was y2 + y+)
+  { "y'", "d", true,  "231" },
 
-  // 12: front_back final restore
-  { "front_back", "", false, "" }
+  // 12: z2 final restore
+  { "z2", "", false, "" }
 };
 
 static const int k_num_color_map_steps =

@@ -70,9 +70,9 @@ static constexpr int RUN_BOTTOM_RIGHT = 21;
 static constexpr int RUN_BOTTOM_LEFT = 22;
 static constexpr int RUN_BOTTOM_BACK = 23;
 
-static constexpr int RUN_FRONT_RIGHT = 31;
-static constexpr int RUN_FRONT_LEFT = 32;
-static constexpr int RUN_FRONT_BACK = 33;
+static constexpr int RUN_CUBE_RIGHT = 31;
+static constexpr int RUN_CUBE_LEFT = 32;
+static constexpr int RUN_CUBE_BACK = 33;
 
 static constexpr int RUN_RESET_RIGHT = 41;
 static constexpr int RUN_RESET_LEFT = 42;
@@ -85,9 +85,9 @@ const char runHelp[] PROGMEM =
   "      0 pos zero |\n"
   "     11 right down   | 12 left down    | 13 back down   | 14 top down\n"
   "     21 bottom right | 22 bottom right | 23 bottom back\n"
-  "     31 front right  | 32 front left   | 33 front back\n"
+  "     31 cube right   | 32 cube left    | 33 cube back\n"
   "     41 reset right  | 42 reset left   | 143 reset back\n"
-  "     60 align cube";
+  "     60 align";
 
 struct CommandEntry {
   const char *name;
@@ -126,7 +126,7 @@ static CommandEntry command_table[] = {
   { "LEDOFF", "%d", cmd_ledoff, "LEDOFF <id> - turn servo LED off" },
 
   // NEW: string-based move commands using CubeOri
-  { "MOVEROBOT", "<moves>", nullptr, "MOVEROBOT <moves> - robot moves space-separated list (right_bottom left_bottom front_right front_left front_back bottom_front_right bottom_front_left bottom_front_back)" },
+  { "MOVEROBOT", "<moves>", nullptr, "MOVEROBOT <moves> - robot moves space-separated list (y+ y' z+ z' z2 d+ d' d2)" },
   { "MOVECUBE", "<moves>", nullptr, "MOVECUBE <moves> - cube moves space-separated list (F F' F2 B B' B2 R R' R2 L L' L2 U U' U2 D D' D2)" },
 
   { "GETORIDATA", "", cmd_getori_data, "GETORIDATA - print orientation move log" },
@@ -840,22 +840,22 @@ bool cmd_run(int argc, double *argv) {
     return true;
   }
 
-  // #define RUN_FRONT_RIGHT 31
-  // #define RUN_FRONT_LEFT 32
-  // #define RUN_FRONT_BACK 33
+  // #define RUN_CUBE_RIGHT 31
+  // #define RUN_CUBE_LEFT 32
+  // #define RUN_CUBE_BACK 33
 
   // rotate full cube: right, left, back
-  if (run_no == RUN_FRONT_RIGHT) {
+  if (run_no == RUN_CUBE_RIGHT) {
     if (!rotateBaseRelative(B_RIGHT)) return false;
     return true;
   }
   // 32  turn cube left to front
-  if (run_no == RUN_FRONT_LEFT) {
+  if (run_no == RUN_CUBE_LEFT) {
     if (!rotateBaseRelative(B_LEFT)) return false;
     return true;
   }
   // 33  turn cube back to front
-  if (run_no == RUN_FRONT_BACK) {
+  if (run_no == RUN_CUBE_BACK) {
     if (!rotateBaseRelative(B_BACK)) return false;
     return true;
   }
@@ -906,7 +906,7 @@ bool cmd_run(int argc, double *argv) {
   "     60 align\n";
 */
 
-// "right_down", "left_down", "front_right", "front_left", "front_back", "bottom_front_right", "bottom_front_left", "bottom_front_back"
+// "y+", "y'", "z+", "z'", "z2", "d+", "d'", "d2"
 
 // RUN_ZERO = 0;
 
@@ -918,9 +918,9 @@ bool cmd_run(int argc, double *argv) {
 // RUN_BOTTOM_LEFT = 22;
 // RUN_BOTTOM_BACK = 23;
 
-// RUN_FRONT_RIGHT = 31;
-// RUN_FRONT_LEFT = 32;
-// RUN_FRONT_BACK = 33;
+// RUN_CUBE_RIGHT = 31;
+// RUN_CUBE_LEFT = 32;
+// RUN_CUBE_BACK = 33;
 
 // RUN_RESET_RIGHT = 41;
 // RUN_RESET_LEFT = 42;
@@ -934,39 +934,39 @@ bool robot_move_callback(const String &mv) {
 
   serial_printf("  [robot move] %s\n", mv.c_str());
 
-  if (mv == "right_down") {
+  if (mv == "y+") {
     static double arg = RUN_RIGHT_DOWN;
     return cmd_run(1, &arg);
   }
-  if (mv == "left_down") {
+  if (mv == "y'") {
     static double arg = RUN_LEFT_DOWN;
     return cmd_run(1, &arg);
   }
-  if (mv == "top_down") {
+  if (mv == "y2") {
     static double arg = RUN_TOP_DOWN;
     return cmd_run(1, &arg);
   }
-  if (mv == "front_right") {
-    static double arg = RUN_FRONT_LEFT;
+  if (mv == "z'") {
+    static double arg = RUN_CUBE_LEFT;
     return cmd_run(1, &arg);
   }
-  if (mv == "front_left") {
-    static double arg = RUN_FRONT_RIGHT;
+  if (mv == "z+") {
+    static double arg = RUN_CUBE_RIGHT;
     return cmd_run(1, &arg);
   }
-  if (mv == "front_back") {
-    static double arg = RUN_FRONT_BACK;
+  if (mv == "z2") {
+    static double arg = RUN_CUBE_BACK;
     return cmd_run(1, &arg);
   }
-  if (mv == "bottom_front_right") {
+  if (mv == "d+") {
     static double arg = RUN_BOTTOM_RIGHT;
     return cmd_run(1, &arg);
   }
-  if (mv == "bottom_front_left") {
+  if (mv == "d'") {
     static double arg = RUN_BOTTOM_LEFT;
     return cmd_run(1, &arg);
   }
-  if (mv == "bottom_front_back") {
+  if (mv == "d2") {
     static double arg = RUN_BOTTOM_BACK;
     return cmd_run(1, &arg);
   }
