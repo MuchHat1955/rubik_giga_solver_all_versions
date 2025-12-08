@@ -483,8 +483,6 @@ bool prepBaseForRotation(double nextBaseMoveRelative) {
 #define B_BACK -180
 */
 
-TODO use B_ERR 3 when rotating the bottom slice
-
 // below are relative moves
 bool rotateBaseRelative(double baseMoveRelative, bool gripperOn = false) {
   if (!dxl.ping(ID_BASE)) return false;
@@ -540,13 +538,19 @@ bool rotateBaseRelative(double baseMoveRelative, bool gripperOn = false) {
   }
   // serial_printf_verbose("***** rotate base to next move %.2f\n", baseNextMove);
 
-  if (!gripperOn)
+  if (!gripperOn) {
     if (!cmdMoveYmm(Y_ROTATE_BASE)) return false;
-  if (!gripperOn)
     if (!cmdMoveXmm(X_CENTER)) return false;
-  bool r = cmdMoveServoDeg(ID_BASE, baseNextMove);
+  }
+  if (gripperOn) {
+    double adj = 0;
+    if (baseNextMove > b_pos) adj = B_ERR;
+    else adj = -B_ERR;
 
-  return r;
+    // move past the target and the final move after will reset it
+    if (!cmdMoveServoDeg(ID_BASE, baseNextMove + adj)) return false;
+  }
+  return cmdMoveServoDeg(ID_BASE, baseNextMove);;
 }
 
 bool alignCube() {
@@ -825,7 +829,7 @@ bool cmd_run(int argc, double *argv) {
 
     // rotate base
     if (run_no == RUN_BOTTOM_RIGHT) {
-      if (!rotateBaseRelative(B_RIGHT, true)) return false; // TODO add the ERR
+      if (!rotateBaseRelative(B_RIGHT, true)) return false;  // TODO add the ERR
     }
     if (run_no == RUN_BOTTOM_LEFT) {
       if (!rotateBaseRelative(B_LEFT, true)) return false;
