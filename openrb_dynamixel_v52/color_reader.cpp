@@ -206,43 +206,42 @@ static const color_map_step_t k_color_map_steps[] = {
   // -----------------------------------------------------------
   // 11) fb_axis_180
   //      B
-  //   R  D  L  U  [inverted] D-F edge is down
+  //   L  U  R  D  [not inverted] U-B edge is up
   //      F
   // -----------------------------------------------------------
-  { "fb_axis_180", "d", inverted, "231" },
+  { "fb_axis_180", "u", not_inverted, "236541" },
 
   // -----------------------------------------------------------
   // 12) ud_axis_180
   //      B
-  //   L  U  R  D [not inverted] U-F edge is down
+  //   R  D  L  U [inverted] D-F edge is down
   //      F
   // -----------------------------------------------------------
-  { "ud_axis_180", "u", not_inverted, "236541" },
+  { "ud_axis_180", "d", inverted, "231" },
 
   // -----------------------------------------------------------
-  // 13) fb_axis_clockwise
-  //      L
-  //   F  U  B  D  [reposition]
-  //      R
+  // 13) ud_axis_clockwise
+  //      B
+  //   D  L  U  R  [reposition]
+  //      F
   // -----------------------------------------------------------
-  { "fb_axis_clockwise", "", not_inverted, "" },
+  { "ud_axis_clockwise", "", not_inverted, "" },
 
   // -----------------------------------------------------------
-  // 14) ud_axis_counterclockwise
-  //      L
-  //   D  F  U  B  [reposition]
-  //      R
-  // -----------------------------------------------------------
-  { "ud_axis_counterclockwise", "", not_inverted, "" },
-
-  // -----------------------------------------------------------
-  // 15) fb_axis_counterclockwise
+  // 14) fb_axis_counterclockwise
   //      U
-  //   L  F  R  B  [reposition]
+  //   B  L  F  R  [reposition]
   //      D
   // -----------------------------------------------------------
   { "fb_axis_counterclockwise", "", not_inverted, "" },
 
+  // -----------------------------------------------------------
+  // 15) ud_axis_clockwise
+  //      U
+  //   L  F  R  B  [reposition]
+  //      D
+  // -----------------------------------------------------------
+  { "ud_axis_clockwise", "", not_inverted, "" },
 };
 
 static const int k_num_color_map_steps =
