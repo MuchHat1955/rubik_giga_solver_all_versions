@@ -92,6 +92,57 @@ void CubeColorReader::print_face_compact_(char face) const {
   serial_printf("]");
 }
 
+/*
+if (move.equalsIgnoreCase("fb_axis_clockwise")) {
+    n.U = o.L;
+    n.R = o.U;
+    n.D = o.R;
+    n.L = o.D;
+    // unchanged
+    n.F = o.F;
+    n.B = o.B;
+  } else if (move.equalsIgnoreCase("fb_axis_counterclockwise")) {
+    n.U = o.R;
+    n.L = o.U;
+    n.D = o.L;
+    n.R = o.D;
+    // unchanged
+    n.F = o.F;
+    n.B = o.B;
+  } else if (move.equalsIgnoreCase("ud_axis_counterclockwise")) {
+    n.F = o.L;
+    n.L = o.B;
+    n.B = o.R;
+    n.R = o.F;
+    // unchanged
+    n.U = o.U;
+    n.D = o.D;
+  } else if (move.equalsIgnoreCase("ud_axis_clockwise")) {
+    n.F = o.R;
+    n.R = o.B;
+    n.B = o.L;
+    n.L = o.F;
+    // unchanged
+    n.U = o.U;
+    n.D = o.D;
+  } else if (move.equalsIgnoreCase("fb_axis_180")) {
+    n.U = o.D;
+    n.D = o.U;
+    n.R = o.L;
+    n.L = o.R;
+    // unchanged
+    n.F = o.F;
+    n.B = o.B;
+  } else if (move.equalsIgnoreCase("ud_axis_180")) {
+    n.F = o.B;
+    n.R = o.L;
+    n.B = o.F;
+    n.L = o.R;
+    // unchanged
+    n.U = o.U;
+    n.D = o.D;}
+*/
+
 // ============================================================
 // Mapping table (with explicit mirrored flag)
 // ============================================================

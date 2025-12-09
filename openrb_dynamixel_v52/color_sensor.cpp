@@ -32,7 +32,7 @@ struct ColorRef {
 // NEW calibrated values (your real cube at 2 cm + tube)
 ColorRef refs[] = {
   { "R", 0.508, 0.241, 0.241 },
-  { "O", 0.532, 0.234, 0.213 },
+  { "O", 0.510, 0.255, 0.216 },
   { "Y", 0.387, 0.367, 0.206 },
   { "G", 0.250, 0.412, 0.294 },
   { "B", 0.194, 0.290, 0.452 },
@@ -52,11 +52,24 @@ String classify_color(float r, float g, float b, float c) {
   const char* best = "X";
 
   for (auto& ref : refs) {
+
     float dr = rn - ref.r;
     float dg = gn - ref.g;
     float db = bn - ref.b;
 
     float dist = dr * dr + dg * dg + db * db;
+
+    // ---- FIX 2: ORANGE BIAS LOGIC ----
+    if (strcmp(ref.name, "R") == 0) {
+      // If green is noticeably higher than blue, this is usually orange, not red
+      float green_blue_ratio = (bn > 0.001) ? (gn / bn) : 1.0;
+
+      // Only apply penalty when orange-like ratio
+      if (green_blue_ratio > 1.05) {
+        dist += 0.0004;  // **small penalty** to push red away
+      }
+    }
+    // ----------------------------------
 
     serial_printf_verbose("  compare %s => dist=%.4f\n", ref.name, dist);
 
@@ -68,7 +81,6 @@ String classify_color(float r, float g, float b, float c) {
 
   serial_printf_verbose("bestDist = %.4f\n", bestDist);
 
-  // Confidence gate — tune if needed, 0.02 works well
   if (bestDist > 0.02)
     return "X";
 
