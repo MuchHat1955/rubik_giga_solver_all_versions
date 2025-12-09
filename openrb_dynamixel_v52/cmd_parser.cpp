@@ -657,22 +657,31 @@ bool cmd_read_one_color(int argc, double *argv) {
 }
 
 bool cmd_read_one_face_colors(int argc, double *argv) {
-  // desired read order: 1, 2, 3, 5, 4, 3
-  int order[] = { 3, 6, 5, 4, 1, 2 };
-  const int N = sizeof(order) / sizeof(order[0]);
+  // desired read order
+  int readOrder[] = { 1, 2, 3, 6, 5, 4 };
+  const int N = sizeof(readOrder) / sizeof(readOrder[0]);
 
-  String faceColors = "";
+  // temp storage for face positions 1..6
+  char face[7];
+  for (int i = 1; i <= 6; i++) face[i] = '.';
 
   for (int idx = 0; idx < N; idx++) {
-    double slot = (double)order[idx];
+    int pos = readOrder[idx];
+    double slot = (double)pos;
+
     crrColorChar = '.';
+    bool ok = cmd_read_one_color(1, &slot);
 
-    if (!cmd_read_one_color(1, &slot))
-      faceColors += ".";
-    else
-      faceColors += String(crrColorChar);
+    char result = ok ? crrColorChar : '.';
+    face[pos] = result;
 
-    serial_printf("color %d=%c\n", order[idx], crrColorChar);
+    serial_printf("read slot %d -> %c\n", pos, result);
+  }
+
+  // build final string in normal 123456 order
+  String faceColors = "";
+  for (int i = 1; i <= 6; i++) {
+    faceColors += face[i];
   }
 
   serial_printf("face colors=%s\n", faceColors.c_str());
