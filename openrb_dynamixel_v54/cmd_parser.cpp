@@ -1153,7 +1153,7 @@ void process_serial_command(String &line) {
         // ----------- UNIFIED LOGGING (same as numeric commands) ----------
         serial_printf_verbose("---- START %s params: %s ----\n", cmd.name, params.c_str());
 
-        serial_printf("%s %s START | ", cmd.name, params.c_str());
+        serial_printf("%s %s START\n", cmd.name, params.c_str());
         print_all_status();
 
         bool ok = false;
@@ -1168,7 +1168,7 @@ void process_serial_command(String &line) {
           ok = ori.robot_move(params);
         }
 
-        serial_printf("%s %s END completed=%d ", cmd.name, params.c_str(), ok ? 1 : 0);
+        serial_printf("%s %s END completed=%s\n", cmd.name, params.c_str(), ok ? "ok" : "fail");
         print_all_status();
 
         return;
@@ -1195,11 +1195,11 @@ void process_serial_command(String &line) {
       // ---------------- Execute Command ----------------
       double p1 = 0;
       if (argc > 0) p1 = (double)argv[0];
-      serial_printf("%s %.1f START | ", cmd.name, p1);
-      print_all_status();
+      serial_printf("%s %.1f START\n", cmd.name, p1);
+      // print_all_status();
       bool ok = cmd.handler(argc, argv);
-      serial_printf("%s %.1f END completed=%d ", cmd.name, p1, ok ? 1 : 0);
-      print_all_status();
+      serial_printf("%s %.1f END completed=%s\n", cmd.name, p1, ok ? "ok" : "fail");
+      // print_all_status();
       return;
     }
   }
