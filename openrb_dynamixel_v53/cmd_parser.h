@@ -90,3 +90,5 @@ bool cmd_read_one_color(int argc, double *argv);
 char read_one_color_cb(int slot);
 
 bool cmd_read_one_face_colors(int argc, double *argv);
+
+bool cmd_getcolor_data(int argc, double *argv);

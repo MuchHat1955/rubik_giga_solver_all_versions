@@ -134,6 +134,7 @@ static CommandEntry command_table[] = {
   { "CLEARORIDATA", "", cmd_clear_ori_data, "CLEARORIDATA - reset orientation data" },
   { "RESTOREORI", "", cmd_restore_ori, "RESTOREORI - move cube back in the original orientation" },
   { "COLORSREAD", "", cmd_read_cube_colors, "COLORSREAD - read full cube colors" },
+  { "GETCOLORDATA", "", cmd_getcolor_data, "GETCOLORDATA - print color data" },
 
   { "HELP", "", cmd_help, "HELP list of commands" },
 };
@@ -183,6 +184,11 @@ bool cmd_getori_data(int argc, double *argv) {
   ori.print_orientation_string();
   String log = ori.get_move_log();
   serial_printf("ORI move log= %s\n", log.c_str());
+
+  String all54 = color_reader.get_cube_colors_string();
+  serial_printf("cube colors= %s\n", all54.c_str());
+  color_reader.print_cube_colors_string();
+
   return true;
 }
 
@@ -1003,6 +1009,7 @@ bool cmd_read_cube_colors(int argc, double *argv) {
 
   String all54 = color_reader.get_cube_colors_string();
   serial_printf("before read cube colors= %s\n", all54.c_str());
+  color_reader.print_cube_colors_string();
 
   ori.clear_orientation_data();
   ori.clear_move_log();
@@ -1017,6 +1024,13 @@ bool cmd_read_cube_colors(int argc, double *argv) {
     Serial.println("ERR: read_full_cube failed");
     return false;
   }
+  return true;
+}
+
+bool cmd_getcolor_data(int argc, double *argv) {
+  String all54 = color_reader.get_cube_colors_string();
+  serial_printf("cube colors= %s\n", all54.c_str());
+  color_reader.print_cube_colors_string();
   return true;
 }
 

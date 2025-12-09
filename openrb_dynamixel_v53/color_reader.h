@@ -14,6 +14,8 @@ public:
   void clear();
   bool read_full_cube();
   String get_cube_colors_string() const;
+  void apply_moves(const String &moves);
+  void print_cube_colors_string();
 
 private:
   CubeOri &ori_;
@@ -30,5 +32,6 @@ private:
                      bool mirrored,
                      const char *order);
 
+  void rotate_face(char face, char dir);
   void print_face_compact_(char face) const;
 };

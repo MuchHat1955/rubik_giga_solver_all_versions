@@ -530,6 +530,8 @@ bool CubeOri::cube_move(const String &moves_str) {
       serial_printf("ERR [cube_move] failed executing: %s\n", t.c_str());
       return false;
     }
+    // TODO check t is f+ etc, below updates the color string in the reader
+    color_reader.apply_moves(t);
   }
 
   serial_printf_verbose("[cube_move] done\n");
