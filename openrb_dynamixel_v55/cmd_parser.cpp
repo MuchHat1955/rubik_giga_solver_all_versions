@@ -4,6 +4,7 @@
 #include "color_sensor.h"
 #include "ori.h"
 #include "color_reader.h"
+#include "color_analyzer.h"
 
 void print_info(uint8_t id);
 
@@ -14,6 +15,7 @@ extern double speed;
 
 extern CubeOri ori;
 extern CubeColorReader color_reader;
+extern ColorAnalyzer color_analyzer;
 
 // ---- y poses
 #define Y_CENTER 76  // was 73
@@ -188,6 +190,12 @@ bool cmd_getori_data(int argc, double *argv) {
   String all54 = color_reader.get_cube_colors_string();
   serial_printf("cube colors= %s\n", all54.c_str());
   color_reader.print_cube_colors_string();
+
+  color_analyzer.set_colors(all54);
+  log = color_analyzer.get_string_check_log();
+  serial_printf("color check: %s\n", log.c_str());
+  if (!color_analyzer.is_string_fixable_bool())
+    serial_printf("cube colors not fixable\n");
 
   return true;
 }
@@ -957,39 +965,39 @@ bool robot_move_callback(const String &mv) {
 
   serial_printf("  [robot move] %s\n", mv.c_str());
 
-  if (mv == "fb_axis_clockwise") {
+  if (mv == "z_plus") {
     static double arg = RUN_RIGHT_DOWN;
     return cmd_run(1, &arg);
   }
-  if (mv == "fb_axis_counterclockwise") {
+  if (mv == "z_minus") {
     static double arg = RUN_LEFT_DOWN;
     return cmd_run(1, &arg);
   }
-  if (mv == "fb_axis_180") {
+  if (mv == "z_180") {
     static double arg = RUN_TOP_DOWN;
     return cmd_run(1, &arg);
   }
-  if (mv == "ud_axis_clockwise") {
+  if (mv == "y_plus") {
     static double arg = RUN_CUBE_LEFT;
     return cmd_run(1, &arg);
   }
-  if (mv == "ud_axis_counterclockwise") {
+  if (mv == "y_minus") {
     static double arg = RUN_CUBE_RIGHT;
     return cmd_run(1, &arg);
   }
-  if (mv == "ud_axis_180") {
+  if (mv == "y_180") {
     static double arg = RUN_CUBE_BACK;
     return cmd_run(1, &arg);
   }
-  if (mv == "d-") {
+  if (mv == "d_minus") {
     static double arg = RUN_DOWN_LEFT;
     return cmd_run(1, &arg);
   }
-  if (mv == "d+") {
+  if (mv == "d_plus") {
     static double arg = RUN_DOWN_RIGHT;
     return cmd_run(1, &arg);
   }
-  if (mv == "d2") {
+  if (mv == "d_180") {
     static double arg = RUN_DOWN_BACK;
     return cmd_run(1, &arg);
   }

@@ -237,18 +237,18 @@ void CubeColorReader::apply_moves(const String &moves) {
     }
 
     // Token is valid → parse
-    // token = "<face><dir>" where dir is '+', ''', or '2'
+    // token = "<face><dir>" where dir is '+', '-', '\'', or '2'
     char face = tolower(token[0]);
     char dir = token[1];
 
     rotate_face(face, dir);
-    serial_printf_verbose("applied move: %c%c\n", toupper(face), dir);
+    serial_printf_verbose("applied move: %c%c\n", tolower(face), dir);
     print_cube_colors_string();
   }
 }
 
 /*
-if (move.equalsIgnoreCase("fb_axis_clockwise")) {
+if (move.equalsIgnoreCase("z_plus")) {
     n.U = o.L;
     n.R = o.U;
     n.D = o.R;
@@ -256,7 +256,7 @@ if (move.equalsIgnoreCase("fb_axis_clockwise")) {
     // unchanged
     n.F = o.F;
     n.B = o.B;
-  } else if (move.equalsIgnoreCase("fb_axis_counterclockwise")) {
+  } else if (move.equalsIgnoreCase("z_minus")) {
     n.U = o.R;
     n.L = o.U;
     n.D = o.L;
@@ -264,7 +264,7 @@ if (move.equalsIgnoreCase("fb_axis_clockwise")) {
     // unchanged
     n.F = o.F;
     n.B = o.B;
-  } else if (move.equalsIgnoreCase("ud_axis_clockwise")) {
+  } else if (move.equalsIgnoreCase("y_plus")) {
     n.F = o.L;
     n.L = o.B;
     n.B = o.R;
@@ -272,7 +272,7 @@ if (move.equalsIgnoreCase("fb_axis_clockwise")) {
     // unchanged
     n.U = o.U;
     n.D = o.D;
-  } else if (move.equalsIgnoreCase("ud_axis_counterclockwise")) {
+  } else if (move.equalsIgnoreCase("y_minus")) {
     n.F = o.R;
     n.R = o.B;
     n.B = o.L;
@@ -280,7 +280,7 @@ if (move.equalsIgnoreCase("fb_axis_clockwise")) {
     // unchanged
     n.U = o.U;
     n.D = o.D;
-  } else if (move.equalsIgnoreCase("fb_axis_180")) {
+  } else if (move.equalsIgnoreCase("z_180")) {
     n.U = o.D;
     n.D = o.U;
     n.R = o.L;
@@ -288,7 +288,7 @@ if (move.equalsIgnoreCase("fb_axis_clockwise")) {
     // unchanged
     n.F = o.F;
     n.B = o.B;
-  } else if (move.equalsIgnoreCase("ud_axis_180")) {
+  } else if (move.equalsIgnoreCase("y_180")) {
     n.F = o.B;
     n.R = o.L;
     n.B = o.F;
@@ -302,7 +302,7 @@ if (move.equalsIgnoreCase("fb_axis_clockwise")) {
 // Mapping table (with explicit mirrored flag)
 // ============================================================
 struct color_map_step_t {
-  const char *robot_move;  // movement: "ud_axis_clockwise", "ud_axis_counterclockwise", "fb_axis_counterclockwise", "ud_axis_180", …
+  const char *robot_move;  // movement: "y_plus", "y_minus", "z_minus", "y_180", …
   const char *face;        // face to read: "f","r","u","", …
   bool mirrored;           // true = bottom band (mirror), false = normal
   const char *order;       // slot order: "236541" or "231"
@@ -322,162 +322,162 @@ static const color_map_step_t k_color_map_steps[] = {
   { "none", "f", not_inverted, "236541" },
 
   // -----------------------------------------------------------
-  // 1) ud_axis_counterclockwise
+  // 1) y_minus
   //
   // --- orintentation after the step ---
   //      U
   //   F  R  B  L  [not inverted] R-U edge is up
   //      D
   // -----------------------------------------------------------
-  { "ud_axis_clockwise", "r", not_inverted, "236541" },
+  { "y_plus", "r", not_inverted, "236541" },
 
   // -----------------------------------------------------------
-  // 2) ud_axis_counterclockwise
+  // 2) y_minus
   //
   // --- orintentation after the step ---
   //      U
   //   R  B  L  F  [not inverted] B-U edge is up
   //      D
   // -----------------------------------------------------------
-  { "ud_axis_clockwise", "b", not_inverted, "236541" },
+  { "y_plus", "b", not_inverted, "236541" },
 
   // -----------------------------------------------------------
-  // 3) ud_axis_counterclockwise
+  // 3) y_minus
   //
   // --- orintentation after the step ---
   //      U
   //   B  L  F  R  [not inverted] L-U edge is up
   //      D
   // -----------------------------------------------------------
-  { "ud_axis_clockwise", "l", not_inverted, "236541" },
+  { "y_plus", "l", not_inverted, "236541" },
 
   // -----------------------------------------------------------
-  // 4) fb_axis_180
+  // 4) z_180
   //
   // --- orintentation after the step ---
   //      D
   //   F  L  B  R  [inverted] L-U edge is down
   //      U
   // -----------------------------------------------------------
-  { "fb_axis_180", "l", inverted, "231" },
+  { "z_180", "l", inverted, "231" },
 
   // -----------------------------------------------------------
-  // 5) ud_axis_counterclockwise
+  // 5) y_minus
   //
   // --- orintentation after the step --------------------------
   //      D
   //   L  B  R  F  [inverted] B-U edge is down
   //      U
   // -----------------------------------------------------------
-  { "ud_axis_clockwise", "b", inverted, "231" },
+  { "y_plus", "b", inverted, "231" },
 
   // -----------------------------------------------------------
-  // 6) ud_axis_counterclockwise
+  // 6) y_minus
   //
   // --- orintentation after the step --------------------------
   //      D
   //   B  R  F  L  [inverted] R-U edge is down
   //      U
   // -----------------------------------------------------------
-  { "ud_axis_clockwise", "r", inverted, "231" },
+  { "y_plus", "r", inverted, "231" },
 
   // -----------------------------------------------------------
-  // 7) ud_axis_counterclockwise
+  // 7) y_minus
   //
   // --- orintentation after the step --------------------------
   //      D
   //   R  F  L  B  [inverted] F-U edge is down
   //      U
   // -----------------------------------------------------------
-  { "ud_axis_clockwise", "f", inverted, "231" },
+  { "y_plus", "f", inverted, "231" },
 
   // -----------------------------------------------------------
-  // 8) fb_axis_clockwise
+  // 8) z_plus
   //
   // --- orintentation after the step --------------------------
   //      R
   //   U  F  D  B  [reposition]
   //      L
   // -----------------------------------------------------------
-  { "fb_axis_clockwise", "", not_inverted, "" },
+  { "z_plus", "", not_inverted, "" },
 
   // -----------------------------------------------------------
-  // 9) ud_axis_counterclockwise
+  // 9) y_minus
   //      R
   //   F  D  B  U  [reposition]
   //      L
   // -----------------------------------------------------------
-  { "ud_axis_clockwise", "", not_inverted, "" },
+  { "y_plus", "", not_inverted, "" },
 
   // -----------------------------------------------------------
-  // 9) fb_axis_clockwise,
+  // 9) z_plus,
   //
   // --- orintentation after the step --------------------------
   //      F
   //   L  D  R  U  [not inverted] D-F edge is up
   //      B
   //   -----------------------------------------------------------
-  { "fb_axis_clockwise", "d", not_inverted, "236541" },
+  { "z_plus", "d", not_inverted, "236541" },
 
   // -----------------------------------------------------------
-  // 10) ud_axis_180
+  // 10) y_180
   //
   // --- orintentation after the step --------------------------
   //      F
   //   R  U  L  D  [inverted] U-B edge is down
   //      B
   // -----------------------------------------------------------
-  { "ud_axis_180", "u", inverted, "231" },
+  { "y_180", "u", inverted, "231" },
 
   // -----------------------------------------------------------
-  // 11) fb_axis_180
+  // 11) z_180
   //
   // --- orintentation after the step --------------------------
   //      B
   //   L  U  R  D  [not inverted] U-B edge is up
   //      F
   // -----------------------------------------------------------
-  { "fb_axis_180", "u", not_inverted, "236541" },
+  { "z_180", "u", not_inverted, "236541" },
 
   // -----------------------------------------------------------
-  // 12) ud_axis_180
+  // 12) y_180
   //
   // --- orintentation after the step --------------------------
   //      B
   //   R  D  L  U [inverted] D-F edge is down
   //      F
   // -----------------------------------------------------------
-  { "ud_axis_180", "d", inverted, "231" },
+  { "y_180", "d", inverted, "231" },
 
   // -----------------------------------------------------------
-  // 13) ud_axis_counterclockwise
+  // 13) y_minus
   //
   // --- orintentation after the step --------------------------
   //      B
   //   D  L  U  R  [reposition]
   //      F
   // -----------------------------------------------------------
-  { "ud_axis_clockwise", "", not_inverted, "" },
+  { "y_plus", "", not_inverted, "" },
 
   // -----------------------------------------------------------
   //
   // --- orintentation after the step --------------------------
-  // 14) fb_axis_counterclockwise
+  // 14) z_minus
   //      U
   //   B  L  F  R  [reposition]
   //      D
   // -----------------------------------------------------------
-  { "fb_axis_counterclockwise", "", not_inverted, "" },
+  { "z_minus", "", not_inverted, "" },
 
   // -----------------------------------------------------------
-  // 15) ud_axis_counterclockwise
+  // 15) y_minus
   //
   // --- orintentation after the step --------------------------
   //      U
   //   L  F  R  B  [reposition]
   //      D
   // -----------------------------------------------------------
-  { "ud_axis_clockwise", "", not_inverted, "" },
+  { "y_plus", "", not_inverted, "" },
 };
 
 static const int k_num_color_map_steps =

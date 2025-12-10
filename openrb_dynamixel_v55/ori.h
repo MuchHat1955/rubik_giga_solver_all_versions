@@ -62,12 +62,12 @@ private:
   // which LOGICAL face is currently sitting there.
   //
   // Identity:
-  //   ori_.U='U'
-  //   ori_.R='R'
-  //   ori_.F='F'
-  //   ori_.D='D'
-  //   ori_.L='L'
-  //   ori_.B='B'
+  //   ori_.U='u'
+  //   ori_.R='r'
+  //   ori_.F='f'
+  //   ori_.D='d'
+  //   ori_.L='l'
+  //   ori_.B='b'
   // ============================================================
   struct Orientation {
     char U;
@@ -92,11 +92,11 @@ private:
   // Update orientation using lookup table
   void apply_ori_table_(const String &robot_move);
 
-  // Parse cube token "F", "R'", "U2"
+  // Parse cube token "f", "r+", "d2"
   bool parse_cube_token_(const String &tok, char &face, int &qt) const;
 
   // Find which PHYSICAL direction holds a logical face:
-  // returns 'U','R','F','D','L','B'
+  // returns 'u','r','f','d','l','b'
   char find_physical_dir_for_logical_(char logical_face) const;
 
   // Execute one cube move (already parsed)

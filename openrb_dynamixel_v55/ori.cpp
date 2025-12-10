@@ -1,8 +1,11 @@
 #include "ori.h"
 #include "utils.h"
 #include "color_reader.h"
+#include "color_analyzer.h"
 
 extern CubeColorReader color_reader;
+extern ColorAnalyzer color_analyzer;
+
 int cube_move_index = 0;
 int cube_move_total = 0;
 
@@ -22,23 +25,23 @@ int cube_move_total = 0;
 //
 // and any face not mentioned stays the same.
 struct OriMoveMap {
-  const char *robot_move;  // "fb_axis_clockwise", etc
+  const char *robot_move;  // "z_plus", etc
   const char *changes[4];  // up to 4 directional changes "U->R"
 };
 
 static const OriMoveMap k_ori_move_table[] = {
-  { "fb_axis_clockwise", { "U->R", "R->D", "D->L", "L->U" } },
-  { "fb_axis_counterclockwise", { "U->L", "L->D", "D->R", "R->U" } },
-  { "fb_axis_180", { "U->D", "R->L", "D->U", "L->R" } },
+  { "z_plus", { "U->R", "R->D", "D->L", "L->U" } },
+  { "z_minus", { "U->L", "L->D", "D->R", "R->U" } },
+  { "z_180", { "U->D", "R->L", "D->U", "L->R" } },
 
-  { "ud_axis_clockwise", { "F->L", "L->B", "B->R", "R->F" } },
-  { "ud_axis_counterclockwise", { "F->R", "R->B", "B->L", "L->F" } },
-  { "ud_axis_180", { "F->B", "B->F", "L->R", "R->L" } },
+  { "y_plus", { "F->L", "L->B", "B->R", "R->F" } },
+  { "y_minus", { "F->R", "R->B", "B->L", "L->F" } },
+  { "y_180", { "F->B", "B->F", "L->R", "R->L" } },
 
   // No orientation change for d+, d', d2
-  { "d+", { "", "", "", "" } },
-  { "d-", { "", "", "", "" } },
-  { "d2", { "", "", "", "" } },
+  { "d_plus", { "", "", "", "" } },
+  { "d_minus", { "", "", "", "" } },
+  { "d_180", { "", "", "", "" } },
 };
 
 static const int k_ori_move_table_count =
@@ -56,34 +59,34 @@ struct CubeToRobotEntry {
 static const CubeToRobotEntry k_cube_to_robot_table[] = {
 
   // ===== FRONT (F) =====
-  { "F+", "ud_axis_clockwise fb_axis_counterclockwise d+" },
-  { "F-", "ud_axis_clockwise fb_axis_counterclockwise d-" },
-  { "F2", "ud_axis_clockwise fb_axis_counterclockwise d2" },
+  { "f+", "y_plus z_minus d_plus" },
+  { "f-", "y_plus z_minus d_minus" },
+  { "f2", "y_plus z_minus d_180" },
 
   // ===== BACK (B) =====
-  { "B+", "ud_axis_clockwise fb_axis_clockwise d+" },
-  { "B-", "ud_axis_clockwise fb_axis_clockwise d-" },
-  { "B2", "ud_axis_clockwise fb_axis_clockwise d2" },
+  { "b+", "y_plus z_plus d_plus" },
+  { "b-", "y_plus z_plus d_minus" },
+  { "b2", "y_plus z_plus d_180" },
 
   // ===== RIGHT (R) =====
-  { "R+", "fb_axis_clockwise d+" },
-  { "R-", "fb_axis_clockwise d-" },
-  { "R2", "fb_axis_clockwise d2" },
+  { "r+", "z_plus d_plus" },
+  { "r-", "z_plus d_minus" },
+  { "r2", "z_plus d_180" },
 
   // ===== LEFT (L) =====
-  { "L+", "fb_axis_counterclockwise d+" },
-  { "L-", "fb_axis_counterclockwise d-" },
-  { "L2", "fb_axis_counterclockwise d2" },
+  { "l+", "z_minus d_plus" },
+  { "l-", "z_minus d_minus" },
+  { "l2", "z_minus d_180" },
 
   // ===== UP (U) =====
-  { "U+", "fb_axis_180 d+" },
-  { "U-", "fb_axis_180 d-" },
-  { "U2", "fb_axis_180 d2" },
+  { "u+", "z_180 d_plus" },
+  { "u-", "z_180 d_minus" },
+  { "u2", "z_180 d_180" },
 
   // ===== DOWN (D) =====
-  { "D+", "d+" },
-  { "D-", "d-" },
-  { "D2", "d2" },
+  { "d+", "d_plus" },
+  { "d-", "d_minus" },
+  { "d2", "d_180" },
 };
 
 static const int k_cube_to_robot_count =
@@ -99,12 +102,12 @@ CubeOri::CubeOri(robot_move_cb_t cb)
 }
 
 void CubeOri::clear_orientation_data() {
-  ori_.U = 'U';
-  ori_.R = 'R';
-  ori_.F = 'F';
-  ori_.D = 'D';
-  ori_.L = 'L';
-  ori_.B = 'B';
+  ori_.U = 'u';
+  ori_.R = 'r';
+  ori_.F = 'f';
+  ori_.D = 'd';
+  ori_.L = 'l';
+  ori_.B = 'b';
 
   orientation_log_ = "";
 }
@@ -112,12 +115,12 @@ void CubeOri::clear_orientation_data() {
 bool CubeOri::restore_cube_orientation() {
   // Goal (identity orientation)
   Orientation target;
-  target.U = 'U';
-  target.D = 'D';
-  target.F = 'F';
-  target.B = 'B';
-  target.L = 'L';
-  target.R = 'R';
+  target.U = 'u';
+  target.D = 'd';
+  target.F = 'f';
+  target.B = 'b';
+  target.L = 'l';
+  target.R = 'r';
 
   // Already aligned?
   if (orientations_equal_(ori_, target)) {
@@ -129,8 +132,8 @@ bool CubeOri::restore_cube_orientation() {
   // We only use: y+, y-, z+, z'.
   //
 
-  const String moves[6] = { "fb_axis_clockwise", "fb_axis_counterclockwise", "fb_axis_180",  //
-                            "ud_axis_clockwise", "ud_axis_counterclockwise", "ud_axis_180" };
+  const String moves[6] = { "z_plus", "z_minus", "z_180",  //
+                            "y_plus", "y_minus", "y_180" };
 
   const int MAX_STATES = 24;
 
@@ -223,7 +226,7 @@ bool CubeOri::orientations_equal_(const Orientation &a, const Orientation &b) co
 }
 
 // ============================================================
-// Apply a single rotation ("fb_axis_clockwise", etc") to an Orientation
+// Apply a single rotation ("z_plus", etc") to an Orientation
 // (used only inside BFS restore logic)
 // ============================================================
 CubeOri::Orientation
@@ -231,7 +234,7 @@ CubeOri::Orientation
 CubeOri::apply_rotation_to_orientation_(const Orientation &o, const String &move) const {
   Orientation n = o;
 
-  if (move.equalsIgnoreCase("fb_axis_clockwise")) {
+  if (move.equalsIgnoreCase("z_plus")) {
     n.U = o.L;
     n.R = o.U;
     n.D = o.R;
@@ -239,7 +242,7 @@ CubeOri::apply_rotation_to_orientation_(const Orientation &o, const String &move
     // unchanged
     n.F = o.F;
     n.B = o.B;
-  } else if (move.equalsIgnoreCase("fb_axis_counterclockwise")) {
+  } else if (move.equalsIgnoreCase("z_minus")) {
     n.U = o.R;
     n.L = o.U;
     n.D = o.L;
@@ -247,7 +250,7 @@ CubeOri::apply_rotation_to_orientation_(const Orientation &o, const String &move
     // unchanged
     n.F = o.F;
     n.B = o.B;
-  } else if (move.equalsIgnoreCase("ud_axis_counterclockwise")) {
+  } else if (move.equalsIgnoreCase("y_minus")) {
     n.F = o.L;
     n.L = o.B;
     n.B = o.R;
@@ -255,7 +258,7 @@ CubeOri::apply_rotation_to_orientation_(const Orientation &o, const String &move
     // unchanged
     n.U = o.U;
     n.D = o.D;
-  } else if (move.equalsIgnoreCase("ud_axis_clockwise")) {
+  } else if (move.equalsIgnoreCase("y_plus")) {
     n.F = o.R;
     n.R = o.B;
     n.B = o.L;
@@ -263,7 +266,7 @@ CubeOri::apply_rotation_to_orientation_(const Orientation &o, const String &move
     // unchanged
     n.U = o.U;
     n.D = o.D;
-  } else if (move.equalsIgnoreCase("fb_axis_180")) {
+  } else if (move.equalsIgnoreCase("z_180")) {
     n.U = o.D;
     n.D = o.U;
     n.R = o.L;
@@ -271,7 +274,7 @@ CubeOri::apply_rotation_to_orientation_(const Orientation &o, const String &move
     // unchanged
     n.F = o.F;
     n.B = o.B;
-  } else if (move.equalsIgnoreCase("ud_axis_180")) {
+  } else if (move.equalsIgnoreCase("y_180")) {
     n.F = o.B;
     n.R = o.L;
     n.B = o.F;
@@ -333,24 +336,24 @@ void CubeOri::apply_ori_table_(const String &robot_move) {
 
         char src_val = 0;
         switch (from_dir) {
-          case 'U': src_val = old.U; break;
-          case 'R': src_val = old.R; break;
-          case 'F': src_val = old.F; break;
-          case 'D': src_val = old.D; break;
-          case 'L': src_val = old.L; break;
-          case 'B': src_val = old.B; break;
+          case 'u': src_val = old.U; break;
+          case 'r': src_val = old.R; break;
+          case 'f': src_val = old.F; break;
+          case 'd': src_val = old.D; break;
+          case 'l': src_val = old.L; break;
+          case 'b': src_val = old.B; break;
           default: break;
         }
 
         if (!src_val) continue;
 
         switch (to_dir) {
-          case 'U': neu.U = src_val; break;
-          case 'R': neu.R = src_val; break;
-          case 'F': neu.F = src_val; break;
-          case 'D': neu.D = src_val; break;
-          case 'L': neu.L = src_val; break;
-          case 'B': neu.B = src_val; break;
+          case 'u': neu.U = src_val; break;
+          case 'r': neu.R = src_val; break;
+          case 'f': neu.F = src_val; break;
+          case 'd': neu.D = src_val; break;
+          case 'l': neu.L = src_val; break;
+          case 'b': neu.B = src_val; break;
           default: break;
         }
       }
@@ -388,15 +391,15 @@ bool CubeOri::robot_move(const String &move_str) {
 }
 
 // ============================================================
-// Parse cube token "F", "R'", "U2" into (face, quarter_turns)
+// Parse cube token "f", "r+", "u2" into (face, quarter_turns)
 // qt = +1, -1, or 2
 // ============================================================
 bool CubeOri::parse_cube_token_(const String &tok,
                                 char &face, int &qt) const {
   if (tok.length() == 0) return false;
 
-  char f = toupper(tok.charAt(0));
-  if (f != 'F' && f != 'B' && f != 'R' && f != 'L' && f != 'U' && f != 'D') {
+  char f = tolower(tok.charAt(0));
+  if (f != 'f' && f != 'b' && f != 'r' && f != 'l' && f != 'u' && f != 'd') {
     return false;
   }
 
@@ -428,12 +431,12 @@ bool CubeOri::parse_cube_token_(const String &tok,
 // Using the orientation map (physical -> logical).
 // ============================================================
 char CubeOri::find_physical_dir_for_logical_(char logical_face) const {
-  if (ori_.U == logical_face) return 'U';
-  if (ori_.R == logical_face) return 'R';
-  if (ori_.F == logical_face) return 'F';
-  if (ori_.D == logical_face) return 'D';
-  if (ori_.L == logical_face) return 'L';
-  if (ori_.B == logical_face) return 'B';
+  if (ori_.U == logical_face) return 'u';
+  if (ori_.R == logical_face) return 'r';
+  if (ori_.F == logical_face) return 'f';
+  if (ori_.D == logical_face) return 'd';
+  if (ori_.L == logical_face) return 'l';
+  if (ori_.B == logical_face) return 'b';
   return '\0';
 }
 
@@ -539,6 +542,21 @@ bool CubeOri::cube_move(const String &moves_str) {
       return false;
     }
     color_reader.apply_moves(t);
+
+    // show the stage
+    String all54 = color_reader.get_cube_colors_string();
+    color_analyzer.set_colors(all54);
+
+    if (!color_analyzer.is_string_fixable_bool())
+      serial_printf("ERR cube colors invalid and not fixable\n");
+
+    for (int s = 0; s < color_analyzer.get_stage_count(); s++) {
+      serial_printf("[stage %d (%s)] done=%d partial=%d\n",
+                    s,
+                    color_analyzer.get_stage_name(s),
+                    color_analyzer.is_stage_done_bool(s),
+                    color_analyzer.is_stage_partial_bool(s));
+    }
   }
 
   serial_printf_verbose("[cube_move] done\n");
@@ -553,22 +571,22 @@ bool CubeOri::cube_move(const String &moves_str) {
 // ============================================================
 void CubeOri::get_face_mapping(String out[6]) const {
   auto find_dir = [this](char logical_face) -> char {
-    if (ori_.U == logical_face) return 'U';
-    if (ori_.R == logical_face) return 'R';
-    if (ori_.F == logical_face) return 'F';
-    if (ori_.D == logical_face) return 'D';
-    if (ori_.L == logical_face) return 'L';
-    if (ori_.B == logical_face) return 'B';
+    if (ori_.U == logical_face) return 'u';
+    if (ori_.R == logical_face) return 'r';
+    if (ori_.F == logical_face) return 'f';
+    if (ori_.D == logical_face) return 'd';
+    if (ori_.L == logical_face) return 'l';
+    if (ori_.B == logical_face) return 'b';
     return '?';
   };
 
   char dirs[6] = {
-    find_dir('U'),
-    find_dir('R'),
-    find_dir('F'),
-    find_dir('D'),
-    find_dir('L'),
-    find_dir('B')
+    find_dir('u'),
+    find_dir('r'),
+    find_dir('f'),
+    find_dir('d'),
+    find_dir('l'),
+    find_dir('b')
   };
 
   out[0] = String("U->") + dirs[0];
