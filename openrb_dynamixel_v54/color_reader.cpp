@@ -187,6 +187,28 @@ void CubeColorReader::rotate_face(char face, char dir) {
 // ============================================================
 // adjust the color string for standard list of one or more moves f+ etc
 // ============================================================
+
+// List of all allowed robot moves.
+// Use whatever notation you actually use: f+, f', f2, etc.
+static const char *k_valid_moves[] = {
+  "f+", "f-", "f2",
+  "b+", "b-", "b2",
+  "u+", "u-", "u2",
+  "d+", "d-", "d2",
+  "l+", "l-", "l2",
+  "r+", "r-", "r2",
+  // add any others here (cube rotations, etc.)
+};
+
+bool is_valid_move(const String &token) {
+  for (const char *m : k_valid_moves) {
+    if (token == m) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void CubeColorReader::apply_moves(const String &moves) {
   int len = moves.length();
   int i = 0;
@@ -195,24 +217,33 @@ void CubeColorReader::apply_moves(const String &moves) {
     // Skip leading spaces
     while (i < len && isspace(moves[i])) i++;
 
-    // We need at least 2 chars for a valid move
-    if (i + 1 < len && isalpha(moves[i]) && (moves[i + 1] == '+' || moves[i + 1] == '-')) {
-      char face = tolower(moves[i]);  // make face lowercase for consistency
-      char dir = moves[i + 1];        // '+' or '-'
+    // Find end of token
+    int start = i;
+    while (i < len && !isspace(moves[i])) i++;
+    int end = i;
 
-      // Validate face
-      if (face == 'u' || face == 'd' || face == 'f' || face == 'b' || face == 'l' || face == 'r') {
-        rotate_face(face, dir);
-        serial_printf("Applied move: %c%c\n", toupper(face), dir);
-      } else {
-        serial_printf("Invalid face: %c\n", face);
-      }
+    if (start == end) continue;  // empty segment
 
-      i += 2;
-    } else {
-      // Skip to next space or valid token
-      while (i < len && !isspace(moves[i])) i++;
+    // Extract token (ex: "f+", "u2", "r'")
+    String token = moves.substring(start, end);
+    token.trim();
+
+    if (token.length() == 0) continue;
+
+    // Validate token using your single source of truth
+    if (!is_valid_move(token)) {
+      serial_printf("Invalid move: %s\n", token.c_str());
+      continue;
     }
+
+    // Token is valid → parse
+    // token = "<face><dir>" where dir is '+', ''', or '2'
+    char face = tolower(token[0]);
+    char dir = token[1];
+
+    rotate_face(face, dir);
+    serial_printf_verbose("applied move: %c%c\n", toupper(face), dir);
+    print_cube_colors_string();
   }
 }
 
@@ -233,7 +264,7 @@ if (move.equalsIgnoreCase("fb_axis_clockwise")) {
     // unchanged
     n.F = o.F;
     n.B = o.B;
-  } else if (move.equalsIgnoreCase("ud_axis_counterclockwise")) {
+  } else if (move.equalsIgnoreCase("ud_axis_clockwise")) {
     n.F = o.L;
     n.L = o.B;
     n.B = o.R;
@@ -241,7 +272,7 @@ if (move.equalsIgnoreCase("fb_axis_clockwise")) {
     // unchanged
     n.U = o.U;
     n.D = o.D;
-  } else if (move.equalsIgnoreCase("ud_axis_clockwise")) {
+  } else if (move.equalsIgnoreCase("ud_axis_counterclockwise")) {
     n.F = o.R;
     n.R = o.B;
     n.B = o.L;
@@ -271,7 +302,7 @@ if (move.equalsIgnoreCase("fb_axis_clockwise")) {
 // Mapping table (with explicit mirrored flag)
 // ============================================================
 struct color_map_step_t {
-  const char *robot_move;  // movement: "ud_axis_counterclockwise", "ud_axis_clockwise", "fb_axis_counterclockwise", "ud_axis_180", …
+  const char *robot_move;  // movement: "ud_axis_clockwise", "ud_axis_counterclockwise", "fb_axis_counterclockwise", "ud_axis_180", …
   const char *face;        // face to read: "f","r","u","", …
   bool mirrored;           // true = bottom band (mirror), false = normal
   const char *order;       // slot order: "236541" or "231"
@@ -291,7 +322,7 @@ static const color_map_step_t k_color_map_steps[] = {
   { "none", "f", not_inverted, "236541" },
 
   // -----------------------------------------------------------
-  // 1) ud_axis_clockwise
+  // 1) ud_axis_counterclockwise
   //
   // --- orintentation after the step ---
   //      U
@@ -301,7 +332,7 @@ static const color_map_step_t k_color_map_steps[] = {
   { "ud_axis_clockwise", "r", not_inverted, "236541" },
 
   // -----------------------------------------------------------
-  // 2) ud_axis_clockwise
+  // 2) ud_axis_counterclockwise
   //
   // --- orintentation after the step ---
   //      U
@@ -311,7 +342,7 @@ static const color_map_step_t k_color_map_steps[] = {
   { "ud_axis_clockwise", "b", not_inverted, "236541" },
 
   // -----------------------------------------------------------
-  // 3) ud_axis_clockwise
+  // 3) ud_axis_counterclockwise
   //
   // --- orintentation after the step ---
   //      U
@@ -331,7 +362,7 @@ static const color_map_step_t k_color_map_steps[] = {
   { "fb_axis_180", "l", inverted, "231" },
 
   // -----------------------------------------------------------
-  // 5) ud_axis_clockwise
+  // 5) ud_axis_counterclockwise
   //
   // --- orintentation after the step --------------------------
   //      D
@@ -341,7 +372,7 @@ static const color_map_step_t k_color_map_steps[] = {
   { "ud_axis_clockwise", "b", inverted, "231" },
 
   // -----------------------------------------------------------
-  // 6) ud_axis_clockwise
+  // 6) ud_axis_counterclockwise
   //
   // --- orintentation after the step --------------------------
   //      D
@@ -351,7 +382,7 @@ static const color_map_step_t k_color_map_steps[] = {
   { "ud_axis_clockwise", "r", inverted, "231" },
 
   // -----------------------------------------------------------
-  // 7) ud_axis_clockwise
+  // 7) ud_axis_counterclockwise
   //
   // --- orintentation after the step --------------------------
   //      D
@@ -371,7 +402,7 @@ static const color_map_step_t k_color_map_steps[] = {
   { "fb_axis_clockwise", "", not_inverted, "" },
 
   // -----------------------------------------------------------
-  // 9) ud_axis_clockwise
+  // 9) ud_axis_counterclockwise
   //      R
   //   F  D  B  U  [reposition]
   //      L
@@ -419,7 +450,7 @@ static const color_map_step_t k_color_map_steps[] = {
   { "ud_axis_180", "d", inverted, "231" },
 
   // -----------------------------------------------------------
-  // 13) ud_axis_clockwise
+  // 13) ud_axis_counterclockwise
   //
   // --- orintentation after the step --------------------------
   //      B
@@ -439,7 +470,7 @@ static const color_map_step_t k_color_map_steps[] = {
   { "fb_axis_counterclockwise", "", not_inverted, "" },
 
   // -----------------------------------------------------------
-  // 15) ud_axis_clockwise
+  // 15) ud_axis_counterclockwise
   //
   // --- orintentation after the step --------------------------
   //      U
@@ -519,7 +550,7 @@ bool CubeColorReader::read_full_cube() {
 
   fill_unknown_();
 
-  serial_printf("color reader start orientation restore\n");
+  serial_printf("color reader start - orientation restore\n");
   // Ensure starting orientation
   if (!ori_.restore_cube_orientation()) {
     serial_printf("ERR color reader: initial restore failed\n");
@@ -538,7 +569,7 @@ bool CubeColorReader::read_full_cube() {
     print_cube_colors_string();
   }
   serial_printf("color read completed\n");
-  serial_printf("color reader end orientation restore\n");
+  serial_printf("color reader end - orientation restore\n");
 
   // Final restore
   if (!ori_.restore_cube_orientation()) {

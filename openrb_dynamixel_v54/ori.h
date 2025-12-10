@@ -27,7 +27,7 @@ public:
   // PUBLIC API
   // ------------------------------------------------------------
 
-  // Execute a single robot move (y+, y', z+, z', z2, d+, d', d2).
+  // Execute a single robot move (y+, y-, z+, z-, z2, d+, d-, d2).
   bool robot_move(const String &move_str);
 
   // Execute a sequence of cube logical moves, e.g. "F R' U2".

@@ -3,6 +3,8 @@
 #include "color_reader.h"
 
 extern CubeColorReader color_reader;
+int cube_move_index = 0;
+int cube_move_total = 0;
 
 // ============================================================
 // Tables
@@ -35,7 +37,7 @@ static const OriMoveMap k_ori_move_table[] = {
 
   // No orientation change for d+, d', d2
   { "d+", { "", "", "", "" } },
-  { "d'", { "", "", "", "" } },
+  { "d-", { "", "", "", "" } },
   { "d2", { "", "", "", "" } },
 };
 
@@ -54,33 +56,33 @@ struct CubeToRobotEntry {
 static const CubeToRobotEntry k_cube_to_robot_table[] = {
 
   // ===== FRONT (F) =====
-  { "F+", "ud_axis_clockwise right_left d+" },
-  { "F'", "ud_axis_clockwise right_left d'" },
-  { "F2", "ud_axis_clockwise right_left d2" },
+  { "F+", "ud_axis_clockwise fb_axis_counterclockwise d+" },
+  { "F-", "ud_axis_clockwise fb_axis_counterclockwise d-" },
+  { "F2", "ud_axis_clockwise fb_axis_counterclockwise d2" },
 
   // ===== BACK (B) =====
-  { "B+", "ud_axis_counterclockwise right_left d+" },
-  { "B'", "ud_axis_counterclockwise right_left d'" },
-  { "B2", "ud_axis_counterclockwise right_left d2" },
+  { "B+", "ud_axis_clockwise fb_axis_clockwise d+" },
+  { "B-", "ud_axis_clockwise fb_axis_clockwise d-" },
+  { "B2", "ud_axis_clockwise fb_axis_clockwise d2" },
 
   // ===== RIGHT (R) =====
   { "R+", "fb_axis_clockwise d+" },
-  { "R'", "fb_axis_clockwise d'" },
+  { "R-", "fb_axis_clockwise d-" },
   { "R2", "fb_axis_clockwise d2" },
 
   // ===== LEFT (L) =====
-  { "L+", "right_left d+" },
-  { "L'", "right_left d'" },
-  { "L2", "right_left d2" },
+  { "L+", "fb_axis_counterclockwise d+" },
+  { "L-", "fb_axis_counterclockwise d-" },
+  { "L2", "fb_axis_counterclockwise d2" },
 
   // ===== UP (U) =====
   { "U+", "fb_axis_180 d+" },
-  { "U'", "fb_axis_180 d'" },
+  { "U-", "fb_axis_180 d-" },
   { "U2", "fb_axis_180 d2" },
 
   // ===== DOWN (D) =====
   { "D+", "d+" },
-  { "D'", "d'" },
+  { "D-", "d-" },
   { "D2", "d2" },
 };
 
@@ -124,10 +126,10 @@ bool CubeOri::restore_cube_orientation() {
 
   //
   // BFS over the 24 possible cube orientations.
-  // We only use: y+, y', z+, z'.
+  // We only use: y+, y-, z+, z'.
   //
 
-  const String moves[6] = { "fb_axis_clockwise", "fb_axis_counterclockwise", "fb_axis_280",  //
+  const String moves[6] = { "fb_axis_clockwise", "fb_axis_counterclockwise", "fb_axis_180",  //
                             "ud_axis_clockwise", "ud_axis_counterclockwise", "ud_axis_180" };
 
   const int MAX_STATES = 24;
@@ -415,6 +417,7 @@ bool CubeOri::parse_cube_token_(const String &tok,
   face = f;
   if (suf == '+') qt = 1;
   else if (suf == '-') qt = -1;
+  else if (suf == '\'') qt = -1;
   else qt = 2;
 
   return true;
@@ -454,7 +457,7 @@ bool CubeOri::execute_single_cube_move_(char logical_face, int qt) {
   key.reserve(3);
   key += phys;
   if (qt == 1) key += '+';
-  else if (qt == -1) key += '\'';
+  else if (qt == -1) key += '-';
   else key += '2';
 
   // 3) Find in k_cube_to_robot_table
@@ -484,20 +487,24 @@ bool CubeOri::execute_single_cube_move_(char logical_face, int qt) {
 // ============================================================
 // cube_move: "F R' U2" etc
 // ============================================================
-// ============================================================
-// cube_move: "F R' U2" etc
-// ============================================================
 bool CubeOri::cube_move(const String &moves_str) {
 
-  serial_printf("[cube_move] called with: \"%s\"\n", moves_str.c_str());
+  serial_printf_verbose("[cube_move] called with: \"%s\"\n", moves_str.c_str());
+
+  // --- Normalize input to lowercase ---
+  String moves_lc = moves_str;
+  moves_lc.toLowerCase();
 
   const int MAX_TOKENS = 64;
   String tokens[MAX_TOKENS];
   int token_count = 0;
+  cube_move_index = 0;
+  cube_move_total = 0;
 
-  split_moves_(moves_str, tokens, token_count, MAX_TOKENS);
+  split_moves_(moves_lc, tokens, token_count, MAX_TOKENS);
 
   serial_printf_verbose("[cube_move] token_count=%d\n", token_count);
+  cube_move_total = token_count;
 
   if (token_count == 0) return true;  // nothing to do
 
@@ -521,16 +528,16 @@ bool CubeOri::cube_move(const String &moves_str) {
     char face_l = tolower(face);
     char suf;
     if (qt == 1) suf = '+';
-    else if (qt == -1) suf = '\'';
+    else if (qt == -1) suf = '-';
     else suf = '2';
 
-    serial_printf("[cube_move] %c%c\n", face_l, suf);
+    cube_move_index++;
+    serial_printf("[%d/%d cube_move] %c%c\n", cube_move_index, cube_move_total, face_l, suf);
 
     if (!execute_single_cube_move_(face, qt)) {
       serial_printf("ERR [cube_move] failed executing: %s\n", t.c_str());
       return false;
     }
-    // TODO check t is f+ etc, below updates the color string in the reader
     color_reader.apply_moves(t);
   }
 

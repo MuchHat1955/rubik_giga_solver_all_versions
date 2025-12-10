@@ -42,7 +42,7 @@ extern VerticalKinematics kin;
 // -------------------------------------------------------------------
 
 void reset_servo(uint8_t id) {
-  Serial.print("Rebooting servo ");
+  Serial.print("ERR rebooting servo ");
   Serial.println(id);
 
   dxl.reboot(id);

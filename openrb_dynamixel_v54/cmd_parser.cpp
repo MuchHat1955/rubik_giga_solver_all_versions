@@ -127,8 +127,8 @@ static CommandEntry command_table[] = {
   { "LEDOFF", "%d", cmd_ledoff, "LEDOFF <id> - turn servo LED off" },
 
   // NEW: string-based move commands using CubeOri
-  { "MOVEROBOT", "<moves>", nullptr, "MOVEROBOT <moves> - robot moves space-separated list (y+ y' z+ z' z2 d+ d' d2)" },
-  { "MOVECUBE", "<moves>", nullptr, "MOVECUBE <moves> - cube moves space-separated list (F F' F2 B B' B2 R R' R2 L L' L2 U U' U2 D D' D2)" },
+  { "MOVEROBOT", "<moves>", nullptr, "MOVEROBOT <moves> - robot moves space-separated list (y+ y- z+ z- z2 d+ d- d2)" },
+  { "MOVECUBE", "<moves>", nullptr, "MOVECUBE <moves> - cube moves space-separated list (F+ F- F2 B+ B- B2 R+ R- R2 L+ L- L2 U+ U- U2 D+ D- D2)" },
 
   { "GETORIDATA", "", cmd_getori_data, "GETORIDATA - print orientation move log" },
   { "CLEARORIDATA", "", cmd_clear_ori_data, "CLEARORIDATA - reset orientation data" },
@@ -708,6 +708,9 @@ bool cmd_run(int argc, double *argv) {
 
   // the standby position
   if (run_no == RUN_ZERO) {
+    if (!prepBaseForRotation(B_LEFT)) return false;   // align on a random place
+    if (!prepBaseForRotation(B_RIGHT)) return false;  // align on a random place to ensure it cab be aligned center
+    if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
     if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!rotateBaseRelative(B_CENTER)) return false;
@@ -978,12 +981,12 @@ bool robot_move_callback(const String &mv) {
     static double arg = RUN_CUBE_BACK;
     return cmd_run(1, &arg);
   }
-  if (mv == "d+") {
-    static double arg = RUN_DOWN_RIGHT;
+  if (mv == "d-") {
+    static double arg = RUN_DOWN_LEFT;
     return cmd_run(1, &arg);
   }
-  if (mv == "d'") {
-    static double arg = RUN_DOWN_LEFT;
+  if (mv == "d+") {
+    static double arg = RUN_DOWN_RIGHT;
     return cmd_run(1, &arg);
   }
   if (mv == "d2") {
@@ -991,7 +994,7 @@ bool robot_move_callback(const String &mv) {
     return cmd_run(1, &arg);
   }
 
-  serial_printf("ERR invalid robot move: %s", mv.c_str());
+  serial_printf("ERR invalid robot move: %s\n", mv.c_str());
 
   return false;
 }
