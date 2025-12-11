@@ -124,6 +124,7 @@ static CommandEntry command_table[] = {
   { "COLORSENSOR", "%d", cmd_color, "COLORSENSOR <count> - read color <count> times" },
   { "ONECOLOR", "", cmd_read_one_color, "ONECOLOR - read one slot 1...6" },
   { "ONEFACECOLOR", "", cmd_read_one_face_colors, "ONEFACECOLOR the colors of the face in front" },
+  { "COLORSREAD", "<mode>", nullptr, "COLORSREAD <all | bottom | mid | solved> - read cube colors" },
 
   { "LEDON", "%d", cmd_ledon, "LEDON <id> - turn servo LED on" },
   { "LEDOFF", "%d", cmd_ledoff, "LEDOFF <id> - turn servo LED off" },
@@ -135,7 +136,6 @@ static CommandEntry command_table[] = {
   { "GETORIDATA", "", cmd_getori_data, "GETORIDATA - print orientation move log" },
   { "CLEARORIDATA", "", cmd_clear_ori_data, "CLEARORIDATA - reset orientation data" },
   { "RESTOREORI", "", cmd_restore_ori, "RESTOREORI - move cube back in the original orientation" },
-  { "COLORSREAD", "", cmd_read_cube_colors, "COLORSREAD - read full cube colors" },
   { "GETCOLORDATA", "", cmd_getcolor_data, "GETCOLORDATA - print color data" },
 
   { "HELP", "", cmd_help, "HELP list of commands" },
@@ -1046,28 +1046,70 @@ char read_one_color_cb(int slot) {
   return crrColorChar;
 }
 
-bool cmd_read_cube_colors(int argc, double *argv) {
+bool cmd_read_cube_colors_string(const String &mode_in) {
+    String mode = mode_in;
+    mode.toLowerCase();
 
-  String all54 = color_reader.get_cube_colors_string();
-  serial_printf("before read cube_colors= %s\n", all54.c_str());
-  color_reader.print_cube_colors_string();
-  print_colors_detail("before read cube colors");
+    bool do_bottom = false;
+    bool do_mid = false;
+    bool do_full = false;
+    bool do_prefill = false;
 
-  ori.clear_orientation_data();
-  ori.clear_move_log();
+    if (mode == "all") {
+      do_full = true;
+    } else if (mode == "bottom") {
+      do_bottom = true;
+    } else if (mode == "bottom_mid" || mode == "mid_bottom") {
+      do_bottom = true;
+      do_mid = true;
+    } else if (mode == "mid") {
+      do_mid = true;
+    } else if (mode == "solved") {
+      do_prefill = true;
+    } else {
+      serial_printf("ERR COLORSREAD invalid parameter: %s\n", mode.c_str());
+      return false;
+    }
 
-  if (color_reader.read_full_cube()) {
-    all54 = color_reader.get_cube_colors_string();
-    serial_printf("after read cube_colors= %s\n", all54.c_str());
-    // restore orintation to match the color string
+    // Before read
+    String before = color_reader.get_cube_colors_string();
+    serial_printf("before read cube_colors= %s\n", before.c_str());
+    color_reader.print_cube_colors_string();
+    print_colors_detail("before read cube colors");
+
+    ori.clear_orientation_data();
+    ori.clear_move_log();
+
+    bool ok = false;
+
+    if (do_full) {
+      serial_printf("COLORSREAD full scan\n");
+      ok = color_reader.read_full_cube();
+    }
+    else if (do_prefill) {
+      serial_printf("COLORSREAD prefill (no scan)\n");
+      ok = color_reader.read_partial_cube(false, false);
+    }
+    else {
+      serial_printf("COLORSREAD partial read bottom=%d mid=%d\n", do_bottom, do_mid);
+      ok = color_reader.read_partial_cube(do_bottom, do_mid);
+    }
+
+    if (!ok) {
+      serial_printf("ERR COLORSREAD failed\n");
+      return false;
+    }
+
+    // After read
+    String after = color_reader.get_cube_colors_string();
+    serial_printf("after read cube_colors= %s\n", after.c_str());
+
     static double arg = 0;
     cmd_restore_ori(1, &arg);
-  } else {
-    Serial.println("ERR: read_full_cube failed");
-    return false;
-  }
-  print_colors_detail("after read cube colors");
-  return true;
+
+    print_colors_detail("after read cube colors");
+
+    return true;
 }
 
 bool cmd_getcolor_data(int argc, double *argv) {
@@ -1211,11 +1253,11 @@ void process_serial_command(String &line) {
 
         if (strcmp(cmd.name, "MOVECUBE") == 0) {
           // pass full raw string — ori parses sequence itself
-          serial_printf("calling ori.cube_move\n", params.c_str());
+          serial_printf("calling ori.cube_move=%s\n", params.c_str());
           ok = ori.cube_move(params);
         } else if (strcmp(cmd.name, "MOVEROBOT") == 0) {
           // pass full raw string — NO splitting
-          serial_printf("calling ori.robot_move\n", params.c_str());
+          serial_printf("calling ori.robot_move=%s\n", params.c_str());
           ok = ori.robot_move(params);
         }
 
@@ -1224,6 +1266,37 @@ void process_serial_command(String &line) {
 
         return;
       }
+      // -----------------------------------------------------------
+      // Special handling for COLORSREAD (string command)
+      // -----------------------------------------------------------
+      if (strcmp(cmd.name, "COLORSREAD") == 0) {
+
+        // Extract raw params after command
+        int space_idx = line.indexOf(' ');
+        if (space_idx < 0) {
+          serial_printf("ERR COLORSREAD missing argument\n");
+          return;
+        }
+
+        String params = line.substring(space_idx + 1);
+        params.trim();
+        if (params.length() == 0) {
+          serial_printf("ERR COLORSREAD missing argument\n");
+          return;
+        }
+
+        // Unified logging (same style as MOVEROBOT)
+        serial_printf_verbose("---- START COLORSREAD params: %s ----\n", params.c_str());
+        serial_printf("COLORSREAD %s START\n", params.c_str());
+
+        bool ok = cmd_read_cube_colors_string(params);
+
+        serial_printf("COLORSREAD %s END completed=%s\n",
+                      params.c_str(),
+                      ok ? "ok" : "fail");
+        return;
+      }
+
 
       // ---------------- Existing numeric-command path ----------------
       serial_printf_verbose(
