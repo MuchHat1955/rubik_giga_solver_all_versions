@@ -54,7 +54,7 @@ void reset_servo(uint8_t id) {
   Serial.println("Servo rebooted and torque re-enabled");
 }
 
-bool servo_ok(uint8_t id) {
+bool servo_ok(uint8_t id, bool attempt_reboot) {
 
   // 1) Read hardware error flags
   int hw_err = dxl.readControlTableItem(ControlTableItem::HARDWARE_ERROR_STATUS, id);
@@ -80,6 +80,8 @@ bool servo_ok(uint8_t id) {
   if (hw_err == 0) {
     return true;
   }
+
+  if (!attempt_reboot) return false;
 
   // 3) We have errors → try recovery
   serial_printf("DXL %d ERROR detected, attempting recovery...\n", id);
@@ -123,7 +125,7 @@ bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
 
   uint8_t hw_err = dxl.readControlTableItem(ControlTableItem::HARDWARE_ERROR_STATUS, id);
 
-  if (!servo_ok(id)) {
+  if (!servo_ok(id, false)) {
     serial_printf("ERR Servo %d error: 0x%02X\n", id, hw_err);
     for (int i = 0; i < LED_FLASH_COUNT; i++) {
       lOn(id);
@@ -138,7 +140,7 @@ bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
       lOff(id);
       delay(LED_FLASH_DELAY_MS);
     }
-    if (!servo_ok(id)) {
+    if (!servo_ok(id, false)) {
       serial_printf("ERR setting the error flag for all because of servo=%d\n", id);
       servoError = true;
       return false;

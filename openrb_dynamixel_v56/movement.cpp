@@ -345,10 +345,10 @@ bool AxisGroupController::initXY(bool keepX) {
   // Wrist orientation classification (VERT, LEFT, RIGHT)
   // ----------------------------------------------------------
 
-  double g_vert        = kinPtr->getGdeg_for_vertical();
-  double g_horiz_left  = kinPtr->getGdeg_for_horizontal_left();
+  double g_vert = kinPtr->getGdeg_for_vertical();
+  double g_horiz_left = kinPtr->getGdeg_for_horizontal_left();
   double g_horiz_right = kinPtr->getGdeg_for_horizontal_right();
-  double g_present     = kinPtr->getGdeg();
+  double g_present = kinPtr->getGdeg();
 
   // persistent state for hysteresis
   static WristPos wrist_last_state = WRIST_VERT;
@@ -360,16 +360,16 @@ bool AxisGroupController::initXY(bool keepX) {
   };
 
   // normalize
-  g_vert        = norm180(g_vert);
-  g_horiz_left  = norm180(g_horiz_left);
+  g_vert = norm180(g_vert);
+  g_horiz_left = norm180(g_horiz_left);
   g_horiz_right = norm180(g_horiz_right);
-  g_present     = norm180(g_present);
+  g_present = norm180(g_present);
 
   auto angDist180 = [&](double a, double b) {
     return fabs(norm180(a - b));
   };
 
-  double dV  = angDist180(g_present, g_vert);
+  double dV = angDist180(g_present, g_vert);
   double dHL = angDist180(g_present, g_horiz_left);
   double dHR = angDist180(g_present, g_horiz_right);
 
@@ -377,24 +377,30 @@ bool AxisGroupController::initXY(bool keepX) {
   WristPos best_state = WRIST_VERT;
   double best = dV;
 
-  if (dHL < best) { best = dHL; best_state = WRIST_HORIZ_LEFT; }
-  if (dHR < best) { best = dHR; best_state = WRIST_HORIZ_RIGHT; }
+  if (dHL < best) {
+    best = dHL;
+    best_state = WRIST_HORIZ_LEFT;
+  }
+  if (dHR < best) {
+    best = dHR;
+    best_state = WRIST_HORIZ_RIGHT;
+  }
 
   // hysteresis
   const double HYS = 3.0;
   double dCurrent;
 
   switch (wrist_last_state) {
-    case WRIST_VERT:        dCurrent = dV;  break;
-    case WRIST_HORIZ_LEFT:  dCurrent = dHL; break;
+    case WRIST_VERT: dCurrent = dV; break;
+    case WRIST_HORIZ_LEFT: dCurrent = dHL; break;
     case WRIST_HORIZ_RIGHT: dCurrent = dHR; break;
   }
 
   WristPos wrist_pos;
   if (best < dCurrent - HYS)
-      wrist_pos = best_state;
+    wrist_pos = best_state;
   else
-      wrist_pos = wrist_last_state;
+    wrist_pos = wrist_last_state;
 
   wrist_last_state = wrist_pos;
 
@@ -402,17 +408,16 @@ bool AxisGroupController::initXY(bool keepX) {
   // Determine goal XY
   // ----------------------------------------------------------
   if (keepX) goal_mm_x = x_now;
-  else       goal_mm_y = y_now;
+  else goal_mm_y = y_now;
 
   const char* wrist_name =
-      (wrist_pos == WRIST_VERT)        ? "vert" :
-      (wrist_pos == WRIST_HORIZ_LEFT)  ? "left" :
-                                         "right";
+    (wrist_pos == WRIST_VERT) ? "vert" : (wrist_pos == WRIST_HORIZ_LEFT) ? "left"
+                                                                         : "right";
 
   serial_printf_verbose(
-      "[INIT XY] currentXY=(%.2f, %.2f)mm -> goalXY=(%.2f, %.2f)mm, "
-      "keepX=%d, wrist=%s\n",
-      x_now, y_now, goal_mm_x, goal_mm_y, keepX, wrist_name);
+    "[INIT XY] currentXY=(%.2f, %.2f)mm -> goalXY=(%.2f, %.2f)mm, "
+    "keepX=%d, wrist=%s\n",
+    x_now, y_now, goal_mm_x, goal_mm_y, keepX, wrist_name);
 
   // ----------------------------------------------------------
   // Solve for new A1/A2 based on target XY
@@ -723,6 +728,44 @@ bool move_smooth() {
   return move_smooth_v2();
 }
 
+/*
+safe_delay(1000, { ID_BASE, ID_ARM1 });
+safe_delay(800,  { ID_GRIP1, ID_GRIP2 });
+safe_delay(500,  { });   // check all
+safe_delay(300,  { ID_WRIST });
+*/
+// Define known IDs in one place
+bool is_known_servo_id(int id) {
+  return (id == ID_BASE || id == ID_ARM1 || id == ID_ARM2 || id == ID_GRIP1 || id == ID_GRIP2 || id == ID_WRIST);
+}
+
+bool safe_delay(unsigned long delay_millis, std::initializer_list<int> ids) {
+  unsigned long start_millis = millis();
+
+  while (millis() < start_millis + delay_millis) {
+
+    if (ids.size() == 0) {
+      // Check ALL servos
+      int all_ids[] = { ID_BASE, ID_ARM1, ID_ARM2, ID_GRIP1, ID_GRIP2, ID_WRIST };
+      for (int id : all_ids)
+        if (!servo_ok(id, false)) return false;
+    } else {
+      // Check ONLY known IDs from the list
+      for (int id : ids) {
+        if (!is_known_servo_id(id))
+          continue;  // skip unknown values silently
+
+        if (!servo_ok(id, false))
+          return false;
+      }
+    }
+
+    delay(5);
+  }
+
+  return true;
+}
+
 // ----------------------------------------------------------------------
 // move_smooth_v2  (DX-built-in profile + sync + refine)
 // ----------------------------------------------------------------------
@@ -829,7 +872,7 @@ bool move_smooth_v2() {
         lastPos = p;
       }
 
-      delay(5);
+      if(!safe_delay(5, { id }))return false;
     }
   }
 
@@ -849,7 +892,7 @@ bool move_smooth_v2() {
                               id, diff);
         dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION,
                                   id, goalTicks[i]);
-        delay(50);
+        if(!safe_delay(50, { id }))return false;
       }
     }
   }
@@ -945,7 +988,7 @@ bool cmdMoveGripperClamp() {
 
     const uint16_t PWM_REG = 124;
     const int PWM_TOUCH = 90;
-    const double EXTRA = 3.5; //TODO was 1.5
+    const double EXTRA = 3.5;  //TODO was 1.5
 
     bool touched1 = false;
     bool touched2 = false;
@@ -971,6 +1014,7 @@ bool cmdMoveGripperClamp() {
 
         delay(2);  // faster update
       }
+      if(!safe_delay(50, { ID_GRIP1, ID_GRIP2 }))return false;
 
       // freeze AFTER marking touch (faster syncing)
       if (touched1) {

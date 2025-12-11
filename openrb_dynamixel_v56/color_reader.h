@@ -13,10 +13,14 @@ public:
 
   void clear();
   bool read_full_cube();
+  bool read_partial_cube(bool bottom_layer, bool mid_layer);
+  void fill_solved_cube();
+
   String get_cube_colors_string() const;
   void apply_moves(const String &moves);
   void print_cube_colors_string();
   void print_face_compact(char face) const;
+
 
 private:
   CubeOri &ori_;

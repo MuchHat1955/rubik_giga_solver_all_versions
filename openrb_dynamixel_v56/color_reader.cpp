@@ -662,5 +662,108 @@ void CubeColorReader::print_cube_colors_string() {
   }
 }
 
+void CubeColorReader::fill_solved_cube() {
+    static const char solved[54] = {
+        // U: white
+        'W','W','W','W','W','W','W','W','W',
+        // R: red
+        'R','R','R','R','R','R','R','R','R',
+        // F: green
+        'G','G','G','G','G','G','G','G','G',
+        // D: yellow
+        'Y','Y','Y','Y','Y','Y','Y','Y','Y',
+        // L: orange
+        'O','O','O','O','O','O','O','O','O',
+        // B: blue
+        'B','B','B','B','B','B','B','B','B'
+    };
+
+    for (int i = 0; i < 54; i++)
+        colors_[i] = solved[i];
+}
+
+bool CubeColorReader::read_partial_cube(bool bottom_layer, bool mid_layer) {
+
+    if (!cb_) {
+        serial_printf("ERR: color reader has no callback!\n");
+        return false;
+    }
+
+    // -------------------------------------------------------
+    // 1. Start from a solved cube baseline
+    // -------------------------------------------------------
+    fill_solved_cube();
+
+    // If no layers are to be read → we are done
+    if (!bottom_layer && !mid_layer) {
+        serial_printf("read_partial_cube: no layers read, filled solved cube only.\n");
+        return true;
+    }
+
+    // -------------------------------------------------------
+    // 2. Restore orientation before scanning anything
+    // -------------------------------------------------------
+    if (!ori_.restore_cube_orientation()) {
+        serial_printf("ERR read_partial_cube: orientation restore failed\n");
+        return false;
+    }
+
+    // -------------------------------------------------------
+    // 3. Process only the steps needed for:
+    //    - middle layer
+    //    - bottom layer
+    //
+    // The scan table (k_color_map_steps) already defines which face
+    // and slots correspond to which physical band.
+    // -------------------------------------------------------
+
+    for (int i = 0; i < k_num_color_map_steps; i++) {
+
+        const auto &s = k_color_map_steps[i];
+
+        // Decide if this step reads a band we care about
+        bool should_read = false;
+
+        if (bottom_layer) {
+            if (s.mirrored == true)     // mirrored = bottom band
+                should_read = true;
+        }
+
+        if (mid_layer) {
+            if (s.mirrored == false && s.order[0] != '\0') // non-bottom but scanned band
+                should_read = true;
+        }
+
+        // Skip reading, but DO perform robot moves for orientation progression
+        if (!should_read) {
+            // Perform only the move portion
+            if (s.robot_move && s.robot_move[0] != '\0' && strcmp(s.robot_move, "none") != 0) {
+                if (!ori_.robot_move(s.robot_move)) {
+                    serial_printf("ERR: step %d move failed in partial read.\n", i);
+                    return false;
+                }
+            }
+            continue;
+        }
+
+        // Perform full step (move + reading)
+        if (!process_step_(i, s.robot_move, s.face, s.mirrored, s.order)) {
+            serial_printf("ERR read_partial_cube: step %d failed\n", i);
+            ori_.restore_cube_orientation();
+            return false;
+        }
+    }
+
+    // -------------------------------------------------------
+    // 4. Final orientation restore
+    // -------------------------------------------------------
+    if (!ori_.restore_cube_orientation()) {
+        serial_printf("ERR read_partial_cube: final restore failed\n");
+        return false;
+    }
+
+    serial_printf("read_partial_cube completed.\n");
+    return true;
+}
 
 CubeColorReader color_reader(ori, read_one_color_cb);

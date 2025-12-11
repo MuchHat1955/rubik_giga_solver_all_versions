@@ -363,9 +363,14 @@ bool cmd_move_clamp(int argc, double *argv) {
   if (!dxl.ping(ID_GRIP1) || !dxl.ping(ID_GRIP2)) return false;
 
   serial_printf_verbose("cmd_move_clamp\n");
-  if (!cmdMoveGripperClamp()) return false;
+  // turn off torque off base before clamp
+  dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_BASE, 0);
+  bool ok = cmdMoveGripperClamp();
+  // turn off torque on base after clamp
+  dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_BASE, 1);
   print_servo_status(ID_GRIP1);
   print_servo_status(ID_GRIP2);
+  return ok;
 }
 
 bool cmd_move_gripper(int argc, double *argv) {
@@ -1109,7 +1114,7 @@ void print_info(uint8_t id) {
     return;
   }
 
-  bool _ok = servo_ok(id);
+  bool _ok = servo_ok(id, true);
   serial_printf("SERVO OK id=%d ok=%s\n", id, _ok ? "ok" : "not ok");
   if (!_ok) {
     serial_printf("SERVO RESETING id=%d\n", id);
