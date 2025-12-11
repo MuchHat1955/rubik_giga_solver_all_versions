@@ -15,6 +15,29 @@ class CubeOri {
 public:
   CubeOri(robot_move_cb_t cb = nullptr);
 
+  // ============================================================
+  // Orientation struct
+  //
+  // Stores, for each PHYSICAL face (U,R,F,D,L,B),
+  // which LOGICAL face is currently sitting there.
+  //
+  // Identity:
+  //   ori_.U='u'
+  //   ori_.R='r'
+  //   ori_.F='f'
+  //   ori_.D='d'
+  //   ori_.L='l'
+  //   ori_.B='b'
+  // ============================================================
+  struct Orientation {
+    char U;
+    char R;
+    char F;
+    char D;
+    char L;
+    char B;
+  };
+
   // Reset orientation to identity (U,R,F,D,L,B) and clear log
   void clear_orientation_data();
 
@@ -53,30 +76,17 @@ public:
     orientation_log_ = "";
   }
 
-private:
+  // Return the current orientation struct (safe copy)
+  Orientation get_orientation() const {
+    return ori_;
+  }
 
-  // ============================================================
-  // Orientation struct
-  //
-  // Stores, for each PHYSICAL face (U,R,F,D,L,B),
-  // which LOGICAL face is currently sitting there.
-  //
-  // Identity:
-  //   ori_.U='u'
-  //   ori_.R='r'
-  //   ori_.F='f'
-  //   ori_.D='d'
-  //   ori_.L='l'
-  //   ori_.B='b'
-  // ============================================================
-  struct Orientation {
-    char U;
-    char R;
-    char F;
-    char D;
-    char L;
-    char B;
-  };
+  // Compare current orientation with another
+  bool is_orientation_equal(const Orientation &other) const {
+    return orientations_equal_(ori_, other);
+  }
+
+private:
 
   Orientation ori_;
   robot_move_cb_t robot_cb_;

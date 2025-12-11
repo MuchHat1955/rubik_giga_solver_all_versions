@@ -20,12 +20,15 @@ public:
   void apply_moves(const String &moves);
   void print_cube_colors_string();
   void print_face_compact(char face) const;
-
+  String get_last_face_colors() const {
+    return last_face_colors_;
+  }
 
 private:
   CubeOri &ori_;
   read_color_cb_t cb_;
   char colors_[54];  // u r f d l b, 9 stickers each
+  String last_face_colors_;
 
   void fill_unknown_();
   void apply_slot_to_face_(char face, int slot, char color, bool mirrored);
@@ -38,4 +41,6 @@ private:
                      const char *order);
 
   void rotate_face(char face, char dir);
+  void fill_face_from_solved_(char face, int row_start, int row_end);
+  bool check_alignment_for_partial_();
 };

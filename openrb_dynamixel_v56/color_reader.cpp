@@ -4,6 +4,7 @@
 #include "ori.h"
 
 extern CubeOri ori;
+extern char crrColorChar;
 
 // ============================================================
 // Constructor
@@ -95,104 +96,116 @@ void CubeColorReader::print_face_compact(char face) const {
 }
 
 void CubeColorReader::rotate_face(char face, char dir) {
-    bool cw = (dir == '+'); // clockwise
-    face = tolower(face);
+  bool cw = (dir == '+');  // clockwise
+  face = tolower(face);
 
-    int base = face_base_index_(face);
-    if (base < 0) {
-        serial_printf("ERR invalid face %c\n", face);
-        return;
+  int base = face_base_index_(face);
+  if (base < 0) {
+    serial_printf("ERR invalid face %c\n", face);
+    return;
+  }
+
+  // ------------------------------------------------------------
+  // 1. Rotate the face (3x3 matrix) - This part was correct.
+  // ------------------------------------------------------------
+  char t[9];
+  memcpy(t, &colors_[base], 9);
+
+  if (cw) {
+    // clockwise: 0->6, 1->3, 2->0, 3->7, 4->4, 5->1, 6->8, 7->5, 8->2
+    colors_[base + 0] = t[6];
+    colors_[base + 1] = t[3];
+    colors_[base + 2] = t[0];
+    colors_[base + 3] = t[7];
+    colors_[base + 4] = t[4];
+    colors_[base + 5] = t[1];
+    colors_[base + 6] = t[8];
+    colors_[base + 7] = t[5];
+    colors_[base + 8] = t[2];
+  } else {
+    // counter-clockwise: 0->2, 1->5, 2->8, 3->1, 4->4, 5->7, 6->0, 7->3, 8->6
+    colors_[base + 0] = t[2];
+    colors_[base + 1] = t[5];
+    colors_[base + 2] = t[8];
+    colors_[base + 3] = t[1];
+    colors_[base + 4] = t[4];
+    colors_[base + 5] = t[7];
+    colors_[base + 6] = t[0];
+    colors_[base + 7] = t[3];
+    colors_[base + 8] = t[6];
+  }
+
+  // ------------------------------------------------------------
+  // 2. Surrounding edges (the "ring")
+  // ------------------------------------------------------------
+  int idx[4][3];
+
+  auto set3 = [&](int i, int a, int b, int c) {
+    idx[i][0] = a;
+    idx[i][1] = b;
+    idx[i][2] = c;
+  };
+
+  // Assuming the standard U=0, R=9, F=18, D=27, L=36, B=45 index map.
+  // Neighbors are listed in clockwise order around the face.
+
+  if (face == 'u') {
+    // F top → R top → B top → L top
+    set3(0, 18, 19, 20);  // F0, F1, F2
+    set3(1, 9, 10, 11);   // R0, R1, R2
+    set3(2, 45, 46, 47);  // B0, B1, B2
+    set3(3, 36, 37, 38);  // L0, L1, L2
+  } else if (face == 'd') {
+    // F bottom → L bottom → B bottom → R bottom
+    set3(0, 24, 25, 26);  // F6, F7, F8
+    set3(1, 42, 43, 44);  // L6, L7, L8
+    set3(2, 51, 52, 53);  // B6, B7, B8
+    set3(3, 15, 16, 17);  // R6, R7, R8
+  } else if (face == 'f') {
+    // U bottom → R left column → D top (reversed) → L right column
+    set3(0, 6, 7, 8);     // U6, U7, U8
+    set3(1, 9, 12, 15);   // R0, R3, R6
+    set3(2, 29, 28, 27);  // D2, D1, D0 (Reversed)
+    set3(3, 38, 41, 44);  // L2, L5, L8
+  } else if (face == 'b') {
+    // U top (reversed) → L left column → D bottom → R right column (reversed)
+    set3(0, 2, 1, 0);     // U2, U1, U0 (Reversed)
+    set3(1, 36, 39, 42);  // L0, L3, L6
+    set3(2, 33, 34, 35);  // D6, D7, D8
+    set3(3, 17, 14, 11);  // R8, R5, R2 (Reversed)
+  } else if (face == 'l') {
+    // U left col → B right col (reversed) → D left col → F left col
+    set3(0, 0, 3, 6);     // U0, U3, U6
+    set3(1, 53, 50, 47);  // B8, B5, B2 (Reversed)
+    set3(2, 27, 30, 33);  // D0, D3, D6
+    set3(3, 18, 21, 24);  // F0, F3, F6
+  } else if (face == 'r') {
+    // U right col → F right col → D right col → B left col (reversed)
+    set3(0, 2, 5, 8);     // U2, U5, U8
+    set3(1, 20, 23, 26);  // F2, F5, F8
+    set3(2, 29, 32, 35);  // D2, D5, D8
+    set3(3, 51, 48, 45);  // B6, B3, B0 (Reversed)
+  } else {
+    return;
+  }
+
+  // ------------------------------------------------------------
+  // 3. Perform the 4x3 edge cycle - This part was correct.
+  // ------------------------------------------------------------
+  char buf[12];
+
+  // Store stickers *before* the cycle
+  for (int i = 0; i < 4; i++)
+    for (int j = 0; j < 3; j++)
+      buf[i * 3 + j] = colors_[idx[i][j]];
+
+  // Move stickers: source (src) to destination (i)
+  for (int i = 0; i < 4; i++)
+    for (int j = 0; j < 3; j++) {
+      // Source is (i - 1) mod 4 for CW, (i + 1) mod 4 for CCW
+      int src = cw ? (i + 3) % 4 : (i + 1) % 4;
+      colors_[idx[i][j]] = buf[src * 3 + j];
     }
-
-    // ------------------------------------------------------------
-    // 1. Rotate the face (3x3 matrix) - This part was correct.
-    // ------------------------------------------------------------
-    char t[9];
-    memcpy(t, &colors_[base], 9);
-
-    if (cw) {
-        // clockwise: 0->6, 1->3, 2->0, 3->7, 4->4, 5->1, 6->8, 7->5, 8->2
-        colors_[base+0] = t[6]; colors_[base+1] = t[3]; colors_[base+2] = t[0];
-        colors_[base+3] = t[7]; colors_[base+4] = t[4]; colors_[base+5] = t[1];
-        colors_[base+6] = t[8]; colors_[base+7] = t[5]; colors_[base+8] = t[2];
-    } else {
-        // counter-clockwise: 0->2, 1->5, 2->8, 3->1, 4->4, 5->7, 6->0, 7->3, 8->6
-        colors_[base+0] = t[2]; colors_[base+1] = t[5]; colors_[base+2] = t[8];
-        colors_[base+3] = t[1]; colors_[base+4] = t[4]; colors_[base+5] = t[7];
-        colors_[base+6] = t[0]; colors_[base+7] = t[3]; colors_[base+8] = t[6];
-    }
-
-    // ------------------------------------------------------------
-    // 2. Surrounding edges (the "ring")
-    // ------------------------------------------------------------
-    int idx[4][3];
-
-    auto set3 = [&](int i, int a, int b, int c) {
-        idx[i][0] = a;
-        idx[i][1] = b;
-        idx[i][2] = c;
-    };
-
-    // Assuming the standard U=0, R=9, F=18, D=27, L=36, B=45 index map.
-    // Neighbors are listed in clockwise order around the face.
-    
-    if (face == 'u') {
-        // F top → R top → B top → L top
-        set3(0, 18,19,20);  // F0, F1, F2
-        set3(1, 9,10,11);   // R0, R1, R2
-        set3(2, 45,46,47);  // B0, B1, B2
-        set3(3, 36,37,38);  // L0, L1, L2
-    } else if (face == 'd') {
-        // F bottom → L bottom → B bottom → R bottom
-        set3(0, 24,25,26);  // F6, F7, F8
-        set3(1, 42,43,44);  // L6, L7, L8
-        set3(2, 51,52,53);  // B6, B7, B8
-        set3(3, 15,16,17);  // R6, R7, R8
-    } else if (face == 'f') {
-        // U bottom → R left column → D top (reversed) → L right column
-        set3(0, 6,7,8);     // U6, U7, U8
-        set3(1, 9,12,15);   // R0, R3, R6
-        set3(2, 29,28,27);  // D2, D1, D0 (Reversed)
-        set3(3, 38,41,44);  // L2, L5, L8
-    } else if (face == 'b') {
-        // U top (reversed) → L left column → D bottom → R right column (reversed)
-        set3(0, 2,1,0);     // U2, U1, U0 (Reversed)
-        set3(1, 36,39,42);  // L0, L3, L6
-        set3(2, 33,34,35);  // D6, D7, D8
-        set3(3, 17,14,11);  // R8, R5, R2 (Reversed)
-    } else if (face == 'l') {
-        // U left col → B right col (reversed) → D left col → F left col
-        set3(0, 0,3,6);     // U0, U3, U6
-        set3(1, 53,50,47);  // B8, B5, B2 (Reversed)
-        set3(2, 27,30,33);  // D0, D3, D6
-        set3(3, 18,21,24);  // F0, F3, F6
-    } else if (face == 'r') {
-        // U right col → F right col → D right col → B left col (reversed)
-        set3(0, 2,5,8);     // U2, U5, U8
-        set3(1, 20,23,26);  // F2, F5, F8
-        set3(2, 29,32,35);  // D2, D5, D8
-        set3(3, 51,48,45);  // B6, B3, B0 (Reversed)
-    } else {
-        return;
-    }
-
-    // ------------------------------------------------------------
-    // 3. Perform the 4x3 edge cycle - This part was correct.
-    // ------------------------------------------------------------
-    char buf[12];
-
-    // Store stickers *before* the cycle
-    for (int i = 0; i < 4; i++)
-        for (int j = 0; j < 3; j++)
-            buf[i*3 + j] = colors_[idx[i][j]];
-
-    // Move stickers: source (src) to destination (i)
-    for (int i = 0; i < 4; i++)
-        for (int j = 0; j < 3; j++) {
-            // Source is (i - 1) mod 4 for CW, (i + 1) mod 4 for CCW
-            int src = cw ? (i + 3) % 4 : (i + 1) % 4;
-            colors_[idx[i][j]] = buf[src*3 + j];
-        }
 }
 
 // ============================================================
@@ -663,107 +676,241 @@ void CubeColorReader::print_cube_colors_string() {
 }
 
 void CubeColorReader::fill_solved_cube() {
-    static const char solved[54] = {
-        // U: white
-        'W','W','W','W','W','W','W','W','W',
-        // R: red
-        'R','R','R','R','R','R','R','R','R',
-        // F: green
-        'G','G','G','G','G','G','G','G','G',
-        // D: yellow
-        'Y','Y','Y','Y','Y','Y','Y','Y','Y',
-        // L: orange
-        'O','O','O','O','O','O','O','O','O',
-        // B: blue
-        'B','B','B','B','B','B','B','B','B'
-    };
+  static const char solved[54] = {
+    // U: white
+    'W', 'W', 'W', 'W', 'W', 'W', 'W', 'W', 'W',
+    // R: red
+    'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R',
+    // F: green
+    'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G',
+    // D: yellow
+    'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y',
+    // L: orange
+    'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O',
+    // B: blue
+    'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B'
+  };
 
-    for (int i = 0; i < 54; i++)
-        colors_[i] = solved[i];
+  for (int i = 0; i < 54; i++)
+    colors_[i] = solved[i];
 }
 
-bool CubeColorReader::read_partial_cube(bool bottom_layer, bool mid_layer) {
+// ------------------------------------------------------------
+// Predefined solved cube (URFDLB orientation)
+// ------------------------------------------------------------
+static const char SOLVED_54[55] =
+  "UUUUUUUUU"   // U = white
+  "RRRRRRRRR"   // R = red
+  "GGGGGGGGG"   // F = green
+  "YYYYYYYYY"   // D = yellow
+  "OOOOOOOOO"   // L = orange
+  "BBBBBBBBB";  // B = blue
 
-    if (!cb_) {
-        serial_printf("ERR: color reader has no callback!\n");
-        return false;
+// ------------------------------------------------------------
+// Helper: copy solved stickers into selected face positions
+// ------------------------------------------------------------
+void CubeColorReader::fill_face_from_solved_(char face, int row_start, int row_end) {
+  int base = face_base_index_(face);
+  int sbase = base;  // same layout in SOLVED_54
+
+  for (int row = row_start; row <= row_end; row++) {
+    for (int col = 0; col < 3; col++) {
+      int idx = base + row * 3 + col;
+      colors_[idx] = SOLVED_54[sbase + row * 3 + col];
     }
+  }
+}
 
-    // -------------------------------------------------------
-    // 1. Start from a solved cube baseline
-    // -------------------------------------------------------
-    fill_solved_cube();
+// ------------------------------------------------------------
+// Validate robot orientation before partial read
+// Expectation: CubeOri must be identity (U=up, F=front, R=right)
+// ------------------------------------------------------------
+bool CubeColorReader::check_alignment_for_partial_() {
+  CubeOri::Orientation ideal;
+  ideal.U = 'u';
+  ideal.R = 'r';
+  ideal.F = 'f';
+  ideal.D = 'd';
+  ideal.L = 'l';
+  ideal.B = 'b';
 
-    // If no layers are to be read → we are done
-    if (!bottom_layer && !mid_layer) {
-        serial_printf("read_partial_cube: no layers read, filled solved cube only.\n");
-        return true;
-    }
+  // get current CubeOri orientation
+  CubeOri::Orientation cur = ori_.get_orientation();
 
-    // -------------------------------------------------------
-    // 2. Restore orientation before scanning anything
-    // -------------------------------------------------------
-    if (!ori_.restore_cube_orientation()) {
-        serial_printf("ERR read_partial_cube: orientation restore failed\n");
-        return false;
-    }
+  if (!ori_.is_orientation_equal(ideal)) {
+    serial_printf("ERR: cube misalignment detected before partial read\n");
+    serial_printf("Current ori = %s\n", ori_.get_orientation_string().c_str());
+    return false;
+  }
 
-    // -------------------------------------------------------
-    // 3. Process only the steps needed for:
-    //    - middle layer
-    //    - bottom layer
-    //
-    // The scan table (k_color_map_steps) already defines which face
-    // and slots correspond to which physical band.
-    // -------------------------------------------------------
+  return true;
+}
 
-    for (int i = 0; i < k_num_color_map_steps; i++) {
+// ------------------------------------------------------------
+// MAIN ENTRY: partial cube read
+// read_bottom: read row 6,7,8 on all faces (D layer, bottom ring)
+// read_mid:    read row 3,4,5 on all faces (middle layer ring)
+// missing rows are filled with solved values
+// ------------------------------------------------------------
+bool CubeColorReader::read_partial_cube(bool read_bottom, bool read_mid) {
+  fill_unknown_();
 
-        const auto &s = k_color_map_steps[i];
+  // Detect impossible combinations (misaligned cube)
+  if (!check_alignment_for_partial_()) {
+    return false;
+  }
 
-        // Decide if this step reads a band we care about
-        bool should_read = false;
-
-        if (bottom_layer) {
-            if (s.mirrored == true)     // mirrored = bottom band
-                should_read = true;
-        }
-
-        if (mid_layer) {
-            if (s.mirrored == false && s.order[0] != '\0') // non-bottom but scanned band
-                should_read = true;
-        }
-
-        // Skip reading, but DO perform robot moves for orientation progression
-        if (!should_read) {
-            // Perform only the move portion
-            if (s.robot_move && s.robot_move[0] != '\0' && strcmp(s.robot_move, "none") != 0) {
-                if (!ori_.robot_move(s.robot_move)) {
-                    serial_printf("ERR: step %d move failed in partial read.\n", i);
-                    return false;
-                }
-            }
-            continue;
-        }
-
-        // Perform full step (move + reading)
-        if (!process_step_(i, s.robot_move, s.face, s.mirrored, s.order)) {
-            serial_printf("ERR read_partial_cube: step %d failed\n", i);
-            ori_.restore_cube_orientation();
-            return false;
-        }
-    }
-
-    // -------------------------------------------------------
-    // 4. Final orientation restore
-    // -------------------------------------------------------
-    if (!ori_.restore_cube_orientation()) {
-        serial_printf("ERR read_partial_cube: final restore failed\n");
-        return false;
-    }
-
-    serial_printf("read_partial_cube completed.\n");
+  // If NOTHING requested → fill full solved cube
+  if (!read_bottom && !read_mid) {
+    memcpy(colors_, SOLVED_54, 54);
+    serial_printf("partial read: no scan → using solved cube\n");
     return true;
+  }
+
+  // Start with solved cube as base
+  memcpy(colors_, SOLVED_54, 54);
+
+  // --------------------------------------------------------
+  // PHYSICAL SCANNING
+  // The robot will read only the desired layers.
+  // After each face read, we place readings in correct stickers.
+  // --------------------------------------------------------
+  auto read_face_layer = [&](char face, bool bottom, bool mid) {
+    String faceColors = "";
+
+    // 6 stickers readable from sensor: slots 1..6
+    // Order used by your cmd_read_one_face_colors:
+    // Desired order = 1,2,3,6,5,4
+    const int readOrder[6] = { 1, 2, 3, 6, 5, 4 };
+    char tmp[7];  // tmp[1..6]
+
+    // Perform the reading
+    for (int i = 0; i < 6; i++) {
+      double slot = readOrder[i];
+      crrColorChar = '.';
+      bool ok = cmd_read_one_color(1, &slot);
+      tmp[readOrder[i]] = ok ? crrColorChar : '.';
+    }
+
+    // Convert into faceColors final 123456 ordering
+    faceColors = "";
+    for (int i = 1; i <= 6; i++) faceColors += tmp[i];
+
+    // Map to cube array:
+    // For mid: rows 1 & 2 (face indices 3..8 except bottom row)
+    // For bottom: only row 2 (indices 6..8)
+    int base = face_base_index_(face);
+
+    if (mid) {
+      // Mid layer = rows 1 and 2 (slots 4,5,6 correspond to row 1-right mapping)
+      // map slot 1..3 to row 0 → IGNORE (we want solved)
+      // map slot 4..6 to row 1 positions 3..5
+      colors_[base + 3] = faceColors[3];
+      colors_[base + 4] = faceColors[4];
+      colors_[base + 5] = faceColors[5];
+    }
+
+    if (bottom) {
+      // bottom layer maps slots 1,2,3 to stickers 6,7,8 of the face
+      colors_[base + 6] = faceColors[0];
+      colors_[base + 7] = faceColors[1];
+      colors_[base + 8] = faceColors[2];
+    }
+  };
+
+  // --------------------------------------------------------
+  // Which faces can be scanned by your robot?
+  // Typically only the FRONT face can be placed in scanning position.
+  // If orientation is restored → scanning always reads FRONT.
+  // --------------------------------------------------------
+  char f = 'f';
+  char r = 'r';
+  char b = 'b';
+  char l = 'l';
+  char u = 'u';
+  char d = 'd';
+
+  // Robot can scan only FRONT face physically.
+  // You already rotate cube using `apply_moves()` logic so other faces become front.
+  auto scan_face = [&](char face) {
+    // Move face to front using CubeOri (user’s existing apply_moves(cubeMove))
+    // But simplest is: assume cube is already oriented physically by your k_color_map_steps.
+    // Use full read_one_face_colors routine:
+    int readOrder[6] = { 1, 2, 3, 6, 5, 4 };
+    char facevals[9] = { 0 };
+
+    // Actually read the front face stencil
+    cmd_read_one_face_colors(0, nullptr);
+
+    // Now faceColors is printed and stored in `faceColors` inside function.
+    // But your API does not return it → WE ADD a getter!
+
+    String fc = get_last_face_colors();  // You must add this storage in class.
+
+    // Fill bottom / mid as appropriate
+    int base = face_base_index_(face);
+
+    if (read_mid) {
+      colors_[base + 3] = fc[3];
+      colors_[base + 4] = fc[4];
+      colors_[base + 5] = fc[5];
+    }
+    if (read_bottom) {
+      colors_[base + 6] = fc[0];
+      colors_[base + 7] = fc[1];
+      colors_[base + 8] = fc[2];
+    }
+  };
+
+  // --------------------------------------------------------
+  // YOUR ROBOT SHOULD NOW ROTATE cube for each face you want
+  // For partial read, you only need the ring around bottom or mid layers.
+  // --------------------------------------------------------
+
+  // U face never scanned (top layer); already solved.
+
+  // Middle layer faces: F, R, B, L
+  if (read_mid) {
+    // Move F to front → scan_face('f')
+    scan_face('f');
+
+    // rotate cube right
+    ori_.robot_move("y_plus");
+    scan_face('r');
+
+    ori_.robot_move("y_plus");
+    scan_face('b');
+
+    ori_.robot_move("y_plus");
+    scan_face('l');
+
+    // Restore orientation
+    ori_.robot_move("y_plus");
+  }
+
+  // Bottom layer: row 2 of F, R, B, L and full D face
+  if (read_bottom) {
+    scan_face('f');
+
+    ori_.robot_move("y_plus");
+    scan_face('r');
+
+    ori_.robot_move("y_plus");
+    scan_face('b');
+
+    ori_.robot_move("y_plus");
+    scan_face('l');
+
+    // Restore
+    ori_.robot_move("y_plus");
+
+    // D face = rotate cube 180 on X-axis (z_180)
+    ori_.robot_move("z_180");
+    scan_face('d');
+    ori_.robot_move("z_180");
+  }
+
+  return true;
 }
 
 CubeColorReader color_reader(ori, read_one_color_cb);
