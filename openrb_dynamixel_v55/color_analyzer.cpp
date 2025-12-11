@@ -1,8 +1,30 @@
 #include "color_analyzer.h"
 
 // ============================================================
-// Static cubie index definitions (URFDLB, row-major)
+// Static cubie index definitions (URFDLB, row-major per face)
 // ============================================================
+//
+// Faces:
+//   U: indices  0.. 8
+//   R: indices  9..17
+//   F: indices 18..26
+//   D: indices 27..35
+//   L: indices 36..44
+//   B: indices 45..53
+//
+// Net layout:
+//
+//          U0 U1 U2
+//          U3 U4 U5
+//          U6 U7 U8
+// L0 L1 L2  F0 F1 F2  R0 R1 R2  B0 B1 B2
+// L3 L4 L5  F3 F4 F5  R3 R4 R5  B3 B4 B5
+// L6 L7 L8  F6 F7 F8  R6 R7 R8  B6 B7 B8
+//          D0 D1 D2
+//          D3 D4 D5
+//          D6 D7 D8
+//
+// Cubie sticker indices below are consistent with this layout.
 
 struct EdgeDef {
   uint8_t a;
@@ -17,38 +39,35 @@ struct CornerDef {
 
 // Edges: UR, UF, UL, UB, DR, DF, DL, DB, FR, FL, BR, BL
 static const EdgeDef k_edge_defs[12] = {
-  {  2, 10 },  // UR
-  {  7, 19 },  // UF
-  {  0, 37 },  // UL
-  {  1, 46 },  // UB
-  { 29, 16 },  // DR
-  { 34, 25 },  // DF
-  { 27, 43 },  // DL
-  { 28, 52 },  // DB
+  { 5, 10 },   // UR
+  { 7, 19 },   // UF
+  { 3, 37 },   // UL
+  { 1, 46 },   // UB
+  { 32, 16 },  // DR
+  { 28, 25 },  // DF
+  { 30, 43 },  // DL
+  { 34, 52 },  // DB
   { 23, 12 },  // FR
   { 21, 41 },  // FL
-  { 50, 14 },  // BR
-  { 48, 39 }   // BL
+  { 14, 48 },  // BR
+  { 50, 39 }   // BL
 };
 
 // Corners: URF, UFL, ULB, UBR, DRF, DFL, DLB, DBR
 static const CornerDef k_corner_defs[8] = {
-  {  2,  9, 20 },  // URF
-  {  6, 18, 38 },  // UFL
-  {  0, 36, 47 },  // ULB
-  {  8, 45, 11 },  // UBR
-  { 29, 15, 26 },  // DRF
-  { 33, 24, 42 },  // DFL
-  { 27, 44, 51 },  // DLB
-  { 35, 17, 53 }   // DBR
+  { 8, 20, 9 },    // URF
+  { 6, 18, 38 },   // UFL
+  { 0, 36, 47 },   // ULB
+  { 2, 45, 11 },   // UBR
+  { 29, 26, 15 },  // DRF
+  { 27, 24, 44 },  // DFL
+  { 33, 42, 53 },  // DLB
+  { 35, 17, 51 }   // DBR
 };
 
-// Adjacency lists in terms of faces
-// These define which faces share each edge/corner.
+// Face adjacency for each edge and corner
 static const char k_edge_adj[12][2] = {
-  { 'u', 'r' }, { 'u', 'f' }, { 'u', 'l' }, { 'u', 'b' },
-  { 'd', 'r' }, { 'd', 'f' }, { 'd', 'l' }, { 'd', 'b' },
-  { 'f', 'r' }, { 'f', 'l' }, { 'b', 'r' }, { 'b', 'l' }
+  { 'u', 'r' }, { 'u', 'f' }, { 'u', 'l' }, { 'u', 'b' }, { 'd', 'r' }, { 'd', 'f' }, { 'd', 'l' }, { 'd', 'b' }, { 'f', 'r' }, { 'f', 'l' }, { 'b', 'r' }, { 'b', 'l' }
 };
 
 static const char k_corner_adj[8][3] = {
@@ -62,12 +81,21 @@ static const char k_corner_adj[8][3] = {
   { 'd', 'r', 'b' }
 };
 
+static const char *k_edge_names[12] = {
+  "UR", "UF", "UL", "UB", "DR", "DF", "DL", "DB", "FR", "FL", "BR", "BL"
+};
+
+static const char *k_corner_names[8] = {
+  "URF", "UFL", "ULB", "UBR", "DRF", "DFL", "DLB", "DBR"
+};
+
 // ============================================================
 // Constructor
 // ============================================================
 ColorAnalyzer::ColorAnalyzer() {
   colors_.reserve(54);
-  colors_ = "......................................................"; // 54 dots
+  colors_ = "......................................................";  // 54 dots
+  last_error_ = "";
 }
 
 // ============================================================
@@ -85,29 +113,30 @@ int ColorAnalyzer::base_index(char face) const {
   return 0;
 }
 
-char ColorAnalyzer::face_of_index(int idx) const {
-  if (idx < 9)   return 'u';
-  if (idx < 18)  return 'r';
-  if (idx < 27)  return 'f';
-  if (idx < 36)  return 'd';
-  if (idx < 45)  return 'l';
-  return 'b';
-}
-
-// ============================================================
-// Small helpers
-// ============================================================
 void ColorAnalyzer::sort_pair(char &a, char &b) const {
   if (a > b) {
-    char t = a; a = b; b = t;
+    char t = a;
+    a = b;
+    b = t;
   }
 }
 
 void ColorAnalyzer::sort_triple(char &a, char &b, char &c) const {
-  // simple bubble sort for 3 items
-  if (a > b) { char t = a; a = b; b = t; }
-  if (b > c) { char t = b; b = c; c = t; }
-  if (a > b) { char t = a; a = b; b = t; }
+  if (a > b) {
+    char t = a;
+    a = b;
+    b = t;
+  }
+  if (b > c) {
+    char t = b;
+    b = c;
+    c = t;
+  }
+  if (a > b) {
+    char t = a;
+    a = b;
+    b = t;
+  }
 }
 
 // ============================================================
@@ -122,7 +151,7 @@ void ColorAnalyzer::set_colors(const String &colors) {
 // ============================================================
 // Stage names
 // ============================================================
-const char* ColorAnalyzer::get_stage_name(int id) const {
+const char *ColorAnalyzer::get_stage_name(int id) const {
   switch (id) {
     case 0: return "top face";
     case 1: return "top layer";
@@ -148,11 +177,10 @@ bool ColorAnalyzer::face_solved_bool(char face) const {
 }
 
 // ============================================================
-// Stage detection (visual band-based, not parity-heavy)
+// Stage detection (visual band-based checks)
 // ============================================================
-
 bool ColorAnalyzer::top_layer_solved_bool() const {
-  // U face full solid
+  // U face solid
   if (!face_solved_bool('u')) return false;
 
   // Top rows of F, R, B, L match their centers
@@ -167,10 +195,10 @@ bool ColorAnalyzer::top_layer_solved_bool() const {
   int bl = base_index('l');
 
   for (int i = 0; i < 3; i++) {
-    if (colors_[bf + i] != cf) return false;  // F top row
-    if (colors_[br + i] != cr) return false;  // R top row
-    if (colors_[bb + i] != cb) return false;  // B top row
-    if (colors_[bl + i] != cl) return false;  // L top row
+    if (colors_[bf + i] != cf) return false;
+    if (colors_[br + i] != cr) return false;
+    if (colors_[bb + i] != cb) return false;
+    if (colors_[bl + i] != cl) return false;
   }
   return true;
 }
@@ -188,7 +216,7 @@ bool ColorAnalyzer::middle_layer_solved_bool() const {
   int bb = base_index('b');
   int bl = base_index('l');
 
-  // Middle row, left & right stickers must match that face center
+  // middle row left+right on each side
   if (colors_[bf + 3] != cf || colors_[bf + 5] != cf) return false;
   if (colors_[br + 3] != cr || colors_[br + 5] != cr) return false;
   if (colors_[bb + 3] != cb || colors_[bb + 5] != cb) return false;
@@ -203,13 +231,13 @@ bool ColorAnalyzer::bottom_cross_solved_bool() const {
   int bd = base_index('d');
   char cd = face_center_color('d');
 
-  // Cross on D: positions 1,3,5,7
+  // cross on D face: positions 1,3,5,7
   if (colors_[bd + 1] != cd) return false;
   if (colors_[bd + 3] != cd) return false;
   if (colors_[bd + 5] != cd) return false;
   if (colors_[bd + 7] != cd) return false;
 
-  // Sides of the cross aligned (bottom middle on side faces)
+  // side alignment at bottom centers
   char cf = face_center_color('f');
   char cr = face_center_color('r');
   char cb = face_center_color('b');
@@ -220,7 +248,6 @@ bool ColorAnalyzer::bottom_cross_solved_bool() const {
   int bb = base_index('b');
   int bl = base_index('l');
 
-  // bottom-center stickers of each side
   if (colors_[bf + 7] != cf) return false;
   if (colors_[br + 7] != cr) return false;
   if (colors_[bb + 7] != cb) return false;
@@ -235,12 +262,12 @@ bool ColorAnalyzer::bottom_layer_solved_bool() const {
   int bd = base_index('d');
   char cd = face_center_color('d');
 
-  // D face fully solid
+  // D face solid
   for (int i = 0; i < 9; i++) {
     if (colors_[bd + i] != cd) return false;
   }
 
-  // bottom rows of side faces fully solid
+  // bottom rows of side faces solid
   char cf = face_center_color('f');
   char cr = face_center_color('r');
   char cb = face_center_color('b');
@@ -273,22 +300,18 @@ bool ColorAnalyzer::is_stage_done_bool(int id) const {
     case 4: return bottom_layer_solved_bool();
     case 5: return face_solved_bool('d');
     case 6:
-      return face_solved_bool('u') &&
-             face_solved_bool('r') &&
-             face_solved_bool('f') &&
-             face_solved_bool('d') &&
-             face_solved_bool('l') &&
-             face_solved_bool('b');
+      return face_solved_bool('u') && face_solved_bool('r') && face_solved_bool('f') && face_solved_bool('d') && face_solved_bool('l') && face_solved_bool('b');
   }
   return false;
 }
 
-// "partial" = previous stage done, this one not yet done
+// "partial" = previous stage done, this stage not done yet
 bool ColorAnalyzer::is_stage_partial_bool(int id) const {
   if (id < 0 || id >= get_stage_count()) return false;
   if (is_stage_done_bool(id)) return false;
+
   if (id == 0) {
-    // top face partial: any U sticker matches center but face not done
+    // top face partial: any U sticker matches center, but face not solved
     int bu = base_index('u');
     char cu = face_center_color('u');
     for (int i = 0; i < 9; i++) {
@@ -296,7 +319,8 @@ bool ColorAnalyzer::is_stage_partial_bool(int id) const {
     }
     return false;
   }
-  // for id>0: previous stage done, this not
+
+  // for id>0: previous stage done, this one not yet
   return is_stage_done_bool(id - 1);
 }
 
@@ -304,17 +328,17 @@ bool ColorAnalyzer::is_stage_partial_bool(int id) const {
 // Validation - public wrappers
 // ============================================================
 bool ColorAnalyzer::is_color_string_valid_bool() const {
+  last_error_ = "";
   return is_color_string_valid_impl(colors_);
 }
 
-// Check if already valid OR 1-sticker-change fixable.
+// Already valid OR 1-sticker-change fixable?
 bool ColorAnalyzer::is_string_fixable_bool() const {
   if (is_color_string_valid_bool()) return true;
   if (colors_.length() != 54) return false;
 
   String tmp = colors_;
 
-  // get center colors
   char centers[6] = {
     face_center_color_from(colors_, 'u'),
     face_center_color_from(colors_, 'r'),
@@ -330,6 +354,7 @@ bool ColorAnalyzer::is_string_fixable_bool() const {
       char c = centers[k];
       if (c == orig) continue;
       tmp[i] = c;
+      last_error_ = "";
       if (is_color_string_valid_impl(tmp)) {
         return true;
       }
@@ -363,6 +388,7 @@ bool ColorAnalyzer::try_fix_color_string(String &fixed_out) const {
       char c = centers[k];
       if (c == orig) continue;
       tmp[i] = c;
+      last_error_ = "";
       if (is_color_string_valid_impl(tmp)) {
         fixed_out = tmp;
         return true;
@@ -378,14 +404,18 @@ bool ColorAnalyzer::try_fix_color_string(String &fixed_out) const {
 // ============================================================
 String ColorAnalyzer::get_string_check_log() const {
   const String &s = colors_;
+  last_error_ = "";
 
-  if (s.length() != 54)
-    return "Invalid length: must be 54 characters";
+  if (s.length() != 54) {
+    last_error_ = "invalid length";
+    return "invalid length: must be 54 characters";
+  }
 
-  if (!centers_correct_from(s))
-    return "Center colors invalid (must be 6 distinct colors)";
+  if (!centers_correct_from(s)) {
+    last_error_ = "center colors invalid";
+    return "center colors invalid (must be 6 distinct colors)";
+  }
 
-  // inspect counts and invalid characters
   int cnt[256];
   compute_color_counts_from(s, cnt);
 
@@ -403,37 +433,58 @@ String ColorAnalyzer::get_string_check_log() const {
     char ch = s[i];
     bool ok = false;
     for (int j = 0; j < 6; j++) {
-      if (ch == centers[j]) { ok = true; break; }
+      if (ch == centers[j]) {
+        ok = true;
+        break;
+      }
     }
     if (!ok) {
-      return String("Invalid color '") + ch + "' at index " + String(i);
+      last_error_ = String("invalid color '") + ch + "' at index " + String(i);
+      return last_error_;
     }
   }
 
-  // check counts per color
+  // each color must appear exactly 9 times
   for (int j = 0; j < 6; j++) {
     char c = centers[j];
     if (cnt[(uint8_t)c] != 9) {
-      return String("Color count invalid for '") + c +
-             "': count=" + String(cnt[(uint8_t)c]) + " (expected 9)";
+      last_error_ = String("color count invalid for '") + c + "': count=" + String(cnt[(uint8_t)c]) + " (expected 9)";
+      return last_error_;
     }
   }
 
-  if (!edges_corners_color_consistent_from(s))
-    return "Edge/corner color combinations impossible (not a legal Rubik's Cube state)";
+  if (!edges_corners_color_consistent_from(s)) {
+    // last_error_ already set inside edges_corners_color_consistent_from
+    if (last_error_.length() > 0) return last_error_;
+    return "edge/corner color combinations impossible (not a legal Rubik's Cube state)";
+  }
 
+  last_error_ = "";
   return "OK";
 }
 
 // ============================================================
 // Validation - core implementation
 // ============================================================
-
 bool ColorAnalyzer::is_color_string_valid_impl(const String &s) const {
-  if (s.length() != 54) return false;
-  if (!centers_correct_from(s)) return false;
-  if (!valid_color_counts_from(s)) return false;
-  if (!edges_corners_color_consistent_from(s)) return false;
+  if (s.length() != 54) {
+    last_error_ = "invalid length";
+    return false;
+  }
+  if (!centers_correct_from(s)) {
+    if (last_error_.length() == 0)
+      last_error_ = "center colors invalid";
+    return false;
+  }
+  if (!valid_color_counts_from(s)) {
+    // valid_color_counts_from sets no last_error_, but get_string_check_log does
+    return false;
+  }
+  if (!edges_corners_color_consistent_from(s)) {
+    // last_error_ set there
+    return false;
+  }
+  last_error_ = "";
   return true;
 }
 
@@ -446,7 +497,6 @@ void ColorAnalyzer::compute_color_counts_from(const String &s, int out[256]) con
 }
 
 bool ColorAnalyzer::centers_correct_from(const String &s) const {
-  // 6 distinct center colors (positions 4 of each face)
   char c[6] = {
     face_center_color_from(s, 'u'),
     face_center_color_from(s, 'r'),
@@ -457,9 +507,9 @@ bool ColorAnalyzer::centers_correct_from(const String &s) const {
   };
 
   for (int i = 0; i < 6; i++) {
-    if (c[i] == '.') return false; // center cannot be unknown
+    if (c[i] == '.') return false;  // center cannot be unknown
     for (int j = i + 1; j < 6; j++) {
-      if (c[i] == c[j]) return false;
+      if (c[i] == c[j]) return false;  // must be 6 distinct colors
     }
   }
   return true;
@@ -483,7 +533,10 @@ bool ColorAnalyzer::valid_color_counts_from(const String &s) const {
     char ch = s[i];
     bool ok = false;
     for (int j = 0; j < 6; j++) {
-      if (ch == centers[j]) { ok = true; break; }
+      if (ch == centers[j]) {
+        ok = true;
+        break;
+      }
     }
     if (!ok) return false;
   }
@@ -510,7 +563,7 @@ bool ColorAnalyzer::edges_corners_color_consistent_from(const String &s) const {
     sort_pair(edge_valid[i][0], edge_valid[i][1]);
   }
 
-  // Build list of valid corner color triples
+  // Build list of valid corner color triples from face centers
   char corner_valid[8][3];
   for (int i = 0; i < 8; i++) {
     char f1 = k_corner_adj[i][0];
@@ -522,16 +575,16 @@ bool ColorAnalyzer::edges_corners_color_consistent_from(const String &s) const {
     sort_triple(corner_valid[i][0], corner_valid[i][1], corner_valid[i][2]);
   }
 
-  int edge_counts[12];
-  int corner_counts[8];
-  for (int i = 0; i < 12; i++) edge_counts[i] = 0;
-  for (int i = 0; i < 8; i++) corner_counts[i] = 0;
+  int edge_counts[12] = { 0 };
+  int corner_counts[8] = { 0 };
 
   // Check actual edges
   for (int e = 0; e < 12; e++) {
     EdgeDef def = k_edge_defs[e];
-    char a = s[def.a];
-    char b = s[def.b];
+    char sa = s[def.a];
+    char sb = s[def.b];
+
+    char a = sa, b = sb;
     sort_pair(a, b);
 
     bool found = false;
@@ -542,38 +595,114 @@ bool ColorAnalyzer::edges_corners_color_consistent_from(const String &s) const {
         break;
       }
     }
-    if (!found) return false;   // impossible color pair on an edge
+
+    if (!found) {
+      char ef1 = face_center_color_from(s, k_edge_adj[e][0]);
+      char ef2 = face_center_color_from(s, k_edge_adj[e][1]);
+
+      char expected_a = ef1, expected_b = ef2;
+      sort_pair(expected_a, expected_b);
+
+      char fa = sa, fb = sb;
+      sort_pair(fa, fb);
+
+      // compute missing + extra
+      String missing = "";
+      String extra = "";
+
+      // expected colors
+      if (fa != expected_a && fb != expected_a) missing += expected_a;
+      if (fa != expected_b && fb != expected_b) missing += expected_b;
+
+      if (fa != expected_a && fa != expected_b) extra += fa;
+      if (fb != expected_a && fb != expected_b && fb != fa) extra += fb;
+
+      last_error_ =
+        String("Edge ") + k_edge_names[e] + " invalid:\n" + "  found:    " + String(sa) + String(sb) + "\n" + "  expected: " + String(expected_a) + String(expected_b) + "\n" + "  missing:  " + (missing.length() ? missing : String("none")) + "\n" + "  extra:    " + (extra.length() ? extra : String("none"));
+
+      return false;
+    }
   }
 
   // each valid edge combo must appear exactly once
   for (int k = 0; k < 12; k++) {
-    if (edge_counts[k] != 1) return false;
+    if (edge_counts[k] != 1) {
+      last_error_ =
+        String("Edge color-pair ") + edge_valid[k][0] + edge_valid[k][1] + " appears " + edge_counts[k] + " times (expected 1).";
+      return false;
+    }
   }
 
   // Check actual corners
   for (int c = 0; c < 8; c++) {
     CornerDef def = k_corner_defs[c];
-    char a = s[def.a];
-    char b = s[def.b];
-    char d = s[def.c];
+    char sa = s[def.a];
+    char sb = s[def.b];
+    char sd = s[def.c];
+
+    char a = sa, b = sb, d = sd;
     sort_triple(a, b, d);
 
     bool found = false;
     for (int k = 0; k < 8; k++) {
-      if (a == corner_valid[k][0] &&
-          b == corner_valid[k][1] &&
-          d == corner_valid[k][2]) {
+      if (a == corner_valid[k][0] && b == corner_valid[k][1] && d == corner_valid[k][2]) {
         corner_counts[k]++;
         found = true;
         break;
       }
     }
-    if (!found) return false;   // impossible color triple on a corner
+
+    if (!found) {
+      char ca = face_center_color_from(s, k_corner_adj[c][0]);
+      char cb = face_center_color_from(s, k_corner_adj[c][1]);
+      char cc = face_center_color_from(s, k_corner_adj[c][2]);
+
+      char expA = ca, expB = cb, expC = cc;
+      sort_triple(expA, expB, expC);
+
+      char sortedA = sa, sortedB = sb, sortedC = sd;
+      sort_triple(sortedA, sortedB, sortedC);
+
+      auto in_expected = [&](char x) {
+        return (x == expA || x == expB || x == expC);
+      };
+
+      String missing = "";
+      String extra = "";
+
+      // missing expected colors
+      if (!in_expected(expA) || (expA != expB && expA != expC && !((sortedA == expA) || (sortedB == expA) || (sortedC == expA)))) {
+        if (!((sortedA == expA) || (sortedB == expA) || (sortedC == expA)))
+          missing += expA;
+      }
+      if (!((sortedA == expB) || (sortedB == expB) || (sortedC == expB)))
+        missing += expB;
+      if (!((sortedA == expC) || (sortedB == expC) || (sortedC == expC)))
+        missing += expC;
+
+      // extra colors: any found not in expected set
+      if (!in_expected(sortedA)) extra += sortedA;
+      if (!in_expected(sortedB) && sortedB != sortedA) extra += sortedB;
+      if (!in_expected(sortedC) && sortedC != sortedA && sortedC != sortedB) extra += sortedC;
+
+      last_error_ =
+        String("Corner ") + k_corner_names[c] + " invalid:\n" + "  found:    " +  //
+        String(sa) + String(sb) + String(sd) + "\n" +                             //
+        "  expected: {" + String(expA) + "," + expB + "," + expC + "}\n" +        //
+        "  missing:  " + (missing.length() ? missing : String("none")) + "\n" +   //
+        "  extra:    " + (extra.length() ? extra : String("none"));
+
+      return false;
+    }
   }
 
   // each valid corner combo must appear exactly once
   for (int k = 0; k < 8; k++) {
-    if (corner_counts[k] != 1) return false;
+    if (corner_counts[k] != 1) {
+      last_error_ =
+        String("Corner color-triple ") + corner_valid[k][0] + corner_valid[k][1] + corner_valid[k][2] + " appears " + corner_counts[k] + " times (expected 1).";
+      return false;
+    }
   }
 
   return true;

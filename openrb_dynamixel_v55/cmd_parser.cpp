@@ -182,20 +182,11 @@ static int parse_args(const String &line, const char *fmt, double *out, int max_
 // ------------------------------------------------------------
 bool cmd_getori_data(int argc, double *argv) {
   String s = ori.get_orientation_string();
-  serial_printf("ORI orientation=%s\n", s.c_str());
+  serial_printf("ori orientation=%s\n", s.c_str());
   ori.print_orientation_string();
   String log = ori.get_move_log();
-  serial_printf("ORI move log= %s\n", log.c_str());
-
-  String all54 = color_reader.get_cube_colors_string();
-  serial_printf("cube colors= %s\n", all54.c_str());
-  color_reader.print_cube_colors_string();
-
-  color_analyzer.set_colors(all54);
-  log = color_analyzer.get_string_check_log();
-  serial_printf("color check: %s\n", log.c_str());
-  if (!color_analyzer.is_string_fixable_bool())
-    serial_printf("cube colors not fixable\n");
+  serial_printf("ori move log= %s\n", log.c_str());
+  print_colors_detail();
 
   return true;
 }
@@ -206,11 +197,11 @@ bool cmd_getori_data(int argc, double *argv) {
 bool cmd_clear_ori_data(int argc, double *argv) {
   ori.clear_orientation_data();
   ori.clear_move_log();
-  serial_printf("ORI reset\n");
+  serial_printf("ori reset\n");
   String s = ori.get_orientation_string();
-  serial_printf("ORI orientation=%s\n", s.c_str());
+  serial_printf("ori orientation=%s\n", s.c_str());
   String log = ori.get_move_log();
-  serial_printf("ORI move log= %s\n", log.c_str());
+  serial_printf("ori move log= %s\n", log.c_str());
   return true;
 }
 
@@ -218,9 +209,9 @@ bool cmd_restore_ori(int argc, double *argv) {
   if (!ori.restore_cube_orientation()) {
     serial_printf("ERR failed to restore orientation\n");
     String s = ori.get_orientation_string();
-    serial_printf("ORI orientation=%s\n", s.c_str());
+    serial_printf("ori orientation=%s\n", s.c_str());
     String log = ori.get_move_log();
-    serial_printf("ORI move log= %s\n", log.c_str());
+    serial_printf("ori move log= %s\n", log.c_str());
     return false;
   }
 
@@ -232,11 +223,11 @@ bool cmd_restore_ori(int argc, double *argv) {
   // Only clear the move log.
   ori.clear_move_log();
 
-  serial_printf("ORI restored to identity\n");
+  serial_printf("ori restored to identity\n");
   String s = ori.get_orientation_string();
-  serial_printf("ORI orientation=%s\n", s.c_str());
+  serial_printf("ori orientation=%s\n", s.c_str());
   String log = ori.get_move_log();
-  serial_printf("ORI move log= %s\n", log.c_str());
+  serial_printf("ori move log= %s\n", log.c_str());
   return true;
 }
 
@@ -1009,6 +1000,29 @@ bool robot_move_callback(const String &mv) {
 
 //---------------------------------------------------------------------------
 
+void print_colors_detail() {
+  String all54 = color_reader.get_cube_colors_string();
+  // serial_printf("cube_colors=%s\n", all54.c_str());
+
+  color_analyzer.set_colors(all54);
+  bool valid_colors = color_analyzer.is_color_string_valid_bool();
+  serial_printf("[color analyzer] valid colors=%s\n", valid_colors ? "valid" : "invalid");
+  if (!valid_colors) {
+    serial_printf("[color analyzer] log=%s\n", color_analyzer.get_string_check_log().c_str());
+    if (color_analyzer.is_string_fixable_bool()) {
+      String fixed;
+      if (color_analyzer.try_fix_color_string(fixed)) {
+        serial_printf("[color analyzer] color string is fixable\n");
+        serial_printf("[color analyzer] corrected string=%s\n", fixed.c_str());
+      } else {
+        serial_printf("[color analyzer] color string fix failed\n");
+      }
+    } else {
+      serial_printf("[color analyzer] color string cannot be fixed\n");
+    }
+  }
+}
+
 // Your callback implementation
 char read_one_color_cb(int slot) {
   double arg = (double)slot;
@@ -1019,7 +1033,7 @@ char read_one_color_cb(int slot) {
 bool cmd_read_cube_colors(int argc, double *argv) {
 
   String all54 = color_reader.get_cube_colors_string();
-  serial_printf("before read cube colors= %s\n", all54.c_str());
+  serial_printf("before read cube_colors= %s\n", all54.c_str());
   color_reader.print_cube_colors_string();
 
   ori.clear_orientation_data();
@@ -1027,7 +1041,7 @@ bool cmd_read_cube_colors(int argc, double *argv) {
 
   if (color_reader.read_full_cube()) {
     all54 = color_reader.get_cube_colors_string();
-    serial_printf("read cube colors= %s\n", all54.c_str());
+    serial_printf("after read cube_colors= %s\n", all54.c_str());
     // restore orintation to match the color string
     static double arg = 0;
     cmd_restore_ori(1, &arg);
@@ -1035,13 +1049,22 @@ bool cmd_read_cube_colors(int argc, double *argv) {
     Serial.println("ERR: read_full_cube failed");
     return false;
   }
+  print_colors_detail();
   return true;
 }
 
 bool cmd_getcolor_data(int argc, double *argv) {
   String all54 = color_reader.get_cube_colors_string();
-  serial_printf("cube colors= %s\n", all54.c_str());
+  serial_printf("cube_colors= %s\n", all54.c_str());
+  color_reader.print_face_compact('u');
+  color_reader.print_face_compact('r');
+  color_reader.print_face_compact('f');
+  color_reader.print_face_compact('d');
+  color_reader.print_face_compact('l');
+  color_reader.print_face_compact('b');
   color_reader.print_cube_colors_string();
+
+  print_colors_detail();
   return true;
 }
 

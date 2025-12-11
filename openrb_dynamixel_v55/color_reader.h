@@ -16,6 +16,7 @@ public:
   String get_cube_colors_string() const;
   void apply_moves(const String &moves);
   void print_cube_colors_string();
+  void print_face_compact(char face) const;
 
 private:
   CubeOri &ori_;
@@ -33,5 +34,4 @@ private:
                      const char *order);
 
   void rotate_face(char face, char dir);
-  void print_face_compact_(char face) const;
 };

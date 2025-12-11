@@ -77,111 +77,122 @@ void CubeColorReader::apply_slot_to_face_(char face, int slot, char color, bool 
     }
   }
 
-  if (offset >= 0)
+  if (offset >= 0) {
     colors_[base + offset] = color;
+    serial_printf("COLORSREAD %c%d=%c\n", face, offset + 1, color);
+  }
 }
 
 // Print compact face state
-void CubeColorReader::print_face_compact_(char face) const {
+void CubeColorReader::print_face_compact(char face) const {
   int base = face_base_index_(face);
   if (base < 0) return;
 
   serial_printf("%c[", face);
   for (int i = 0; i < 9; i++)
     serial_printf("%c", colors_[base + i]);
-  serial_printf("]");
+  serial_printf("]\n");
 }
 
-// ============================================================
-// adjust the color string for rotate a face and its edges
-// ============================================================
 void CubeColorReader::rotate_face(char face, char dir) {
-  bool clockwise = (dir == '+');
-  face = tolower(face);
-  int base = face_base_index_(face);
-  if (base < 0) return;
+    bool cw = (dir == '+'); // clockwise
+    face = tolower(face);
 
-  // Rotate face itself
-  char temp[9];
-  memcpy(temp, &colors_[base], 9);
-  if (clockwise) {
-    colors_[base + 0] = temp[6];
-    colors_[base + 1] = temp[3];
-    colors_[base + 2] = temp[0];
-    colors_[base + 3] = temp[7];
-    colors_[base + 4] = temp[4];
-    colors_[base + 5] = temp[1];
-    colors_[base + 6] = temp[8];
-    colors_[base + 7] = temp[5];
-    colors_[base + 8] = temp[2];
-  } else {
-    colors_[base + 0] = temp[2];
-    colors_[base + 1] = temp[5];
-    colors_[base + 2] = temp[8];
-    colors_[base + 3] = temp[1];
-    colors_[base + 4] = temp[4];
-    colors_[base + 5] = temp[7];
-    colors_[base + 6] = temp[0];
-    colors_[base + 7] = temp[3];
-    colors_[base + 8] = temp[6];
-  }
-
-  // Rotate surrounding edge stickers
-  int idx[4][3];
-  char buffer[12];
-
-  auto set_edge = [&](int a, int b, int c, int i) {
-    idx[i][0] = a;
-    idx[i][1] = b;
-    idx[i][2] = c;
-  };
-
-  // Define edges based on face
-  if (face == 'u') {
-    set_edge(36, 37, 38, 0);
-    set_edge(18, 19, 20, 1);
-    set_edge(9, 10, 11, 2);
-    set_edge(45, 46, 47, 3);
-  } else if (face == 'd') {
-    set_edge(24, 25, 26, 0);
-    set_edge(42, 43, 44, 1);
-    set_edge(51, 52, 53, 2);
-    set_edge(15, 16, 17, 3);
-  } else if (face == 'f') {
-    set_edge(6, 7, 8, 0);
-    set_edge(36 + 8, 36 + 5, 36 + 2, 1);
-    set_edge(27 + 2, 27 + 1, 27 + 0, 2);
-    set_edge(9 + 0, 9 + 3, 9 + 6, 3);
-  } else if (face == 'b') {
-    set_edge(0, 1, 2, 0);
-    set_edge(9 + 8, 9 + 5, 9 + 2, 1);
-    set_edge(27 + 8, 27 + 7, 27 + 6, 2);
-    set_edge(36 + 0, 36 + 3, 36 + 6, 3);
-  } else if (face == 'l') {
-    set_edge(0, 3, 6, 0);
-    set_edge(18 + 0, 18 + 3, 18 + 6, 1);
-    set_edge(27 + 0, 27 + 3, 27 + 6, 2);
-    set_edge(45 + 8, 45 + 5, 45 + 2, 3);
-  } else if (face == 'r') {
-    set_edge(2, 5, 8, 0);
-    set_edge(45 + 6, 45 + 3, 45 + 0, 1);
-    set_edge(27 + 2, 27 + 5, 27 + 8, 2);
-    set_edge(18 + 2, 18 + 5, 18 + 8, 3);
-  } else {
-    return;
-  }
-
-  // Backup
-  for (int i = 0; i < 4; i++)
-    for (int j = 0; j < 3; j++)
-      buffer[i * 3 + j] = colors_[idx[i][j]];
-
-  // Apply rotation
-  for (int i = 0; i < 4; i++)
-    for (int j = 0; j < 3; j++) {
-      int src = clockwise ? (i + 3) % 4 : (i + 1) % 4;
-      colors_[idx[i][j]] = buffer[src * 3 + j];
+    int base = face_base_index_(face);
+    if (base < 0) {
+        serial_printf("ERR invalid face %c\n", face);
+        return;
     }
+
+    // ------------------------------------------------------------
+    // 1. Rotate the face (3x3 matrix) - This part was correct.
+    // ------------------------------------------------------------
+    char t[9];
+    memcpy(t, &colors_[base], 9);
+
+    if (cw) {
+        // clockwise: 0->6, 1->3, 2->0, 3->7, 4->4, 5->1, 6->8, 7->5, 8->2
+        colors_[base+0] = t[6]; colors_[base+1] = t[3]; colors_[base+2] = t[0];
+        colors_[base+3] = t[7]; colors_[base+4] = t[4]; colors_[base+5] = t[1];
+        colors_[base+6] = t[8]; colors_[base+7] = t[5]; colors_[base+8] = t[2];
+    } else {
+        // counter-clockwise: 0->2, 1->5, 2->8, 3->1, 4->4, 5->7, 6->0, 7->3, 8->6
+        colors_[base+0] = t[2]; colors_[base+1] = t[5]; colors_[base+2] = t[8];
+        colors_[base+3] = t[1]; colors_[base+4] = t[4]; colors_[base+5] = t[7];
+        colors_[base+6] = t[0]; colors_[base+7] = t[3]; colors_[base+8] = t[6];
+    }
+
+    // ------------------------------------------------------------
+    // 2. Surrounding edges (the "ring")
+    // ------------------------------------------------------------
+    int idx[4][3];
+
+    auto set3 = [&](int i, int a, int b, int c) {
+        idx[i][0] = a;
+        idx[i][1] = b;
+        idx[i][2] = c;
+    };
+
+    // Assuming the standard U=0, R=9, F=18, D=27, L=36, B=45 index map.
+    // Neighbors are listed in clockwise order around the face.
+    
+    if (face == 'u') {
+        // F top → R top → B top → L top
+        set3(0, 18,19,20);  // F0, F1, F2
+        set3(1, 9,10,11);   // R0, R1, R2
+        set3(2, 45,46,47);  // B0, B1, B2
+        set3(3, 36,37,38);  // L0, L1, L2
+    } else if (face == 'd') {
+        // F bottom → L bottom → B bottom → R bottom
+        set3(0, 24,25,26);  // F6, F7, F8
+        set3(1, 42,43,44);  // L6, L7, L8
+        set3(2, 51,52,53);  // B6, B7, B8
+        set3(3, 15,16,17);  // R6, R7, R8
+    } else if (face == 'f') {
+        // U bottom → R left column → D top (reversed) → L right column
+        set3(0, 6,7,8);     // U6, U7, U8
+        set3(1, 9,12,15);   // R0, R3, R6
+        set3(2, 29,28,27);  // D2, D1, D0 (Reversed)
+        set3(3, 38,41,44);  // L2, L5, L8
+    } else if (face == 'b') {
+        // U top (reversed) → L left column → D bottom → R right column (reversed)
+        set3(0, 2,1,0);     // U2, U1, U0 (Reversed)
+        set3(1, 36,39,42);  // L0, L3, L6
+        set3(2, 33,34,35);  // D6, D7, D8
+        set3(3, 17,14,11);  // R8, R5, R2 (Reversed)
+    } else if (face == 'l') {
+        // U left col → B right col (reversed) → D left col → F left col
+        set3(0, 0,3,6);     // U0, U3, U6
+        set3(1, 53,50,47);  // B8, B5, B2 (Reversed)
+        set3(2, 27,30,33);  // D0, D3, D6
+        set3(3, 18,21,24);  // F0, F3, F6
+    } else if (face == 'r') {
+        // U right col → F right col → D right col → B left col (reversed)
+        set3(0, 2,5,8);     // U2, U5, U8
+        set3(1, 20,23,26);  // F2, F5, F8
+        set3(2, 29,32,35);  // D2, D5, D8
+        set3(3, 51,48,45);  // B6, B3, B0 (Reversed)
+    } else {
+        return;
+    }
+
+    // ------------------------------------------------------------
+    // 3. Perform the 4x3 edge cycle - This part was correct.
+    // ------------------------------------------------------------
+    char buf[12];
+
+    // Store stickers *before* the cycle
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 3; j++)
+            buf[i*3 + j] = colors_[idx[i][j]];
+
+    // Move stickers: source (src) to destination (i)
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 3; j++) {
+            // Source is (i - 1) mod 4 for CW, (i + 1) mod 4 for CCW
+            int src = cw ? (i + 3) % 4 : (i + 1) % 4;
+            colors_[idx[i][j]] = buf[src*3 + j];
+        }
 }
 
 // ============================================================
@@ -232,7 +243,7 @@ void CubeColorReader::apply_moves(const String &moves) {
 
     // Validate token using your single source of truth
     if (!is_valid_move(token)) {
-      serial_printf("Invalid move: %s\n", token.c_str());
+      serial_printf("ERR invalid move: %s\n", token.c_str());
       continue;
     }
 
@@ -241,7 +252,7 @@ void CubeColorReader::apply_moves(const String &moves) {
     char face = tolower(token[0]);
     char dir = token[1];
 
-    rotate_face(face, dir);
+    rotate_face(tolower(face), dir);
     serial_printf_verbose("applied move: %c%c\n", tolower(face), dir);
     print_cube_colors_string();
   }
@@ -519,22 +530,21 @@ bool CubeColorReader::process_step_(int step_index,
     apply_slot_to_face_(F, slot, color, mirrored);
 
     // log single read
-    serial_printf("   ---%d %c%d c=%c  ",
-                  step_index,
-                  F,
-                  slot,
-                  color);
-    print_face_compact_(F);
-    serial_printf("\n");
+    serial_printf_verbose("   ---%d %c%d c=%c\n",
+                          step_index,
+                          F,
+                          slot,
+                          color);
+    print_face_compact(F);
   }
 
   // log completion of this step for this face
-  serial_printf("[step %d] move=%s ",
+  serial_printf("[step %d] move=%s\n",
                 step_index,
                 robot_move ? robot_move : "",
                 F);
-  print_face_compact_(F);
-  serial_printf("\n");
+  print_face_compact(F);
+  serial_printf("COLORSREAD cube_colors=%s\n", get_cube_colors_string().c_str());
 
   return true;
 }
@@ -564,7 +574,7 @@ bool CubeColorReader::read_full_cube() {
       ori_.restore_cube_orientation();
       return false;
     }
-    serial_printf("[step %d] completed\n");
+    serial_printf("[step %d] completed\n", i);
     ori.print_orientation_string();
     print_cube_colors_string();
   }

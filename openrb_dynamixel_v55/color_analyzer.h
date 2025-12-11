@@ -7,23 +7,28 @@ public:
   ColorAnalyzer();
 
   // ----------------------------------------------------------
-  // Color string access
+  // Color string access (54 chars, URFDLB, row-major per face)
   // ----------------------------------------------------------
   void set_colors(const String &colors);
-  const String& get_colors() const { return colors_; }
+  const String &get_colors() const { return colors_; }
 
   // ----------------------------------------------------------
   // Validation / fixing
   // ----------------------------------------------------------
+  // Fully legal Rubik cube state? (centers, counts, edges, corners)
   bool is_color_string_valid_bool() const;
-  bool is_string_fixable_bool() const;                    // true if already valid OR 1-sticker-fixable
 
-  // If valid -> returns same string in fixed_out.
-  // If 1-change fixable -> returns corrected string in fixed_out.
-  // Else -> returns false.
+  // True if current string is already valid OR can be fixed by changing
+  // exactly one sticker to one of the 6 center colors.
+  bool is_string_fixable_bool() const;
+
+  // If already valid -> fixed_out = original, return true.
+  // If can be fixed by changing exactly 1 sticker -> fixed_out = fixed string, return true.
+  // Else return false.
   bool try_fix_color_string(String &fixed_out) const;
 
-  String get_string_check_log() const;                    // human readable explanation
+  // Human-readable diagnostic: "OK", or detailed explanation why invalid
+  String get_string_check_log() const;
 
   // ----------------------------------------------------------
   // Stages (0..6)
@@ -36,13 +41,14 @@ public:
   // 5: bottom face
   // 6: cube solved
   int get_stage_count() const { return 7; }
-  const char* get_stage_name(int id) const;
+  const char *get_stage_name(int id) const;
 
   bool is_stage_done_bool(int id) const;
   bool is_stage_partial_bool(int id) const;
 
 private:
-  String colors_;   // 54 chars
+  String colors_;      // length 54, URFDLB, row-major per face
+  mutable String last_error_;  // for detailed diagnostics
 
   // ----------------------------------------------------------
   // Index helpers
@@ -53,9 +59,6 @@ private:
   char face_center_color_from(const String &s, char face) const {
     return s[base_index(face) + 4];
   }
-
-  // For a global index 0..53, which face is it on?
-  char face_of_index(int idx) const;
 
   // ----------------------------------------------------------
   // Stages implementation
