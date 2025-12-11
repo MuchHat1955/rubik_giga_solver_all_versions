@@ -186,7 +186,7 @@ bool cmd_getori_data(int argc, double *argv) {
   ori.print_orientation_string();
   String log = ori.get_move_log();
   serial_printf("ori move log= %s\n", log.c_str());
-  print_colors_detail();
+  print_colors_detail("get ori data");
 
   return true;
 }
@@ -1000,9 +1000,10 @@ bool robot_move_callback(const String &mv) {
 
 //---------------------------------------------------------------------------
 
-void print_colors_detail() {
+void print_colors_detail(char *txt) {
   String all54 = color_reader.get_cube_colors_string();
-  // serial_printf("cube_colors=%s\n", all54.c_str());
+  serial_printf("[color analyzer start] color details for [%s]\n", txt);
+  serial_printf("[color analyzer] cube_colors=%s\n", all54.c_str());
 
   color_analyzer.set_colors(all54);
   bool valid_colors = color_analyzer.is_color_string_valid_bool();
@@ -1020,7 +1021,17 @@ void print_colors_detail() {
     } else {
       serial_printf("[color analyzer] color string cannot be fixed\n");
     }
+  } else {
+    // show the stage
+    for (int s = 0; s < color_analyzer.get_stage_count(); s++) {
+      serial_printf("[color analyzer] solving status based on color string\n");
+      String state = "...";
+      if (color_analyzer.is_stage_done_bool(s)) state = "done";
+      else if (color_analyzer.is_stage_partial_bool(s)) state = "partial";
+      serial_printf("%d) %s:%s\n", s, color_analyzer.get_stage_name(s), state.c_str());
+    }
   }
+  serial_printf("[color analyzer end] color details for [%s]\n", txt);
 }
 
 // Your callback implementation
@@ -1035,6 +1046,7 @@ bool cmd_read_cube_colors(int argc, double *argv) {
   String all54 = color_reader.get_cube_colors_string();
   serial_printf("before read cube_colors= %s\n", all54.c_str());
   color_reader.print_cube_colors_string();
+  print_colors_detail("before read cube colors");
 
   ori.clear_orientation_data();
   ori.clear_move_log();
@@ -1049,7 +1061,7 @@ bool cmd_read_cube_colors(int argc, double *argv) {
     Serial.println("ERR: read_full_cube failed");
     return false;
   }
-  print_colors_detail();
+  print_colors_detail("after read cube colors");
   return true;
 }
 
@@ -1064,7 +1076,7 @@ bool cmd_getcolor_data(int argc, double *argv) {
   color_reader.print_face_compact('b');
   color_reader.print_cube_colors_string();
 
-  print_colors_detail();
+  print_colors_detail("get color data");
   return true;
 }
 

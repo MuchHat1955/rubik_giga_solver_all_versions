@@ -93,4 +93,4 @@ bool cmd_read_one_face_colors(int argc, double *argv);
 
 bool cmd_getcolor_data(int argc, double *argv);
 
-void print_colors_detail();
+void print_colors_detail(char * txt);

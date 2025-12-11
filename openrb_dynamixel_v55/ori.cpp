@@ -483,14 +483,8 @@ bool CubeOri::cube_move(const String &moves_str) {
     }
     color_reader.apply_moves(t);
 
-    // show the stage
-    for (int s = 0; s < color_analyzer.get_stage_count(); s++) {
-      String state = "...";
-      if (color_analyzer.is_stage_done_bool(s)) state = "done";
-      else if (color_analyzer.is_stage_partial_bool(s)) state = "partial";
-      serial_printf("%d) %s:%s\n", s, color_analyzer.get_stage_name(s), state.c_str());
-    }
-    print_colors_detail();
+    String txt = "after cube move [" + moves_str + "]";
+    print_colors_detail((char *)txt.c_str());
   }
   serial_printf_verbose("[cube_move] done\n");
   return true;
