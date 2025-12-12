@@ -21,7 +21,7 @@ public:
   void clear();
   bool read_cube_full();
   bool read_cube_bottom();
-  bool fill_solved_cube();
+  void fill_solved_cube();
 
   String get_cube_colors_string() const;
   void apply_moves(const String &moves);
@@ -35,9 +35,10 @@ private:
   char colors_[54];  // u r f d l b, 9 stickers each
 
   void fill_unknown_();
+  void fill_solved_cube_top2layers_();
   void apply_slot_to_face_(char face, int slot, char color, bool mirrored);
   int face_base_index_(char face) const;
-  bool read_cube(const color_map_step_t *map_steps, int steps_count, bool prefill_as_solved);
+  bool read_cube(bool all_cube_vs_just_bottom_layer);
 
   bool process_step_(int step_index,
                      const char *robot_move,

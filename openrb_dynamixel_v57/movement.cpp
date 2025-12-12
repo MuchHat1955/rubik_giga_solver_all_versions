@@ -872,7 +872,7 @@ bool move_smooth_v2() {
         lastPos = p;
       }
 
-      if(!safe_delay(5, { id }))return false;
+      if (!safe_delay(5, { id })) return false;
     }
   }
 
@@ -892,7 +892,7 @@ bool move_smooth_v2() {
                               id, diff);
         dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION,
                                   id, goalTicks[i]);
-        if(!safe_delay(50, { id }))return false;
+        if (!safe_delay(50, { id })) return false;
       }
     }
   }
@@ -1014,7 +1014,7 @@ bool cmdMoveGripperClamp() {
 
         delay(2);  // faster update
       }
-      if(!safe_delay(50, { ID_GRIP1, ID_GRIP2 }))return false;
+      if (!safe_delay(50, { ID_GRIP1, ID_GRIP2 })) return false;
 
       // freeze AFTER marking touch (faster syncing)
       if (touched1) {
@@ -1049,6 +1049,14 @@ bool cmdMoveGripperClamp() {
 
     return (touched1 && touched2);
   }
+}
+
+bool isGripperOpen(double min_open) {
+  if (!dxl.ping(ID_GRIP1) || !dxl.ping(ID_GRIP2)) return false;
+  double g1_pos = getPos_per(ID_GRIP1);
+  double g2_pos = getPos_per(ID_GRIP1);
+  if (g1_pos < min_open + 3 && g2_pos < min_open + 3) return true;
+  return false;
 }
 
 bool cmdMoveGripperPer(double goal_per) {

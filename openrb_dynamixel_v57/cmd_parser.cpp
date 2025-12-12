@@ -475,7 +475,9 @@ bool prepBaseForRotation(double nextBaseMoveRelative) {
   // serial_printf_verbose("***** prep base for rotation move to center\n");
 
   if (!cmdMoveXmm(X_CENTER)) return false;
-  if (!cmdMoveGripperPer(G_OPEN)) return false;
+  if (!isGripperOpen(G_OPEN)) {
+    if (!cmdMoveGripperPer(G_OPEN)) return false;
+  }
   if (!cmdMoveYmm(Y_CENTER)) return false;
   if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
   if (!cmdMoveGripperClamp()) return false;
@@ -552,6 +554,7 @@ bool rotateBaseRelative(double baseMoveRelative, bool gripperOn = false) {
   // serial_printf_verbose("***** rotate base to next move %.2f\n", baseNextMove);
 
   if (!gripperOn) {
+    if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveYmm(Y_ROTATE_BASE)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
   }
@@ -716,7 +719,9 @@ bool cmd_run(int argc, double *argv) {
     if (!prepBaseForRotation(B_LEFT)) return false;   // align on a random place
     if (!prepBaseForRotation(B_RIGHT)) return false;  // align on a random place to ensure it cab be aligned center
     if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
-    if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
+    if (!isGripperOpen(G_WIDE_OPEN)) {
+      if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
+    }
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!rotateBaseRelative(B_CENTER)) return false;
     if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
@@ -1082,8 +1087,9 @@ bool cmd_read_cube_colors_string(const String &mode_in) {
     ok = color_reader.read_cube_full();
   } else if (do_solved) {
     serial_printf("READCOLORS solved (no scan)\n");
-    ok = color_reader.fill_solved_cube();
-  } else {
+    color_reader.fill_solved_cube();
+    ok = true;
+  } else if (do_bottom) {
     serial_printf("READCOLORS bottom\n");
     ok = color_reader.read_cube_bottom();
   }

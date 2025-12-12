@@ -336,7 +336,7 @@ static const color_map_step_t k_color_map_steps_all[] = {
   //   L  F  R  B  [not inverted] F-U edge is up
   //      D
   // -----------------------------------------------------------
-  { "none", "f", not_inverted, "236541" },
+  { "none", "f", not_inverted, "145632" },
 
   // -----------------------------------------------------------
   // 1) y_minus
@@ -346,7 +346,7 @@ static const color_map_step_t k_color_map_steps_all[] = {
   //   F  R  B  L  [not inverted] R-U edge is up
   //      D
   // -----------------------------------------------------------
-  { "y_plus", "r", not_inverted, "236541" },
+  { "y_plus", "r", not_inverted, "145632" },
 
   // -----------------------------------------------------------
   // 2) y_minus
@@ -356,7 +356,7 @@ static const color_map_step_t k_color_map_steps_all[] = {
   //   R  B  L  F  [not inverted] B-U edge is up
   //      D
   // -----------------------------------------------------------
-  { "y_plus", "b", not_inverted, "236541" },
+  { "y_plus", "b", not_inverted, "145632" },
 
   // -----------------------------------------------------------
   // 3) y_minus
@@ -366,7 +366,7 @@ static const color_map_step_t k_color_map_steps_all[] = {
   //   B  L  F  R  [not inverted] L-U edge is up
   //      D
   // -----------------------------------------------------------
-  { "y_plus", "l", not_inverted, "236541" },
+  { "y_plus", "l", not_inverted, "145632" },
 
   // -----------------------------------------------------------
   // 4) z_180
@@ -434,7 +434,7 @@ static const color_map_step_t k_color_map_steps_all[] = {
   //   L  D  R  U  [not inverted] D-F edge is up
   //      B
   //   -----------------------------------------------------------
-  { "z_plus", "d", not_inverted, "236541" },
+  { "z_plus", "d", not_inverted, "145632" },
 
   // -----------------------------------------------------------
   // 10) y_180
@@ -454,7 +454,7 @@ static const color_map_step_t k_color_map_steps_all[] = {
   //   L  U  R  D  [not inverted] U-B edge is up
   //      F
   // -----------------------------------------------------------
-  { "z_180", "u", not_inverted, "236541" },
+  { "z_180", "u", not_inverted, "145632" },
 
   // -----------------------------------------------------------
   // 12) y_180
@@ -468,7 +468,7 @@ static const color_map_step_t k_color_map_steps_all[] = {
 };
 
 static const int k_num_color_map_steps_all =
-  sizeof(k_num_color_map_steps_all) / sizeof(k_color_map_steps_all[0]);
+  sizeof(k_color_map_steps_all) / sizeof(k_color_map_steps_all[0]);
 
 static const color_map_step_t k_color_map_steps_bottom[] = {
 
@@ -481,7 +481,7 @@ static const color_map_step_t k_color_map_steps_bottom[] = {
   //      U
   //
   // -----------------------------------------------------------
-  { "z_180", "f", inverted, "321" },
+  { "z_180", "f", inverted, "132" },
 
   // -----------------------------------------------------------
   // 2) y_plus
@@ -492,7 +492,7 @@ static const color_map_step_t k_color_map_steps_bottom[] = {
   //      U
   //
   // -----------------------------------------------------------
-  { "y_plus", "l", inverted, "321" },
+  { "y_plus", "l", inverted, "132" },
 
   // -----------------------------------------------------------
   // 3) y_plus
@@ -503,7 +503,7 @@ static const color_map_step_t k_color_map_steps_bottom[] = {
   //      U
   //
   // -----------------------------------------------------------
-  { "y_plus", "b", not_inverted, "321" },
+  { "y_plus", "b", inverted, "132" },
 
   // -----------------------------------------------------------
   // 4) y_plus
@@ -514,7 +514,7 @@ static const color_map_step_t k_color_map_steps_bottom[] = {
   //      U
   //
   // -----------------------------------------------------------
-  { "y_plus", "r", not_inverted, "321" },
+  { "y_plus", "r", inverted, "132" },
 
   // -----------------------------------------------------------
   // 4) z_plus
@@ -536,10 +536,10 @@ static const color_map_step_t k_color_map_steps_bottom[] = {
   //      F
   //
   // -----------------------------------------------------------
-  { "y_plus", "d", inverted, "321" },
+  { "y_plus", "d", inverted, "132" },
 
   // -----------------------------------------------------------
-  // 5) y_180
+  // 5) z_180
   //
   // --- orintentation after the step --------------------------
   //      F
@@ -547,11 +547,12 @@ static const color_map_step_t k_color_map_steps_bottom[] = {
   //      B
   //
   // -----------------------------------------------------------
-  { "y_180", "d", inverted, "236541" }  // end
+  { "z_180", "d", not_inverted, "145632" }  // end
 };
 
+
 static const int k_num_color_map_steps_bottom =
-  sizeof(k_num_color_map_steps_bottom) / sizeof(k_color_map_steps_bottom[0]);
+  sizeof(k_color_map_steps_bottom) / sizeof(k_color_map_steps_bottom[0]);
 
 // ============================================================
 // One step processor
@@ -612,35 +613,62 @@ bool CubeColorReader::process_step_(int step_index,
 // Perform full scan
 // ============================================================
 bool CubeColorReader::read_cube_full() {
-  return read_cube(k_color_map_steps_all, k_num_color_map_steps_all, false);
+  return read_cube(true);
 }
 bool CubeColorReader::read_cube_bottom() {
-  return read_cube(k_color_map_steps_bottom, k_num_color_map_steps_bottom, true);
+  return read_cube(false);
 }
 
-bool CubeColorReader::read_cube(const color_map_step_t *map_steps, int steps_count, bool prefill_as_solved) {
+bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
   if (!cb_) {
     serial_printf("ERR color reader: no callback\n");
     return false;
   }
+  int total_steps = 0;
+  if (mode_all_vs_bottom) total_steps = k_num_color_map_steps_all;
+  else total_steps = k_num_color_map_steps_bottom;
 
-  if (!prefill_as_solved) fill_unknown_();
-  else fill_solved_cube();
+  if (total_steps < 1) {
+    serial_printf("ERR color reader: step count=%d\n", total_steps);
+    return false;
+  }
 
-  serial_printf("color reader start - orientation cleared\n");
+  serial_printf("color reader start - steps=%d, mode=%s\n", total_steps, mode_all_vs_bottom ? "all" : "bottom");
+  if (mode_all_vs_bottom) fill_unknown_();
+  else fill_solved_cube_top2layers_();
+
+  serial_printf("color reader - orientation cleared\n");
   // Ensure orientation is clear
   ori_.clear_orientation_data();
 
-  for (int i = 0; i < steps_count; i++) {
-    const auto &s = map_steps[i];
-    if (!process_step_(i, s.robot_move, s.face, s.mirrored, s.order)) {
-      serial_printf("ERR color reader: step %d failed\n", i);
-      ori_.restore_cube_orientation();
-      return false;
+  if (mode_all_vs_bottom) {
+    // ~~~~~~~~~~~~~~~~ start all cube ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    for (int i = 0; i < total_steps; i++) {
+      const auto &s = k_color_map_steps_all[i];
+      if (!process_step_(i, s.robot_move, s.face, s.mirrored, s.order)) {
+        serial_printf("ERR color reader: step %d/%d failed\n", i, total_steps);
+        ori_.restore_cube_orientation();
+        return false;
+      }
+      serial_printf("[step %d/%d] completed\n", i, total_steps);
+      ori.print_orientation_string();
+      print_cube_colors_string();
     }
-    serial_printf("[step %d] completed\n", i);
-    ori.print_orientation_string();
-    print_cube_colors_string();
+    // ~~~~~~~~~~~~~~~~ end all cube ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  } else {
+    // ~~~~~~~~~~~~~~~~ start just bottom layer ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    for (int i = 0; i < total_steps; i++) {
+      const auto &s = k_color_map_steps_bottom[i];
+      if (!process_step_(i, s.robot_move, s.face, s.mirrored, s.order)) {
+        serial_printf("ERR color reader: step %d/%d failed\n", i, total_steps);
+        ori_.restore_cube_orientation();
+        return false;
+      }
+      serial_printf("[step %d/%d] completed\n", i, total_steps);
+      ori.print_orientation_string();
+      print_cube_colors_string();
+    }
+    // ~~~~~~~~~~~~~~~~ end just bottom layer ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   }
   serial_printf("color read completed\n");
   serial_printf("color reader end - orientation restore\n");
@@ -746,9 +774,19 @@ static const char solved_54[55] =
   "RRRRRRRRR"
   "GGGGGGGGG";
 
-bool CubeColorReader::fill_solved_cube() {
+static const char solved_top2layers_54[55] =
+  "WWWWWWWWW"
+  "OOOOOO..."
+  "BBBBBB..."
+  "........."
+  "RRRRRR..."
+  "GGGGGG...";
+
+void CubeColorReader::fill_solved_cube() {
   memcpy(colors_, solved_54, 54);
-  return true;
+}
+void CubeColorReader::fill_solved_cube_top2layers_() {
+  memcpy(colors_, solved_top2layers_54, 54);
 }
 
 CubeColorReader color_reader(ori, read_one_color_cb);

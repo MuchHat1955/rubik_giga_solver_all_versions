@@ -135,5 +135,6 @@ void read_print_xy_status();
 void print_all_status();
 
 bool robot_move_callback(const String& mv);
+bool isGripperOpen(double min_open);
 
 #endif  // MOVEMENT_H
