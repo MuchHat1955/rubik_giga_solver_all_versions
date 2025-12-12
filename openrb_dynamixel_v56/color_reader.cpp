@@ -4,7 +4,6 @@
 #include "ori.h"
 
 extern CubeOri ori;
-extern char crrColorChar;
 
 // ============================================================
 // Constructor
@@ -325,17 +324,11 @@ if (move.equalsIgnoreCase("z_plus")) {
 // ============================================================
 // Mapping table (with explicit mirrored flag)
 // ============================================================
-struct color_map_step_t {
-  const char *robot_move;  // movement: "y_plus", "y_minus", "z_minus", "y_180", …
-  const char *face;        // face to read: "f","r","u","", …
-  bool mirrored;           // true = bottom band (mirror), false = normal
-  const char *order;       // slot order: "236541" or "231"
-};
 
 bool not_inverted = false;
 bool inverted = true;
 
-static const color_map_step_t k_color_map_steps[] = {
+static const color_map_step_t k_color_map_steps_all[] = {
 
   // -----------------------------------------------------------
   // 0) none
@@ -471,41 +464,94 @@ static const color_map_step_t k_color_map_steps[] = {
   //   R  D  L  U [inverted] D-F edge is down
   //      F
   // -----------------------------------------------------------
-  { "y_180", "d", inverted, "231" },
+  { "y_180", "d", inverted, "231" }  // end
+};
+
+static const int k_num_color_map_steps_all =
+  sizeof(k_num_color_map_steps_all) / sizeof(k_color_map_steps_all[0]);
+
+static const color_map_step_t k_color_map_steps_bottom[] = {
 
   // -----------------------------------------------------------
-  // 13) y_minus
+  // 1) z_180
+  //
+  // --- orintentation after the step --------------------------
+  //      D
+  //   R  F  L  B  [inverted] F-U edge is down
+  //      U
+  //
+  // -----------------------------------------------------------
+  { "z_180", "f", inverted, "321" },
+
+  // -----------------------------------------------------------
+  // 2) y_plus
+  //
+  // --- orintentation after the step --------------------------
+  //      D
+  //   F  L  B  R  [inverted] U-L edge is down
+  //      U
+  //
+  // -----------------------------------------------------------
+  { "y_plus", "l", inverted, "321" },
+
+  // -----------------------------------------------------------
+  // 3) y_plus
+  //
+  // --- orintentation after the step --------------------------
+  //      D
+  //   L  B  R  F  [inverted] U-B edge is down
+  //      U
+  //
+  // -----------------------------------------------------------
+  { "y_plus", "b", not_inverted, "321" },
+
+  // -----------------------------------------------------------
+  // 4) y_plus
+  //
+  // --- orintentation after the step --------------------------
+  //      D
+  //   B  R  F  L  [inverted] U-R edge is down
+  //      U
+  //
+  // -----------------------------------------------------------
+  { "y_plus", "r", not_inverted, "321" },
+
+  // -----------------------------------------------------------
+  // 4) z_plus
   //
   // --- orintentation after the step --------------------------
   //      B
-  //   D  L  U  R  [reposition]
+  //   U  R  D  L  [reposition]
   //      F
+  //
   // -----------------------------------------------------------
-  { "y_plus", "", not_inverted, "" },
+  { "z_plus", "", not_inverted, "" },
 
   // -----------------------------------------------------------
+  // 5) y_plus
   //
   // --- orintentation after the step --------------------------
-  // 14) z_minus
-  //      U
-  //   B  L  F  R  [reposition]
-  //      D
+  //      B
+  //   R  D  L  U   [inverted] D-F edge is down
+  //      F
+  //
   // -----------------------------------------------------------
-  { "z_minus", "", not_inverted, "" },
+  { "y_plus", "d", inverted, "321" },
 
   // -----------------------------------------------------------
-  // 15) y_minus
+  // 5) y_180
   //
   // --- orintentation after the step --------------------------
-  //      U
-  //   L  F  R  B  [reposition]
-  //      D
+  //      F
+  //   L  D  R  U   [not inverted] D-F edge is up
+  //      B
+  //
   // -----------------------------------------------------------
-  { "y_plus", "", not_inverted, "" },
+  { "y_180", "d", inverted, "236541" }  // end
 };
 
-static const int k_num_color_map_steps =
-  sizeof(k_color_map_steps) / sizeof(k_color_map_steps[0]);
+static const int k_num_color_map_steps_bottom =
+  sizeof(k_num_color_map_steps_bottom) / sizeof(k_color_map_steps_bottom[0]);
 
 // ============================================================
 // One step processor
@@ -565,23 +611,28 @@ bool CubeColorReader::process_step_(int step_index,
 // ============================================================
 // Perform full scan
 // ============================================================
-bool CubeColorReader::read_full_cube() {
+bool CubeColorReader::read_cube_full() {
+  return read_cube(k_color_map_steps_all, k_num_color_map_steps_all, false);
+}
+bool CubeColorReader::read_cube_bottom() {
+  return read_cube(k_color_map_steps_bottom, k_num_color_map_steps_bottom, true);
+}
+
+bool CubeColorReader::read_cube(const color_map_step_t *map_steps, int steps_count, bool prefill_as_solved) {
   if (!cb_) {
     serial_printf("ERR color reader: no callback\n");
     return false;
   }
 
-  fill_unknown_();
+  if (!prefill_as_solved) fill_unknown_();
+  else fill_solved_cube();
 
-  serial_printf("color reader start - orientation restore\n");
-  // Ensure starting orientation
-  if (!ori_.restore_cube_orientation()) {
-    serial_printf("ERR color reader: initial restore failed\n");
-    return false;
-  }
+  serial_printf("color reader start - orientation cleared\n");
+  // Ensure orientation is clear
+  ori_.clear_orientation_data();
 
-  for (int i = 0; i < k_num_color_map_steps; i++) {
-    const auto &s = k_color_map_steps[i];
+  for (int i = 0; i < steps_count; i++) {
+    const auto &s = map_steps[i];
     if (!process_step_(i, s.robot_move, s.face, s.mirrored, s.order)) {
       serial_printf("ERR color reader: step %d failed\n", i);
       ori_.restore_cube_orientation();
@@ -675,241 +726,28 @@ void CubeColorReader::print_cube_colors_string() {
   }
 }
 
-void CubeColorReader::fill_solved_cube() {
-  static const char solved[54] = {
-    // U: white
-    'W', 'W', 'W', 'W', 'W', 'W', 'W', 'W', 'W',
-    // R: red
-    'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R',
-    // F: green
-    'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G',
-    // D: yellow
-    'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y',
-    // L: orange
-    'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O',
-    // B: blue
-    'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B'
-  };
+// ============================================================
+// SOLVED cube template
+// ============================================================
 
-  for (int i = 0; i < 54; i++)
-    colors_[i] = solved[i];
-}
+// Faces:
+//   U: indices  0.. 8
+//   R: indices  9..17
+//   F: indices 18..26
+//   D: indices 27..35
+//   L: indices 36..44
+//   B: indices 45..53
 
-// ------------------------------------------------------------
-// Predefined solved cube (URFDLB orientation)
-// ------------------------------------------------------------
-static const char SOLVED_54[55] =
-  "UUUUUUUUU"   // U = white
-  "RRRRRRRRR"   // R = red
-  "GGGGGGGGG"   // F = green
-  "YYYYYYYYY"   // D = yellow
-  "OOOOOOOOO"   // L = orange
-  "BBBBBBBBB";  // B = blue
+static const char solved_54[55] =
+  "WWWWWWWWW"
+  "OOOOOOOOO"
+  "BBBBBBBBB"
+  "YYYYYYYYY"
+  "RRRRRRRRR"
+  "GGGGGGGGG";
 
-// ------------------------------------------------------------
-// Helper: copy solved stickers into selected face positions
-// ------------------------------------------------------------
-void CubeColorReader::fill_face_from_solved_(char face, int row_start, int row_end) {
-  int base = face_base_index_(face);
-  int sbase = base;  // same layout in SOLVED_54
-
-  for (int row = row_start; row <= row_end; row++) {
-    for (int col = 0; col < 3; col++) {
-      int idx = base + row * 3 + col;
-      colors_[idx] = SOLVED_54[sbase + row * 3 + col];
-    }
-  }
-}
-
-// ------------------------------------------------------------
-// Validate robot orientation before partial read
-// Expectation: CubeOri must be identity (U=up, F=front, R=right)
-// ------------------------------------------------------------
-bool CubeColorReader::check_alignment_for_partial_() {
-  CubeOri::Orientation ideal;
-  ideal.U = 'u';
-  ideal.R = 'r';
-  ideal.F = 'f';
-  ideal.D = 'd';
-  ideal.L = 'l';
-  ideal.B = 'b';
-
-  // get current CubeOri orientation
-  CubeOri::Orientation cur = ori_.get_orientation();
-
-  if (!ori_.is_orientation_equal(ideal)) {
-    serial_printf("ERR: cube misalignment detected before partial read\n");
-    serial_printf("Current ori = %s\n", ori_.get_orientation_string().c_str());
-    return false;
-  }
-
-  return true;
-}
-
-// ------------------------------------------------------------
-// MAIN ENTRY: partial cube read
-// read_bottom: read row 6,7,8 on all faces (D layer, bottom ring)
-// read_mid:    read row 3,4,5 on all faces (middle layer ring)
-// missing rows are filled with solved values
-// ------------------------------------------------------------
-bool CubeColorReader::read_partial_cube(bool read_bottom, bool read_mid) {
-  fill_unknown_();
-
-  // Detect impossible combinations (misaligned cube)
-  if (!check_alignment_for_partial_()) {
-    return false;
-  }
-
-  // If NOTHING requested → fill full solved cube
-  if (!read_bottom && !read_mid) {
-    memcpy(colors_, SOLVED_54, 54);
-    serial_printf("partial read: no scan → using solved cube\n");
-    return true;
-  }
-
-  // Start with solved cube as base
-  memcpy(colors_, SOLVED_54, 54);
-
-  // --------------------------------------------------------
-  // PHYSICAL SCANNING
-  // The robot will read only the desired layers.
-  // After each face read, we place readings in correct stickers.
-  // --------------------------------------------------------
-  auto read_face_layer = [&](char face, bool bottom, bool mid) {
-    String faceColors = "";
-
-    // 6 stickers readable from sensor: slots 1..6
-    // Order used by your cmd_read_one_face_colors:
-    // Desired order = 1,2,3,6,5,4
-    const int readOrder[6] = { 1, 2, 3, 6, 5, 4 };
-    char tmp[7];  // tmp[1..6]
-
-    // Perform the reading
-    for (int i = 0; i < 6; i++) {
-      double slot = readOrder[i];
-      crrColorChar = '.';
-      bool ok = cmd_read_one_color(1, &slot);
-      tmp[readOrder[i]] = ok ? crrColorChar : '.';
-    }
-
-    // Convert into faceColors final 123456 ordering
-    faceColors = "";
-    for (int i = 1; i <= 6; i++) faceColors += tmp[i];
-
-    // Map to cube array:
-    // For mid: rows 1 & 2 (face indices 3..8 except bottom row)
-    // For bottom: only row 2 (indices 6..8)
-    int base = face_base_index_(face);
-
-    if (mid) {
-      // Mid layer = rows 1 and 2 (slots 4,5,6 correspond to row 1-right mapping)
-      // map slot 1..3 to row 0 → IGNORE (we want solved)
-      // map slot 4..6 to row 1 positions 3..5
-      colors_[base + 3] = faceColors[3];
-      colors_[base + 4] = faceColors[4];
-      colors_[base + 5] = faceColors[5];
-    }
-
-    if (bottom) {
-      // bottom layer maps slots 1,2,3 to stickers 6,7,8 of the face
-      colors_[base + 6] = faceColors[0];
-      colors_[base + 7] = faceColors[1];
-      colors_[base + 8] = faceColors[2];
-    }
-  };
-
-  // --------------------------------------------------------
-  // Which faces can be scanned by your robot?
-  // Typically only the FRONT face can be placed in scanning position.
-  // If orientation is restored → scanning always reads FRONT.
-  // --------------------------------------------------------
-  char f = 'f';
-  char r = 'r';
-  char b = 'b';
-  char l = 'l';
-  char u = 'u';
-  char d = 'd';
-
-  // Robot can scan only FRONT face physically.
-  // You already rotate cube using `apply_moves()` logic so other faces become front.
-  auto scan_face = [&](char face) {
-    // Move face to front using CubeOri (user’s existing apply_moves(cubeMove))
-    // But simplest is: assume cube is already oriented physically by your k_color_map_steps.
-    // Use full read_one_face_colors routine:
-    int readOrder[6] = { 1, 2, 3, 6, 5, 4 };
-    char facevals[9] = { 0 };
-
-    // Actually read the front face stencil
-    cmd_read_one_face_colors(0, nullptr);
-
-    // Now faceColors is printed and stored in `faceColors` inside function.
-    // But your API does not return it → WE ADD a getter!
-
-    String fc = get_last_face_colors();  // You must add this storage in class.
-
-    // Fill bottom / mid as appropriate
-    int base = face_base_index_(face);
-
-    if (read_mid) {
-      colors_[base + 3] = fc[3];
-      colors_[base + 4] = fc[4];
-      colors_[base + 5] = fc[5];
-    }
-    if (read_bottom) {
-      colors_[base + 6] = fc[0];
-      colors_[base + 7] = fc[1];
-      colors_[base + 8] = fc[2];
-    }
-  };
-
-  // --------------------------------------------------------
-  // YOUR ROBOT SHOULD NOW ROTATE cube for each face you want
-  // For partial read, you only need the ring around bottom or mid layers.
-  // --------------------------------------------------------
-
-  // U face never scanned (top layer); already solved.
-
-  // Middle layer faces: F, R, B, L
-  if (read_mid) {
-    // Move F to front → scan_face('f')
-    scan_face('f');
-
-    // rotate cube right
-    ori_.robot_move("y_plus");
-    scan_face('r');
-
-    ori_.robot_move("y_plus");
-    scan_face('b');
-
-    ori_.robot_move("y_plus");
-    scan_face('l');
-
-    // Restore orientation
-    ori_.robot_move("y_plus");
-  }
-
-  // Bottom layer: row 2 of F, R, B, L and full D face
-  if (read_bottom) {
-    scan_face('f');
-
-    ori_.robot_move("y_plus");
-    scan_face('r');
-
-    ori_.robot_move("y_plus");
-    scan_face('b');
-
-    ori_.robot_move("y_plus");
-    scan_face('l');
-
-    // Restore
-    ori_.robot_move("y_plus");
-
-    // D face = rotate cube 180 on X-axis (z_180)
-    ori_.robot_move("z_180");
-    scan_face('d');
-    ori_.robot_move("z_180");
-  }
-
+bool CubeColorReader::fill_solved_cube() {
+  memcpy(colors_, solved_54, 54);
   return true;
 }
 

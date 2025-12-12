@@ -72,10 +72,6 @@ bool servo_ok(uint8_t id, bool attempt_reboot) {
     serial_printf("DXL %d: failed to read SHUTDOWN\n", id);
     return false;
   }
-
-  // Log what we detected
-  serial_printf("DXL %d: hw_err=0x%02X  shutdown=0x%02X\n", id, hw_err, shutdown);
-
   // If no hardware errors → OK
   if (hw_err == 0) {
     return true;

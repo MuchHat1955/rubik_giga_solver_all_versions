@@ -49,7 +49,7 @@ static const EdgeDef k_edge_defs[12] = {
   { 34, 52 },  // DB
   { 23, 12 },  // FR
   { 21, 41 },  // FL
-  { 14, 48 },  // BR
+  { 48, 14 },  // BR  <-- FIXED
   { 50, 39 }   // BL
 };
 
