@@ -391,7 +391,7 @@ bool CubeOri::execute_single_cube_move_(char logical_face, int qt) {
   // 1) Which physical direction currently holds this logical face?
   char phys = find_physical_dir_for_logical_(logical_face);
   if (phys == '\0') {
-    serial_printf("ERR logical face %c not found in orientation\n", logical_face);
+    serial_printf("ERR ORICUBEMOVE err=logical_face_not_found_in_orientation face=%c\n", logical_face);
     return false;
   }
 

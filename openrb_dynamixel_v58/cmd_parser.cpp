@@ -198,21 +198,21 @@ bool cmd_getori_data(int argc, double *argv) {
 bool cmd_clear_ori_data(int argc, double *argv) {
   ori.clear_orientation_data();
   ori.clear_move_log();
-  serial_printf("ori reset\n");
+  serial_printf_verbose("ori reset\n");
   String s = ori.get_orientation_string();
-  serial_printf("ori orientation=%s\n", s.c_str());
+  serial_printf_verbose("ori orientation=%s\n", s.c_str());
   String log = ori.get_move_log();
-  serial_printf("ori move log= %s\n", log.c_str());
+  serial_printf_verbose("ori move log= %s\n", log.c_str());
   return true;
 }
 
 bool cmd_restore_ori(int argc, double *argv) {
   if (!ori.restore_cube_orientation()) {
-    serial_printf("ERR failed to restore orientation\n");
+    serial_printf("ERR ORIRESTORE err=failed_to_restore_orientation\n");
     String s = ori.get_orientation_string();
-    serial_printf("ori orientation=%s\n", s.c_str());
+    serial_printf("ORIRESTORE info=ori_orientation orientation=%s\n", s.c_str());
     String log = ori.get_move_log();
-    serial_printf("ori move log= %s\n", log.c_str());
+    serial_printf_verbose("ori move log= %s\n", log.c_str());
     return false;
   }
 
@@ -704,7 +704,7 @@ bool cmd_read_one_face_colors(int argc, double *argv) {
 
 bool cmd_run(int argc, double *argv) {
   if (argc < 1) {
-    serial_printf("ERR CMDRUN err=test no missing argument\n");
+    serial_printf("ERR CMDRUN err=test_no_missing_argument\n");
     return false;
   }
 

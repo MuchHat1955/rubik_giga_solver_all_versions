@@ -61,7 +61,7 @@ bool servo_ok(uint8_t id, bool attempt_reboot) {
 
   // -1 means read failed
   if (hw_err < 0) {
-    serial_printf("DXL %d: failed to read HW_ERROR_STATUS\n", id);
+    serial_printf("ERR SERVOS err=failed_to_read_hw_error_status dxl=%d\n", id);
     return false;
   }
 
@@ -69,7 +69,7 @@ bool servo_ok(uint8_t id, bool attempt_reboot) {
   int shutdown = dxl.readControlTableItem(ControlTableItem::SHUTDOWN, id);
 
   if (shutdown < 0) {
-    serial_printf("DXL %d: failed to read SHUTDOWN\n", id);
+    serial_printf("ERR SERVOS err=failed_to_read_shut_down dxl=%d\n", id);
     return false;
   }
   // If no hardware errors → OK
@@ -80,7 +80,7 @@ bool servo_ok(uint8_t id, bool attempt_reboot) {
   if (!attempt_reboot) return false;
 
   // 3) We have errors → try recovery
-  serial_printf("DXL %d ERROR detected, attempting recovery...\n", id);
+  serial_printf("ERR SERVOS err=servo_error_detected_attempting_recovery dxl=%d\n", id);
 
   // Disable torque before reboot
   dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, id, 0);
@@ -90,7 +90,7 @@ bool servo_ok(uint8_t id, bool attempt_reboot) {
   bool reboot_ok = dxl.reboot(id);
 
   if (!reboot_ok) {
-    serial_printf("DXL %d: reboot FAILED\n", id);
+    serial_printf("ERR SERVOS err=reboot_failed dxl=%d\n", id);
     return false;
   }
 
@@ -103,7 +103,7 @@ bool servo_ok(uint8_t id, bool attempt_reboot) {
   // 6) Re-read error register
   hw_err = dxl.readControlTableItem(ControlTableItem::HARDWARE_ERROR_STATUS, id);
 
-  serial_printf("ERR SERVOERROR err=hw_err dxl=%d post_reboot_hw_err=0x%02X\n", id, hw_err);
+  serial_printf("ERR SERVOERROR err=hw_status_error_detected dxl=%d hw_status_error=0x%02X\n", id, hw_err);
 
   return hw_err == 0;
 }
@@ -115,7 +115,7 @@ constexpr int LED_FLASH_DELAY_MS = 120;
 bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
 
   if (servoError) {
-    serial_printf("ERR servo error, skip everything\n");
+    serial_printf("ERR SERVOS err=safe_set_goal_skip_everything_error id=%d\n", id);
     return false;
   }
 
