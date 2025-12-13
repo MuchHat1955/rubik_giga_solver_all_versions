@@ -192,7 +192,7 @@ bool CubeOri::restore_cube_orientation() {
   //
   for (int i = path_len - 1; i >= 0; --i) {
     if (!robot_move(path_moves[i])) {
-      serial_printf("ERR restore_cube_orientation robot move failed: %s\n",
+      serial_printf("ERR RESTOREORI err=restore_cube_orientation robot move failed: %s\n",
                     path_moves[i].c_str());
       return false;
     }
@@ -315,7 +315,7 @@ bool CubeOri::robot_move(const String &move_str) {
   // Callback first (actual hardware movement)
   if (robot_cb_) {
     if (!robot_cb_(move_str)) {
-      serial_printf("ERR robot callback failed for %s\n", move_str.c_str());
+      serial_printf("ERR ORIROBOTMOVE err=robot callback failed for %s\n", move_str.c_str());
       return false;
     }
   }
@@ -461,7 +461,7 @@ bool CubeOri::cube_move(const String &moves_str) {
     char face;
     int qt;
     if (!parse_cube_token_(t, face, qt)) {
-      serial_printf("ERR [cube_move] not a cube move: %s\n", t.c_str());
+      serial_printf("ORICUBEMOVE ERR err=not_a_cube_move cube_move=%s\n", t.c_str());
       return false;
     }
 
@@ -475,18 +475,26 @@ bool CubeOri::cube_move(const String &moves_str) {
     else suf = '2';
 
     cube_move_index++;
-    serial_printf("[%d/%d cube_move] %c%c\n", cube_move_index, cube_move_total, face_l, suf);
+    serial_printf("ORICUBEMOVE info=ori_cube_move_start cube_move=%c%c step=%d, total_steps=%d\n",
+                  face_l, suf, cube_move_index, cube_move_total);
+    serial_printf_verbose("ORIMOVECUBE info=curr_orintation orientation=%s\n", get_orientation_string().c_str());
 
     if (!execute_single_cube_move_(face, qt)) {
-      serial_printf("ERR [cube_move] failed executing: %s\n", t.c_str());
+      serial_printf("ORICUBEMOVE ERR err=cube_move_failed_executing cube_move=%s\n", t.c_str());
       return false;
     }
+    serial_printf("ORICUBEMOVE info=cube_move_start cube_move=%c%c step=%d, total_steps=%d\n",
+                  face_l, suf, cube_move_index, cube_move_total);
+    serial_printf_verbose("CUBEMOVE info=curr_orintation orientation=%s\n", get_orientation_string().c_str());
     color_reader.apply_moves(t);
+    serial_printf_verbose("CUBEMOVE info=curr_color_string color_string=%s\n", color_reader.get_cube_colors_string().c_str());
 
     String txt = "after cube move [" + t + "]";
     print_colors_detail((char *)txt.c_str());
+    serial_printf("ORICUBEMOVE info=cube_move_end cube_move=%s step=%d, total_steps=%d\n",
+                  face_l, suf, cube_move_index, cube_move_total);
   }
-  serial_printf_verbose("[cube_move] done\n");
+
   return true;
 }
 
@@ -524,7 +532,8 @@ void CubeOri::get_face_mapping(String out[6]) const {
 }
 
 // ============================================================
-// get_orientation_string: U->U R->R F->F D->D L->L B->B
+// get_orientation_string from: U->U R->R F->F D->D L->L B->B
+// returned as URLDLB
 // ============================================================
 String CubeOri::get_orientation_string() const {
   String maps[6];
@@ -532,17 +541,13 @@ String CubeOri::get_orientation_string() const {
 
   String s;
   s.reserve(48);
-  s += maps[0];
-  s += ' ';
-  s += maps[1];
-  s += ' ';
-  s += maps[2];
-  s += ' ';
-  s += maps[3];
-  s += ' ';
-  s += maps[4];
-  s += ' ';
-  s += maps[5];
+  s = "URLDLB->";
+  s += String(maps[0].charAt(3));  //U
+  s += String(maps[1].charAt(3));
+  s += String(maps[2].charAt(3));
+  s += String(maps[3].charAt(3));
+  s += String(maps[4].charAt(3));
+  s += String(maps[5].charAt(3));
   return s;
 }
 
@@ -556,7 +561,7 @@ void CubeOri::print_orientation_string() const {
   String maps[6];
   get_face_mapping(maps);
 
-  serial_printf("      %c\n", maps[0].charAt(3));
-  serial_printf("   %c  %c  %c  %c\n", maps[1].charAt(3), maps[2].charAt(3), maps[4].charAt(3), maps[5].charAt(3));
-  serial_printf("      %c\n", maps[3].charAt(3));
+  serial_printf_verbose("      %c\n", maps[0].charAt(3));
+  serial_printf_verbose("   %c  %c  %c  %c\n", maps[1].charAt(3), maps[2].charAt(3), maps[4].charAt(3), maps[5].charAt(3));
+  serial_printf_verbose("      %c\n", maps[3].charAt(3));
 }

@@ -27,6 +27,7 @@ public:
   void apply_moves(const String &moves);
   void print_cube_colors_string();
   void print_face_compact(char face) const;
+  void update_color_string(char face, int offset, char color);
 
 
 private:

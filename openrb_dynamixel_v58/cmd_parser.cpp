@@ -247,12 +247,12 @@ bool cmd_verbose_off(int argc, double *argv) {
 bool cmd_move_xy(int argc, double *argv) {
   double goal_xmm = argv[0];
   if (goal_xmm < -max_xmm || goal_xmm > max_xmm) {
-    serial_printf("ERR invalid x mm: %.2f expected range (%.2f mm to %.2f mm)\n", goal_xmm, -max_xmm, max_xmm);
+    serial_printf("MOVEXY ERR err=invalid_x_mm x_mm=%.2f expected range (%.2f mm to %.2f mm)\n", goal_xmm, -max_xmm, max_xmm);
     return false;
   }
   double goal_ymm = argv[1];
   if (goal_ymm < min_ymm || goal_ymm > max_ymm) {
-    serial_printf("ERR invalid y mm: %.2f expected range (%.2f mm to %.2f mm)\n", goal_ymm, min_ymm, max_ymm);
+    serial_printf("MOVEXY ERR err=invalid_x_mm x_mm=%.2f expected range (%.2f mm to %.2f mm)\n", goal_ymm, min_ymm, max_ymm);
     return false;
   }
   if (!cmdMoveXmm(goal_xmm)) return false;
@@ -704,7 +704,7 @@ bool cmd_read_one_face_colors(int argc, double *argv) {
 
 bool cmd_run(int argc, double *argv) {
   if (argc < 1) {
-    serial_printf("ERR: TESTNO missing argument\n");
+    serial_printf("ERR CMDRUN err=test no missing argument\n");
     return false;
   }
 
@@ -1253,14 +1253,21 @@ void process_serial_command(String &line) {
 
         if (strcmp(cmd.name, "MOVECUBE") == 0) {
           // pass full raw string — ori parses sequence itself
-          serial_printf("calling ori.cube_move=%s\n", params.c_str());
+          serial_printf("MOVECUBE info=cube_move_start cube_move=%s\n",
+                        params.c_str());
           ok = ori.cube_move(params);
         } else if (strcmp(cmd.name, "MOVEROBOT") == 0) {
           // pass full raw string — NO splitting
-          serial_printf("calling ori.robot_move=%s\n", params.c_str());
+          serial_printf("MOVECUBE info=cube_move_start cube_move=%s\n",
+                        params.c_str());
+          serial_printf_verbose("MOVECUBE info=curr_color_string color_string=%s\n", color_reader.get_cube_colors_string().c_str());
+          serial_printf_verbose("MOVECUBE info=curr_orintation orientation=%s\n", ori.get_orientation_string().c_str());
           ok = ori.robot_move(params);
         }
-
+        serial_printf("MOVECUBE info=cube_move_end cube_move=%s cube_move_result=%s\n",
+                      params.c_str(), ok ? "ok" : "fail");
+        serial_printf_verbose("MOVECUBE info=curr_color_string color_string=%s\n", color_reader.get_cube_colors_string().c_str());
+        serial_printf_verbose("MOVECUBE info=curr_orintation orientation=%s\n", ori.get_orientation_string().c_str());
         serial_printf("%s %s END completed=%s\n", cmd.name, params.c_str(), ok ? "ok" : "fail");
         print_all_status();
 

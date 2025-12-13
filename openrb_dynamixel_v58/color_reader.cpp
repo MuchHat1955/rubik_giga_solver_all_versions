@@ -46,7 +46,7 @@ void CubeColorReader::apply_slot_to_face_(char face, int slot, char color, bool 
   if (base < 0) return;
 
   if (slot < 1 || slot > 6) {
-    serial_printf("ERRcolor reader: invalid slot %d for face %c\n", slot, face);
+    serial_printf("ERR COLORSREAD err=invalid_slot slot=%d face=%c\n", slot, face);
     return;
   }
 
@@ -71,7 +71,7 @@ void CubeColorReader::apply_slot_to_face_(char face, int slot, char color, bool 
       case 3: offset = 6; break;  // bottom-right
       default:
         // slots 4,5,6 shouldn't be used in mirrored mode
-        serial_printf("WARNcolor reader: mirrored with slot %d on face %c\n",
+        serial_printf("ERR COLORS READ err=incorrect_slot_number_for_mirrored_read slot=%d face=%c\n",
                       slot, face);
         return;
     }
@@ -79,7 +79,8 @@ void CubeColorReader::apply_slot_to_face_(char face, int slot, char color, bool 
 
   if (offset >= 0) {
     colors_[base + offset] = color;
-    serial_printf("COLORSREAD %c%d=%c\n", face, offset + 1, color);
+    update_color_string(face, offset, color);
+    serial_printf_verbose("COLORSREAD info=curr_color_string color_string=%s\n", get_cube_colors_string().c_str());
   }
 }
 
@@ -88,10 +89,10 @@ void CubeColorReader::print_face_compact(char face) const {
   int base = face_base_index_(face);
   if (base < 0) return;
 
-  serial_printf("%c[", face);
+  serial_printf_verbose("%c[", face);
   for (int i = 0; i < 9; i++)
-    serial_printf("%c", colors_[base + i]);
-  serial_printf("]\n");
+    serial_printf_verbose("%c", colors_[base + i]);
+  serial_printf_verbose("]\n");
 }
 
 void CubeColorReader::rotate_face(char face, char dir) {
@@ -100,7 +101,7 @@ void CubeColorReader::rotate_face(char face, char dir) {
 
   int base = face_base_index_(face);
   if (base < 0) {
-    serial_printf("ERR invalid face %c\n", face);
+    serial_printf("ERR COLORSREAD err=rotate_face_invalid_face face=%c\n", face);
     return;
   }
 
@@ -255,7 +256,7 @@ void CubeColorReader::apply_moves(const String &moves) {
 
     // Validate token using your single source of truth
     if (!is_valid_move(token)) {
-      serial_printf("ERR invalid move: %s\n", token.c_str());
+      serial_printf("ERR COLORSREAD err=invalid_move move=%s\n", token.c_str());
       continue;
     }
 
@@ -265,7 +266,7 @@ void CubeColorReader::apply_moves(const String &moves) {
     char dir = token[1];
 
     rotate_face(tolower(face), dir);
-    serial_printf_verbose("applied move: %c%c\n", tolower(face), dir);
+    serial_printf("COLORSREAD info=apply_move move=%c%c\n", tolower(face), dir);
     print_cube_colors_string();
   }
 }
@@ -565,11 +566,15 @@ bool CubeColorReader::process_step_(int step_index,
 
   // Robot move (if any)
   if (robot_move && robot_move[0] != '\0' && strcmp(robot_move, "none") != 0) {
+    serial_printf("COLORSREAD info=robot_move_start step=%d robot_move=%s\n",
+                  step_index, robot_move);
     if (!ori_.robot_move(robot_move)) {
-      serial_printf("err step %d: robot move %s failed\n",
+      serial_printf("ERR COLORSREAD err=robot_move_failed step=%d robot_move=%s\n",
                     step_index, robot_move);
       return false;
     }
+    serial_printf("COLORSREAD info=robot_move_end step=%d robot_move=%s\n",
+                  step_index, robot_move);
   }
 
   // No read on this step?
@@ -599,10 +604,10 @@ bool CubeColorReader::process_step_(int step_index,
   }
 
   // log completion of this step for this face
-  serial_printf("[step %d] move=%s\n",
-                step_index,
-                robot_move ? robot_move : "",
-                F);
+  serial_printf_verbose("[step %d] move=%s\n",
+                        step_index,
+                        robot_move ? robot_move : "",
+                        F);
   print_face_compact(F);
   serial_printf("COLORSREAD cube_colors=%s\n", get_cube_colors_string().c_str());
 
@@ -621,7 +626,7 @@ bool CubeColorReader::read_cube_bottom() {
 
 bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
   if (!cb_) {
-    serial_printf("ERR color reader: no callback\n");
+    serial_printf("ERR COLORSREAD err=no _allback\n");
     return false;
   }
   int total_steps = 0;
@@ -629,15 +634,15 @@ bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
   else total_steps = k_num_color_map_steps_bottom;
 
   if (total_steps < 1) {
-    serial_printf("ERR color reader: step count=%d\n", total_steps);
+    serial_printf("ERR COLORSREAD err=step_count_invalid step_count=%d\n", total_steps);
     return false;
   }
 
-  serial_printf("color reader start - steps=%d, mode=%s\n", total_steps, mode_all_vs_bottom ? "all" : "bottom");
+  serial_printf("COLORSREAD info=start total_steps=%d, mode=%s\n", total_steps, mode_all_vs_bottom ? "all" : "bottom");
   if (mode_all_vs_bottom) fill_unknown_();
   else fill_solved_cube_top2layers_();
 
-  serial_printf("color reader - orientation cleared\n");
+  serial_printf_verbose("color reader - orientation cleared\n");
   // Ensure orientation is clear
   ori_.clear_orientation_data();
 
@@ -646,11 +651,13 @@ bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
     for (int i = 0; i < total_steps; i++) {
       const auto &s = k_color_map_steps_all[i];
       if (!process_step_(i, s.robot_move, s.face, s.mirrored, s.order)) {
-        serial_printf("ERR color reader: step %d/%d failed\n", i, total_steps);
+        serial_printf("ERR COLORSREAD err=process_step_failed step=%d total_steps=%d\n", i, total_steps);
         ori_.restore_cube_orientation();
         return false;
       }
-      serial_printf("[step %d/%d] completed\n", i, total_steps);
+      serial_printf("COLORSREAD info=step_completed step=%d total_steps=%d\n", i, total_steps);
+      serial_printf_verbose("COLORSREAD info=curr_color_string color_string=%s\n", get_cube_colors_string().c_str());
+      serial_printf_verbose("COLORSREAD info=curr_orintation orientation=%s\n", ori.get_orientation_string().c_str());
       ori.print_orientation_string();
       print_cube_colors_string();
     }
@@ -660,26 +667,32 @@ bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
     for (int i = 0; i < total_steps; i++) {
       const auto &s = k_color_map_steps_bottom[i];
       if (!process_step_(i, s.robot_move, s.face, s.mirrored, s.order)) {
-        serial_printf("ERR color reader: step %d/%d failed\n", i, total_steps);
+        serial_printf("ERR COLORSREAD err=step_failed step=%d total_steps=%d\n", i, total_steps);
         ori_.restore_cube_orientation();
         return false;
       }
-      serial_printf("[step %d/%d] completed\n", i, total_steps);
+      serial_printf("COLORSREAD info=step_completed step=%d total_steps=%d\n", i, total_steps);
+      serial_printf_verbose("COLORSREAD info=curr_color_string color_string=%s\n", get_cube_colors_string().c_str());
+      serial_printf_verbose("COLORSREAD info=curr_orintation orientation=%s\n", ori.get_orientation_string().c_str());
       ori.print_orientation_string();
       print_cube_colors_string();
     }
     // ~~~~~~~~~~~~~~~~ end just bottom layer ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   }
-  serial_printf("color read completed\n");
-  serial_printf("color reader end - orientation restore\n");
+  serial_printf("COLORSREAD info=color_read_completed\n");
+  serial_printf("COLORSREAD info=orientation restore\n");
 
   // Final restore
   if (!ori_.restore_cube_orientation()) {
-    serial_printf("ERR color reader: final restore failed\n");
+    serial_printf("ERR COLORSREAD err=final_restore_failed\n");
     return false;
   }
   ori.print_orientation_string();
   print_cube_colors_string();
+
+  serial_printf("COLORSREAD info=end total_steps=%d, mode=%s\n", total_steps, mode_all_vs_bottom ? "all" : "bottom");
+  serial_printf_verbose("COLORSREAD info=curr_color_string color_string=%s\n", get_cube_colors_string().c_str());
+  serial_printf_verbose("COLORSREAD info=curr_orintation orientation=%s\n", ori.get_orientation_string().c_str());
 
   return true;
 }
@@ -693,6 +706,29 @@ String CubeColorReader::get_cube_colors_string() const {
   for (int i = 0; i < 54; i++)
     s += colors_[i];
   return s;
+}
+
+// eg update_color_string('f', 0, 'r');
+void CubeColorReader::update_color_string(char face, int offset, char color) {
+  if (offset < 0 || offset >= 9) {
+    serial_printf_verbose("ERR update_color_string invalid offset %d\n", offset);
+    return;
+  }
+
+  int base = -1;
+  switch (tolower(face)) {
+    case 'u': base = 0; break;
+    case 'r': base = 9; break;
+    case 'f': base = 18; break;
+    case 'd': base = 27; break;
+    case 'l': base = 36; break;
+    case 'b': base = 45; break;
+    default:
+      serial_printf_verbose("invalid face %c\n", face);
+      return;
+  }
+
+  colors_[base + offset] = color;
 }
 
 void CubeColorReader::print_cube_colors_string() {

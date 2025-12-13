@@ -558,7 +558,7 @@ static void logProgress(const char* moveName, int startTicks, int crrTicks, int 
   if (lastCrrLogged >= 0 && abs(crrTicks - lastCrrLogged) < 50) return;
   lastCrrLogged = crrTicks;
 
-  serial_printf("MOVING %s %d/%d\n", moveName, crrTicks, endTicks);
+  serial_printf_verbose("MOVING %s %d/%d\n", moveName, crrTicks, endTicks);
 }
 
 // ----------------------------------------------------------------------
@@ -932,7 +932,7 @@ void print_all_status() {
   kin.solve_x_y_from_a1_a2(a1_deg, a2_deg);
 
   serial_printf(
-    "x_mm=%.2f y_mm=%.2f a1_deg=%.2f a2_deg=%.2f g_vert_deg=%.2f g_deg=%.2f g1_per=%.2f g2_per=%.2f base_deg=%.2f\n",
+    "info=servos_status x_mm=%.2f y_mm=%.2f a1_deg=%.2f a2_deg=%.2f g_vert_deg=%.2f g_deg=%.2f g1_per=%.2f g2_per=%.2f base_deg=%.2f\n",
     kin.getXmm(), kin.getYmm(), kin.getA1deg(), kin.getA2deg(),
     kin.getGdeg_for_vertical(), kin.getGdeg(),
     g1_per, g2_per, base_deg);

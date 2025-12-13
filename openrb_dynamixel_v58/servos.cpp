@@ -103,7 +103,7 @@ bool servo_ok(uint8_t id, bool attempt_reboot) {
   // 6) Re-read error register
   hw_err = dxl.readControlTableItem(ControlTableItem::HARDWARE_ERROR_STATUS, id);
 
-  serial_printf("DXL %d: post-reboot hw_err=0x%02X\n", id, hw_err);
+  serial_printf("ERR SERVOERROR err=hw_err dxl=%d post_reboot_hw_err=0x%02X\n", id, hw_err);
 
   return hw_err == 0;
 }
@@ -122,7 +122,7 @@ bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
   uint8_t hw_err = dxl.readControlTableItem(ControlTableItem::HARDWARE_ERROR_STATUS, id);
 
   if (!servo_ok(id, false)) {
-    serial_printf("ERR Servo %d error: 0x%02X\n", id, hw_err);
+    serial_printf("ERR SERVOERROR err=hw_error servo=%d hw_error=0x%02X\n", id, hw_err);
     for (int i = 0; i < LED_FLASH_COUNT; i++) {
       lOn(id);
       delay(LED_FLASH_DELAY_MS);
@@ -137,7 +137,7 @@ bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
       delay(LED_FLASH_DELAY_MS);
     }
     if (!servo_ok(id, false)) {
-      serial_printf("ERR setting the error flag for all because of servo=%d\n", id);
+      serial_printf("ERR SERVOERROR err=setting_the_error_flag_for_all servo=%d\n", id);
       servoError = true;
       return false;
     }
