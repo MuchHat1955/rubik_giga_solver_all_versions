@@ -277,6 +277,19 @@ void rb_emit_err(const char *module_name, const char *error_description, const c
     RB_ERR("MOVE", error_description, fmt, ##__VA_ARGS__); \
   } while (0)
 
+// RUN
+#define RB_INFO_RUN(info_description, fmt, ...) \
+  do { \
+    RB_DECLARE_ID(); \
+    RB_INFO("RUN", info_description, fmt, ##__VA_ARGS__); \
+  } while (0)
+
+#define RB_ERR_RUN(error_description, fmt, ...) \
+  do { \
+    RB_DECLARE_ID(); \
+    RB_ERR("RUN", error_description, fmt, ##__VA_ARGS__); \
+  } while (0)
+
 // CMD
 #define RB_INFO_CMD(info_description, fmt, ...) \
   do { \

@@ -394,7 +394,7 @@ bool cmd_move_deg(int argc, double *argv) {
   int id = (int)argv[0];
   if (!dxl.ping(id)) {
     RB_ERR_MOVE("servo_not_found",
-                 "id=%d", id);
+                "id=%d", id);
     return false;
   }
 
@@ -890,17 +890,17 @@ bool cmd_run(int argc, double *argv) {
   // Validate arguments
   // ------------------------------------------------------------
   if (argc < 1) {
-    RB_ERR_ROBOTMOVE("missing_argument",
-                     "expected=run_no");
+    RB_ERR_RUN("missing_argument",
+               "expected=run_no");
     return false;
   }
 
   speed = 1.0;
   int run_no = (int)argv[0];
 
-  RB_INFO_ROBOTMOVE("run_start",
-                    "run_no=%d",
-                    run_no);
+  RB_INFO_RUN("run_start",
+              "run_no=%d",
+              run_no);
 
   // ------------------------------------------------------------
   // RUN_ZERO — standby / neutral position
@@ -908,23 +908,23 @@ bool cmd_run(int argc, double *argv) {
   if (run_no == RUN_ZERO) {
 
     if (!prepBaseForRotation(B_LEFT)) {
-      RB_ERR_ROBOTMOVE("prep_base_failed", "dir=left");
+      RB_ERR_MOVE("prep_base_failed", "dir=left");
       return false;
     }
 
     if (!prepBaseForRotation(B_RIGHT)) {
-      RB_ERR_ROBOTMOVE("prep_base_failed", "dir=right");
+      RB_ERR_MOVE("prep_base_failed", "dir=right");
       return false;
     }
 
     if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) {
-      RB_ERR_SERVO("base_center_failed", "");
+      RB_ERR_MOVE("base_center_failed", "");
       return false;
     }
 
     if (!isGripperOpen(G_WIDE_OPEN)) {
       if (!cmdMoveGripperPer(G_WIDE_OPEN)) {
-        RB_ERR_ROBOTMOVE("gripper_open_failed", "");
+        RB_ERR_MOVE("gripper_open_failed", "grip_per=%d", G_WIDE_OPEN);
         return false;
       }
     }
@@ -947,9 +947,9 @@ bool cmd_run(int argc, double *argv) {
   // ------------------------------------------------------------
   if (run_no == RUN_RIGHT_DOWN || run_no == RUN_LEFT_DOWN || run_no == RUN_BACK_DOWN || run_no == RUN_TOP_DOWN) {
 
-    RB_INFO_ROBOTMOVE("cube_face_to_down",
-                      "run_no=%d",
-                      run_no);
+    RB_INFO_MOVE("cube_face_to_down",
+                 "run_no=%d",
+                 run_no);
 
     if (!cmdMoveGripperPer(G_OPEN)) return false;
 
@@ -984,9 +984,9 @@ bool cmd_run(int argc, double *argv) {
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
 
-    RB_INFO_ROBOTMOVE("run_complete",
-                      "run_no=%d",
-                      run_no);
+    RB_INFO_RUN("run_complete",
+                "run_no=%d",
+                run_no);
     return true;
   }
 
@@ -1054,9 +1054,9 @@ bool cmd_run(int argc, double *argv) {
   // ------------------------------------------------------------
   // Unknown run number
   // ------------------------------------------------------------
-  RB_ERR_ROBOTMOVE("invalid_run_no",
-                   "run_no=%d",
-                   run_no);
+  RB_ERR_MOVE("invalid_run_no",
+              "run_no=%d",
+              run_no);
   return false;
 }
 
@@ -1115,43 +1115,43 @@ void print_colors_detail(char *txt) {
   RB_INFO_COLORCHECK("check_start",
                      "context=%s", txt);
 
-  RB_INFO_COLORCHECK("check",
+  RB_INFO_COLORCHECK("cube_colors",
                      "cube_colors=%s", all54.c_str());
 
   color_analyzer.set_colors(all54);
 
   bool valid_colors = color_analyzer.is_color_string_valid_bool();
 
-  RB_INFO_COLORCHECK("check",
+  RB_INFO_COLORCHECK("colors_valid",
                      "valid=%d", valid_colors ? 1 : 0);
 
   if (!valid_colors) {
-    RB_ERR_COLORCHECK("check_colors_invalid",
+    RB_ERR_COLORCHECK("colors_invalid",
                       "reason=%s",
                       color_analyzer.get_string_check_log().c_str());
 
     if (color_analyzer.is_string_fixable_bool()) {
       String fixed;
       if (color_analyzer.try_fix_color_string(fixed)) {
-        RB_INFO_COLORCHECK("check_fixable",
+        RB_INFO_COLORCHECK("colors_fixable",
                            "fixed_string=%s", fixed.c_str());
       } else {
-        RB_ERR_COLORCHECK("check_fix_failed",
+        RB_ERR_COLORCHECK("colors_fix_failed",
                           "attempted=1");
       }
     } else {
-      RB_ERR_COLORCHECK("check_not_fixable",
-                        "attempted=0");
+      RB_ERR_COLORCHECK("colors_not_fixable",
+                        "");
     }
   } else {
-    RB_INFO_COLORCHECK("check_stage_eval", "");
+    RB_INFO_COLORCHECK("colors_check_stage_eval", "");
 
     for (int s = 0; s < color_analyzer.get_stage_count(); s++) {
       const char *state = "none";
       if (color_analyzer.is_stage_done_bool(s)) state = "done";
       else if (color_analyzer.is_stage_partial_bool(s)) state = "partial";
 
-      RB_INFO_COLORCHECK("check_stage",
+      RB_INFO_COLORCHECK("colors_check_stage",
                          "stage_id=%d name=%s state=%s",
                          s,
                          color_analyzer.get_stage_name(s),
@@ -1159,7 +1159,7 @@ void print_colors_detail(char *txt) {
     }
   }
 
-  RB_INFO_COLORCHECK("check_end", "context=%s", txt);
+  RB_INFO_COLORCHECK("colors_check_end", "context=%s", txt);
 }
 
 // Your callback implementation
@@ -1190,14 +1190,14 @@ bool cmd_read_cube_colors_string(const String &mode_in) {
   } else if (mode == "solved") {
     do_solved = true;
   } else {
-    RB_ERR_COLORSCAN("invalid_mode",
+    RB_ERR_COLORSCAN("read_cube_invalid_mode",
                      "mode=%s", mode.c_str());
     return false;
   }
 
   // ---- BEFORE ----
   String before = color_reader.get_cube_colors_string();
-  RB_INFO_COLORSCAN("colors_before_scan",
+  RB_INFO_COLORSCAN("read_cube_colors_before_scan",
                     "cube_colors=%s",
                     before.c_str());
 
@@ -1209,25 +1209,25 @@ bool cmd_read_cube_colors_string(const String &mode_in) {
   bool ok = false;
 
   if (do_full) {
-    RB_INFO_COLORSCAN("scan_start",
+    RB_INFO_COLORSCAN("read_cube_scan_start",
                       "mode=%s",
                       "full");
     ok = color_reader.read_cube_full();
   } else if (do_solved) {
-    RB_INFO_COLORSCAN("scan_start",
+    RB_INFO_COLORSCAN("read_cube_scan_start",
                       "mode=%s",
                       "solved");
     color_reader.fill_solved_cube();
     ok = true;
   } else if (do_bottom) {
-    RB_INFO_COLORSCAN("scan_start",
+    RB_INFO_COLORSCAN("read_cube_scan_start",
                       "mode=%s",
                       "bottom");
     ok = color_reader.read_cube_bottom();
   }
 
   if (!ok) {
-    RB_ERR_COLORSCAN("scan_failed", "");
+    RB_ERR_COLORSCAN("read_cube_scan_failed", "");
     return false;
   }
 
@@ -1239,11 +1239,11 @@ bool cmd_read_cube_colors_string(const String &mode_in) {
     return false;
   }
 
-  RB_INFO_COLORSCAN("colors_after_scan",
+  RB_INFO_COLORSCAN("read_cube_colors_after_scan",
                     "cube_colors=%s",
                     before.c_str());
 
-  print_colors_detail((char *)"after_read");
+  print_colors_detail((char *)"read_cube_after_read");
 
   static double arg = 0;
   return cmd_run(1, &arg);
