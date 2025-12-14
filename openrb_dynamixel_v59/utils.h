@@ -139,81 +139,47 @@ void rb_make_id(char *out, size_t len);
 
 // ALWAYS declare rb_id_ locally when needed
 #define RB_DECLARE_ID() \
-  char rb_id_[12]; \
-  rb_make_id(rb_id_, sizeof(rb_id_))
+  char rb_cmd_id_[12]; \
+  rb_make_id(rb_cmd_id_, sizeof(rb_cmd_id_))
 
 // ============================================================
 // LOW-LEVEL EMIT (USES serial_printf)
 // ============================================================
-inline void rb_emit_info(const char *info_name, const char *fmt, ...) {
-  char id[12];
-  rb_make_id(id, sizeof(id));
-
-  serial_printf("INFO %s info=%s ", id, info_name);
-
-  va_list ap;
-  va_start(ap, fmt);
-  serial_printf(fmt, ap);
-  va_end(ap);
-
-  serial_printf("\n");
-}
-
-inline void rb_emit_err(const char *err_name, const char *fmt, ...) {
-  char id[12];
-  rb_make_id(id, sizeof(id));
-
-  serial_printf("ERR err=%s %s", id, err_name);
-
-  va_list ap;
-  va_start(ap, fmt);
-  serial_printf(fmt, ap);
-  va_end(ap);
-
-  serial_printf("\n");
-}
+void rb_emit_info(const char *module_name, const char *info_name, const char *fmt, ...);
+void rb_emit_err(const char *module_name, const char *error_description, const char *fmt, ...);
 
 // ============================================================
 // GENERIC INFO / ERR (CORE)
 // ============================================================
-#define RB_INFO(ev, fmt, ...) rb_emit_info(ev, fmt, ##__VA_ARGS__)
-#define RB_ERR(ev, fmt, ...) rb_emit_err(ev, fmt, ##__VA_ARGS__)
-
-// ============================================================
-// DEBUG (NOT PARSED BY HOST)
-// ============================================================
-#define RB_DEBUG(fmt, ...) \
-  serial_printf_verbose("DEBUG " fmt "\n", ##__VA_ARGS__)
+#define RB_INFO(module_name, info_description, fmt, ...) rb_emit_info(module_name, info_description, fmt, ##__VA_ARGS__)
+#define RB_ERR(module_name, error_description, fmt, ...) rb_emit_err(module_name, error_description, fmt, ##__VA_ARGS__)
 
 // ============================================================
 // RUN LIFECYCLE (COMMAND START / END)
 // ============================================================
 
 // START
-#define RB_RUN_START(letter, params_cstr) \
+#define RB_CMD_START(letter, cmd, params_cstr) \
   do { \
     set_start_millis(); \
     increment_cmd_id(letter); \
-    RB_INFO("RUN", \
-            "start=%c%d params=%s", get_cmd_id_letter(), get_cmd_id_num(), params_cstr); \
+    RB_INFO("CMD", "start", "cmd=%s params=%s", cmd, params_cstr); \
   } while (0)
 
 // END OK
-#define RB_RUN_END_OK() \
+#define RB_CMD_END_OK() \
   do { \
     float _dur_s = (millis() - get_start_millis()) / 1000.0f; \
-    RB_INFO("RUN", \
-            "end=%c%d status=ok duration_s=%.3f", \
-            get_cmd_id_letter(), get_cmd_id_num(), _dur_s); \
+    RB_INFO("CMD", "end", "status=%s duration_s=%.1f", \
+            "ok", _dur_s); \
   } while (0)
 
 // END ERROR
-#define RB_RUN_END_ERR(err_text) \
+#define RB_CMD_END_ERR(err_text) \
   do { \
     float _dur_s = (millis() - get_start_millis()) / 1000.0f; \
-    RB_ERR("RUN", \
-           "err=%c%d status=error err=%s duration_s=%.3f", \
-           get_cmd_id_letter(), get_cmd_id_num(), err_text, _dur_s); \
+    RB_INFO("CMD", "end", "status=error err=%s duration_s=%.1f", \
+            err_text, _dur_s); \
   } while (0)
 
 // ============================================================
@@ -221,81 +187,107 @@ inline void rb_emit_err(const char *err_name, const char *fmt, ...) {
 // ============================================================
 
 // COLOR SCAN
-#define RB_INFO_COLORSCAN(ev, id, fmt, ...) \
+#define RB_INFO_COLORSCAN(info_description, fmt, ...) \
   do { \
     RB_DECLARE_ID(); \
-    RB_INFO("COLORSCAN", ev, fmt, ##__VA_ARGS__); \
+    RB_INFO("COLORSCAN", info_description, fmt, ##__VA_ARGS__); \
   } while (0)
 
-#define RB_ERR_COLORSCAN(ev, id, fmt, ...) \
+#define RB_ERR_COLORSCAN(error_description, fmt, ...) \
   do { \
     RB_DECLARE_ID(); \
-    RB_ERR("COLORSCAN", ev, fmt, ##__VA_ARGS__); \
+    RB_ERR("COLORSCAN", error_description, fmt, ##__VA_ARGS__); \
   } while (0)
 
 // CUBE ORIENTATION
-#define RB_INFO_CUBEORI(ev, id, fmt, ...) \
+#define RB_INFO_CUBEORI(info_description, fmt, ...) \
   do { \
     RB_DECLARE_ID(); \
-    RB_INFO("CUBEORI", ev, fmt, ##__VA_ARGS__); \
+    RB_INFO("CUBEORI", info_description, fmt, ##__VA_ARGS__); \
   } while (0)
 
-#define RB_ERR_CUBEORI(ev, id, fmt, ...) \
+#define RB_ERR_CUBEORI(error_description, fmt, ...) \
   do { \
     RB_DECLARE_ID(); \
-    RB_ERR("CUBEORI", ev, fmt, ##__VA_ARGS__); \
+    RB_ERR("CUBEORI", error_description, fmt, ##__VA_ARGS__); \
   } while (0)
 
 // ROBOT
-#define RB_INFO_ROBOTMOVE(ev, id, fmt, ...) \
+#define RB_INFO_ROBOTMOVE(info_description, fmt, ...) \
   do { \
     RB_DECLARE_ID(); \
-    RB_INFO("ROBOTMOVE", ev, fmt, ##__VA_ARGS__); \
+    RB_INFO("ROBOTMOVE", info_description, fmt, ##__VA_ARGS__); \
   } while (0)
 
-#define RB_ERR_ROBOTMOVE(ev, id, fmt, ...) \
+#define RB_ERR_ROBOTMOVE(error_description, fmt, ...) \
   do { \
     RB_DECLARE_ID(); \
-    RB_ERR("ROBOTMOVE", ev, fmt, ##__VA_ARGS__); \
+    RB_ERR("ROBOTMOVE", error_description, fmt, ##__VA_ARGS__); \
   } while (0)
 
 // CUBE
-#define RB_INFO_CUBEMOVE(ev, id, fmt, ...) \
+#define RB_INFO_CUBEMOVE(info_description, fmt, ...) \
   do { \
     RB_DECLARE_ID(); \
-    RB_INFO("CUBEMOVE", ev, fmt, ##__VA_ARGS__); \
+    RB_INFO("CUBEMOVE", info_description, fmt, ##__VA_ARGS__); \
   } while (0)
 
-#define RB_ERR_CUBEMOVE(ev, id, fmt, ...) \
+#define RB_ERR_CUBEMOVE(error_description, fmt, ...) \
   do { \
     RB_DECLARE_ID(); \
-    RB_ERR("CUBEMOVE", ev, fmt, ##__VA_ARGS__); \
+    RB_ERR("CUBEMOVE", error_description, fmt, ##__VA_ARGS__); \
   } while (0)
 
 // COLORCHECK
-#define RB_INFO_COLORCHECK(ev, id, fmt, ...) \
+#define RB_INFO_COLORCHECK(info_description, fmt, ...) \
   do { \
     RB_DECLARE_ID(); \
-    RB_INFO("COLORCHECK", ev, fmt, ##__VA_ARGS__); \
+    RB_INFO("COLORCHECK", info_description, fmt, ##__VA_ARGS__); \
   } while (0)
 
-#define RB_ERR_COLORCHECK(ev, id, fmt, ...) \
+#define RB_ERR_COLORCHECK(error_description, fmt, ...) \
   do { \
     RB_DECLARE_ID(); \
-    RB_ERR("COLORCHECK", ev, fmt, ##__VA_ARGS__); \
+    RB_ERR("COLORCHECK", error_description, fmt, ##__VA_ARGS__); \
   } while (0)
 
 // SERVO
-#define RB_INFO_SERVO(ev, id, fmt, ...) \
+#define RB_INFO_SERVO(info_description, fmt, ...) \
   do { \
     RB_DECLARE_ID(); \
-    RB_INFO("SERVO", ev, fmt, ##__VA_ARGS__); \
+    RB_INFO("SERVO", info_description, fmt, ##__VA_ARGS__); \
   } while (0)
 
-#define RB_ERR_SERVO(ev, id, fmt, ...) \
+#define RB_ERR_SERVO(error_description, fmt, ...) \
   do { \
     RB_DECLARE_ID(); \
-    RB_ERR("SERVO", ev, fmt, ##__VA_ARGS__); \
+    RB_ERR("SERVO", error_description, fmt, ##__VA_ARGS__); \
+  } while (0)
+
+// MOVE
+#define RB_INFO_MOVE(info_description, fmt, ...) \
+  do { \
+    RB_DECLARE_ID(); \
+    RB_INFO("MOVE", info_description, fmt, ##__VA_ARGS__); \
+  } while (0)
+
+#define RB_ERR_MOVE(error_description, fmt, ...) \
+  do { \
+    RB_DECLARE_ID(); \
+    RB_ERR("MOVE", error_description, fmt, ##__VA_ARGS__); \
+  } while (0)
+
+// CMD
+#define RB_INFO_CMD(info_description, fmt, ...) \
+  do { \
+    RB_DECLARE_ID(); \
+    RB_INFO("CMD", info_description, fmt, ##__VA_ARGS__); \
+  } while (0)
+
+#define RB_ERR_CMD(error_description, fmt, ...) \
+  do { \
+    RB_DECLARE_ID(); \
+    RB_ERR("CMD", error_description, fmt, ##__VA_ARGS__); \
   } while (0)
 
 // ============================================================

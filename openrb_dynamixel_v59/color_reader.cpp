@@ -70,7 +70,7 @@ void CubeColorReader::apply_slot_to_face_(char face, int slot, char color, bool 
   if (base < 0) return;
 
   if (slot < 1 || slot > 6) {
-    RB_ERR_COLORSCAN("invalid_slot", "(na)",
+    RB_ERR_COLORSCAN("invalid_slot",
                      "face=%c slot=%d",
                      face, slot);
     return;
@@ -93,7 +93,7 @@ void CubeColorReader::apply_slot_to_face_(char face, int slot, char color, bool 
       case 2: offset = 7; break;
       case 3: offset = 6; break;
       default:
-        RB_ERR_COLORSCAN("invalid_slot_mirrored", "(na)",
+        RB_ERR_COLORSCAN("invalid_slot_mirrored",
                          "face=%c slot=%d",
                          face, slot);
         return;
@@ -103,7 +103,7 @@ void CubeColorReader::apply_slot_to_face_(char face, int slot, char color, bool 
   colors_[base + offset] = color;
   update_color_string(face, offset, color);
 
-  RB_INFO_COLORSCAN("slot_read", "(na)",
+  RB_INFO_COLORSCAN("slot_read",
                     "face=%c slot=%d offset=%d color=%c",
                     face, slot, offset, color);
 }
@@ -125,7 +125,7 @@ void CubeColorReader::rotate_face(char face, char dir) {
 
   int base = face_base_index_(face);
   if (base < 0) {
-    RB_ERR_COLORSCAN("rotate_face_invalid_face", rb_id_,
+    RB_ERR_COLORSCAN("rotate_face_invalid_face",
                  "face=%c", face);
     return;
   }
@@ -274,7 +274,7 @@ void CubeColorReader::apply_moves(const String &moves) {
     token.trim();
 
     if (!is_valid_move(token)) {
-      RB_ERR_COLORSCAN("invalid_move", "(na)",
+      RB_ERR_COLORSCAN("invalid_move",
                        "move=%s",
                        token.c_str());
       continue;
@@ -285,7 +285,7 @@ void CubeColorReader::apply_moves(const String &moves) {
 
     rotate_face(face, dir);
 
-    RB_INFO_COLORSCAN("apply_move", "(na)",
+    RB_INFO_COLORSCAN("apply_move",
                       "move=%c%c",
                       face, dir);
   }
@@ -587,18 +587,18 @@ bool CubeColorReader::process_step_(int step_index,
   // --- robot move ---
   if (robot_move && robot_move[0] && strcmp(robot_move, "none") != 0) {
 
-    RB_INFO_COLORSCAN("robot_move_start", "(na)",
+    RB_INFO_COLORSCAN("robot_move_start",
                       "step=%d robot_move=%s",
                       step_index, robot_move);
 
     if (!ori_.robot_move(robot_move)) {
-      RB_ERR_COLORSCAN("robot_move_failed", "(na)",
+      RB_ERR_COLORSCAN("robot_move_failed",
                        "step=%d robot_move=%s",
                        step_index, robot_move);
       return false;
     }
 
-    RB_INFO_COLORSCAN("robot_move_end", "(na)",
+    RB_INFO_COLORSCAN("robot_move_end",
                       "step=%d robot_move=%s",
                       step_index, robot_move);
   }
@@ -608,7 +608,7 @@ bool CubeColorReader::process_step_(int step_index,
 
   char F = tolower(face[0]);
 
-  RB_INFO_COLORSCAN("step_start", "(na)",
+  RB_INFO_COLORSCAN("step_start",
                     "step=%d face=%c mirrored=%d order=%s",
                     step_index, F, mirrored ? 1 : 0, order);
 
@@ -622,7 +622,7 @@ bool CubeColorReader::process_step_(int step_index,
     apply_slot_to_face_(F, slot, color, mirrored);
   }
 
-  RB_INFO_COLORSCAN("step_complete", "(na)",
+  RB_INFO_COLORSCAN("step_complete",
                     "step=%d",
                     step_index);
 
@@ -643,7 +643,7 @@ bool CubeColorReader::read_cube_bottom() {
 bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
 
   if (!cb_) {
-    RB_ERR_COLORSCAN("no_callback", "(na)", "");
+    RB_ERR_COLORSCAN("no_callback", "");
     return false;
   }
 
@@ -652,13 +652,13 @@ bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
                       : k_num_color_map_steps_bottom;
 
   if (total_steps < 1) {
-    RB_ERR_COLORSCAN("step_count_invalid", "(na)",
+    RB_ERR_COLORSCAN("step_count_invalid",
                      "step_count=%d",
                      total_steps);
     return false;
   }
 
-  RB_INFO_COLORSCAN("scan_start", "(na)",
+  RB_INFO_COLORSCAN("scan_start",
                     "total_steps=%d mode=%s",
                     total_steps,
                     mode_all_vs_bottom ? "all" : "bottom");
@@ -679,7 +679,7 @@ bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
                        steps[i].mirrored,
                        steps[i].order)) {
 
-      RB_ERR_COLORSCAN("step_failed", "(na)",
+      RB_ERR_COLORSCAN("step_failed",
                        "step=%d total_steps=%d",
                        i, total_steps);
 
@@ -688,19 +688,19 @@ bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
     }
   }
 
-  RB_INFO_COLORSCAN("scan_complete", "(na)",
+  RB_INFO_COLORSCAN("scan_complete",
                     "total_steps=%d mode=%s",
                     total_steps,
                     mode_all_vs_bottom ? "all" : "bottom");
 
-  RB_INFO_COLORSCAN("orientation_restore_start", "(na)", "");
+  RB_INFO_COLORSCAN("orientation_restore_start", "");
 
   if (!ori_.restore_cube_orientation()) {
-    RB_ERR_COLORSCAN("final_restore_failed", "(na)", "");
+    RB_ERR_COLORSCAN("final_restore_failed", "");
     return false;
   }
 
-  RB_INFO_COLORSCAN("orientation_restore_end", "(na)", "");
+  RB_INFO_COLORSCAN("orientation_restore_end", "");
 
   return true;
 }

@@ -934,7 +934,7 @@ void print_all_status() {
 
   kin.solve_x_y_from_a1_a2(a1_deg, a2_deg);
 
-  RB_INFO_SERVO("servos_status", rb_id_,
+  RB_INFO_SERVO("servos_status", 
                 "x_mm=%.2f y_mm=%.2f a1_deg=%.2f a2_deg=%.2f "
                 "g_vert_deg=%.2f g_deg=%.2f g1_per=%.2f g2_per=%.2f base_deg=%.2f",
                 kin.getXmm(), kin.getYmm(), kin.getA1deg(), kin.getA2deg(),
@@ -960,7 +960,7 @@ bool cmdMoveServoPer(int id, double goal_per) {
   if (!dxl.ping(id)) return false;
 
   if (goal_per < -15.0 || goal_per > 115.0) {
-    RB_ERR_SERVO("invalid_servo_percentage", rb_id_,
+    RB_ERR_SERVO("invalid_servo_percentage", 
                  "goal_per=%.2f expected_range=(-15.0..115.0)",
                  goal_per);
     return false;

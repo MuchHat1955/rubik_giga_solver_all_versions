@@ -94,7 +94,7 @@ static constexpr int RUN_ALIGN_CUBE = 60;
 // ------------------------------------------------------------
 bool cmd_getori_data(int argc, double *argv) {
 
-  RB_RUN_START('o', "ori_report");
+  RB_CMD_START('o', "GETORIDATA", "(none)");
 
   // ------------------------------------------------------------
   // Orientation string (compact)
@@ -131,7 +131,7 @@ bool cmd_getori_data(int argc, double *argv) {
   // ------------------------------------------------------------
   // Command end (duration auto-computed)
   // ------------------------------------------------------------
-  RB_RUN_END_OK();
+  RB_CMD_END_OK();
 
   return true;
 }
@@ -142,7 +142,7 @@ bool cmd_getori_data(int argc, double *argv) {
 // ------------------------------------------------------------
 bool cmd_clear_ori_data(int argc, double *argv) {
 
-  RB_RUN_START('o', "ori_clear");
+  RB_CMD_START('o', "ORICLEARDATA", "(none)");
 
   // ------------------------------------------------------------
   // Clear orientation + move log
@@ -150,7 +150,7 @@ bool cmd_clear_ori_data(int argc, double *argv) {
   ori.clear_orientation_data();
   ori.clear_move_log();
 
-  RB_INFO_CUBEORI("ori_reset", "status=cleared", "");
+  RB_INFO_CUBEORI("ori_clear_data_end", "status=cleared", "");
 
   // ------------------------------------------------------------
   // Report current orientation (should be identity)
@@ -169,7 +169,7 @@ bool cmd_clear_ori_data(int argc, double *argv) {
   // ------------------------------------------------------------
   // End command
   // ------------------------------------------------------------
-  RB_RUN_END_OK();
+  RB_CMD_END_OK();
 
   return true;
 }
@@ -182,15 +182,15 @@ bool cmd_restore_ori(int argc, double *argv) {
   // ------------------------------------------------------------
   if (!ori.restore_cube_orientation()) {
 
-    RB_ERR_CUBEORI("restore_failed", "(na)", "");
+    RB_ERR_CUBEORI("restore_failed", "", "");
 
     String ori_str = ori.get_orientation_string();
-    RB_INFO_CUBEORI("orientation", "(na)",
+    RB_INFO_CUBEORI("orientation",
                     "orientation=%s",
                     ori_str.c_str());
 
     String log = ori.get_move_log();
-    RB_INFO_CUBEORI("move_log", "(na)",
+    RB_INFO_CUBEORI("move_log",
                     "log=%s",
                     log.c_str());
 
@@ -201,19 +201,19 @@ bool cmd_restore_ori(int argc, double *argv) {
   // Physically settle cube after restore
   // ------------------------------------------------------------
   if (!cmdMoveGripperPer(G_OPEN)) {
-    RB_ERR_ROBOTMOVE("gripper_open_failed", "(na)", "");
+    RB_ERR_ROBOTMOVE("gripper_open_failed", "grip_per=%.2f", G_OPEN);
     return false;
   }
 
   if (!cmdMoveYmm(Y_DOWN)) {
-    RB_ERR_ROBOTMOVE("move_y_failed", "(na)",
+    RB_ERR_ROBOTMOVE("move_y_failed",
                      "y_mm=%.1f",
                      (double)Y_DOWN);
     return false;
   }
 
   if (!cmdMoveGripperPer(G_SOFT_CLOSE)) {
-    RB_ERR_ROBOTMOVE("gripper_soft_close_failed", "(na)", "");
+    RB_ERR_ROBOTMOVE("gripper_soft_close_failed", "grip_per=%.2f", G_SOFT_CLOSE);
     return false;
   }
 
@@ -225,16 +225,16 @@ bool cmd_restore_ori(int argc, double *argv) {
   // ------------------------------------------------------------
   // Report final state
   // ------------------------------------------------------------
-  RB_INFO_CUBEORI("restored", "(na)",
-                  "state=identity");
+  RB_INFO_CUBEORI("restored",
+                  "state=%s", "identity");
 
   String ori_str = ori.get_orientation_string();
-  RB_INFO_CUBEORI("orientation", "(na)",
+  RB_INFO_CUBEORI("orientation",
                   "orientation=%s",
                   ori_str.c_str());
 
   String log = ori.get_move_log();
-  RB_INFO_CUBEORI("move_log", "(na)",
+  RB_INFO_CUBEORI("move_log",
                   "log=%s",
                   log.c_str());
 
@@ -243,13 +243,13 @@ bool cmd_restore_ori(int argc, double *argv) {
 
 bool cmd_verbose_on(int argc, double *argv) {
   verboseOn = true;
-  Serial.println("Verbose ON");
+  Serial.println("Verbose on");
   return true;
 }
 
 bool cmd_verbose_off(int argc, double *argv) {
   verboseOn = false;
-  Serial.println("Verbose OFF");
+  Serial.println("Verbose off");
   return true;
 }
 
@@ -268,7 +268,7 @@ bool cmd_help(int argc, double *argv) {
 // -------------------------------------------------------------------
 void print_info(uint8_t id) {
 
-  RB_INFO_SERVO("servo_info_start", "(na)",
+  RB_INFO_SERVO("servo_info_start",
                 "servo_id=%d",
                 id);
 
@@ -276,7 +276,7 @@ void print_info(uint8_t id) {
   // Presence check
   // ------------------------------------------------------------
   if (!dxl.ping(id)) {
-    RB_ERR_SERVO("servo_not_found", "(na)",
+    RB_ERR_SERVO("servo_not_found",
                  "servo_id=%d",
                  id);
     return;
@@ -287,14 +287,14 @@ void print_info(uint8_t id) {
   // ------------------------------------------------------------
   bool ok = servo_ok(id, true);
 
-  RB_INFO_SERVO("health_check", "(na)",
+  RB_INFO_SERVO("health_check",
                 "servo_id=%d ok=%s",
                 id,
                 ok ? "true" : "false");
 
   if (!ok) {
 
-    RB_INFO_SERVO("reset_attempt", "(na)",
+    RB_INFO_SERVO("reset_attempt",
                   "servo_id=%d",
                   id);
 
@@ -302,13 +302,13 @@ void print_info(uint8_t id) {
 
     ok = servo_ok(id, true);
 
-    RB_INFO_SERVO("health_recheck", "(na)",
+    RB_INFO_SERVO("health_recheck",
                   "servo_id=%d ok=%s",
                   id,
                   ok ? "true" : "false");
 
     if (!ok) {
-      RB_ERR_SERVO("reset_failed", "(na)",
+      RB_ERR_SERVO("reset_failed",
                    "servo_id=%d",
                    id);
       return;
@@ -334,7 +334,7 @@ void print_info(uint8_t id) {
   // ------------------------------------------------------------
   // Report summary (single structured line)
   // ------------------------------------------------------------
-  RB_INFO_SERVO("servo_status", "(na)",
+  RB_INFO_SERVO("servo_status",
                 "servo_id=%d "
                 "op_mode=%d "
                 "drive_mode=%d "
@@ -360,7 +360,7 @@ void print_info(uint8_t id) {
                 spanDeg,
                 pos);
 
-  RB_INFO_SERVO("servo_info_end", "(na)",
+  RB_INFO_SERVO("servo_info_end",
                 "servo_id=%d",
                 id);
 }
@@ -370,17 +370,17 @@ void print_info(uint8_t id) {
 bool cmd_move_xy(int argc, double *argv) {
   double goal_xmm = argv[0];
   if (goal_xmm < -max_xmm || goal_xmm > max_xmm) {
-    RB_ERR_ROBOTMOVE("invalid_x_mm",
-                     "x_mm=%.2f min=%.2f max=%.2f",
-                     goal_xmm, -max_xmm, max_xmm);
+    RB_ERR_MOVE("invalid_x_mm",
+                "x_mm=%.2f min=%.2f max=%.2f",
+                goal_xmm, -max_xmm, max_xmm);
     return false;
   }
 
   double goal_ymm = argv[1];
   if (goal_ymm < min_ymm || goal_ymm > max_ymm) {
-    RB_ERR_ROBOTMOVE("invalid_y_mm",
-                     "y_mm=%.2f min=%.2f max=%.2f",
-                     goal_ymm, min_ymm, max_ymm);
+    RB_ERR_MOVE("invalid_y_mm",
+                "y_mm=%.2f min=%.2f max=%.2f",
+                goal_ymm, min_ymm, max_ymm);
     return false;
   }
 
@@ -393,16 +393,16 @@ bool cmd_move_xy(int argc, double *argv) {
 bool cmd_move_deg(int argc, double *argv) {
   int id = (int)argv[0];
   if (!dxl.ping(id)) {
-    RB_ERR_SERVO("servo_not_found",
+    RB_ERR_MOVE("servo_not_found",
                  "id=%d", id);
     return false;
   }
 
   double goal_deg = argv[1];
   if (goal_deg < -185.0 || goal_deg > 360.0) {
-    RB_ERR_SERVO("invalid_deg",
-                 "id=%d deg=%.2f min=-185.0 max=360.0",
-                 id, goal_deg);
+    RB_ERR_MOVE("invalid_deg",
+                "id=%d deg=%.2f min=-185.0 max=360.0",
+                id, goal_deg);
     return false;
   }
 
@@ -413,16 +413,16 @@ bool cmd_move_deg(int argc, double *argv) {
 bool cmd_move_ticks(int argc, double *argv) {
   int id = (int)argv[0];
   if (!dxl.ping(id)) {
-    RB_ERR_SERVO("servo_not_found",
-                 "id=%d", id);
+    RB_ERR_MOVE("servo_not_found",
+                "id=%d", id);
     return false;
   }
 
   int goal_ticks = (int)argv[1];
   if (!safeSetGoalPosition(id, goal_ticks)) {
-    RB_ERR_SERVO("move_failed_ticks",
-                 "id=%d ticks=%d",
-                 id, goal_ticks);
+    RB_ERR_MOVE("move_failed_ticks",
+                "servo_id=%d ticks=%d",
+                id, goal_ticks);
     return false;
   }
 
@@ -432,24 +432,24 @@ bool cmd_move_ticks(int argc, double *argv) {
 bool cmd_move_per(int argc, double *argv) {
   int id = (int)argv[0];
   if (!dxl.ping(id)) {
-    RB_ERR_SERVO("servo_not_found",
-                 "id=%d", id);
+    RB_ERR_MOVE("servo_not_found",
+                "servo_id=%d", id);
     return false;
   }
 
   double goal_per = argv[1];
   if (goal_per < -15.0 || goal_per > 115.0) {
-    RB_ERR_SERVO("invalid_percentage",
-                 "id=%d per=%.2f min=-15.0 max=115.0",
-                 id, goal_per);
+    RB_ERR_MOVE("invalid_percentage",
+                "servo_id=%d per=%.2f min=-15.0 max=115.0",
+                id, goal_per);
     return false;
   }
 
   double goal_deg = per2deg(id, goal_per);
   if (!cmdMoveServoDeg((uint8_t)id, goal_deg)) {
-    RB_ERR_SERVO("move_failed_per",
-                 "id=%d per=%.2f deg=%.2f",
-                 id, goal_per, goal_deg);
+    RB_ERR_MOVE("move_failed_per",
+                "servo_id=%d per=%.2f deg=%.2f",
+                id, goal_per, goal_deg);
     return false;
   }
 
@@ -489,9 +489,9 @@ bool cmd_move_y(int argc, double *argv) {
   double goal_mm = argv[0];
 
   if (goal_mm < min_ymm || goal_mm > max_ymm) {
-    RB_ERR("movey.invalid_range",
-           "y_mm=%.2f min_mm=%.2f max_mm=%.2f",
-           goal_mm, min_ymm, max_ymm);
+    RB_ERR_MOVE("movey_invalid_range",
+                "y_mm=%.2f min_mm=%.2f max_mm=%.2f",
+                goal_mm, min_ymm, max_ymm);
     return false;
   }
 
@@ -503,9 +503,9 @@ bool cmd_move_y(int argc, double *argv) {
 bool cmd_move_x(int argc, double *argv) {
   double goal_mm = argv[0];
   if (goal_mm < -max_xmm || goal_mm > max_xmm) {
-    RB_ERR("cmd.move_x.invalid_range",
-           "x_mm=%.2f min=%.2f max=%.2f",
-           goal_mm, -max_xmm, max_xmm);
+    RB_ERR_MOVE("move_x_invalid_range",
+                "x_mm=%.2f min=%.2f max=%.2f",
+                goal_mm, -max_xmm, max_xmm);
     return false;
   }
 
@@ -515,9 +515,9 @@ bool cmd_move_x(int argc, double *argv) {
 
 bool cmd_move_clamp(int argc, double *argv) {
   if (!dxl.ping(ID_GRIP1) || !dxl.ping(ID_GRIP2)) {
-    RB_ERR("cmd.clamp.servo_not_found",
-           "grip1=%d grip2=%d",
-           dxl.ping(ID_GRIP1), dxl.ping(ID_GRIP2));
+    RB_ERR_MOVE("clamp_servo_not_found",
+                "grip1=%d grip2=%d",
+                dxl.ping(ID_GRIP1), dxl.ping(ID_GRIP2));
     return false;
   }
 
@@ -526,7 +526,7 @@ bool cmd_move_clamp(int argc, double *argv) {
   dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_BASE, 1);
 
   if (!ok) {
-    RB_ERR("cmd.clamp.move_failed", "");
+    RB_ERR_MOVE("clamp_move_failed", "gripper_clamp_return=false");
     return false;
   }
 
@@ -535,18 +535,18 @@ bool cmd_move_clamp(int argc, double *argv) {
 
 bool cmd_move_gripper(int argc, double *argv) {
   if (!dxl.ping(ID_GRIP1) || !dxl.ping(ID_GRIP2)) {
-    RB_ERR("cmd.gripper.servo_not_found",
-           "grip1=%d grip2=%d",
-           dxl.ping(ID_GRIP1), dxl.ping(ID_GRIP2));
+    RB_ERR_MOVE("gripper_servo_not_found",
+                "grip1=%d grip2=%d",
+                dxl.ping(ID_GRIP1), dxl.ping(ID_GRIP2));
     return false;
   }
 
   double goal_per = argv[0];
 
   if (goal_per < -5.0 || goal_per > 115.0) {
-    RB_ERR("cmd.gripper.invalid_percentage",
-           "per=%.2f min=-5.0 max=115.0",
-           goal_per);
+    RB_ERR_MOVE("gripper.invalid_percentage",
+                "per=%.2f min=-5.0 max=115.0",
+                goal_per);
     return false;
   }
 
@@ -556,20 +556,20 @@ bool cmd_move_gripper(int argc, double *argv) {
 
 bool cmd_move_wrist_vert(int argc, double *argv) {
   if (!dxl.ping(ID_WRIST) || !dxl.ping(ID_ARM1) || !dxl.ping(ID_ARM2)) {
-    RB_ERR("cmd.wrist.servo_not_found",
-           "wrist=%d arm1=%d arm2=%d",
-           dxl.ping(ID_WRIST),
-           dxl.ping(ID_ARM1),
-           dxl.ping(ID_ARM2));
+    RB_ERR_MOVE("wrist_servo_not_found",
+                "ping_wrist=%d ping_arm1=%d ping_arm2=%d",
+                dxl.ping(ID_WRIST),
+                dxl.ping(ID_ARM1),
+                dxl.ping(ID_ARM2));
     return false;
   }
 
   double goal_deg = argv[0];
 
   if (goal_deg < -95.0 || goal_deg > 95.0) {
-    RB_ERR("cmd.wrist.invalid_deg",
-           "deg=%.2f min=-95 max=95",
-           goal_deg);
+    RB_ERR_MOVE("cmd_wrist_invalid_deg",
+                "deg=%.2f min=-95 max=95",
+                goal_deg);
     return false;
   }
 
@@ -589,8 +589,8 @@ bool cmd_color(int argc, double *argv) {
   for (int i = 0; i < read_count; i++) {
     String crrColor = read_color();
     if (crrColor.length() == 0) {
-      RB_ERR("cmd_color_read_failed",
-             "iteration=%d", i);
+      RB_ERR_COLORSCAN("cmd_color_read_failed",
+                       "iteration=%d", i);
       return false;
     }
     delay(555);
@@ -845,8 +845,8 @@ bool cmd_read_one_face_colors(int argc, double *argv) {
   char face[7];
   for (int i = 1; i <= 6; i++) face[i] = '.';
 
-  RB_INFO("color_face_read_start",
-          "order=123654");
+  RB_INFO_COLORSCAN("color_face_read_start",
+                    "order=123654");
 
   for (int i = 0; i < N; i++) {
     int slot_i = read_order[i];
@@ -856,17 +856,17 @@ bool cmd_read_one_face_colors(int argc, double *argv) {
     bool ok = cmd_read_one_color(1, &slot);
 
     if (!ok || crrColorChar == '.') {
-      RB_ERR("color_face_read_slot_failed",
-             "slot=%d", slot_i);
+      RB_ERR_COLORSCAN("color_face_read_slot_failed",
+                       "slot=%d", slot_i);
       face[slot_i] = '.';
       continue;
     }
 
     face[slot_i] = crrColorChar;
 
-    RB_INFO("color_face_read_slot",
-            "slot=%d color=%c",
-            slot_i, crrColorChar);
+    RB_INFO_COLORSCAN("color_face_read_slot",
+                      "slot=%d color=%c",
+                      slot_i, crrColorChar);
   }
 
   // build final string in canonical 1..6 order
@@ -876,9 +876,9 @@ bool cmd_read_one_face_colors(int argc, double *argv) {
     face_colors += face[i];
   }
 
-  RB_INFO("color_face_read_end",
-          "face_colors=%s",
-          face_colors.c_str());
+  RB_INFO_COLORSCAN("color_face_read_end",
+                    "face_colors=%s",
+                    face_colors.c_str());
 
   return true;
 }
@@ -890,7 +890,7 @@ bool cmd_run(int argc, double *argv) {
   // Validate arguments
   // ------------------------------------------------------------
   if (argc < 1) {
-    RB_ERR_ROBOTMOVE("missing_argument", "(na)",
+    RB_ERR_ROBOTMOVE("missing_argument",
                      "expected=run_no");
     return false;
   }
@@ -898,7 +898,7 @@ bool cmd_run(int argc, double *argv) {
   speed = 1.0;
   int run_no = (int)argv[0];
 
-  RB_INFO_ROBOTMOVE("run_start", "(na)",
+  RB_INFO_ROBOTMOVE("run_start",
                     "run_no=%d",
                     run_no);
 
@@ -908,23 +908,23 @@ bool cmd_run(int argc, double *argv) {
   if (run_no == RUN_ZERO) {
 
     if (!prepBaseForRotation(B_LEFT)) {
-      RB_ERR_ROBOTMOVE("prep_base_failed", "(na)", "dir=left");
+      RB_ERR_ROBOTMOVE("prep_base_failed", "dir=left");
       return false;
     }
 
     if (!prepBaseForRotation(B_RIGHT)) {
-      RB_ERR_ROBOTMOVE("prep_base_failed", "(na)", "dir=right");
+      RB_ERR_ROBOTMOVE("prep_base_failed", "dir=right");
       return false;
     }
 
     if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) {
-      RB_ERR_SERVO("base_center_failed", "(na)", "");
+      RB_ERR_SERVO("base_center_failed", "");
       return false;
     }
 
     if (!isGripperOpen(G_WIDE_OPEN)) {
       if (!cmdMoveGripperPer(G_WIDE_OPEN)) {
-        RB_ERR_ROBOTMOVE("gripper_open_failed", "(na)", "");
+        RB_ERR_ROBOTMOVE("gripper_open_failed", "");
         return false;
       }
     }
@@ -936,7 +936,7 @@ bool cmd_run(int argc, double *argv) {
     if (!cmdMoveYmm(Y_DOWN)) return false;
     if (!cmdMoveGripperPer(G_SOFT_CLOSE)) return false;
 
-    RB_INFO_ROBOTMOVE("run_complete", "(na)",
+    RB_INFO_ROBOTMOVE("run_complete",
                       "run_no=%d",
                       run_no);
     return true;
@@ -947,7 +947,7 @@ bool cmd_run(int argc, double *argv) {
   // ------------------------------------------------------------
   if (run_no == RUN_RIGHT_DOWN || run_no == RUN_LEFT_DOWN || run_no == RUN_BACK_DOWN || run_no == RUN_TOP_DOWN) {
 
-    RB_INFO_ROBOTMOVE("cube_face_to_down", "(na)",
+    RB_INFO_ROBOTMOVE("cube_face_to_down",
                       "run_no=%d",
                       run_no);
 
@@ -984,7 +984,7 @@ bool cmd_run(int argc, double *argv) {
     if (!cmdMoveXmm(X_CENTER)) return false;
     if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
 
-    RB_INFO_ROBOTMOVE("run_complete", "(na)",
+    RB_INFO_ROBOTMOVE("run_complete",
                       "run_no=%d",
                       run_no);
     return true;
@@ -995,7 +995,7 @@ bool cmd_run(int argc, double *argv) {
   // ------------------------------------------------------------
   if (run_no == RUN_DOWN_RIGHT || run_no == RUN_DOWN_LEFT || run_no == RUN_DOWN_BACK) {
 
-    RB_INFO_ROBOTMOVE("bottom_layer_rotate", "(na)",
+    RB_INFO_ROBOTMOVE("bottom_layer_rotate",
                       "run_no=%d",
                       run_no);
 
@@ -1024,7 +1024,7 @@ bool cmd_run(int argc, double *argv) {
     if (!cmdMoveYmm(Y_CENTER)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
 
-    RB_INFO_ROBOTMOVE("run_complete", "(na)",
+    RB_INFO_ROBOTMOVE("run_complete",
                       "run_no=%d",
                       run_no);
     return true;
@@ -1054,7 +1054,7 @@ bool cmd_run(int argc, double *argv) {
   // ------------------------------------------------------------
   // Unknown run number
   // ------------------------------------------------------------
-  RB_ERR_ROBOTMOVE("invalid_run_no", "(na)",
+  RB_ERR_ROBOTMOVE("invalid_run_no",
                    "run_no=%d",
                    run_no);
   return false;
@@ -1112,46 +1112,46 @@ bool robot_move_callback(const String &mv) {
 void print_colors_detail(char *txt) {
   String all54 = color_reader.get_cube_colors_string();
 
-  RB_INFO_COLORCHECK("check_start", "(na)",
+  RB_INFO_COLORCHECK("check_start",
                      "context=%s", txt);
 
-  RB_INFO_COLORCHECK("check", "(na)",
+  RB_INFO_COLORCHECK("check",
                      "cube_colors=%s", all54.c_str());
 
   color_analyzer.set_colors(all54);
 
   bool valid_colors = color_analyzer.is_color_string_valid_bool();
 
-  RB_INFO_COLORCHECK("check", "(na)",
+  RB_INFO_COLORCHECK("check",
                      "valid=%d", valid_colors ? 1 : 0);
 
   if (!valid_colors) {
-    RB_ERR_COLORCHECK("check_colors_invalid", "(na)",
+    RB_ERR_COLORCHECK("check_colors_invalid",
                       "reason=%s",
                       color_analyzer.get_string_check_log().c_str());
 
     if (color_analyzer.is_string_fixable_bool()) {
       String fixed;
       if (color_analyzer.try_fix_color_string(fixed)) {
-        RB_INFO_COLORCHECK("check_fixable", "(na)",
+        RB_INFO_COLORCHECK("check_fixable",
                            "fixed_string=%s", fixed.c_str());
       } else {
-        RB_ERR_COLORCHECK("check_fix_failed", "(na)",
+        RB_ERR_COLORCHECK("check_fix_failed",
                           "attempted=1");
       }
     } else {
-      RB_ERR_COLORCHECK("check_not_fixable", "(na)",
+      RB_ERR_COLORCHECK("check_not_fixable",
                         "attempted=0");
     }
   } else {
-    RB_INFO_COLORCHECK("check_stage_eval", "(na)", "");
+    RB_INFO_COLORCHECK("check_stage_eval", "");
 
     for (int s = 0; s < color_analyzer.get_stage_count(); s++) {
       const char *state = "none";
       if (color_analyzer.is_stage_done_bool(s)) state = "done";
       else if (color_analyzer.is_stage_partial_bool(s)) state = "partial";
 
-      RB_INFO_COLORCHECK("check_stage", "(na)",
+      RB_INFO_COLORCHECK("check_stage",
                          "stage_id=%d name=%s state=%s",
                          s,
                          color_analyzer.get_stage_name(s),
@@ -1159,7 +1159,7 @@ void print_colors_detail(char *txt) {
     }
   }
 
-  RB_INFO_COLORCHECK("check_end", "(na)", "context=%s", txt);
+  RB_INFO_COLORCHECK("check_end", "context=%s", txt);
 }
 
 // Your callback implementation
@@ -1167,8 +1167,8 @@ char read_one_color_cb(int slot) {
   double arg = (double)slot;
 
   if (!cmd_read_one_color(1, &arg)) {
-    RB_ERR("RUN cmd=read_color_slot",
-           "slot=%d", slot);
+    RB_ERR_COLORSCAN("read_color_slot",
+                     "slot=%d", slot);
     return '.';
   }
 
@@ -1197,7 +1197,7 @@ bool cmd_read_cube_colors_string(const String &mode_in) {
 
   // ---- BEFORE ----
   String before = color_reader.get_cube_colors_string();
-  RB_INFO_COLORSCAN("colors_before_scan", "(na)",
+  RB_INFO_COLORSCAN("colors_before_scan",
                     "cube_colors=%s",
                     before.c_str());
 
@@ -1209,25 +1209,25 @@ bool cmd_read_cube_colors_string(const String &mode_in) {
   bool ok = false;
 
   if (do_full) {
-    RB_INFO_COLORSCAN("scan_start", "(na)",
+    RB_INFO_COLORSCAN("scan_start",
                       "mode=%s",
                       "full");
     ok = color_reader.read_cube_full();
   } else if (do_solved) {
-    RB_INFO_COLORSCAN("scan_start", "(na)",
+    RB_INFO_COLORSCAN("scan_start",
                       "mode=%s",
                       "solved");
     color_reader.fill_solved_cube();
     ok = true;
   } else if (do_bottom) {
-    RB_INFO_COLORSCAN("scan_start", "(na)",
+    RB_INFO_COLORSCAN("scan_start",
                       "mode=%s",
                       "bottom");
     ok = color_reader.read_cube_bottom();
   }
 
   if (!ok) {
-    RB_ERR_COLORSCAN("scan_failed", "(na)", "");
+    RB_ERR_COLORSCAN("scan_failed", "");
     return false;
   }
 
@@ -1235,11 +1235,11 @@ bool cmd_read_cube_colors_string(const String &mode_in) {
   String after = color_reader.get_cube_colors_string();
 
   if (!ori.restore_cube_orientation()) {
-    RB_ERR_CUBEORI("ori_restore_failed", "(na)", "");
+    RB_ERR_CUBEORI("ori_restore_failed", "");
     return false;
   }
 
-  RB_INFO_COLORSCAN("colors_after_scan", "(na)",
+  RB_INFO_COLORSCAN("colors_after_scan",
                     "cube_colors=%s",
                     before.c_str());
 

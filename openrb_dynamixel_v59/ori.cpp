@@ -121,12 +121,12 @@ void CubeOri::clear_orientation_data() {
 
   orientation_log_ = "";
 
-  RB_INFO_CUBEORI("orientation_cleared", "(na)", "", "");
+  RB_INFO_CUBEORI("orientation_cleared", "", "");
 }
 
 bool CubeOri::restore_cube_orientation() {
 
-  RB_INFO_CUBEORI("restore_start", "(na)", "", "");
+  RB_INFO_CUBEORI("restore_start", "", "");
 
   // ------------------------------------------------------------
   // Target orientation = identity
@@ -141,7 +141,7 @@ bool CubeOri::restore_cube_orientation() {
 
   // Already aligned?
   if (orientations_equal_(ori_, target)) {
-    RB_INFO_CUBEORI("restore_complete", "(na)",
+    RB_INFO_CUBEORI("restore_complete",
                     "already_identity=true", "");
     return true;
   }
@@ -208,7 +208,7 @@ bool CubeOri::restore_cube_orientation() {
   }
 
   if (found_idx < 0) {
-    RB_ERR_CUBEORI("restore_failed", "(na)",
+    RB_ERR_CUBEORI("restore_failed",
                    "reason=no_path");
     return false;
   }
@@ -230,19 +230,19 @@ bool CubeOri::restore_cube_orientation() {
   // ------------------------------------------------------------
   for (int i = path_len - 1; i >= 0; --i) {
 
-    RB_INFO_CUBEORI("restore_move", "(na)",
+    RB_INFO_CUBEORI("restore_move",
                     "move=%s",
                     path_moves[i].c_str());
 
     if (!robot_move(path_moves[i])) {
-      RB_ERR_CUBEORI("restore_failed", "(na)",
+      RB_ERR_CUBEORI("restore_failed",
                      "move=%s",
                      path_moves[i].c_str());
       return false;
     }
   }
 
-  RB_INFO_CUBEORI("restore_complete", "(na)",
+  RB_INFO_CUBEORI("restore_complete",
                   "orientation=%s",
                   get_orientation_string().c_str());
 
@@ -360,14 +360,14 @@ void CubeOri::apply_ori_table_(const String &robot_move) {
 bool CubeOri::robot_move(const String &move_str) {
   if (move_str.length() == 0) return false;
 
-  RB_INFO_ROBOTMOVE("robot_move_start", "(na)",
+  RB_INFO_ROBOTMOVE("robot_move_start",
                     "move=%s",
                     move_str.c_str());
 
   // Hardware callback
   if (robot_cb_) {
     if (!robot_cb_(move_str)) {
-      RB_ERR_ROBOTMOVE("robot_callback_failed", "(na)",
+      RB_ERR_ROBOTMOVE("robot_callback_failed",
                        "move=%s",
                        move_str.c_str());
       return false;
@@ -381,7 +381,7 @@ bool CubeOri::robot_move(const String &move_str) {
   if (orientation_log_.length() > 0) orientation_log_ += ' ';
   orientation_log_ += move_str;
 
-  RB_INFO_ROBOTMOVE("robot_move_end", "(na)",
+  RB_INFO_ROBOTMOVE("robot_move_end",
                     "move=%s orientation=%s",
                     move_str.c_str(),
                     get_orientation_string().c_str());
@@ -451,7 +451,7 @@ bool CubeOri::execute_single_cube_move_(char logical_face, int qt) {
 
   char phys = find_physical_dir_for_logical_(logical_face);
   if (phys == '\0') {
-    RB_ERR_CUBEORI("logical_face_not_found", "(na)",
+    RB_ERR_CUBEORI("logical_face_not_found",
                    "face=%c",
                    logical_face);
     return false;
@@ -471,7 +471,7 @@ bool CubeOri::execute_single_cube_move_(char logical_face, int qt) {
 
       for (int j = 0; j < count; ++j) {
         if (!robot_move(toks[j])) {
-          RB_ERR_CUBEORI("robot_move_failed", "(na)",
+          RB_ERR_CUBEORI("robot_move_failed",
                          "cube_move=%s robot_move=%s",
                          key.c_str(),
                          toks[j].c_str());
@@ -482,7 +482,7 @@ bool CubeOri::execute_single_cube_move_(char logical_face, int qt) {
     }
   }
 
-  RB_ERR_CUBEORI("cube_move_not_found", "(na)",
+  RB_ERR_CUBEORI("cube_move_not_found",
                  "key=%s",
                  key.c_str());
   return false;
@@ -513,7 +513,7 @@ bool CubeOri::cube_move(const String &moves_str) {
     char face;
     int qt;
     if (!parse_cube_token_(t, face, qt)) {
-      RB_ERR_CUBEMOVE("invalid_cube_token", "(na)",
+      RB_ERR_CUBEMOVE("invalid_cube_token",
                       "token=%s",
                       t.c_str());
       return false;
@@ -521,14 +521,14 @@ bool CubeOri::cube_move(const String &moves_str) {
 
     cube_move_index++;
 
-    RB_INFO_CUBEMOVE("cube_move_token", "(na)",
+    RB_INFO_CUBEMOVE("cube_move_token",
                      "cube_move=%s step=%d total_steps=%d",
                      t.c_str(),
                      cube_move_index,
                      cube_move_total);
 
     if (!execute_single_cube_move_(face, qt)) {
-      RB_ERR_CUBEMOVE("cube_move_failed", "(na)",
+      RB_ERR_CUBEMOVE("cube_move_failed",
                       "cube_move=%s",
                       t.c_str());
       return false;
@@ -537,7 +537,7 @@ bool CubeOri::cube_move(const String &moves_str) {
     // keep color model in sync
     color_reader.apply_moves(t);
 
-    RB_ERR_CUBEORI("cube_move_applied", "(na)",
+    RB_ERR_CUBEORI("cube_move_applied",
                     "cube_move=%s orientation=%s",
                     t.c_str(),
                     get_orientation_string().c_str());

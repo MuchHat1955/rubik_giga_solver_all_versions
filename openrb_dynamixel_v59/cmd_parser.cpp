@@ -110,6 +110,34 @@ void rb_make_id(char *out, size_t len) {
   snprintf(out, len, "%c%lu", get_cmd_id_letter(), (unsigned long)get_cmd_id_num());
 }
 
+void rb_emit_info(const char *module_name, const char *info_name, const char *fmt, ...) {
+  char cmd_id[12];
+  rb_make_id(cmd_id, sizeof(cmd_id));
+
+  serial_printf("%s (%s) info=%s ", module_name, cmd_id, info_name);
+
+  va_list ap;
+  va_start(ap, fmt);
+  serial_printf(fmt, ap);
+  va_end(ap);
+
+  serial_printf("\n");
+}
+
+void rb_emit_err(const char *module_name, const char *error_description, const char *fmt, ...) {
+  char cmd_id[12];
+  rb_make_id(cmd_id, sizeof(cmd_id));
+
+  serial_printf("%s (%s) err=%s ", module_name, cmd_id, error_description);
+
+  va_list ap;
+  va_start(ap, fmt);
+  serial_printf(fmt, ap);
+  va_end(ap);
+
+  serial_printf("\n");
+}
+
 // -------------------------------------------------------------------
 //                            PARSE HELPERS
 // -------------------------------------------------------------------
@@ -172,9 +200,9 @@ void process_serial_command(String &line) {
   // ------------------------------------------------------------
   if (U == "PROTO?") {
     increment_cmd_id('p');
-    RB_RUN_START('v', "proto?");
+    RB_CMD_START('v', "PROTO", "(none)");
     rb_report_protocol();
-    RB_RUN_END_OK();
+    RB_CMD_END_OK();
     return;
   }
 
@@ -196,14 +224,14 @@ void process_serial_command(String &line) {
 
       int space_idx = line.indexOf(' ');
       if (space_idx < 0) {
-        RB_ERR("CMDROUTER", "missing_argument", "(na)", "cmd=%s", cmd.name);
+        RB_ERR("CMDROUTER", "missing_argument", "cmd=%s", cmd.name);
         return;
       }
 
       String params = line.substring(space_idx + 1);
       params.trim();
       if (params.length() == 0) {
-        RB_ERR("CMDROUTER", "missing_argument", "(na)", "cmd=%s", cmd.name);
+        RB_ERR_CMD("missing_argument", "cmd=%s", cmd.name);
         return;
       }
 
@@ -215,8 +243,7 @@ void process_serial_command(String &line) {
       increment_cmd_id(id_letter);
 
       // ---------------- START ----------------
-      RB_RUN_START(get_cmd_id_letter(), 
-                   params.c_str());
+      RB_CMD_START(id_leter, cmd.name, params.c_str());
 
       bool ok = false;
 
@@ -231,9 +258,9 @@ void process_serial_command(String &line) {
 
       // ---------------- END ----------------
       if (ok) {
-        RB_RUN_END_OK();
+        RB_CMD_END_OK();
       } else {
-        RB_RUN_END_ERR("execution_failed");
+        RB_CMD_END_ERR("execution_failed");
       }
       return;
     }
@@ -251,9 +278,9 @@ void process_serial_command(String &line) {
     int argc = parse_args(line, cmd.fmt, argv, 8, raw);
 
     if (argc < min_args) {
-      RB_ERR("CMDROUTER", "invalid_args", "(na)",
-             "cmd=%s expected=%d got=%d",
-             cmd.name, min_args, argc);
+      RB_ERR_CMD("invalid_args",
+                 "cmd=%s expected=%d got=%d",
+                 cmd.name, min_args, argc);
       return;
     }
 
@@ -263,16 +290,19 @@ void process_serial_command(String &line) {
     if (strncmp(cmd.name, "READ", 4) == 0) id_letter = 'v';
 
     increment_cmd_id(id_letter);
+    double double_param = 0.0;
+    if (argc > 0) double_param = (double)argv[0];
+    String double_str = String();
 
-    RB_RUN_START(id_letter, 
-                 cmd.name);
+    RB_CMD_START(id_letter,
+                 cmd.name, double_str.c_str());
 
     bool ok = cmd.handler(argc, argv);
 
     if (ok) {
-      RB_RUN_END_OK();
+      RB_CMD_END_OK();
     } else {
-      RB_RUN_END_ERR("execution_failed");
+      RB_CMD_END_ERR("execution_failed");
     }
     return;
   }
@@ -280,15 +310,15 @@ void process_serial_command(String &line) {
   // ------------------------------------------------------------
   // UNKNOWN COMMAND
   // ------------------------------------------------------------
-  RB_ERR("CMDROUTER", "unknown_command", "(na)",
-         "cmd=%s",
-         line.c_str());
+  RB_ERR_CMD("unknown_command",
+             "cmd=%s",
+             line.c_str());
   serial_printf("%s", get_help_text().c_str());
 }
 
 bool cmd_getcolor_data(int argc, double *argv) {
   String all54 = color_reader.get_cube_colors_string();
-  RB_INFO_COLORSCAN("cube_colors", rb_id_,
+  RB_INFO_COLORSCAN("cube_colors",
                     "cube_colors=%s",
                     all54.c_str());
   color_reader.print_face_compact('u');
@@ -322,14 +352,3 @@ bool cmd_ledoff(int argc, double *argv) {
   dxl.ledOff((uint8_t)argv[0]);
   return true;
 }
-
-// Always-available rb_id_ (safe fallback)
-#ifndef RB_LOCAL_ID
-#define RB_LOCAL_ID
-static inline const char *rb_get_fallback_id() {
-  static char _id[12];
-  rb_make_id(_id, sizeof(_id));
-  return _id;
-}
-#define rb_id_ rb_get_fallback_id()
-#endif

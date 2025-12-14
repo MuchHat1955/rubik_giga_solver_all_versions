@@ -63,8 +63,8 @@ bool servo_ok(uint8_t id, bool attempt_reboot) {
 
   // -1 means read failed
   if (hw_err < 0) {
-    RB_ERR_SERVO("failed_to_read_hw_error_status", "(na)",
-                 "id=%d",
+    RB_ERR_SERVO("failed_to_read_hw_error_status",
+                 "servo_id=%d",
                  id);
     return false;
   }
@@ -73,8 +73,8 @@ bool servo_ok(uint8_t id, bool attempt_reboot) {
   int shutdown = dxl.readControlTableItem(ControlTableItem::SHUTDOWN, id);
 
   if (shutdown < 0) {
-    RB_ERR_SERVO("failed_to_read_shut_down", "(na)",
-                 "id=%d",
+    RB_ERR_SERVO("failed_to_read_shut_down",
+                 "servo_id=%d",
                  id);
     return false;
   }
@@ -86,8 +86,8 @@ bool servo_ok(uint8_t id, bool attempt_reboot) {
   if (!attempt_reboot) return false;
 
   // 3) We have errors → try recovery
-  RB_ERR_SERVO("servo_error_detected_attempting_recovery", "(na)",
-               "id=%d",
+  RB_ERR_SERVO("servo_error_detected_attempting_recovery",
+               "servo_id=%d",
                id);
 
 
@@ -99,8 +99,8 @@ bool servo_ok(uint8_t id, bool attempt_reboot) {
   bool reboot_ok = dxl.reboot(id);
 
   if (!reboot_ok) {
-    RB_ERR_SERVO("reboot_failed", "(na)",
-                 "id=%d",
+    RB_ERR_SERVO("servo_reboot_failed",
+                 "servo_id=%d",
                  id);
     return false;
   }
@@ -115,8 +115,8 @@ bool servo_ok(uint8_t id, bool attempt_reboot) {
   hw_err = dxl.readControlTableItem(ControlTableItem::HARDWARE_ERROR_STATUS, id);
 
   if (hw_err != 0)
-    RB_ERR_SERVO("hw_status_error_detected", "(na)",
-                 "id=%d hw_status_error=0x%02X",
+    RB_ERR_SERVO("hw_status_error_detected",
+                 "servo_id=%d hw_status_error=0x%02X",
                  id, hw_err);
 
   return hw_err == 0;
@@ -129,8 +129,8 @@ constexpr int LED_FLASH_DELAY_MS = 120;
 bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
 
   if (servoError) {
-    RB_ERR_SERVO("safe_set_goal_skip_everything_error", "(na)",
-                 "id=%d",
+    RB_ERR_SERVO("safe_set_goal_skip_everything_error",
+                 "servo_id=%d",
                  id);
     return false;
   }
@@ -140,8 +140,8 @@ bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
   if (!servo_ok(id, false)) {
     uint8_t hw_err_now = dxl.readControlTableItem(ControlTableItem::HARDWARE_ERROR_STATUS, id);
 
-    RB_ERR_SERVO("hw_error", "(na)",
-                 "id=%d hw_error=0x%02X",
+    RB_ERR_SERVO("hw_error",
+                 "servo_id=%d hw_error=0x%02X",
                  id, hw_err_now);
 
     for (int i = 0; i < LED_FLASH_COUNT; i++) {
@@ -158,12 +158,12 @@ bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
       delay(LED_FLASH_DELAY_MS);
     }
     if (!servo_ok(id, false)) {
-      RB_ERR_SERVO("servo_not_recovered_after_reboot", "(na)",
-                   "id=%d",
+      RB_ERR_SERVO("servo_not_recovered_after_reboot",
+                   "servo_id=%d",
                    id);
       servoError = true;
-      RB_ERR_SERVO("global_fault_latched", "(na)",
-                   "id=%d",
+      RB_ERR_SERVO("global_fault_latched",
+                   "servo_id=%d",
                    id);
       return false;
     }
@@ -179,13 +179,13 @@ bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
       delay(LED_FLASH_DELAY_MS);
     }
     if (goal_ticks < getMin_ticks(id)) {
-      RB_ERR_SERVO("goal_rejected_under_min", "(na)",
-                   "id=%d goal=%d min=%d max=%d",
+      RB_ERR_SERVO("goal_rejected_under_min",
+                   "servo_id=%d goal=%d min=%d max=%d",
                    id, goal_ticks, getMin_ticks(id), getMax_ticks(id));
     }
     if (goal_ticks > getMax_ticks(id)) {
-      RB_ERR_SERVO("goal_rejected_over_max", "(na)",
-                   "id=%d goal=%d min=%d max=%d",
+      RB_ERR_SERVO("goal_rejected_over_max",
+                   "servo_id=%d goal=%d min=%d max=%d",
                    id, goal_ticks, getMin_ticks(id), getMax_ticks(id));
     }
 
