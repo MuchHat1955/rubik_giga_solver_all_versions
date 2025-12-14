@@ -23,15 +23,30 @@ extern uint32_t start_ms;
 
 void setup() {
   Serial.begin(115200);
-  while (!Serial) {}
+  unsigned long millis_wait = 6666;
+  while (!Serial && millis() < millis_wait) {
+    delay(2222);
+  }
+  delay(1111);
+  Serial.println("---- Serial Started v59 ----------------------------");
+  Serial.println();
+    delay(33333);
 
   init_tcs_led();
 
-  dxl.begin(57600);
-  dxl.setPortProtocolVersion(PROTOCOL);
+  do {
+    if (Serial) {
+      dxl.begin(57600);
+      dxl.setPortProtocolVersion(PROTOCOL);
+      break;
+    }
+    Serial.println("---- Waiting on Serial to settle before starting dxl");
+    delay(1111);
+  } while (true);
 
-  Serial.println("---- Dynamixel xl430 Controller v57ok -------------------------------------");
+  Serial.println("---- RB Dynamixel xl430 Started --------------------");
   Serial.println();
+  delay(111);
 
   // quick test for all servos
 
@@ -75,6 +90,7 @@ void setup() {
 // -------------------------------------------------------------------
 
 void loop() {
+  if (!Serial) return;
   if (!Serial.available()) return;
   String line = Serial.readStringUntil('\n');
   line.trim();

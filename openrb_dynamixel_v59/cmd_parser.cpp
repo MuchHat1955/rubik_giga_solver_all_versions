@@ -26,7 +26,7 @@ const char runHelp[] PROGMEM =
   "     11 right down   | 12 left down    | 13 back down   | 14 top down\n"
   "     21 bottom right | 22 bottom right | 23 bottom back\n"
   "     31 cube right   | 32 cube left    | 33 cube back\n"
-  "     41 reset right  | 42 reset left   | 143 reset back\n"
+  "     41 reset right  | 42 reset left   | 43 reset back\n"
   "     60 align";
 
 struct CommandEntry {
@@ -110,6 +110,12 @@ void rb_make_id(char *out, size_t len) {
   snprintf(out, len, "%c%lu", get_cmd_id_letter(), (unsigned long)get_cmd_id_num());
 }
 
+void serial_vprintf(const char *fmt, va_list ap) {
+  char buf[200];
+  vsnprintf(buf, sizeof(buf), fmt, ap);
+  Serial.print(buf);
+}
+
 void rb_emit_info(const char *module_name, const char *info_name, const char *fmt, ...) {
   char cmd_id[12];
   rb_make_id(cmd_id, sizeof(cmd_id));
@@ -118,7 +124,7 @@ void rb_emit_info(const char *module_name, const char *info_name, const char *fm
 
   va_list ap;
   va_start(ap, fmt);
-  serial_printf(fmt, ap);
+  serial_vprintf(fmt, ap);   // ✅ CORRECT
   va_end(ap);
 
   serial_printf("\n");
@@ -132,7 +138,7 @@ void rb_emit_err(const char *module_name, const char *error_description, const c
 
   va_list ap;
   va_start(ap, fmt);
-  serial_printf(fmt, ap);
+  serial_vprintf(fmt, ap);
   va_end(ap);
 
   serial_printf("\n");
@@ -189,11 +195,15 @@ get_help_text() {
 
 void process_serial_command(String &line) {
 
+  if (!Serial) return;
+
   line.trim();
   if (line.length() == 0) return;
 
   String U = line;
   U.toUpperCase();
+
+  serial_printf("CMD PARSE=%s\n", U.c_str());
 
   // ------------------------------------------------------------
   // PROTOCOL QUERY (always allowed, no args)
@@ -236,14 +246,14 @@ void process_serial_command(String &line) {
       }
 
       // ---------------- Command ID ----------------
-      char id_leter = 'c';
+      id_letter = 'c';
       if (strcmp(cmd.name, "MOVEROBOT") == 0) id_letter = 'r';
       else if (strcmp(cmd.name, "COLORSCAN") == 0) id_letter = 's';
 
       increment_cmd_id(id_letter);
 
       // ---------------- START ----------------
-      RB_CMD_START(id_leter, cmd.name, params.c_str());
+      RB_CMD_START(id_letter, cmd.name, params.c_str());
 
       bool ok = false;
 
@@ -292,7 +302,7 @@ void process_serial_command(String &line) {
     increment_cmd_id(id_letter);
     double double_param = 0.0;
     if (argc > 0) double_param = (double)argv[0];
-    String double_str = String();
+    String double_str = String(double_param);
 
     RB_CMD_START(id_letter,
                  cmd.name, double_str.c_str());

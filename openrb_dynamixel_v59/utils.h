@@ -145,6 +145,7 @@ void rb_make_id(char *out, size_t len);
 // ============================================================
 // LOW-LEVEL EMIT (USES serial_printf)
 // ============================================================
+void serial_vprintf(const char *fmt, va_list ap); 
 void rb_emit_info(const char *module_name, const char *info_name, const char *fmt, ...);
 void rb_emit_err(const char *module_name, const char *error_description, const char *fmt, ...);
 

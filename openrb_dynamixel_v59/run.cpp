@@ -89,6 +89,13 @@ static constexpr int RUN_ALIGN_CUBE = 60;
 //                       COMMAND HANDLERS (LOGIC ONLY)
 // -------------------------------------------------------------------
 
+bool cmd_run_zero();
+bool cmd_run_face_to_down(int run_no);
+bool cmd_run_bottom_layer(int run_no);
+bool cmd_run_cube_rotate(int run_no);
+bool cmd_run_base_reset(int run_no);
+bool cmd_run_align_cube();
+
 // ------------------------------------------------------------
 // GETORI
 // ------------------------------------------------------------
@@ -882,10 +889,137 @@ bool cmd_read_one_face_colors(int argc, double *argv) {
 
   return true;
 }
+bool cmd_run_face_to_down(int run_no) {
 
+  RB_INFO_MOVE("cube_face_to_down", "run_no=%d", run_no);
+
+  if (!cmdMoveGripperPer(G_OPEN)) return false;
+  if (!cmdMoveYmm(Y_CENTER)) return false;
+  if (!cmdMoveXmm(X_CENTER)) return false;
+
+  if (run_no == RUN_LEFT_DOWN)
+    if (!cmdMoveWristDegVertical(W_VERT)) return false;
+
+  if (run_no == RUN_TOP_DOWN)
+    if (!cmdMoveWristDegVertical(W_HORIZ_LEFT)) return false;
+
+  if (run_no == RUN_RIGHT_DOWN || run_no == RUN_BACK_DOWN)
+    if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
+
+  if (!cmdMoveXmm(X_CENTER)) return false;
+  if (!cmdMoveGripperClamp()) return false;
+  if (!liftCube()) return false;
+  if (!cmdMoveYmm(Y_UP)) return false;
+
+  if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
+
+  if (run_no == RUN_RIGHT_DOWN || run_no == RUN_BACK_DOWN)
+    if (!cmdMoveWristDegVertical(W_VERT)) return false;
+
+  if (run_no == RUN_LEFT_DOWN || run_no == RUN_TOP_DOWN)
+    if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
+
+  if (!lowerCube()) return false;
+  if (!cmdMoveGripperPer(G_OPEN)) return false;
+
+  if (!cmdMoveYmm(Y_CENTER + 3)) return false;
+  if (!cmdMoveXmm(X_CENTER)) return false;
+  if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
+
+  RB_INFO_RUN("run_complete", "run_no=%d", run_no);
+  return true;
+}
+
+bool cmd_run_bottom_layer(int run_no) {
+
+  RB_INFO_ROBOTMOVE("bottom_layer_rotate", "run_no=%d", run_no);
+
+  if (!cmdMoveGripperPer(G_OPEN)) return false;
+
+  if (run_no == RUN_DOWN_RIGHT)
+    if (!prepBaseForRotation(B_RIGHT)) return false;
+
+  if (run_no == RUN_DOWN_LEFT)
+    if (!prepBaseForRotation(B_LEFT)) return false;
+
+  if (run_no == RUN_DOWN_BACK)
+    if (!prepBaseForRotation(B_BACK)) return false;
+
+  if (!cmdMoveYmm(Y_MID)) return false;
+  if (!cmdMoveXmm(X_CENTER)) return false;
+  if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
+  if (!cmdMoveGripperClamp()) return false;
+
+  if (run_no == RUN_DOWN_RIGHT)
+    if (!rotateBaseRelative(B_RIGHT, true)) return false;
+
+  if (run_no == RUN_DOWN_LEFT)
+    if (!rotateBaseRelative(B_LEFT, true)) return false;
+
+  if (run_no == RUN_DOWN_BACK)
+    if (!rotateBaseRelative(B_BACK, true)) return false;
+
+  if (!cmdMoveGripperPer(G_OPEN)) return false;
+  if (!cmdMoveYmm(Y_CENTER)) return false;
+  if (!cmdMoveXmm(X_CENTER)) return false;
+
+  RB_INFO_ROBOTMOVE("run_complete", "run_no=%d", run_no);
+  return true;
+}
+
+bool cmd_run_cube_rotate(int run_no) {
+  if (run_no == RUN_CUBE_RIGHT) return rotateBaseRelative(B_RIGHT);
+  if (run_no == RUN_CUBE_LEFT) return rotateBaseRelative(B_LEFT);
+  if (run_no == RUN_CUBE_BACK) return rotateBaseRelative(B_BACK);
+  return false;
+}
+
+bool cmd_run_base_reset(int run_no) {
+  if (run_no == RUN_RESET_RIGHT) return prepBaseForRotation(B_RIGHT);
+  if (run_no == RUN_RESET_LEFT) return prepBaseForRotation(B_LEFT);
+  if (run_no == RUN_RESET_BACK) return prepBaseForRotation(B_BACK);
+  return false;
+}
+bool cmd_run_zero() {
+
+  if (!prepBaseForRotation(B_LEFT)) {
+    RB_ERR_MOVE("prep_base_failed", "dir=left");
+    return false;
+  }
+
+  if (!prepBaseForRotation(B_RIGHT)) {
+    RB_ERR_MOVE("prep_base_failed", "dir=right");
+    return false;
+  }
+
+  if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) {
+    RB_ERR_MOVE("base_center_failed", "");
+    return false;
+  }
+
+  if (!isGripperOpen(G_WIDE_OPEN)) {
+    if (!cmdMoveGripperPer(G_WIDE_OPEN)) {
+      RB_ERR_MOVE("gripper_open_failed", "grip_per=%d", G_WIDE_OPEN);
+      return false;
+    }
+  }
+
+  if (!cmdMoveXmm(X_CENTER)) return false;
+  if (!rotateBaseRelative(B_CENTER)) return false;
+  if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
+  if (!cmdMoveGripperPer(G_OPEN)) return false;
+  if (!cmdMoveYmm(Y_DOWN)) return false;
+  if (!cmdMoveGripperPer(G_SOFT_CLOSE)) return false;
+
+  RB_INFO_ROBOTMOVE("run_complete", "run_no=%d", RUN_ZERO);
+  return true;
+}
+
+bool cmd_run_align_cube() {
+  return alignCube();
+}
 
 bool cmd_run(int argc, double *argv) {
-
   // ------------------------------------------------------------
   // Validate arguments
   // ------------------------------------------------------------
@@ -902,154 +1036,31 @@ bool cmd_run(int argc, double *argv) {
               "run_no=%d",
               run_no);
 
-  // ------------------------------------------------------------
-  // RUN_ZERO — standby / neutral position
-  // ------------------------------------------------------------
-  if (run_no == RUN_ZERO) {
+  if (run_no == RUN_ZERO) return cmd_run_zero();
 
-    if (!prepBaseForRotation(B_LEFT)) {
-      RB_ERR_MOVE("prep_base_failed", "dir=left");
-      return false;
-    }
+  if (run_no == RUN_RIGHT_DOWN ||  //
+      run_no == RUN_LEFT_DOWN ||   //
+      run_no == RUN_BACK_DOWN ||   //
+      run_no == RUN_TOP_DOWN)
+    return cmd_run_face_to_down(run_no);
 
-    if (!prepBaseForRotation(B_RIGHT)) {
-      RB_ERR_MOVE("prep_base_failed", "dir=right");
-      return false;
-    }
+  if (run_no == RUN_DOWN_RIGHT ||  //
+      run_no == RUN_DOWN_LEFT ||   //
+      run_no == RUN_DOWN_BACK)
+    return cmd_run_bottom_layer(run_no);
 
-    if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) {
-      RB_ERR_MOVE("base_center_failed", "");
-      return false;
-    }
+  if (run_no == RUN_CUBE_RIGHT ||  //
+      run_no == RUN_CUBE_LEFT ||   //
+      run_no == RUN_CUBE_BACK)
+    return cmd_run_cube_rotate(run_no);
 
-    if (!isGripperOpen(G_WIDE_OPEN)) {
-      if (!cmdMoveGripperPer(G_WIDE_OPEN)) {
-        RB_ERR_MOVE("gripper_open_failed", "grip_per=%d", G_WIDE_OPEN);
-        return false;
-      }
-    }
+  if (run_no == RUN_RESET_RIGHT ||  //
+      run_no == RUN_RESET_LEFT ||   //
+      run_no == RUN_RESET_BACK)
+    return cmd_run_base_reset(run_no);
 
-    if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!rotateBaseRelative(B_CENTER)) return false;
-    if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
-    if (!cmdMoveGripperPer(G_OPEN)) return false;
-    if (!cmdMoveYmm(Y_DOWN)) return false;
-    if (!cmdMoveGripperPer(G_SOFT_CLOSE)) return false;
-
-    RB_INFO_ROBOTMOVE("run_complete",
-                      "run_no=%d",
-                      run_no);
-    return true;
-  }
-
-  // ------------------------------------------------------------
-  // Face-to-down rotations (11–14)
-  // ------------------------------------------------------------
-  if (run_no == RUN_RIGHT_DOWN || run_no == RUN_LEFT_DOWN || run_no == RUN_BACK_DOWN || run_no == RUN_TOP_DOWN) {
-
-    RB_INFO_MOVE("cube_face_to_down",
-                 "run_no=%d",
-                 run_no);
-
-    if (!cmdMoveGripperPer(G_OPEN)) return false;
-
-    if (!cmdMoveYmm(Y_CENTER)) return false;
-    if (!cmdMoveXmm(X_CENTER)) return false;
-
-    // wrist orientation differs
-    if (run_no == RUN_LEFT_DOWN)
-      if (!cmdMoveWristDegVertical(W_VERT)) return false;
-    if (run_no == RUN_TOP_DOWN)
-      if (!cmdMoveWristDegVertical(W_HORIZ_LEFT)) return false;
-    if (run_no == RUN_RIGHT_DOWN || run_no == RUN_BACK_DOWN)
-      if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
-
-    if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveGripperClamp()) return false;
-    if (!liftCube()) return false;
-    if (!cmdMoveYmm(Y_UP)) return false;
-
-    if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
-
-    // rotate cube vertically
-    if (run_no == RUN_RIGHT_DOWN || run_no == RUN_BACK_DOWN)
-      if (!cmdMoveWristDegVertical(W_VERT)) return false;
-    if (run_no == RUN_LEFT_DOWN || run_no == RUN_TOP_DOWN)
-      if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
-
-    if (!lowerCube()) return false;
-    if (!cmdMoveGripperPer(G_OPEN)) return false;
-
-    if (!cmdMoveYmm(Y_CENTER + 3)) return false;
-    if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
-
-    RB_INFO_RUN("run_complete",
-                "run_no=%d",
-                run_no);
-    return true;
-  }
-
-  // ------------------------------------------------------------
-  // Bottom-layer rotations (21–23)
-  // ------------------------------------------------------------
-  if (run_no == RUN_DOWN_RIGHT || run_no == RUN_DOWN_LEFT || run_no == RUN_DOWN_BACK) {
-
-    RB_INFO_ROBOTMOVE("bottom_layer_rotate",
-                      "run_no=%d",
-                      run_no);
-
-    if (!cmdMoveGripperPer(G_OPEN)) return false;
-
-    if (run_no == RUN_DOWN_RIGHT)
-      if (!prepBaseForRotation(B_RIGHT)) return false;
-    if (run_no == RUN_DOWN_LEFT)
-      if (!prepBaseForRotation(B_LEFT)) return false;
-    if (run_no == RUN_DOWN_BACK)
-      if (!prepBaseForRotation(B_BACK)) return false;
-
-    if (!cmdMoveYmm(Y_MID)) return false;
-    if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
-    if (!cmdMoveGripperClamp()) return false;
-
-    if (run_no == RUN_DOWN_RIGHT)
-      if (!rotateBaseRelative(B_RIGHT, true)) return false;
-    if (run_no == RUN_DOWN_LEFT)
-      if (!rotateBaseRelative(B_LEFT, true)) return false;
-    if (run_no == RUN_DOWN_BACK)
-      if (!rotateBaseRelative(B_BACK, true)) return false;
-
-    if (!cmdMoveGripperPer(G_OPEN)) return false;
-    if (!cmdMoveYmm(Y_CENTER)) return false;
-    if (!cmdMoveXmm(X_CENTER)) return false;
-
-    RB_INFO_ROBOTMOVE("run_complete",
-                      "run_no=%d",
-                      run_no);
-    return true;
-  }
-
-  // ------------------------------------------------------------
-  // Full cube rotations (31–33)
-  // ------------------------------------------------------------
-  if (run_no == RUN_CUBE_RIGHT) return rotateBaseRelative(B_RIGHT);
-  if (run_no == RUN_CUBE_LEFT) return rotateBaseRelative(B_LEFT);
-  if (run_no == RUN_CUBE_BACK) return rotateBaseRelative(B_BACK);
-
-  // ------------------------------------------------------------
-  // Base reset (41–43)
-  // ------------------------------------------------------------
-  if (run_no == RUN_RESET_RIGHT) return prepBaseForRotation(B_RIGHT);
-  if (run_no == RUN_RESET_LEFT) return prepBaseForRotation(B_LEFT);
-  if (run_no == RUN_RESET_BACK) return prepBaseForRotation(B_BACK);
-
-  // ------------------------------------------------------------
-  // Align cube
-  // ------------------------------------------------------------
-  if (run_no == RUN_ALIGN_CUBE) {
-    return alignCube();
-  }
+  if (run_no == RUN_ALIGN_CUBE)
+    return cmd_run_align_cube();
 
   // ------------------------------------------------------------
   // Unknown run number
@@ -1062,48 +1073,55 @@ bool cmd_run(int argc, double *argv) {
 
 bool robot_move_callback(const String &mv) {
 
-  // NOTE: no INFO here on purpose (very chatty path)
+  String m = mv;    // copy
+  m.toLowerCase();  // OK
 
-  if (mv == "z_plus") {
-    static double arg = RUN_RIGHT_DOWN;
-    return cmd_run(1, &arg);
-  }
-  if (mv == "z_minus") {
-    static double arg = RUN_LEFT_DOWN;
-    return cmd_run(1, &arg);
-  }
-  if (mv == "z_180") {
-    static double arg = RUN_TOP_DOWN;
-    return cmd_run(1, &arg);
-  }
-  if (mv == "y_plus") {
-    static double arg = RUN_CUBE_LEFT;
-    return cmd_run(1, &arg);
-  }
-  if (mv == "y_minus") {
-    static double arg = RUN_CUBE_RIGHT;
-    return cmd_run(1, &arg);
-  }
-  if (mv == "y_180") {
-    static double arg = RUN_CUBE_BACK;
-    return cmd_run(1, &arg);
-  }
-  if (mv == "d_minus") {
-    static double arg = RUN_DOWN_LEFT;
-    return cmd_run(1, &arg);
-  }
-  if (mv == "d_plus") {
-    static double arg = RUN_DOWN_RIGHT;
-    return cmd_run(1, &arg);
-  }
-  if (mv == "d_180") {
-    static double arg = RUN_DOWN_BACK;
-    return cmd_run(1, &arg);
-  }
+  RB_INFO_RUN("start_robot_move_callback",
+              "move=%s",
+              m.c_str());
 
-  // ---- ERROR ----
-  RB_ERR_ROBOTMOVE("robot_move_invalid",
-                   "move=%s", mv.c_str());
+  bool ok = false;
+
+  if (m == "z_plus")
+    ok = cmd_run_face_to_down(RUN_RIGHT_DOWN);
+
+  else if (m == "z_minus")
+    ok = cmd_run_face_to_down(RUN_LEFT_DOWN);
+
+  else if (m == "z_180")
+    ok = cmd_run_face_to_down(RUN_TOP_DOWN);
+
+
+  else if (m == "y_plus")
+    ok = cmd_run_cube_rotate(RUN_CUBE_LEFT);
+
+  else if (m == "y_minus")
+    ok = cmd_run_cube_rotate(RUN_CUBE_RIGHT);
+
+  else if (m == "y_180")
+    ok = cmd_run_cube_rotate(RUN_CUBE_BACK);
+
+
+  else if (m == "d_minus")
+    ok = cmd_run_bottom_layer(RUN_DOWN_LEFT);
+
+  else if (m == "d_plus")
+    ok = cmd_run_bottom_layer(RUN_DOWN_RIGHT);
+
+  else if (m == "d_180")
+    ok = cmd_run_bottom_layer(RUN_DOWN_BACK);
+
+  else
+    RB_ERR_ROBOTMOVE("robot_move_invalid",
+                     "move=%s", mv.c_str());
+
+  if (ok) RB_INFO_RUN("end_robot_move_callback",
+                      "move=%s result=ok",
+                      m.c_str());
+
+  RB_ERR_RUN("end_robot_move_callback_failed",
+             "move=%s result=error",
+             m.c_str());
 
   return false;
 }
