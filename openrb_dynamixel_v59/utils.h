@@ -194,16 +194,16 @@ inline void rb_emit_err(const char *err_name, const char *fmt, ...) {
   do { \
     set_start_millis(); \
     increment_cmd_id(letter); \
-    RB_INFO("RUNSTART", \
-            "run=%c%d params=%s", get_cmd_id_letter(), get_cmd_id_num(), params_cstr); \
+    RB_INFO("RUN", \
+            "start=%c%d params=%s", get_cmd_id_letter(), get_cmd_id_num(), params_cstr); \
   } while (0)
 
 // END OK
 #define RB_RUN_END_OK() \
   do { \
     float _dur_s = (millis() - get_start_millis()) / 1000.0f; \
-    RB_INFO("RUNEND", \
-            "run=%c%d status=ok duration_s=%.3f", \
+    RB_INFO("RUN", \
+            "end=%c%d status=ok duration_s=%.3f", \
             get_cmd_id_letter(), get_cmd_id_num(), _dur_s); \
   } while (0)
 
@@ -211,8 +211,8 @@ inline void rb_emit_err(const char *err_name, const char *fmt, ...) {
 #define RB_RUN_END_ERR(err_text) \
   do { \
     float _dur_s = (millis() - get_start_millis()) / 1000.0f; \
-    RB_ERR("RUNEND", \
-           "run=%c%d status=error err=%s duration_s=%.3f", \
+    RB_ERR("RUN", \
+           "err=%c%d status=error err=%s duration_s=%.3f", \
            get_cmd_id_letter(), get_cmd_id_num(), err_text, _dur_s); \
   } while (0)
 
