@@ -16,6 +16,14 @@ bool serial_ok = false;
 //                           HELPER for version
 // -------------------------------------------------------------------
 
+void serial_print_lowercase(const char *s) {
+  while (*s) {
+    char c = *s++;
+    if (c >= 'A' && c <= 'Z') c = c - 'A' + 'a';
+    Serial.print(c);
+  }
+}
+
 const char *extract_version_from_file() {
   static char ver[8] = "v?";
   const char *f = __FILE__;
@@ -40,9 +48,9 @@ void print_build_banner() {
   Serial.print("---- dynamixel controller ");
   Serial.print(extract_version_from_file());
   Serial.print(" | built ");
-  Serial.print(__DATE__);
+  serial_print_lowercase(__DATE__);
   Serial.print(" ");
-  Serial.print(__TIME__);
+  Serial.print(__TIME__);   // already numeric, no case
   Serial.println(" ---------------------------------------------");
 }
 
@@ -101,7 +109,6 @@ void setup() {
   print_build_banner();
   Serial.println();
   Serial.println(get_help_text());
-  Serial.println();
   Serial.println("----------------------------------------------------------------------------");
 
   init_servo_limits();
