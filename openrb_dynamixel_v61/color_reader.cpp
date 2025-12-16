@@ -47,7 +47,6 @@ void CubeColorReader::apply_slot_to_face_(char face, int slot, char color, bool 
 
   if (slot < 1 || slot > 6) {
     LOG_ERR(MOD_COLORSCAN, "invalid color reader slot");
-
     LOG_KV("slot", slot);
     LOG_KV("face", face);
     return;
@@ -75,7 +74,6 @@ void CubeColorReader::apply_slot_to_face_(char face, int slot, char color, bool 
       default:
         // slots 4,5,6 shouldn't be used in mirrored mode
         LOG_INFO(MOD_COLORSCAN, "color reader mirrored slot");
-
         LOG_KV("slot", slot);
         LOG_KV("face", face);
         return;
@@ -85,7 +83,6 @@ void CubeColorReader::apply_slot_to_face_(char face, int slot, char color, bool 
   if (offset >= 0) {
     colors_[base + offset] = color;
     LOG_INFO(MOD_COLORSCAN, "color read");
-
     LOG_KV("face", face);
     LOG_KV("slot", offset + 1);
     LOG_KV("color", color);
@@ -96,10 +93,9 @@ void CubeColorReader::apply_slot_to_face_(char face, int slot, char color, bool 
 void CubeColorReader::print_face_compact(char face) const {
   int base = face_base_index_(face);
   if (base < 0) return;
-
   LOG_INFO(MOD_COLORSCAN, "color scan face start");
-
   LOG_KV("face", face);
+
   for (int i = 0; i < 9; i++) {
     LOG_INFO(MOD_COLORSCAN, "color scan value");
     LOG_KV("color", colors_[base + i]);
@@ -116,7 +112,6 @@ void CubeColorReader::rotate_face(char face, char dir) {
   if (base < 0) {
     LOG_ERR(MOD_COLORSCAN, "invalid face");
     LOG_KV("face", face);
-
     return;
   }
 
@@ -621,12 +616,10 @@ bool CubeColorReader::process_step_(int step_index,
 
   // log completion of this step for this face
   LOG_INFO(MOD_COLORSCAN, "color scan step");
-
   LOG_KV("step_index", step_index);
   LOG_KV("robot_move", robot_move ? robot_move : "");
 
   print_face_compact(F);
-
   LOG_INFO(MOD_COLORSCAN, "cube colors read");
   LOG_KV("cube_colors", get_cube_colors_string().c_str());
 
@@ -653,7 +646,6 @@ bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
   else total_steps = k_num_color_map_steps_bottom;
 
   if (total_steps < 1) {
-
     LOG_ERR(MOD_COLORSCAN, "color reader step count invalid");
     LOG_KV("total_steps", total_steps);
 

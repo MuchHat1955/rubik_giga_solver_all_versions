@@ -126,7 +126,6 @@ static CommandEntry command_table[] = {
 
   { "LEDON", "%d", cmd_ledon, "LEDON <id> - turn servo LED on" },
   { "LEDOFF", "%d", cmd_ledoff, "LEDOFF <id> - turn servo LED off" },
-
   // NEW: string-based move commands using CubeOri
   { "MOVEROBOT", "<moves>", nullptr, "MOVEROBOT <moves> - robot moves space-separated list (y+ y- z+ z- z2 d+ d- d2)" },
   { "MOVECUBE", "<moves>", nullptr, "MOVECUBE <moves> - cube moves space-separated list (f+ f- f2 b+ b- b2 r+ r- r2 l+ l- l2 u+ u- u2 d+ d- d2)" },
@@ -145,15 +144,13 @@ static constexpr int COMMAND_COUNT = sizeof(command_table) / sizeof(command_tabl
 //                            PARSE HELPERS
 // -------------------------------------------------------------------
 
-static int parse_args(const String &line, const char *fmt, double *out, int max_args, String *raw_tokens = nullptr) {
-  // Skip command word
+static int parse_args(const String &line, const char *fmt, double *out, int max_args, String *raw_tokens = nullptr) {  // Skip command word
   int space_idx = line.indexOf(' ');
   if (space_idx < 0) return 0;
   String params = line.substring(space_idx + 1);
   params.trim();
 
   if (params.length() == 0) return 0;
-
   // Tokenize (safe for mixed types)
   int argc = 0;
   int pos = 0;
@@ -180,13 +177,12 @@ static int parse_args(const String &line, const char *fmt, double *out, int max_
 // ------------------------------------------------------------
 bool cmd_getori_data(int argc, double *argv) {
   String s = ori.get_orientation_string();
-
+  //
   LOG_INFO(MOD_CMD, "ori orientation");
   LOG_KV("orientation", s.c_str());
 
   ori.print_orientation_string();
-  String log = ori.get_move_log();
-
+  String log = ori.get_move_log();  //
   LOG_INFO(MOD_CMD, "ori move log");
   LOG_KV("move_log", log.c_str());
 
@@ -200,17 +196,14 @@ bool cmd_getori_data(int argc, double *argv) {
 // ------------------------------------------------------------
 bool cmd_clear_ori_data(int argc, double *argv) {
   ori.clear_orientation_data();
-  ori.clear_move_log();
-
+  ori.clear_move_log();  //
   LOG_INFO(MOD_CMD, "ori reset");
 
-  String s = ori.get_orientation_string();
-
+  String s = ori.get_orientation_string();  //
   LOG_INFO(MOD_CMD, "ori orientation");
   LOG_KV("orientation", s.c_str());
 
-  String log = ori.get_move_log();
-
+  String log = ori.get_move_log();  //
   LOG_INFO(MOD_CMD, "ori move log");
   LOG_KV("move_log", log.c_str());
 
@@ -219,15 +212,15 @@ bool cmd_clear_ori_data(int argc, double *argv) {
 
 bool cmd_restore_ori(int argc, double *argv) {
   if (!ori.restore_cube_orientation()) {
-
+    //
     LOG_ERR(MOD_CMD, "failed to restore orientation");
     String s = ori.get_orientation_string();
-
+    //
     LOG_INFO(MOD_CMD, "ori orientation");
     LOG_KV("orientation", s.c_str());
 
     String ori_log = ori.get_move_log();
-
+    //
     LOG_INFO(MOD_CMD, "ori move log");
     LOG_KV("move_log", ori_log.c_str());
 
@@ -237,23 +230,16 @@ bool cmd_restore_ori(int argc, double *argv) {
   if (!cmdMoveGripperPer(G_OPEN)) return false;
   if (!cmdMoveYmm(Y_DOWN)) return false;
   if (!cmdMoveGripperPer(G_SOFT_CLOSE)) return false;
-
-  // At this point ori_ is already identity.
-  // Only clear the move log.
-  ori.clear_move_log();
-
-
+  // At this point ori_ is already identity.  // Only clear the move log.
+  ori.clear_move_log();  //
   LOG_INFO(MOD_CMD, "ori restored to identity");
 
-  String s = ori.get_orientation_string();
-
+  String s = ori.get_orientation_string();  //
   LOG_INFO(MOD_CMD, "ori orientation");
   LOG_KV("orientation", s.c_str());
 
-  String log = ori.get_move_log();
-
+  String log = ori.get_move_log();  //
   LOG_INFO(MOD_CMD, "ori move log");
-
   LOG_KV("move_log", log.c_str());
   return true;
 }
@@ -261,7 +247,7 @@ bool cmd_restore_ori(int argc, double *argv) {
 bool cmd_move_xy(int argc, double *argv) {
   double goal_xmm = argv[0];
   if (goal_xmm < -max_xmm || goal_xmm > max_xmm) {
-
+    //
     LOG_ERR(MOD_CMD, "invalid x mm");
     LOG_KV("goal_x_mm", goal_xmm);
     LOG_KV("min_x_mm", -max_xmm);
@@ -270,7 +256,7 @@ bool cmd_move_xy(int argc, double *argv) {
   }
   double goal_ymm = argv[1];
   if (goal_ymm < min_ymm || goal_ymm > max_ymm) {
-
+    //
     LOG_ERR(MOD_CMD, "invalid y mm");
     LOG_KV("goal_y_mm", goal_ymm);
     LOG_KV("min_y_mm", min_ymm);
@@ -289,13 +275,12 @@ bool cmd_move_deg(int argc, double *argv) {
   double goal_deg = (double)argv[1];
 
   if (goal_deg < -185.0 || goal_deg > 360.0) {
-
+    //
     LOG_ERR(MOD_CMD, "invalid servo deg");
     LOG_KV("goal_deg", goal_deg);
     return false;
   }
-  int goal_ticks = per2ticks(id, goal_deg);
-  // serial_printf_verbose("cmd_move_deg: id=%d deg=%d", id, goal_deg);
+  int goal_ticks = per2ticks(id, goal_deg);  // serial_printf_verbose("cmd_move_deg: id=%d deg=%d", id, goal_deg);
 
   if (!cmdMoveServoDeg((uint8_t)id, goal_deg)) return false;
   print_servo_status(id);
@@ -306,8 +291,7 @@ bool cmd_move_ticks(int argc, double *argv) {
   int id = (int)argv[0];
   if (!dxl.ping(id)) return false;
 
-  int goal_ticks = (int)argv[1];
-  // serial_printf_verbose("cmd_move_ticks: id=%d ticks=%d", id, goal_ticks);
+  int goal_ticks = (int)argv[1];  // serial_printf_verbose("cmd_move_ticks: id=%d ticks=%d", id, goal_ticks);
 
   if (!safeSetGoalPosition(id, goal_ticks)) return false;
   print_servo_status(id);
@@ -321,13 +305,13 @@ bool cmd_move_per(int argc, double *argv) {
   double goal_per = argv[1];
   if (goal_per < -15.0 || goal_per > 115.0) {
 
+    //
     LOG_ERR(MOD_CMD, "invalid servo percentage");
     LOG_KV("goal_per", goal_per);
     return false;
   }
 
-  double goal_deg = per2deg(id, goal_per);
-  // serial_printf_verbose("cmd_move_per: id=%d per=%d deg=%d", id, goal_per, goal_deg);
+  double goal_deg = per2deg(id, goal_per);  // serial_printf_verbose("cmd_move_per: id=%d per=%d deg=%d", id, goal_per, goal_deg);
 
   if (!cmdMoveServoDeg((uint8_t)id, goal_deg)) return false;
   print_servo_status(id);
@@ -365,11 +349,12 @@ bool cmd_set_max(int argc, double *argv) {
 bool cmd_move_y(int argc, double *argv) {
   double goal_mm = argv[0];
   if (goal_mm < min_ymm || goal_mm > max_ymm) {
+    //
     LOG_ERR(MOD_CMD, "invalid y mm");
     LOG_KV("goal_y_mm", goal_mm);
+    //
     return false;
   }
-
   // serial_printf_verbose("cmd_move_y: y=%.2fmm", goal_mm);
   if (!cmdMoveYmm(goal_mm)) return false;
   return true;
@@ -379,11 +364,11 @@ bool cmd_move_x(int argc, double *argv) {
   double goal_mm = argv[0];
   if (goal_mm < -max_xmm || goal_mm > max_xmm) {
 
+    //
     LOG_ERR(MOD_CMD, "invalid x mm");
     LOG_KV("goal_x_mm", goal_mm);
     return false;
   }
-
   // serial_printf_verbose("cmd_move_x: x=%.2fmm", goal_mm);
   if (!cmdMoveXmm(goal_mm)) return false;
   return true;
@@ -391,12 +376,9 @@ bool cmd_move_x(int argc, double *argv) {
 
 bool cmd_move_clamp(int argc, double *argv) {
   if (!dxl.ping(ID_GRIP1) || !dxl.ping(ID_GRIP2)) return false;
-
-  // serial_printf_verbose("cmd_move_clamp");
-  // turn off torque off base before clamp
+  // serial_printf_verbose("cmd_move_clamp");  // turn off torque off base before clamp
   dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_BASE, 0);
-  bool ok = cmdMoveGripperClamp();
-  // turn off torque on base after clamp
+  bool ok = cmdMoveGripperClamp();  // turn off torque on base after clamp
   dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_BASE, 1);
   print_servo_status(ID_GRIP1);
   print_servo_status(ID_GRIP2);
@@ -410,11 +392,11 @@ bool cmd_move_gripper(int argc, double *argv) {
 
   if (goal_deg < -5.0 || goal_deg > 115.0) {
 
+    //
     LOG_ERR(MOD_CMD, "invalid gripper percentage");
     LOG_KV("goal_per", goal_deg);
     return false;
   }
-
   // serial_printf_verbose("cmd_move_gripper: deg=%.2f", goal_deg);
   if (!cmdMoveGripperPer(goal_deg)) return false;
   print_servo_status(ID_GRIP1);
@@ -429,11 +411,11 @@ bool cmd_move_wrist_vert(int argc, double *argv) {
 
   if (goal_deg < -95 || goal_deg > 95) {
 
+    //
     LOG_ERR(MOD_CMD, "invalid wrist degrees");
     LOG_KV("goal_deg", goal_deg);
     return false;
   }
-
   // serial_printf_verbose("cmd_move_wrist: deg=%.2f", goal_deg);
 
   if (!cmdMoveWristDegVertical(goal_deg)) return false;
@@ -449,11 +431,10 @@ bool cmd_color(int argc, double *argv) {
   }
   if (read_count > 10) read_count = 10;
   if (read_count < 1) read_count = 1;
-
   // serial_printf_verbose("cmd_color: count=%d", read_count);
 
   for (int i = 0; i < read_count; i++) {
-
+    //
     LOG_INFO(MOD_CMD, "calling read color");
     LOG_KV("iteration", i);
     String crrColor = read_color();
@@ -473,30 +454,22 @@ bool cmd_help(int argc, double *argv) {
 
 bool prepBaseForRotation(double nextBaseMoveRelative) {
   if (nextBaseMoveRelative == B_CENTER) return true;
-
   // // serial_printf_verbose("***** start prep base for rotation %.2f", nextBaseMoveRelative);
 
   double b_pos = getPos_deg(ID_BASE);
-
   // // serial_printf_verbose("***** before prep base at %.2f", b_pos);
 
   bool isBaseCenter = (b_pos > B_CENTER - B_TOL && b_pos < B_CENTER + B_TOL);
   bool isBaseRight = (b_pos > B_RIGHT - B_TOL && b_pos < B_RIGHT + B_TOL);
   bool isBaseLeft = (b_pos > B_LEFT - B_TOL && b_pos < B_LEFT + B_TOL);
   bool isBaseBack = (b_pos > B_BACK - B_TOL && b_pos < B_BACK + B_TOL);
-
-  // // serial_printf_verbose("***** base at center : %s", isBaseCenter ? "yes" : "no");
-  // // serial_printf_verbose("***** base at right : %s", isBaseRight ? "yes" : "no");
-  // // serial_printf_verbose("***** base at left : %s", isBaseLeft ? "yes" : "no");
-  // // serial_printf_verbose("***** base at back : %s", isBaseBack ? "yes" : "no");
-
+  // // serial_printf_verbose("***** base at center : %s", isBaseCenter ? "yes" : "no");  // // serial_printf_verbose("***** base at right : %s", isBaseRight ? "yes" : "no");  // // serial_printf_verbose("***** base at left : %s", isBaseLeft ? "yes" : "no");  // // serial_printf_verbose("***** base at back : %s", isBaseBack ? "yes" : "no");
   // move one pos to right
   if (nextBaseMoveRelative == B_RIGHT) {
     if (isBaseCenter) return true;
     if (isBaseLeft) return true;
     if (isBaseBack) return true;
-  }
-  // move one pos to left
+  }  // move one pos to left
   if (nextBaseMoveRelative == B_LEFT) {
     if (isBaseCenter) return true;
     if (isBaseRight) return true;
@@ -506,7 +479,6 @@ bool prepBaseForRotation(double nextBaseMoveRelative) {
     if (isBaseCenter) return true;
     if (isBaseRight) return true;
   }
-
   // // serial_printf_verbose("***** prep base for rotation move to center");
 
   if (!cmdMoveXmm(X_CENTER)) return false;
@@ -519,9 +491,7 @@ bool prepBaseForRotation(double nextBaseMoveRelative) {
   if (!cmdMoveYmm(Y_ROTATE_BASE)) return false;
   if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
   if (!lowerCube()) return false;
-
   // // serial_printf_verbose("***** move to center done");
-
   // // serial_printf_verbose("***** after prep base at %.2f", getPos_deg(ID_BASE));
 
   return true;
@@ -536,57 +506,44 @@ bool prepBaseForRotation(double nextBaseMoveRelative) {
 // below are relative moves
 bool rotateBaseRelative(double baseMoveRelative, bool gripperOn = false) {
   if (!dxl.ping(ID_BASE)) return false;
-
-  // // serial_printf_verbose("***** start rotate base relative with %.2f", baseMoveRelative);
-  // // serial_printf_verbose("***** base before prepared pos is %.2f", getPos_deg(ID_BASE));
+  // // serial_printf_verbose("***** start rotate base relative with %.2f", baseMoveRelative);  // // serial_printf_verbose("***** base before prepared pos is %.2f", getPos_deg(ID_BASE));
 
   if (baseMoveRelative == B_CENTER) return true;  // no move
 
   if (!prepBaseForRotation(baseMoveRelative)) return false;
 
   double b_pos = getPos_deg(ID_BASE);
-
   // // serial_printf_verbose("***** base after prep pos is %.2f", b_pos);
 
   bool isBaseCenter = (b_pos > B_CENTER - B_TOL && b_pos < B_CENTER + B_TOL);
   bool isBaseRight = (b_pos > B_RIGHT - B_TOL && b_pos < B_RIGHT + B_TOL);
   bool isBaseLeft = (b_pos > B_LEFT - B_TOL && b_pos < B_LEFT + B_TOL);
   bool isBaseBack = (b_pos > B_BACK - B_TOL && b_pos < B_BACK + B_TOL);
-
-  // // serial_printf_verbose("***** base at center : %s", isBaseCenter ? "yes" : "no");
-  // // serial_printf_verbose("***** base at right : %s", isBaseRight ? "yes" : "no");
-  // // serial_printf_verbose("***** base at left : %s", isBaseLeft ? "yes" : "no");
-  // // serial_printf_verbose("***** base at back : %s", isBaseBack ? "yes" : "no");
+  // // serial_printf_verbose("***** base at center : %s", isBaseCenter ? "yes" : "no");  // // serial_printf_verbose("***** base at right : %s", isBaseRight ? "yes" : "no");  // // serial_printf_verbose("***** base at left : %s", isBaseLeft ? "yes" : "no");  // // serial_printf_verbose("***** base at back : %s", isBaseBack ? "yes" : "no");
 
   double baseNextMove = B_CENTER;
-
   // // serial_printf_verbose("***** rotate base relative with %.2f", baseMoveRelative);
-
   // move from center
   if (isBaseCenter) {
     if (baseMoveRelative == B_RIGHT) baseNextMove = B_RIGHT;
     if (baseMoveRelative == B_LEFT) baseNextMove = B_LEFT;
     if (baseMoveRelative == B_BACK) baseNextMove = B_BACK;
-  }
-  // move from right
+  }  // move from right
   else if (isBaseRight) {
     if (baseMoveRelative == B_RIGHT) return false;
     if (baseMoveRelative == B_LEFT) baseNextMove = B_CENTER;
     if (baseMoveRelative == B_BACK) baseNextMove = B_LEFT;
-  }
-  // move from left
+  }  // move from left
   else if (isBaseLeft) {
     if (baseMoveRelative == B_RIGHT) baseNextMove = B_CENTER;
     if (baseMoveRelative == B_LEFT) baseNextMove = B_BACK;
     if (baseMoveRelative == B_BACK) return false;
-  }
-  // move from back
+  }  // move from back
   else if (isBaseBack) {
     if (baseMoveRelative == B_RIGHT) baseNextMove = B_LEFT;
     if (baseMoveRelative == B_LEFT) return false;
     if (baseMoveRelative == B_BACK) baseNextMove = B_CENTER;
-  }
-  // // serial_printf_verbose("***** rotate base to next move %.2f", baseNextMove);
+  }  // // serial_printf_verbose("***** rotate base to next move %.2f", baseNextMove);
 
   if (!gripperOn) {
     if (!cmdMoveXmm(X_CENTER)) return false;
@@ -657,7 +614,6 @@ bool cmd_read_one_color(int argc, double *argv) {
 
   double d_slot = (double)argv[0];
   int slot = (int)d_slot;
-
   // read one color for slot
   crrColorChar = '.';
   int prev_speed = speed;
@@ -705,11 +661,9 @@ bool cmd_read_one_color(int argc, double *argv) {
   return true;
 }
 
-bool cmd_read_one_face_colors(int argc, double *argv) {
-  // desired read order
+bool cmd_read_one_face_colors(int argc, double *argv) {  // desired read order
   int readOrder[] = { 1, 2, 3, 6, 5, 4 };
   const int N = sizeof(readOrder) / sizeof(readOrder[0]);
-
   // temp storage for face positions 1..6
   char face[7];
   for (int i = 1; i <= 6; i++) face[i] = '.';
@@ -724,19 +678,16 @@ bool cmd_read_one_face_colors(int argc, double *argv) {
     char result = ok ? crrColorChar : '.';
     face[pos] = result;
 
-
+    //
     LOG_INFO(MOD_CMD, "read slot");
     LOG_KV("slot", pos);
     LOG_KV("color", result);
   }
-
   // build final string in normal 123456 order
   String faceColors = "";
   for (int i = 1; i <= 6; i++) {
     faceColors += face[i];
-  }
-
-
+  }  //
   LOG_INFO(MOD_CMD, "face colors");
   LOG_KV("colors", faceColors.c_str());
   return true;
@@ -745,6 +696,7 @@ bool cmd_read_one_face_colors(int argc, double *argv) {
 bool cmd_run(int argc, double *argv) {
   if (argc < 1) {
 
+    //
     LOG_ERR(MOD_CMD, "missing run argument");
     return false;
   }
@@ -752,9 +704,7 @@ bool cmd_run(int argc, double *argv) {
   speed = 1.0;
 
   int run_no = (int)argv[0];
-
   // #define RUN_ZERO 0
-
   // the standby position
   if (run_no == RUN_ZERO) {
     if (!prepBaseForRotation(B_LEFT)) return false;   // align on a random place
@@ -771,12 +721,7 @@ bool cmd_run(int argc, double *argv) {
     if (!cmdMoveGripperPer(G_SOFT_CLOSE)) return false;
     return true;
   }
-
-  // #define RUN_RIGHT_DOWN 11
-  // #define RUN_LEFT_DOWN 12
-  // #define RUN_BACK_DOWN 13
-  // #define RUN_TOP_DOWN 14
-
+  // #define RUN_RIGHT_DOWN 11  // #define RUN_LEFT_DOWN 12  // #define RUN_BACK_DOWN 13  // #define RUN_TOP_DOWN 14
   // bring right face to down
   if (run_no == RUN_RIGHT_DOWN) {
     // prep
@@ -806,8 +751,7 @@ bool cmd_run(int argc, double *argv) {
     if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
 
     return true;
-  }
-  // bring left face to down
+  }  // bring left face to down
   if (run_no == RUN_LEFT_DOWN) {
     // prep
     if (!cmdMoveGripperPer(G_OPEN)) return false;
@@ -838,7 +782,6 @@ bool cmd_run(int argc, double *argv) {
 
     return true;
   }
-
   // bring left face to down
   if (run_no == RUN_TOP_DOWN) {
     // prep
@@ -870,7 +813,6 @@ bool cmd_run(int argc, double *argv) {
 
     return true;
   }
-
   // bring back face to down
   if (run_no == RUN_BACK_DOWN) {
     // prep
@@ -905,11 +847,7 @@ bool cmd_run(int argc, double *argv) {
 
     return true;
   }
-
-  // #define RUN_DOWN_RIGHT 21
-  // #define RUN_DOWN_LEFT 22
-  // #define RUN_DOWN_BACK 23
-
+  // #define RUN_DOWN_RIGHT 21  // #define RUN_DOWN_LEFT 22  // #define RUN_DOWN_BACK 23
   // rotate bottom layer only: right, left, back
   if (run_no == RUN_DOWN_RIGHT ||  //
       run_no == RUN_DOWN_LEFT ||   //
@@ -950,49 +888,35 @@ bool cmd_run(int argc, double *argv) {
 
     return true;
   }
-
-  // #define RUN_CUBE_RIGHT 31
-  // #define RUN_CUBE_LEFT 32
-  // #define RUN_CUBE_BACK 33
-
+  // #define RUN_CUBE_RIGHT 31  // #define RUN_CUBE_LEFT 32  // #define RUN_CUBE_BACK 33
   // rotate full cube: right, left, back
   if (run_no == RUN_CUBE_RIGHT) {
     if (!rotateBaseRelative(B_RIGHT)) return false;
     return true;
-  }
-  // 32  turn cube left to front
+  }  // 32  turn cube left to front
   if (run_no == RUN_CUBE_LEFT) {
     if (!rotateBaseRelative(B_LEFT)) return false;
     return true;
-  }
-  // 33  turn cube back to front
+  }  // 33  turn cube back to front
   if (run_no == RUN_CUBE_BACK) {
     if (!rotateBaseRelative(B_BACK)) return false;
     return true;
   }
-
-  // #define RUN_RESET_RIGHT 51
-  // #define RUN_RESET_LEFT 52
-  // #define RUN_RESET_BACK 53
-
+  // #define RUN_RESET_RIGHT 51  // #define RUN_RESET_LEFT 52  // #define RUN_RESET_BACK 53
   // reset base needed to turn base right, left, back
   if (run_no == RUN_RESET_RIGHT) {
     if (!prepBaseForRotation(B_RIGHT)) return false;
     return true;
-  }
-  // reset base needed to turn base left
+  }  // reset base needed to turn base left
   if (run_no == RUN_RESET_LEFT) {
     if (!prepBaseForRotation(B_LEFT)) return false;
     return true;
-  }
-  // reset base  needed to turn base 180
+  }  // reset base  needed to turn base 180
   if (run_no == RUN_RESET_BACK) {
     if (!prepBaseForRotation(B_BACK)) return false;
     return true;
   }
-
   // #define RUN_ALIGN_CUBE 60
-
   // align cube
   if (run_no == RUN_ALIGN_CUBE) {
     if (!alignCube()) return false;
@@ -1004,9 +928,7 @@ bool cmd_run(int argc, double *argv) {
   return false;
 }
 
-bool robot_move_callback(const String &mv) {
-
-
+bool robot_move_callback(const String &mv) {  //
   LOG_INFO(MOD_CMD, "robot move start");
   LOG_KV("move", mv.c_str());
 
@@ -1046,8 +968,7 @@ bool robot_move_callback(const String &mv) {
     static double arg = RUN_DOWN_BACK;
     return cmd_run(1, &arg);
   }
-
-
+  //
   LOG_ERR(MOD_CMD, "invalid robot move");
   LOG_KV("move", mv.c_str());
 
@@ -1058,48 +979,55 @@ bool robot_move_callback(const String &mv) {
 
 void print_colors_detail(char *txt) {
   String all54 = color_reader.get_cube_colors_string();
-
+  //
   LOG_INFO(MOD_CMD, "color analyzer start");
   LOG_KV("context", txt);
-
+  //
   LOG_INFO(MOD_CMD, "cube colors");
   LOG_KV("cube_colors", all54.c_str());
 
   color_analyzer.set_colors(all54);
   bool valid_colors = color_analyzer.is_color_string_valid_bool();
-
+  //
   LOG_INFO(MOD_CMD, "color validity");
   LOG_KV("valid", valid_colors);
   if (!valid_colors) {
-
+    //
     LOG_INFO(MOD_CMD, "color analyzer log");
     LOG_KV("log", color_analyzer.get_string_check_log().c_str());
 
     if (color_analyzer.is_string_fixable_bool()) {
       String fixed;
       if (color_analyzer.try_fix_color_string(fixed)) {
+        //
         LOG_INFO(MOD_CMD, "color string is fixable");
+        //
         LOG_INFO(MOD_CMD, "color string corrected");
+        //
         LOG_KV("corrected", fixed.c_str());
       } else {
+        //
         LOG_ERR(MOD_CMD, "color string fix failed");
       }
     } else {
+      //
       LOG_ERR(MOD_CMD, "color string not fixable");
     }
   } else {
-    // show the stage
+    // show the stage//
     LOG_INFO(MOD_CMD, "solving stage");
     for (int s = 0; s < color_analyzer.get_stage_count(); s++) {
       String state = "...";
       if (color_analyzer.is_stage_done_bool(s)) state = "done";
       else if (color_analyzer.is_stage_partial_bool(s)) state = "partial";
+      //
       LOG_KV("stage", s);
+      //
       LOG_KV("name", color_analyzer.get_stage_name(s));
+      //
       LOG_KV("state", state.c_str());
     }
-  }
-  // ~~~~~~~~~~~~~~~~~~~~~~~~
+  }  // ~~~~~~~~~~~~~~~~~~~~~~~~  //
   LOG_INFO(MOD_CMD, "color analyzer end");
   LOG_KV("context", txt);
 }
@@ -1127,14 +1055,13 @@ bool cmd_read_cube_colors_string(const String &mode_in) {
     do_solved = true;
   } else {
     // ~~~~~~~~~~~~~~~~~~~~~~~~
+    //
     LOG_ERR(MOD_CMD, "invalid READCOLORS mode");
     LOG_KV("mode", mode.c_str());
     return false;
   }
-
   // Before read
-  String before = color_reader.get_cube_colors_string();
-  // ~~~~~~~~~~~~~~~~~~~~~~~~
+  String before = color_reader.get_cube_colors_string();  // ~~~~~~~~~~~~~~~~~~~~~~~~  //
   LOG_INFO(MOD_CMD, "before read cube colors");
   LOG_KV("cube_colors", before.c_str());
   color_reader.print_cube_colors_string();
@@ -1145,30 +1072,30 @@ bool cmd_read_cube_colors_string(const String &mode_in) {
 
   bool ok = false;
 
-  if (do_full) {
+  if (do_full) {  //
     LOG_INFO(MOD_CMD, "READCOLORS full");
     ok = color_reader.read_cube_full();
-  } else if (do_solved) {
+  } else if (do_solved) {  //
     LOG_INFO(MOD_CMD, "READCOLORS solved");
     color_reader.fill_solved_cube();
     ok = true;
-  } else if (do_bottom) {
+  } else if (do_bottom) {  //
     LOG_INFO(MOD_CMD, "READCOLORS bottom");
     ok = color_reader.read_cube_bottom();
   }
 
   if (!ok) {
+    //
     LOG_ERR(MOD_CMD, "READCOLORS failed");
     return false;
   }
-
   // After read
   String after = color_reader.get_cube_colors_string();
-  ori.restore_cube_orientation();
+  ori.restore_cube_orientation();  //
   LOG_INFO(MOD_CMD, "after read orientation");
   LOG_KV("orientation", ori.get_orientation_string().c_str());
   ori.print_orientation_string();
-
+  //
   LOG_INFO(MOD_CMD, "after read cube colors");
   LOG_KV("cube_colors", after.c_str());
   print_colors_detail("after read cube colors");
@@ -1179,7 +1106,7 @@ bool cmd_read_cube_colors_string(const String &mode_in) {
 
 bool cmd_getcolor_data(int argc, double *argv) {
   String all54 = color_reader.get_cube_colors_string();
-
+  //
   LOG_INFO(MOD_CMD, "cube colors");
   LOG_KV("cube_colors", all54.c_str());
 
@@ -1220,19 +1147,20 @@ bool cmd_ledoff(int argc, double *argv) {
 // -------------------------------------------------------------------
 void print_info(uint8_t id) {
   if (!dxl.ping(id)) {
+    //
     LOG_ERR(MOD_CMD, "servo not found");
     LOG_KV("id", id);
     return;
   }
 
-  bool _ok = servo_ok(id, true);
+  bool _ok = servo_ok(id, true);  //
   LOG_INFO(MOD_CMD, "servo ok");
   LOG_KV("id", id);
   LOG_KV("ok", _ok);
-  if (!_ok) {
+  if (!_ok) {  //
     LOG_INFO(MOD_CMD, "servo resetting");
     LOG_KV("id", id);
-    reset_servo(id);
+    reset_servo(id);  //
     LOG_INFO(MOD_CMD, "servo ok");
     LOG_KV("id", id);
     LOG_KV("ok", _ok);
@@ -1250,39 +1178,32 @@ void print_info(uint8_t id) {
   float tps = pvToTicksPerSec(pv);
   float spanTicks = (maxL > minL) ? (float)(maxL - minL) : TICKS_PER_REV;
   float spanDeg = spanTicks * DEG_PER_TICK;
-
+  //
   LOG_INFO(MOD_CMD, "infoservo");
   LOG_KV("id", id);
-
-  // ~~~~~~~~~~~~~~~~~~~~~~~~
+  // ~~~~~~~~~~~~~~~~~~~~~~~~  //
   LOG_INFO(MOD_CMD, "operating mode");
   LOG_KV("op_mode", op);
-
-  // ~~~~~~~~~~~~~~~~~~~~~~~~
+  // ~~~~~~~~~~~~~~~~~~~~~~~~  //
   LOG_INFO(MOD_CMD, "drive mode");
   LOG_KV("drive_mode", drv);
   LOG_KV("profile_type", (drv & 0x01) ? "TIME" : "VELOCITY");
-
-  // ~~~~~~~~~~~~~~~~~~~~~~~~
+  // ~~~~~~~~~~~~~~~~~~~~~~~~  //
   LOG_INFO(MOD_CMD, "profile velocity");
   LOG_KV("profile_vel", pv);
   LOG_KV("rpm", rpm);
   LOG_KV("ticks_per_sec", tps);
-
-  // ~~~~~~~~~~~~~~~~~~~~~~~~
+  // ~~~~~~~~~~~~~~~~~~~~~~~~  //
   LOG_INFO(MOD_CMD, "profile acceleration");
   LOG_KV("profile_accel", pa);
-
-  // ~~~~~~~~~~~~~~~~~~~~~~~~
+  // ~~~~~~~~~~~~~~~~~~~~~~~~  //
   LOG_INFO(MOD_CMD, "position limits");
   LOG_KV("min_ticks", minL);
   LOG_KV("max_ticks", maxL);
-
-  // ~~~~~~~~~~~~~~~~~~~~~~~~
+  // ~~~~~~~~~~~~~~~~~~~~~~~~  //
   LOG_INFO(MOD_CMD, "position span");
   LOG_KV("span_deg", spanDeg);
-
-  // ~~~~~~~~~~~~~~~~~~~~~~~~
+  // ~~~~~~~~~~~~~~~~~~~~~~~~  //
   LOG_INFO(MOD_CMD, "present position");
   LOG_KV("pos_ticks", pos);
 }
@@ -1310,7 +1231,6 @@ void process_serial_command(String &line) {
   String U = line;
   U.trim();
   U.toUpperCase();
-
   // derive count of args and id flag from format
   auto derive_format_info = [](const char *fmt, int &min_args) {
     min_args = 0;
@@ -1332,14 +1252,18 @@ void process_serial_command(String &line) {
         // Extract raw params after command
         int space_idx = line.indexOf(' ');
         if (space_idx < 0) {
+          //
           LOG_ERR(MOD_CMD, "missing argument");
+          //
           LOG_KV("command", cmd.name);
           return;
         }
         String params = line.substring(space_idx + 1);
         params.trim();
         if (params.length() == 0) {
+          //
           LOG_ERR(MOD_CMD, "missing argument");
+          //
           LOG_KV("command", cmd.name);
           return;
         }
@@ -1347,8 +1271,11 @@ void process_serial_command(String &line) {
         // ----------- UNIFIED LOGGING (same as numeric commands) ----------
         // serial_printf_verbose("---- START %s params: %s ----", cmd.name, params.c_str());
 
+        //
         LOG_INFO(MOD_CMD, "command start");
+        //
         LOG_KV("command", cmd.name);
+        //
         LOG_KV("params", params.c_str());
 
         print_all_status();
@@ -1357,21 +1284,29 @@ void process_serial_command(String &line) {
 
         if (strcmp(cmd.name, "MOVECUBE") == 0) {
           // pass full raw string — ori parses sequence itself
+          //
           LOG_INFO(MOD_CMD, "calling ori.cube_move");
+          //
           LOG_KV("moves", params.c_str());
 
           ok = ori.cube_move(params);
         } else if (strcmp(cmd.name, "MOVEROBOT") == 0) {
           // pass full raw string — NO splitting
+          //
           LOG_INFO(MOD_CMD, "calling ori.robot_move");
+          //
           LOG_KV("moves", params.c_str());
 
           ok = ori.robot_move(params);
         }
 
+        //
         LOG_INFO(MOD_CMD, "command end");
+        //
         LOG_KV("command", cmd.name);
+        //
         LOG_KV("params", params.c_str());
+        //
         LOG_KV("result", ok ? "ok" : "fail");
 
         print_all_status();
@@ -1386,6 +1321,7 @@ void process_serial_command(String &line) {
         // Extract raw params after command
         int space_idx = line.indexOf(' ');
         if (space_idx < 0) {
+          //
           LOG_ERR(MOD_CMD, "READCOLORS missing argument");
           return;
         }
@@ -1393,19 +1329,25 @@ void process_serial_command(String &line) {
         String params = line.substring(space_idx + 1);
         params.trim();
         if (params.length() == 0) {
+          //
           LOG_ERR(MOD_CMD, "READCOLORS missing argument");
           return;
         }
 
         // Unified logging (same style as MOVEROBOT)
         // serial_printf_verbose("---- START READCOLORS params: %s ----", params.c_str());
+        //
         LOG_INFO(MOD_CMD, "readcolors start");
+        //
         LOG_KV("mode", params.c_str());
 
         bool ok = cmd_read_cube_colors_string(params);
 
+        //
         LOG_INFO(MOD_CMD, "readcolors end");
+        //
         LOG_KV("mode", params.c_str());
+        //
         LOG_KV("result", ok ? "ok" : "fail");
 
         return;
@@ -1427,8 +1369,11 @@ void process_serial_command(String &line) {
       // ---------------- Argument validation ----------------
       if (argc < min_args) {
 
+        //
         LOG_ERR(MOD_CMD, "invalid command usage");
+        //
         LOG_KV("command", cmd.name);
+        //
         LOG_KV("usage", cmd.desc);
 
         return;
@@ -1438,24 +1383,31 @@ void process_serial_command(String &line) {
       double p1 = 0;
       if (argc > 0) p1 = (double)argv[0];
 
+      //
       LOG_INFO(MOD_CMD, "command start");
+      //
       LOG_KV("command", cmd.name);
+      //
       LOG_KV("arg1", p1);
 
       // print_all_status();
       bool ok = cmd.handler(argc, argv);
 
+      //
       LOG_INFO(MOD_CMD, "command end");
+      //
       LOG_KV("command", cmd.name);
+      //
       LOG_KV("arg1", p1);
+      //
       LOG_KV("result", ok ? "ok" : "fail");
 
       // print_all_status();
       return;
     }
   }
-
-  LOG_ERR(MOD_CMD, "Unknown command");
+  //
+  LOG_ERR(MOD_CMD, "Unknown command");  //
   LOG_INFO(MOD_CMD, "help text");
   LOG_KV("text", get_help_text().c_str());
 }
