@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "utils.h"
+#include "log.h"
 #include "servos.h"
 #include "vertical_kinematics.h"
 #include "movement.h"
@@ -13,67 +14,23 @@
 //                           GLOBAL FLAGS
 // -------------------------------------------------------------------
 
-bool verboseOn = false;  // default at boot = ON
-
-extern uint32_t start_ms;
-bool rb_serial_ready = false;
-
-void serial_printf_verbose(const char *fmt, ...) {
-  /*/
-  if (!verboseOn) return;
-  if (!rb_serial_ready) return;
-
-  char buf[200];
-  va_list ap;
-  va_start(ap, fmt);
-  vsnprintf(buf, sizeof(buf), fmt, ap);
-  va_end(ap);
-
-  Serial.print(buf);
-  */
-}
-void serial_printf(const char *fmt, ...) {
-  /*
-  if (!rb_serial_ready) return;
-
-  char buf[200];
-  va_list ap;
-  va_start(ap, fmt);
-  vsnprintf(buf, sizeof(buf), fmt, ap);
-  va_end(ap);
-
-  Serial.print(buf);
-  */
-}
-
-inline void rb_report_protocol() {
-  LOG_RB("PROTOCOL info=version version=%d\n", RB_PROTOCOL_VERSION);
-}
-
 // -------------------------------------------------------------------
 //                           SETUP
 // -------------------------------------------------------------------
 
 void setup() {
   Serial.begin(115200);
-  return;
+  while (!Serial) {}
 
-  unsigned long start = millis();
-  while (!Serial && millis() - start < 6666) {
-    delay(10);
-  }
-
-  /*
   init_tcs_led();
 
   dxl.begin(57600);
   dxl.setPortProtocolVersion(PROTOCOL);
 
-  Serial.println("---- Dynamixel xl430 Controller v55 -------------------------------------");
+  Serial.println("---- Dynamixel xl430 Controller v57ok -------------------------------------");
   Serial.println();
 
   // quick test for all servos
-
   for (uint8_t i = 0; i < SERVO_COUNT; i++) {
     ServoConfig *s = all_servos[i];
     uint8_t id = s->get_id();
@@ -91,10 +48,18 @@ void setup() {
       uint16_t cfg_min = s->min_ticks();
       uint16_t cfg_max = s->max_ticks();
 
-      LOG_VERBOSE("Servo %s (id=%u) OK | cfg[%u-%u] hw[%u-%u]\n",
-                            s->get_key(), id, cfg_min, cfg_max, hw_min, hw_max);
+      DEBUG_INFO(MOD_CMD, "servo_ok");
+      DEBUG_KV("key", s->get_key());
+      DEBUG_KV("id", id);
+      DEBUG_KV("cfg_min", cfg_min);
+      DEBUG_KV("cfg_max", cfg_max);
+      DEBUG_KV("hw_min", hw_min);
+      DEBUG_KV("hw_max", hw_max);
+
     } else {
-      LOG_VERBOSE("Servo %s (id=%u) NOT RESPONDING\n", s->get_key(), id);
+      DEBUG_INFO(MOD_CMD, "servo_not_responding");
+      DEBUG_KV("key", s->get_key());
+      DEBUG_KV("id", id);
     }
   }
 
@@ -104,7 +69,6 @@ void setup() {
 
   init_servo_limits();
   Serial.println();
-  */
 
   Serial.println("------------------ End Setup --------------------------------------------");
   Serial.println();
@@ -115,18 +79,8 @@ void setup() {
 // -------------------------------------------------------------------
 
 void loop() {
-  Serial.println("I AM ALIVE");
-  delay(500);
-  return;
+  if (!Serial.available()) return;
 
-  Serial.println("------------------ Loop --------------------------------------------");
-  delay(6);
-  return;
-
-  if (!Serial.available()) {
-    delay(5);
-    return;
-  }
   String line = Serial.readStringUntil('\n');
   line.trim();
   if (line.length() == 0) return;

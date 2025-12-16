@@ -471,7 +471,7 @@ bool cmd_set_min(int argc, double *argv) {
   int t = (int)argv[1];
 
   if (auto *s = find_servo(id)) {
-    serial_printf_verbose("cmd_set_min: id=%d ticks=%d\n", id, t);
+    LOG_VERBOSE("cmd_set_min: id=%d ticks=%d\n", id, t);
     s->set_min_ticks(t);
     return true;
   }
@@ -485,7 +485,7 @@ bool cmd_set_max(int argc, double *argv) {
   int t = (int)argv[1];
 
   if (auto *s = find_servo(id)) {
-    serial_printf_verbose("cmd_set_max: id=%d ticks=%d\n", id, t);
+    LOG_VERBOSE("cmd_set_max: id=%d ticks=%d\n", id, t);
     s->set_max_ticks(t);
     return true;
   }
@@ -502,7 +502,7 @@ bool cmd_move_y(int argc, double *argv) {
     return false;
   }
 
-  serial_printf_verbose("cmd_move_y: y=%.2fmm\n", goal_mm);
+  LOG_VERBOSE("cmd_move_y: y=%.2fmm\n", goal_mm);
   if (!cmdMoveYmm(goal_mm)) return false;
   return true;
 }
@@ -611,21 +611,21 @@ bool cmd_color(int argc, double *argv) {
 bool prepBaseForRotation(double nextBaseMoveRelative) {
   if (nextBaseMoveRelative == B_CENTER) return true;
 
-  // serial_printf_verbose("***** start prep base for rotation %.2f\n", nextBaseMoveRelative);
+  // LOG_VERBOSE("***** start prep base for rotation %.2f\n", nextBaseMoveRelative);
 
   double b_pos = getPos_deg(ID_BASE);
 
-  // serial_printf_verbose("***** before prep base at %.2f\n", b_pos);
+  // LOG_VERBOSE("***** before prep base at %.2f\n", b_pos);
 
   bool isBaseCenter = (b_pos > B_CENTER - B_TOL && b_pos < B_CENTER + B_TOL);
   bool isBaseRight = (b_pos > B_RIGHT - B_TOL && b_pos < B_RIGHT + B_TOL);
   bool isBaseLeft = (b_pos > B_LEFT - B_TOL && b_pos < B_LEFT + B_TOL);
   bool isBaseBack = (b_pos > B_BACK - B_TOL && b_pos < B_BACK + B_TOL);
 
-  // serial_printf_verbose("***** base at center : %s\n", isBaseCenter ? "yes" : "no");
-  // serial_printf_verbose("***** base at right : %s\n", isBaseRight ? "yes" : "no");
-  // serial_printf_verbose("***** base at left : %s\n", isBaseLeft ? "yes" : "no");
-  // serial_printf_verbose("***** base at back : %s\n", isBaseBack ? "yes" : "no");
+  // LOG_VERBOSE("***** base at center : %s\n", isBaseCenter ? "yes" : "no");
+  // LOG_VERBOSE("***** base at right : %s\n", isBaseRight ? "yes" : "no");
+  // LOG_VERBOSE("***** base at left : %s\n", isBaseLeft ? "yes" : "no");
+  // LOG_VERBOSE("***** base at back : %s\n", isBaseBack ? "yes" : "no");
 
   // move one pos to right
   if (nextBaseMoveRelative == B_RIGHT) {
@@ -644,7 +644,7 @@ bool prepBaseForRotation(double nextBaseMoveRelative) {
     if (isBaseRight) return true;
   }
 
-  // serial_printf_verbose("***** prep base for rotation move to center\n");
+  // LOG_VERBOSE("***** prep base for rotation move to center\n");
 
   if (!cmdMoveXmm(X_CENTER)) return false;
   if (!isGripperOpen(G_OPEN)) {
@@ -657,9 +657,9 @@ bool prepBaseForRotation(double nextBaseMoveRelative) {
   if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
   if (!lowerCube()) return false;
 
-  // serial_printf_verbose("***** move to center done\n");
+  // LOG_VERBOSE("***** move to center done\n");
 
-  // serial_printf_verbose("***** after prep base at %.2f\n", getPos_deg(ID_BASE));
+  // LOG_VERBOSE("***** after prep base at %.2f\n", getPos_deg(ID_BASE));
 
   return true;
 }
@@ -674,8 +674,8 @@ bool prepBaseForRotation(double nextBaseMoveRelative) {
 bool rotateBaseRelative(double baseMoveRelative, bool gripperOn = false) {
   if (!dxl.ping(ID_BASE)) return false;
 
-  // serial_printf_verbose("***** start rotate base relative with %.2f\n", baseMoveRelative);
-  // serial_printf_verbose("***** base before prepared pos is %.2f\n", getPos_deg(ID_BASE));
+  // LOG_VERBOSE("***** start rotate base relative with %.2f\n", baseMoveRelative);
+  // LOG_VERBOSE("***** base before prepared pos is %.2f\n", getPos_deg(ID_BASE));
 
   if (baseMoveRelative == B_CENTER) return true;  // no move
 
@@ -683,21 +683,21 @@ bool rotateBaseRelative(double baseMoveRelative, bool gripperOn = false) {
 
   double b_pos = getPos_deg(ID_BASE);
 
-  // serial_printf_verbose("***** base after prep pos is %.2f\n", b_pos);
+  // LOG_VERBOSE("***** base after prep pos is %.2f\n", b_pos);
 
   bool isBaseCenter = (b_pos > B_CENTER - B_TOL && b_pos < B_CENTER + B_TOL);
   bool isBaseRight = (b_pos > B_RIGHT - B_TOL && b_pos < B_RIGHT + B_TOL);
   bool isBaseLeft = (b_pos > B_LEFT - B_TOL && b_pos < B_LEFT + B_TOL);
   bool isBaseBack = (b_pos > B_BACK - B_TOL && b_pos < B_BACK + B_TOL);
 
-  // serial_printf_verbose("***** base at center : %s\n", isBaseCenter ? "yes" : "no");
-  // serial_printf_verbose("***** base at right : %s\n", isBaseRight ? "yes" : "no");
-  // serial_printf_verbose("***** base at left : %s\n", isBaseLeft ? "yes" : "no");
-  // serial_printf_verbose("***** base at back : %s\n", isBaseBack ? "yes" : "no");
+  // LOG_VERBOSE("***** base at center : %s\n", isBaseCenter ? "yes" : "no");
+  // LOG_VERBOSE("***** base at right : %s\n", isBaseRight ? "yes" : "no");
+  // LOG_VERBOSE("***** base at left : %s\n", isBaseLeft ? "yes" : "no");
+  // LOG_VERBOSE("***** base at back : %s\n", isBaseBack ? "yes" : "no");
 
   double baseNextMove = B_CENTER;
 
-  // serial_printf_verbose("***** rotate base relative with %.2f\n", baseMoveRelative);
+  // LOG_VERBOSE("***** rotate base relative with %.2f\n", baseMoveRelative);
 
   // move from center
   if (isBaseCenter) {
@@ -723,7 +723,7 @@ bool rotateBaseRelative(double baseMoveRelative, bool gripperOn = false) {
     if (baseMoveRelative == B_LEFT) return false;
     if (baseMoveRelative == B_BACK) baseNextMove = B_CENTER;
   }
-  // serial_printf_verbose("***** rotate base to next move %.2f\n", baseNextMove);
+  // LOG_VERBOSE("***** rotate base to next move %.2f\n", baseNextMove);
 
   if (!gripperOn) {
     if (!cmdMoveXmm(X_CENTER)) return false;
@@ -832,7 +832,7 @@ bool cmd_read_one_color(int argc, double *argv) {
     if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) break;
 
     crrColorChar = read_color().charAt(0);
-    // serial_printf_verbose("      ---C%d=%c\n", slot, crrColorChar);
+    // LOG_VERBOSE("      ---C%d=%c\n", slot, crrColorChar);
 
     speed = prev_speed;
     return true;

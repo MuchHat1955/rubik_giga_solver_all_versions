@@ -1,7 +1,7 @@
 #include <Adafruit_TCS34725.h>
 #include "color_sensor.h"
-
-extern uint32_t start_ms;
+#include "utils.h"
+#include "log.h"
 
 // Global sensor instance
 static Adafruit_TCS34725 tcs = Adafruit_TCS34725(
@@ -25,7 +25,6 @@ void tcs_led_off() {
   analogWrite(TCS_LED_PIN, 0);  // LED OFF
 }
 
-
 struct ColorRef {
   const char* name;
   float r, g, b;
@@ -48,7 +47,10 @@ String classify_color(float r, float g, float b, float c) {
   float gn = g / c;
   float bn = b / c;
 
-  LOG_VERBOSE("avg_norm: %.3f,%.3f,%.3f\n", rn, gn, bn);
+  DEBUG_INFO(MOD_COLORSENSOR, "avg_norm");
+  DEBUG_KV("r", rn);
+  DEBUG_KV("g", gn);
+  DEBUG_KV("b", bn);
 
   float bestDist = 999.0;
   const char* best = "X";
@@ -63,17 +65,16 @@ String classify_color(float r, float g, float b, float c) {
 
     // ---- FIX 2: ORANGE BIAS LOGIC ----
     if (strcmp(ref.name, "R") == 0) {
-      // If green is noticeably higher than blue, this is usually orange, not red
       float green_blue_ratio = (bn > 0.001) ? (gn / bn) : 1.0;
-
-      // Only apply penalty when orange-like ratio
       if (green_blue_ratio > 1.05) {
-        dist += 0.0004;  // **small penalty** to push red away
+        dist += 0.0004;
       }
     }
     // ----------------------------------
 
-    LOG_VERBOSE("  compare %s => dist=%.4f\n", ref.name, dist);
+    DEBUG_INFO(MOD_COLORSENSOR, "compare_ref");
+    DEBUG_KV("ref", ref.name);
+    DEBUG_KV("dist", dist);
 
     if (dist < bestDist) {
       bestDist = dist;
@@ -81,7 +82,8 @@ String classify_color(float r, float g, float b, float c) {
     }
   }
 
-  LOG_VERBOSE("bestDist = %.4f\n", bestDist);
+  DEBUG_INFO(MOD_COLORSENSOR, "best_distance");
+  DEBUG_KV("dist", bestDist);
 
   if (bestDist > 0.02)
     return "X";
@@ -93,16 +95,16 @@ String read_color() {
 
   uint8_t samples = 8;
 
-  LOG_VERBOSE("start read color\n");
+  DEBUG_INFO(MOD_COLORSENSOR, "start_read_color");
 
   if (!tcs_initialized) {
-    LOG_VERBOSE("start tcs begin");
+    DEBUG_INFO(MOD_COLORSENSOR, "tcs_begin");
     if (!tcs.begin()) {
-      LOG_VERBOSE("ERR TCS34725 not found!");
+      DEBUG_ERR(MOD_COLORSENSOR, "tcs_not_found");
       return "na";
     }
     tcs_initialized = true;
-    LOG_VERBOSE("TCS34725 initialized");
+    DEBUG_INFO(MOD_COLORSENSOR, "tcs_initialized");
   }
 
   tcs.setInterrupt(false);  // LED ON
@@ -111,7 +113,7 @@ String read_color() {
 
   float sum_r = 0, sum_g = 0, sum_b = 0, sum_c = 0;
 
-  LOG_VERBOSE("raw_samples:\n");
+  DEBUG_INFO(MOD_COLORSENSOR, "raw_samples");
 
   // skip reading 0
   for (uint8_t i = 0; i <= samples; i++) {
@@ -120,7 +122,12 @@ String read_color() {
     tcs.getRawData(&r, &g, &b, &c);
     if (i == 0) continue;
 
-    LOG_VERBOSE("%u: %u,%u,%u,%u\n", i, r, g, b, c);
+    DEBUG_INFO(MOD_COLORSENSOR, "raw_sample");
+    DEBUG_KV("i", i);
+    DEBUG_KV("r", r);
+    DEBUG_KV("g", g);
+    DEBUG_KV("b", b);
+    DEBUG_KV("c", c);
 
     sum_r += r;
     sum_g += g;
@@ -136,12 +143,16 @@ String read_color() {
   float avg_b = sum_b / samples;
   float avg_c = sum_c / samples;
 
-  LOG_VERBOSE("calling clasify color with: %.1f,%.1f,%.1f,%.1f\n",
-                        avg_r, avg_g, avg_b, avg_c);
+  DEBUG_INFO(MOD_COLORSENSOR, "avg_raw");
+  DEBUG_KV("r", avg_r);
+  DEBUG_KV("g", avg_g);
+  DEBUG_KV("b", avg_b);
+  DEBUG_KV("c", avg_c);
 
   String ret = classify_color(avg_r, avg_g, avg_b, avg_c);
 
-  LOG_VERBOSE("final color: %s\n",
-                        ret.c_str());
+  DEBUG_INFO(MOD_COLORSENSOR, "final_color");
+  DEBUG_KV("color", ret.c_str());
+
   return ret;
 }

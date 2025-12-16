@@ -94,7 +94,7 @@ char get_cmd_id_letter() {
   return cmd_letter;
 }
 
-char get_cmd_id_num() {
+int get_cmd_id_num() {
   return cmd_num;
 }
 
@@ -107,7 +107,7 @@ void set_start_millis() {
 }
 
 void rb_make_id(char *out, size_t len) {
-  snprintf(out, len, "%c%lu", get_cmd_id_letter(), (unsigned long)get_cmd_id_num());
+  snprintf(out, len, "%c%d", get_cmd_id_letter(), get_cmd_id_num());
 }
 
 void serial_vprintf(const char *fmt, va_list ap) {
@@ -120,28 +120,28 @@ void rb_emit_info(const char *module_name, const char *info_name, const char *fm
   char cmd_id[12];
   rb_make_id(cmd_id, sizeof(cmd_id));
 
-  serial_printf("%s (%s) info=%s ", module_name, cmd_id, info_name);
+  LOG_RB("%s (%s) info=%s ", module_name, cmd_id, info_name);
 
   va_list ap;
   va_start(ap, fmt);
   serial_vprintf(fmt, ap);   // ✅ CORRECT
   va_end(ap);
 
-  serial_printf("\n");
+  LOG_RB("\n");
 }
 
 void rb_emit_err(const char *module_name, const char *error_description, const char *fmt, ...) {
   char cmd_id[12];
   rb_make_id(cmd_id, sizeof(cmd_id));
 
-  serial_printf("%s (%s) err=%s ", module_name, cmd_id, error_description);
+  LOG_RB("%s (%s) err=%s ", module_name, cmd_id, error_description);
 
   va_list ap;
   va_start(ap, fmt);
   serial_vprintf(fmt, ap);
   va_end(ap);
 
-  serial_printf("\n");
+  LOG_RB("\n");
 }
 
 // -------------------------------------------------------------------
@@ -203,7 +203,7 @@ void process_serial_command(String &line) {
   String U = line;
   U.toUpperCase();
 
-  serial_printf("CMD PARSE=%s\n", U.c_str());
+  LOG_RB("CMD PARSE=%s\n", U.c_str());
 
   // ------------------------------------------------------------
   // PROTOCOL QUERY (always allowed, no args)
@@ -323,7 +323,7 @@ void process_serial_command(String &line) {
   RB_ERR_CMD("unknown_command",
              "cmd=%s",
              line.c_str());
-  serial_printf("%s", get_help_text().c_str());
+  LOG_RB("%s", get_help_text().c_str());
 }
 
 bool cmd_getcolor_data(int argc, double *argv) {

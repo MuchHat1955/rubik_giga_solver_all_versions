@@ -8,6 +8,7 @@
 #include "vertical_kinematics.h"
 #include "ori.h"
 #include "utils.h"
+#include "log.h"
 
 // ----------------------------------------------------------------------
 // Externals from elsewhere in the project
@@ -15,10 +16,7 @@
 // ----------------------------------------------------------------------
 extern Dynamixel2Arduino dxl;
 extern VerticalKinematics kin;
-extern bool verboseOn;
 extern double min_ymm;
-
-extern uint32_t start_ms;
 
 double speed = 1.0;
 
@@ -72,8 +70,8 @@ int NudgeController::computeNudge(int currErr, int dir, MovePhase phase, int sam
 }
 
 void NudgeController::printLog() {
-  LOG_VERBOSE("---- Nudge log for servo %d (count=%d) ----\n",
-                        id, (int)records.size());
+  //DEBUG_INFO(MOD_MOVE, "---- Nudge log for servo %d (count) ----",
+  //    id, (int)records.size());
 
   for (auto& r : records) {
     const char* phaseStr =
@@ -81,9 +79,9 @@ void NudgeController::printLog() {
                                             : (r.phase == MovePhase::DECEL) ? "DEC"
                                                                             : "FINAL";
 
-    LOG_VERBOSE("[%lu ms] %s goal=%d curr=%d err=%d nudge=%d\n",
-                          r.t_ms, phaseStr, r.prevGoalTicks,
-                          r.currPosTicks, r.errTicks, r.nudgeApplied);
+    //DEBUG_INFO(MOD_MOVE, "[%lu ms] %s goal curr err nudge",
+    //       r.t_ms, phaseStr, r.prevGoalTicks,
+    //      r.currPosTicks, r.errTicks, r.nudgeApplied);
   }
 }
 
@@ -242,7 +240,7 @@ void AxisGroupController::start() {
       dxlPtr->ledOn(id);
     }
   }
-  LOG_VERBOSE("axes start | leds on\n");
+  //DEBUG_INFO(MOD_MOVE, "axes start | leds on");
 }
 
 void AxisGroupController::end() {
@@ -253,7 +251,7 @@ void AxisGroupController::end() {
       dxlPtr->ledOff(id);
     }
   }
-  LOG_VERBOSE("axes end | leds off\n");
+  //DEBUG_INFO(MOD_MOVE, "axes end | leds off");
 }
 
 void AxisGroupController::readPresentTicks(int* posList) {
@@ -275,7 +273,7 @@ void AxisGroupController::readPresentTicks(int* posList) {
 
 bool AxisGroupController::initSingle() {
   if (!dxlPtr->ping(id_servo)) {
-    LOG_VERBOSE("[INIT SINGLE] ⚠ Servo %d not responding\n", id_servo);
+    //DEBUG_INFO(MOD_MOVE, "[INIT SINGLE] ⚠ Servo %d not responding", id_servo);
     return false;
   }
 
@@ -304,8 +302,8 @@ bool AxisGroupController::initSingle() {
 
   configured = true;
 
-  LOG_VERBOSE("[INIT SINGLE] id=%d start=%d goal_deg=%.2f goal_ticks=%d\n",
-                        id_list[0], start_ticks[0], goal_deg, goal_ticks[0]);
+  //DEBUG_INFO(MOD_MOVE, "[INIT SINGLE] id start goal_deg=%.2f goal_ticks",
+  //     id_list[0], start_ticks[0], goal_deg, goal_ticks[0]);
   return true;
 }
 
@@ -319,8 +317,8 @@ bool AxisGroupController::initXY(bool keepX) {
   bool pingW = dxlPtr->ping(ID_WRIST);
 
   if (!ping1 || !ping2 || !pingW) {
-    LOG_VERBOSE("[INIT XY] ⚠ Missing servo(s): arm1=%d arm2=%d wrist=%d\n",
-                          ping1, ping2, pingW);
+    //DEBUG_INFO(MOD_MOVE, "[INIT XY] ⚠ Missing servo(s): arm1 arm2 wrist",
+    //    ping1, ping2, pingW);
     return false;
   }
 
@@ -417,10 +415,10 @@ bool AxisGroupController::initXY(bool keepX) {
     (wrist_pos == WRIST_VERT) ? "vert" : (wrist_pos == WRIST_HORIZ_LEFT) ? "left"
                                                                          : "right";
 
-  LOG_VERBOSE(
-    "[INIT XY] currentXY=(%.2f, %.2f)mm -> goalXY=(%.2f, %.2f)mm, "
-    "keepX=%d, wrist=%s\n",
-    x_now, y_now, goal_mm_x, goal_mm_y, keepX, wrist_name);
+  //DEBUG_INFO(MOD_MOVE,
+  //        "[INIT XY] currentXY=(%.2f, %.2f)mm -> goalXY=(%.2f, %.2f)mm, "
+  //       "keepX, wrist",
+  //       x_now, y_now, goal_mm_x, goal_mm_y, keepX, wrist_name);
 
   // ----------------------------------------------------------
   // Solve for new A1/A2 based on target XY
@@ -461,25 +459,25 @@ bool AxisGroupController::initXY(bool keepX) {
 
   configured = true;
 
-  LOG_VERBOSE("[INIT XY] a1=%.2f° a2=%.2f° g=%.2f°\n", a1, a2, g);
-  LOG_VERBOSE("[INIT XY] arm1 start=%d goal=%d Δ=%d\n",
-                        start_ticks[0], goal_ticks[0],
-                        goal_ticks[0] - start_ticks[0]);
-  LOG_VERBOSE("[INIT XY] arm2 start=%d goal=%d Δ=%d\n",
-                        start_ticks[1], goal_ticks[1],
-                        goal_ticks[1] - start_ticks[1]);
-  LOG_VERBOSE("[INIT XY] wrist start=%d goal=%d Δ=%d\n",
-                        start_ticks[2], goal_ticks[2],
-                        goal_ticks[2] - start_ticks[2]);
+  //DEBUG_INFO(MOD_MOVE, "[INIT XY] a1=%.2f° a2=%.2f° g=%.2f°", a1, a2, g);
+  //DEBUG_INFO(MOD_MOVE, "[INIT XY] arm1 start goal Δ",
+  //      start_ticks[0], goal_ticks[0],
+  //    goal_ticks[0] - start_ticks[0]);
+  //DEBUG_INFO(MOD_MOVE, "[INIT XY] arm2 start goal Δ",
+  //    start_ticks[1], goal_ticks[1],
+  //    goal_ticks[1] - start_ticks[1]);
+  //DEBUG_INFO(MOD_MOVE, "[INIT XY] wrist start goal Δ",
+  //    start_ticks[2], goal_ticks[2],
+  //   goal_ticks[2] - start_ticks[2]);
 
   return true;
 }
 
 bool AxisGroupController::initGripper() {
   if (!dxlPtr->ping(ID_GRIP1) || !dxlPtr->ping(ID_GRIP2)) {
-    LOG_VERBOSE("[INIT GRIP] ⚠ Gripper ping failed ping g1=%d ping g2=%d\n",
-                          dxlPtr->ping(ID_GRIP1), dxlPtr->ping(ID_GRIP2));
-    return false;
+    //DEBUG_INFO(MOD_MOVE, "[INIT GRIP] ⚠ Gripper ping failed ping g1 ping g2",
+     //          dxlPtr->ping(ID_GRIP1), dxlPtr->ping(ID_GRIP2));
+               return false;
   }
 
   int start1 = dxlPtr->getPresentPosition(ID_GRIP1);
@@ -529,11 +527,13 @@ bool AxisGroupController::initGripper() {
   configured = true;
   grip_lastProgress = 0.0;
 
-  LOG_VERBOSE("[INIT GRIP] goal%%=%.1f start1=%d start2=%d goal1=%d goal2=%d\n",
-                        goal_percent, start1, start2, goal1, goal2);
-  LOG_VERBOSE("[INIT GRIP] travel1=%d travel2=%d\n", travel1, travel2);
+  //DEBUG_INFO(MOD_MOVE, "[INIT GRIP] goal%%=%.1f start1 start2 goal1 goal2",
+  //   goal_percent, start1, start2, goal1, goal2);
+  //DEBUG_INFO(MOD_MOVE, "[INIT GRIP] travel1 travel2", travel1, travel2);
   return true;
 }
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 // ----------------------------------------------------------------------
 // Global AxisGroupController instance
@@ -561,7 +561,11 @@ static void logProgress(const char* moveName, int startTicks, int crrTicks, int 
   if (lastCrrLogged >= 0 && abs(crrTicks - lastCrrLogged) < 50) return;
   lastCrrLogged = crrTicks;
 
-  LOG_VERBOSE("MOVING %s %d/%d\n", moveName, crrTicks, endTicks);
+  LOG_INFO(MOD_MOVE, "moving");
+
+  LOG_KV("move", moveName);
+  LOG_KV("current_ticks", crrTicks);
+  LOG_KV("end_ticks", endTicks);
 }
 
 // ----------------------------------------------------------------------
@@ -599,7 +603,7 @@ static void setPid(uint8_t id, double nP, double nI, double nD) {
   int I = I_MIN + (int)(nI * (I_MAX - I_MIN));
   int D = D_MIN + (int)(nD * (D_MAX - D_MIN));
 
-  LOG_VERBOSE("PID id=%d P=%d I=%d D=%d\n", id, P, I, D);
+  //DEBUG_INFO(MOD_MOVE, "PID id P I D", id, P, I, D);
 
   dxl.writeControlTableItem(ControlTableItem::POSITION_P_GAIN, id, P);
   dxl.writeControlTableItem(ControlTableItem::POSITION_I_GAIN, id, I);
@@ -687,8 +691,8 @@ static void syncServoMotion(uint8_t id1, uint8_t id2, uint8_t id3,
     dxl.writeControlTableItem(ControlTableItem::PROFILE_ACCELERATION, id3, a3);
   }
 
-  LOG_VERBOSE("SyncMotion: [%d:%d/%d]  [%d:%d/%d]  [%d:%d/%d]\n",
-                        id1, v1, a1, id2, v2, a2, id3, v3, a3);
+  //DEBUG_INFO(MOD_MOVE, "SyncMotion: [%d:%d/%d]  [%d:%d/%d]  [%d:%d/%d]",
+  //    id1, v1, a1, id2, v2, a2, id3, v3, a3);
 }
 
 static void refineEndPositions(uint8_t id1, uint8_t id2, uint8_t id3,
@@ -796,22 +800,22 @@ bool move_smooth_v2() {
     if (goalTicks[i] < mn + 5) goalTicks[i] = mn + 5;
   }
 
-  LOG_VERBOSE(
-    "start move | axes=%d | present={%d,%d,%d} | goals={%d,%d,%d}\n",
-    axes_count,
-    startTicks[0], startTicks[1], startTicks[2],
-    goalTicks[0], goalTicks[1], goalTicks[2]);
+  //DEBUG_INFO(MOD_MOVE,
+  //      "start move | axes | present={%d,%d,%d} | goals={%d,%d,%d}",
+  //     axes_count,
+  //      startTicks[0], startTicks[1], startTicks[2],
+  //       goalTicks[0], goalTicks[1], goalTicks[2]);
 
   int distA = (axes_count >= 1) ? abs(goalTicks[0] - startTicks[0]) : 0;
   int distB = (axes_count >= 2) ? abs(goalTicks[1] - startTicks[1]) : 0;
   int distC = (axes_count >= 3) ? abs(goalTicks[2] - startTicks[2]) : 0;
 
   if (distA <= 4 && distB <= 4 && distC <= 4) {
-    LOG_VERBOSE(
-      "end move | axes=%d | present={%d,%d,%d} | goals={%d,%d,%d}\n",
-      axes_count,
-      startTicks[0], startTicks[1], startTicks[2],
-      goalTicks[0], goalTicks[1], goalTicks[2]);
+    //DEBUG_INFO(MOD_MOVE,
+    //      "end move | axes | present={%d,%d,%d} | goals={%d,%d,%d}",
+    //      axes_count,
+    //      startTicks[0], startTicks[1], startTicks[2],
+    //     goalTicks[0], goalTicks[1], goalTicks[2]);
     axes.end();
     return true;
   }
@@ -848,9 +852,9 @@ bool move_smooth_v2() {
   String err1 = (axes_count >= 2) ? String(abs(dxl.getPresentPosition(ids[1]) - goalTicks[1])) : "na";
   String err2 = (axes_count >= 3) ? String(abs(dxl.getPresentPosition(ids[2]) - goalTicks[2])) : "na";
 
-  LOG_VERBOSE("final verify | axes=%d | err0=%s | err1=%s | err2=%s\n",
-                        axes_count,
-                        err0.c_str(), err1.c_str(), err2.c_str());
+  //DEBUG_INFO(MOD_MOVE, "final verify | axes | err0 | err1 | err2",
+  //      axes_count,
+  //      err0.c_str(), err1.c_str(), err2.c_str());
 
   // ---------------------- SETTLE LOOP ------------------------------
   for (int i = 0; i < axes_count; i++) {
@@ -891,8 +895,8 @@ bool move_smooth_v2() {
       int diff = abs(finalPos - goalTicks[i]);
 
       if (diff > 4) {
-        LOG_VERBOSE("final check: servo %d still off by %d → resending goal\n",
-                              id, diff);
+        //DEBUG_INFO(MOD_MOVE, "final check: servo %d still off by %d → resending goal",
+        //        id, diff);
         dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION,
                                   id, goalTicks[i]);
         if (!safe_delay(50, { id })) return false;
@@ -905,9 +909,9 @@ bool move_smooth_v2() {
   err1 = (axes_count >= 2) ? String(abs(dxl.getPresentPosition(ids[1]) - goalTicks[1])) : "na";
   err2 = (axes_count >= 3) ? String(abs(dxl.getPresentPosition(ids[2]) - goalTicks[2])) : "na";
 
-  LOG_VERBOSE("end move | axes=%d | err0=%s | err1=%s | err2=%s\n",
-                        axes_count,
-                        err0.c_str(), err1.c_str(), err2.c_str());
+  //DEBUG_INFO(MOD_MOVE, "end move | axes | err0 | err1 | err2",
+  //      axes_count,
+  //     err0.c_str(), err1.c_str(), err2.c_str());
 
   axes.end();
 
@@ -934,12 +938,17 @@ void print_all_status() {
 
   kin.solve_x_y_from_a1_a2(a1_deg, a2_deg);
 
-  RB_INFO_SERVO("servos_status", 
-                "x_mm=%.2f y_mm=%.2f a1_deg=%.2f a2_deg=%.2f "
-                "g_vert_deg=%.2f g_deg=%.2f g1_per=%.2f g2_per=%.2f base_deg=%.2f",
-                kin.getXmm(), kin.getYmm(), kin.getA1deg(), kin.getA2deg(),
-                kin.getGdeg_for_vertical(), kin.getGdeg(),
-                g1_per, g2_per, base_deg);
+  LOG_INFO(MOD_MOVE, "kinematics_state");
+
+  LOG_KV("x_mm", kin.getXmm());
+  LOG_KV("y_mm", kin.getYmm());
+  LOG_KV("a1_deg", kin.getA1deg());
+  LOG_KV("a2_deg", kin.getA2deg());
+  LOG_KV("g_vert_deg", kin.getGdeg_for_vertical());
+  LOG_KV("g_deg", kin.getGdeg());
+  LOG_KV("g1_per", g1_per);
+  LOG_KV("g2_per", g2_per);
+  LOG_KV("base_deg", base_deg);
 }
 
 bool cmdMoveServoDeg(uint8_t id, double goal_deg) {
@@ -950,9 +959,9 @@ bool cmdMoveServoDeg(uint8_t id, double goal_deg) {
   axes.setGoalDeg(goal_deg);
   if (!axes.init()) return false;
 
-  LOG_VERBOSE("START move_smooth for SINGLE_SERVO %d %.2f************************\n", id, goal_deg);
+  ////DEBUG_INFO(MOD_MOVE,"START move_smooth for SINGLE_SERVO %d %.2f************************", id, goal_deg);
   bool r = move_smooth();
-  LOG_VERBOSE("END move_smooth for SINGLE_SERVO %d %.2f************************\n", id, goal_deg);
+  ////DEBUG_INFO(MOD_MOVE,"END move_smooth for SINGLE_SERVO %d %.2f************************", id, goal_deg);
   return r;
 }
 
@@ -960,14 +969,16 @@ bool cmdMoveServoPer(int id, double goal_per) {
   if (!dxl.ping(id)) return false;
 
   if (goal_per < -15.0 || goal_per > 115.0) {
-    RB_ERR_SERVO("invalid_servo_percentage", 
-                 "goal_per=%.2f expected_range=(-15.0..115.0)",
-                 goal_per);
+    LOG_ERR(MOD_MOVE, "invalid_servo_percentage");
+
+    LOG_KV("goal_per", goal_per);
+    LOG_KV("expected_min_per", -15.0);
+    LOG_KV("expected_max_per", 115.0);
     return false;
   }
 
   double goal_deg = per2deg((uint8_t)id, goal_per);
-  LOG_VERBOSE("cmd_move_per: id=%d per=%.2f deg=%.2f\n", id, goal_per, goal_deg);
+  //DEBUG_INFO(MOD_MOVE, "cmd_move_per: id per=%.2f deg=%.2f", id, goal_per, goal_deg);
 
   if (!cmdMoveServoDeg((uint8_t)id, goal_deg)) return false;
   print_servo_status((uint8_t)id);
@@ -1072,7 +1083,7 @@ bool cmdMoveGripperPer(double goal_per) {
   axes.setGoalPercent(goal_per);
   if (!axes.init()) return false;
 
-  LOG_VERBOSE("START move_smooth for MODE_GRIPPER\n");
+  //DEBUG_INFO(MOD_MOVE, "START move_smooth for MODE_GRIPPER");
   bool ret = move_smooth();
   read_print_xy_status();
   return ret;
@@ -1083,8 +1094,10 @@ bool cmdMoveWristDegVertical(double goal_deg) {
 
   if (goal_deg > 5 || goal_deg < -185) {
     if (kin.getYmm() < min_ymm) {
-      LOG_VERBOSE("ERR y=%.2f too low to rotate gripper <%.2f\n",
-                            kin.getYmm(), min_ymm);
+      DEBUG_ERR(MOD_MOVE, "y too low to rotate gripper");
+      DEBUG_KV("y_mm", kin.getYmm());
+      DEBUG_KV("min_y_mm", min_ymm);
+
       return false;
     }
   }
@@ -1095,15 +1108,15 @@ bool cmdMoveWristDegVertical(double goal_deg) {
 
   double vert_deg = kin.getGdeg_for_vertical();
   print_xy_status();
-  LOG_VERBOSE("g deg vertical=%.2f, g deg move to=%.2f\n",
-                        vert_deg, vert_deg + goal_deg);
+  //DEBUG_INFO(MOD_MOVE, "g deg vertical=%.2f, g deg move to=%.2f",
+  //     vert_deg, vert_deg + goal_deg);
 
   axes.setMode(AxisGroupController::AxisRunMode::SINGLE_SERVO);
   axes.setServoId(ID_WRIST);
   axes.setGoalDeg(vert_deg + goal_deg);
   if (!axes.init()) return false;
 
-  LOG_VERBOSE("START move_smooth for WRIST\n");
+  //DEBUG_INFO(MOD_MOVE, "START move_smooth for WRIST");
   return move_smooth();
 }
 
@@ -1115,8 +1128,12 @@ bool cmdMoveYmm(double goal_ymm) {
 
 
   if (goal_ymm < min_ymm) {
-    LOG_VERBOSE("ERR y too low (<%.2f) because of vertical gripper g_at_vert=%.2f g_deg=%.2f g_rel_vert=%.2f deg\n",
-                          min_ymm, kin.getGdeg_for_vertical(), kin.getGdeg(), g_relative_to_vert);
+    DEBUG_ERR(MOD_MOVE, "y too low due to vertical gripper");
+    DEBUG_KV("min_y_mm", min_ymm);
+    DEBUG_KV("g_vert_deg", kin.getGdeg_for_vertical());
+    DEBUG_KV("g_deg", kin.getGdeg());
+    DEBUG_KV("g_rel_vert_deg", g_relative_to_vert);
+
     return false;
   }
 
@@ -1129,8 +1146,8 @@ bool cmdMoveYmm(double goal_ymm) {
   axes.setYGoalMm(goal_ymm);
   if (!axes.init()) return false;
 
-  LOG_VERBOSE("START move_smooth for MODE_XY_VERTICAL\n");
-  LOG_VERBOSE("existing x=%.2f goal y=%.2f\n", kin.getXmm(), goal_ymm);
+  //DEBUG_INFO(MOD_MOVE, "START move_smooth for MODE_XY_VERTICAL");
+  //DEBUG_INFO(MOD_MOVE, "existing x=%.2f goal y=%.2f", kin.getXmm(), goal_ymm);
   double prev_speed = speed;
   if (speed > 0.35) speed = 0.35;  //TODOadjust
   bool ret = move_smooth();
@@ -1152,8 +1169,8 @@ bool cmdMoveXmm(double x_mm) {
 
   if (!axes.init()) return false;
 
-  LOG_VERBOSE("START move_smooth for MODE_XY_HORIZONTAL\n");
-  LOG_VERBOSE("goal x=%.2f existing y=%.2f\n", x_mm, kin.getYmm());
+  //DEBUG_INFO(MOD_MOVE, "START move_smooth for MODE_XY_HORIZONTAL");
+  //DEBUG_INFO(MOD_MOVE, "goal x=%.2f existing y=%.2f", x_mm, kin.getYmm());
   double prev_speed = speed;
   if (speed > 0.25) speed = 0.25;  //TODOadjust
   bool ret = move_smooth();

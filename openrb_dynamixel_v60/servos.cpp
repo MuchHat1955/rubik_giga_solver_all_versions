@@ -33,8 +33,6 @@ Dynamixel2Arduino dxl(DXL_SERIAL, DXL_DIR_PIN);
 
 extern VerticalKinematics kin;
 
-extern uint32_t start_ms;
-
 // -------------------------------------------------------------------
 //   SAFE GOAL POSITION WRAPPER (with LED flash on fault)
 // -------------------------------------------------------------------
@@ -63,9 +61,8 @@ bool servo_ok(uint8_t id, bool attempt_reboot) {
 
   // -1 means read failed
   if (hw_err < 0) {
-    RB_ERR_SERVO("failed_to_read_hw_error_status",
-                 "servo_id=%d",
-                 id);
+    LOG_INFO(MOD_SERVO, "failed to read HW_ERROR_STATUS");
+    LOG_KV("id", id);
     return false;
   }
 
@@ -73,9 +70,8 @@ bool servo_ok(uint8_t id, bool attempt_reboot) {
   int shutdown = dxl.readControlTableItem(ControlTableItem::SHUTDOWN, id);
 
   if (shutdown < 0) {
-    RB_ERR_SERVO("failed_to_read_shut_down",
-                 "servo_id=%d",
-                 id);
+    LOG_INFO(MOD_SERVO, "failed to read SHUTDOWN");
+    LOG_KV("id", id);
     return false;
   }
   // If no hardware errors → OK
@@ -86,10 +82,8 @@ bool servo_ok(uint8_t id, bool attempt_reboot) {
   if (!attempt_reboot) return false;
 
   // 3) We have errors → try recovery
-  RB_ERR_SERVO("servo_error_detected_attempting_recovery",
-               "servo_id=%d",
-               id);
-
+  LOG_INFO(MOD_SERVO, "error detected, attempting recovery");
+  LOG_KV("id", id);
 
   // Disable torque before reboot
   dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, id, 0);
@@ -99,9 +93,8 @@ bool servo_ok(uint8_t id, bool attempt_reboot) {
   bool reboot_ok = dxl.reboot(id);
 
   if (!reboot_ok) {
-    RB_ERR_SERVO("servo_reboot_failed",
-                 "servo_id=%d",
-                 id);
+    LOG_INFO(MOD_SERVO, "reboot failed");
+    LOG_KV("id", id);
     return false;
   }
 
@@ -114,10 +107,9 @@ bool servo_ok(uint8_t id, bool attempt_reboot) {
   // 6) Re-read error register
   hw_err = dxl.readControlTableItem(ControlTableItem::HARDWARE_ERROR_STATUS, id);
 
-  if (hw_err != 0)
-    RB_ERR_SERVO("hw_status_error_detected",
-                 "servo_id=%d hw_status_error=0x%02X",
-                 id, hw_err);
+  LOG_INFO(MOD_SERVO, "post-reboot hardware error status");
+  LOG_KV("id", id);
+  LOG_KV("hw_err", hw_err);
 
   return hw_err == 0;
 }
@@ -129,20 +121,16 @@ constexpr int LED_FLASH_DELAY_MS = 120;
 bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
 
   if (servoError) {
-    RB_ERR_SERVO("safe_set_goal_skip_everything_error",
-                 "servo_id=%d",
-                 id);
+    LOG_ERR(MOD_SERVO, " servo error, skip everything");
     return false;
   }
 
   uint8_t hw_err = dxl.readControlTableItem(ControlTableItem::HARDWARE_ERROR_STATUS, id);
 
   if (!servo_ok(id, false)) {
-    uint8_t hw_err_now = dxl.readControlTableItem(ControlTableItem::HARDWARE_ERROR_STATUS, id);
-
-    RB_ERR_SERVO("hw_error",
-                 "servo_id=%d hw_error=0x%02X",
-                 id, hw_err_now);
+    LOG_ERR(MOD_SERVO, "servo error");
+    LOG_KV("id", id);
+    LOG_KV("hw_err", hw_err);
 
     for (int i = 0; i < LED_FLASH_COUNT; i++) {
       lOn(id);
@@ -158,13 +146,10 @@ bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
       delay(LED_FLASH_DELAY_MS);
     }
     if (!servo_ok(id, false)) {
-      RB_ERR_SERVO("servo_not_recovered_after_reboot",
-                   "servo_id=%d",
-                   id);
+      LOG_ERR(MOD_SERVO, "setting global servo error flag");
+      LOG_KV("id", id);
+
       servoError = true;
-      RB_ERR_SERVO("global_fault_latched",
-                   "servo_id=%d",
-                   id);
       return false;
     }
   }
@@ -179,14 +164,16 @@ bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
       delay(LED_FLASH_DELAY_MS);
     }
     if (goal_ticks < getMin_ticks(id)) {
-      RB_ERR_SERVO("goal_rejected_under_min",
-                   "servo_id=%d goal=%d min=%d max=%d",
-                   id, goal_ticks, getMin_ticks(id), getMax_ticks(id));
+      DEBUG_INFO(MOD_SERVO, "safe move skipped: under min");
+      DEBUG_KV("id", id);
+      DEBUG_KV("goal_ticks", goal_ticks);
+      DEBUG_KV("min_ticks", getMin_ticks(id));
     }
     if (goal_ticks > getMax_ticks(id)) {
-      RB_ERR_SERVO("goal_rejected_over_max",
-                   "servo_id=%d goal=%d min=%d max=%d",
-                   id, goal_ticks, getMin_ticks(id), getMax_ticks(id));
+      DEBUG_INFO(MOD_SERVO, "safe move skipped: over max");
+      DEBUG_KV("id", id);
+      DEBUG_KV("goal_ticks", goal_ticks);
+      DEBUG_KV("max_ticks", getMax_ticks(id));
     }
 
     for (int i = 0; i < LED_FLASH_COUNT; i++) {
@@ -225,17 +212,17 @@ void ServoConfig::init() {
   if (limit_max_ > 4095) limit_max_ = 4095;
 
   if (!dxl.ping(id_)) {
-    LOG_VERBOSE("ERR [servo init ping failed] | %s id=%u zero=%u min=%u max=%u dir=%d\n",
-                          key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
-    return;
+    // DEBUG_ERR(MOD_SERVO, " [servo init ping failed] | %s id=%u zero=%u min=%u max=%u dir=%d\n",
+    //          key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
+        //      return;
   }
 
   // read min and max from the servo
   limit_min_ = dxl.readControlTableItem(ControlTableItem::MIN_POSITION_LIMIT, id_);
   limit_max_ = dxl.readControlTableItem(ControlTableItem::MAX_POSITION_LIMIT, id_);
 
-  LOG_VERBOSE("[servo init] | %s id=%u zero=%u min=%u max=%u dir=%d\n",
-                        key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
+  // DEBUG_INFO(MOD_SERVO, "[servo init] | %s id=%u zero=%u min=%u max=%u dir=%d\n",
+  //       key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
 }
 
 uint8_t ServoConfig::get_id() const {
@@ -267,7 +254,7 @@ void ServoConfig::set_zero_ticks(uint16_t t) {
     limit_min_ = limit_max_;
     limit_max_ = a;
   }
-  LOG_VERBOSE("[set zero] %s id=%u set zero=%u\n", key_, id_, zero_ticks_);
+  // DEBUG_INFO(MOD_SERVO, "[set zero] %s id=%u set zero=%u\n", key_, id_, zero_ticks_);
 }
 void ServoConfig::set_min_ticks(uint16_t t) {
 
@@ -278,14 +265,14 @@ void ServoConfig::set_min_ticks(uint16_t t) {
     limit_max_ = a;
   }
 
-  LOG_VERBOSE("[set min] | %s id=%u set min=%u (max=%u)\n", key_, id_, limit_min_, limit_max_);
+  // DEBUG_INFO(MOD_SERVO, "[set min] | %s id=%u set min=%u (max=%u)\n", key_, id_, limit_min_, limit_max_);
   dxl.torqueOff(id_);
   dxl.writeControlTableItem(ControlTableItem::MIN_POSITION_LIMIT, id_, limit_min_);
   dxl.writeControlTableItem(ControlTableItem::MAX_POSITION_LIMIT, id_, limit_max_);
   dxl.torqueOn(id_);
 
-  LOG_VERBOSE("[set min] servo control table min set | %s id=%u zero=%u min=%u max=%u dir=%d\n",
-                        key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
+  // DEBUG_INFO(MOD_SERVO, "[set min] servo control table min set | %s id=%u zero=%u min=%u max=%u dir=%d\n",
+  //      key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
 }
 void ServoConfig::set_max_ticks(uint16_t t) {
 
@@ -296,14 +283,14 @@ void ServoConfig::set_max_ticks(uint16_t t) {
     limit_max_ = a;
   }
 
-  LOG_VERBOSE("[set max] | %s id=%u set max=%u (min=%u)\n", key_, id_, limit_max_, limit_min_);
+  // DEBUG_INFO(MOD_SERVO, "[set max] | %s id=%u set max=%u (min=%u)\n", key_, id_, limit_max_, limit_min_);
   dxl.torqueOff(id_);
   dxl.writeControlTableItem(ControlTableItem::MIN_POSITION_LIMIT, id_, limit_min_);
   dxl.writeControlTableItem(ControlTableItem::MAX_POSITION_LIMIT, id_, limit_max_);
   dxl.torqueOn(id_);
 
-  LOG_VERBOSE("[set max] servo control table max set | %s id=%u zero=%u min=%u max=%u dir=%d\n",
-                        key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
+  // DEBUG_INFO(MOD_SERVO, "[set max] servo control table max set | %s id=%u zero=%u min=%u max=%u dir=%d\n",
+  //    key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
 }
 
 // -------------------------------------------------------------------
@@ -377,10 +364,10 @@ void init_servo_limits() {
       changed = true;
     }
     if (changed) {
-      LOG_VERBOSE("[%s] ID %u: limits updated to [%u - %u]\n",
+      // DEBUG_INFO(MOD_SERVO,"[%s] ID %u: limits updated to [%u - %u]\n",
                             cfg->get_key(), id, hw_min, hw_max);
     } else {
-      LOG_VERBOSE("[%s] ID %u: limits OK [%u - %u]\n",
+      // DEBUG_INFO(MOD_SERVO,"[%s] ID %u: limits OK [%u - %u]\n",
                             cfg->get_key(), id, hw_min, hw_max);
     }
     // ------------------------------------------------
@@ -388,10 +375,10 @@ void init_servo_limits() {
     // ------------------------------------------------
     uint16_t pos = dxl.readControlTableItem(ControlTableItem::PRESENT_POSITION, id);
     if (pos < hw_min) {
-      LOG_VERBOSE("[%s] pos=%u < min=%u → moving to min\n", cfg->get_key(), pos, hw_min);
+      // DEBUG_INFO(MOD_SERVO,"[%s] pos=%u < min=%u → moving to min\n", cfg->get_key(), pos, hw_min);
       //safeSetGoalPosition(id, hw_min);
     } else if (pos > hw_max) {
-      LOG_VERBOSE("[%s] pos=%u > max=%u → moving to max\n", cfg->get_key(), pos, hw_max);
+      // DEBUG_INFO(MOD_SERVO,"[%s] pos=%u > max=%u → moving to max\n", cfg->get_key(), pos, hw_max);
       //safeSetGoalPosition(id, hw_max);
     } else {
       // inside limits
@@ -582,7 +569,7 @@ bool checkStall(uint8_t id) {
   if (temp >= TEMP_LIMIT_C || curr > STALL_CURRENT_mA) {
     dxl.torqueOff(id);
     lOn(id);
-    LOG_VERBOSE("ERR STALL id=%d curr=%d temp=%d\n", id, curr, temp);
+    // DEBUG_ERR(MOD_SERVO, " STALL id=%d curr=%d temp=%d\n", id, curr, temp);
     return true;
   }
   return false;
@@ -617,7 +604,7 @@ void print_servo_status(uint8_t id) {
     uint8_t sid = s->get_id();
 
     if (!dxl.ping(sid)) {
-      LOG_VERBOSE("ERR no ping name=%s id=%d\n", s->get_key(), sid);
+      // DEBUG_ERR(MOD_SERVO, " no ping name=%s id=%d\n", s->get_key(), sid);
     } else {
       int pos_ticks = dxl.getPresentPosition(sid);
       int curr_mA = dxl.getPresentCurrent(sid);
@@ -626,8 +613,8 @@ void print_servo_status(uint8_t id) {
       double pos_deg = ticks2deg(sid, pos_ticks);
       double pos_per = ticks2per(sid, pos_ticks);  // percentage of configured range
 
-      LOG_VERBOSE("STATUS SERVO name=%s id=%d pos=%d deg=%.2f per=%.2f current_ma=%d temp_deg=%d min_ticks=%d, zero_ticks=%d, max_ticks=%d\n",
-                            s->get_key(), sid, pos_ticks, pos_deg, pos_per, curr_mA, temp_C, s->min_ticks(), s->zero_ticks(), s->max_ticks());
+      // DEBUG_INFO(MOD_SERVO, "STATUS SERVO name=%s id=%d pos=%d deg=%.2f per=%.2f current_ma=%d temp_deg=%d min_ticks=%d, zero_ticks=%d, max_ticks=%d\n",
+      //      s->get_key(), sid, pos_ticks, pos_deg, pos_per, curr_mA, temp_C, s->min_ticks(), s->zero_ticks(), s->max_ticks());
     }
   }
 

@@ -20,62 +20,30 @@ static inline double clampd(double v, double lo, double hi) {
 }
 
 // ============================================================
-// Unified logging macros
-// ============================================================
-#define return_false(fmt, ...) \
-  do { \
-    LOG_VERBOSE("ERR KIN | %s | " fmt "\n", __FUNCTION__, ##__VA_ARGS__); \
-    return false; \
-  } while (0)
-
-#define return_true(fmt, ...) \
-  do { \
-    return true; \
-  } while (0)
-
-/*
-#define return_true(fmt, ...) \
-  do { \
-    LOG_VERBOSE("  KIN OK  | %s | " fmt "\n", __FUNCTION__, ##__VA_ARGS__); \
-    return true; \
-  } while (0)
-*/
-
-// Disable compact motion summary
-#undef KIN_SUMMARY
-
-#ifdef KIN_SUMMARY
-#define kin_summary(fmt, ...) \
-  do { LOG_VERBOSE("KIN SUM | " fmt "\n", ##__VA_ARGS__); } while (0)
-#else
-#define kin_summary(fmt, ...)
-#endif
-
-// ============================================================
 // Bounds helpers
 // ============================================================
 bool x_in_bounds(double _x) {
   bool _b = (_x >= -max_xmm - EPS) && (_x <= max_xmm + EPS);
   if (_b) return true;
-  LOG_VERBOSE("ERR x_in_bounds x=%.2f expected +/-%.2f\n", _x, max_xmm);
+  // serial_printf_verbose("ERR x_in_bounds x=%.2f expected +/-%.2f\n", _x, max_xmm);
   return false;
 }
 bool y_in_bounds(double _y) {
   bool _b = (_y >= min_ymm + EPS) && (_y <= max_ymm - EPS);
   if (_b) return true;
-  LOG_VERBOSE("ERR y_in_bounds y=%.2f expected between %.2f to %.2f\n", _y, min_ymm, max_ymm);
+  // serial_printf_verbose("ERR y_in_bounds y=%.2f expected between %.2f to %.2f\n", _y, min_ymm, max_ymm);
   return false;
 }
 bool a1_servo_deg_in_bounds(double _a) {
   bool _b = (_a > -180.0 + EPS) && (_a < 95.0 - EPS);
   if (_b) return true;
-  LOG_VERBOSE("ERR a1_servo_deg_in_bounds a=%.2f expected between %.2f to %.2f\n", _a, -180.0, 95.0);
+  // serial_printf_verbose("ERR a1_servo_deg_in_bounds a=%.2f expected between %.2f to %.2f\n", _a, -180.0, 95.0);
   return false;
 }
 bool a2_servo_deg_in_bounds(double _a) {
   bool _b = (_a > -180.0 + EPS) && (_a < 95.0 - EPS);
   if (_b) return true;
-  LOG_VERBOSE("ERR a2_servo_deg_in_bounds a=%.2f expected between %.2f to %.2f\n", _a, -180.0, 95.0);
+  // serial_printf_verbose("ERR a2_servo_deg_in_bounds a=%.2f expected between %.2f to %.2f\n", _a, -180.0, 95.0);
   return false;
 }
 
@@ -83,32 +51,32 @@ bool a2_servo_deg_in_bounds(double _a) {
 // A2 and Y from A1 and X
 // ============================================================
 bool VerticalKinematics::solve_a2_y_from_a1_x(double _a1_servo_deg, double _x, double _g_servo_deg) {
-  // LOG_VERBOSE("            x=%.2f\n", _x);
+  // // serial_printf_verbose("            x=%.2f\n", _x);
   if (!x_in_bounds(_x))
-    return_false("x=%.2f out of range | expected ±%.2f", _x, max_xmm);
+    return false;
   if (!a1_servo_deg_in_bounds(_a1_servo_deg))
-    return_false("a1_servo_deg=%.2f° out of range", _a1_servo_deg);
+    return false;
 
   double _a1_servo_rad = deg2rad(_a1_servo_deg);
   double _a1_global_rad = _90_rad - _a1_servo_rad;
 
   double _c2 = cos(_a1_global_rad) - _x / l_mm;
   if (_c2 < -EPS || _c2 > 1.0 + EPS)
-    return_false("invalid cos(a2)=%.3f (a1=%.2f°, x=%.2f)", _c2, _a1_servo_deg, _x);
+    return false;
   _c2 = clampd(_c2, 0.0, 1.0);
 
   double _a2_global_rad = acos(_c2);
   if (_a2_global_rad < 0.0 || _a2_global_rad > _90_rad + EPS)
-    return_false("a2_global_rad=%.3f out of [0,%.3f]", _a2_global_rad, _90_rad);
+    return false;
 
   double _y = l_mm * (sin(_a1_global_rad) + sin(_a2_global_rad));
   double _a2_servo_rad = _a2_global_rad - _a1_servo_rad;
   double _a2_servo_deg = rad2deg(_a2_servo_rad);
 
   if (!y_in_bounds(_y))
-    return_false("y=%.2f out of range [%.1f, %.1f]", _y, 0.01 * l_mm, 1.99 * l_mm);
+    return false;
   if (!a2_servo_deg_in_bounds(_a2_servo_deg))
-    return_false("a2_servo_deg=%.2f° out of range", _a2_servo_deg);
+    return false;
 
   a1_servo_deg = _a1_servo_deg;
   a2_servo_deg = _a2_servo_deg;
@@ -117,9 +85,9 @@ bool VerticalKinematics::solve_a2_y_from_a1_x(double _a1_servo_deg, double _x, d
   if (_g_servo_deg >= -95.0 && _g_servo_deg <= 185.0) g_servo_deg = _g_servo_deg;
   else g_servo_deg = ticks2deg(ID_WRIST, dxl.getPresentPosition(ID_WRIST));
 
-  // LOG_VERBOSE("        a1=%.2f x=%.2f -> x=%.2f y=%.2f\n", _a1_servo_deg, _x, x_mm, y_mm);
-  kin_summary("a1=%.1f° x=%.1f → a2=%.1f° y=%.1f", _a1_servo_deg, _x, a2_servo_deg, y_mm);
-  return_true("OK | a1=%.2f° x=%.2f → a2=%.2f° y=%.2f\n", _a1_servo_deg, _x, a2_servo_deg, y_mm);
+  // // serial_printf_verbose("        a1=%.2f x=%.2f -> x=%.2f y=%.2f\n", _a1_servo_deg, _x, x_mm, y_mm);
+  // // kin_summary("a1=%.1f° x=%.1f → a2=%.1f° y=%.1f", _a1_servo_deg, _x, a2_servo_deg, y_mm);
+  return true;
 }
 
 // ============================================================
@@ -127,30 +95,30 @@ bool VerticalKinematics::solve_a2_y_from_a1_x(double _a1_servo_deg, double _x, d
 // ============================================================
 bool VerticalKinematics::solve_a2_x_from_a1_y(double _a1_servo_deg, double _y, double _g_servo_deg) {
   if (!y_in_bounds(_y))
-    return_false("y=%.2f out of range [%.1f, %.1f]", _y, 0.01 * l_mm, 1.99 * l_mm);
+    return false;
   if (!a1_servo_deg_in_bounds(_a1_servo_deg))
-    return_false("a1_servo_deg=%.2f° out of range", _a1_servo_deg);
+    return false;
 
   double _a1_servo_rad = deg2rad(_a1_servo_deg);
   double _a1_global_rad = _90_rad - _a1_servo_rad;
 
   double _s2 = (_y / l_mm) - sin(_a1_global_rad);
   if (_s2 < -EPS || _s2 > 1.0 + EPS)
-    return_false("invalid sin(a2)=%.3f (a1=%.2f°, y=%.2f)", _s2, _a1_servo_deg, _y);
+    return false;
   _s2 = clampd(_s2, 0.0, 1.0);
 
   double _a2_global_rad = asin(_s2);
   if (_a2_global_rad < 0.0 || _a2_global_rad > _90_rad + EPS)
-    return_false("a2_global_rad=%.3f out of [0,%.3f]", _a2_global_rad, _90_rad);
+    return false;
 
   double _x = l_mm * (cos(_a1_global_rad) - cos(_a2_global_rad));
   double _a2_servo_rad = _a2_global_rad - _a1_servo_rad;
   double _a2_servo_deg = rad2deg(_a2_servo_rad);
 
   if (!x_in_bounds(_x))
-    return_false("x=%.2f out of range [%.1f, %.1f]", _x, -0.5 * l_mm, 0.5 * l_mm);
+    return false;
   if (!a2_servo_deg_in_bounds(_a2_servo_deg))
-    return_false("a2_servo_deg=%.2f° out of range", _a2_servo_deg);
+    return false;
 
   a1_servo_deg = _a1_servo_deg;
   a2_servo_deg = _a2_servo_deg;
@@ -159,9 +127,9 @@ bool VerticalKinematics::solve_a2_x_from_a1_y(double _a1_servo_deg, double _y, d
   if (_g_servo_deg >= -95.0 && _g_servo_deg <= 185.0) g_servo_deg = _g_servo_deg;
   else g_servo_deg = ticks2deg(ID_WRIST, dxl.getPresentPosition(ID_WRIST));
 
-  // LOG_VERBOSE("        a1=%.2f y=%.2f -> x=%.2f y=%.2f\n", _a1_servo_deg, _y, x_mm, y_mm);
-  kin_summary("a1=%.1f° y=%.1f → a2=%.1f° x=%.1f", _a1_servo_deg, _y, a2_servo_deg, x_mm);
-  return_true("OK | a1=%.2f° y=%.2f → a2=%.2f° x=%.2f", _a1_servo_deg, _y, a2_servo_deg, x_mm);
+  // // serial_printf_verbose("        a1=%.2f y=%.2f -> x=%.2f y=%.2f\n", _a1_servo_deg, _y, x_mm, y_mm);
+  // kin_summary("a1=%.1f° y=%.1f → a2=%.1f° x=%.1f", _a1_servo_deg, _y, a2_servo_deg, x_mm);
+  return true;
 }
 
 bool VerticalKinematics::update_from_present_pos() {
@@ -180,9 +148,9 @@ bool VerticalKinematics::update_from_present_pos() {
 // ============================================================
 bool VerticalKinematics::solve_x_y_from_a1_a2(double _a1_servo_deg, double _a2_servo_deg, double _g_servo_deg) {
   if (!a1_servo_deg_in_bounds(_a1_servo_deg))
-    return_false("a1_servo_deg=%.2f° out of range", _a1_servo_deg);
+    return false;
   if (!a2_servo_deg_in_bounds(_a2_servo_deg))
-    return_false("a2_servo_deg=%.2f° out of range", _a2_servo_deg);
+    return false;
 
   double _a1_servo_rad = deg2rad(_a1_servo_deg);
   double _a2_servo_rad = deg2rad(_a2_servo_deg);
@@ -191,17 +159,17 @@ bool VerticalKinematics::solve_x_y_from_a1_a2(double _a1_servo_deg, double _a2_s
   double _a2_global_rad = _a1_servo_rad + _a2_servo_rad;
 
   if (_a1_global_rad < -_45_rad || _a1_global_rad > _135_rad + EPS)
-    return_false("a1_global_rad %.3f out of [-45,+135]", rad2deg(_a1_global_rad));
+    return false;
   if (_a2_global_rad < -_45_rad || _a2_global_rad > _135_rad + EPS)
-    return_false("a2_global_rad %.3f out of [-45,+135]", rad2deg(_a2_global_rad));
+    return false;
 
   double _x = l_mm * (cos(_a1_global_rad) - cos(_a2_global_rad));
   double _y = l_mm * (sin(_a1_global_rad) + sin(_a2_global_rad));
 
   if (!x_in_bounds(_x))
-    return_false("x=%.2f out of range", _x);
+    return false;
   if (!y_in_bounds(_y))
-    return_false("y=%.2f out of range", _y);
+    return false;
 
   x_mm = _x;
   y_mm = _y;
@@ -210,9 +178,9 @@ bool VerticalKinematics::solve_x_y_from_a1_a2(double _a1_servo_deg, double _a2_s
   if (_g_servo_deg >= -95.0 && _g_servo_deg <= 185.0) g_servo_deg = _g_servo_deg;
   else g_servo_deg = ticks2deg(ID_WRIST, dxl.getPresentPosition(ID_WRIST));
 
-  // LOG_VERBOSE("        kin | x=%.2f y=%.2f\n", x_mm, y_mm);
-  kin_summary("a1=%.1f° a2=%.1f° | x=%.1f y=%.1f", _a1_servo_deg, _a2_servo_deg, x_mm, y_mm);
-  return_true("OK | a1=%.2f° a2=%.2f° → x=%.2f y=%.2f\n", _a1_servo_deg, _a2_servo_deg, x_mm, y_mm);
+  // // serial_printf_verbose("        kin | x=%.2f y=%.2f\n", x_mm, y_mm);
+  // kin_summary("a1=%.1f° a2=%.1f° | x=%.1f y=%.1f", _a1_servo_deg, _a2_servo_deg, x_mm, y_mm);
+  return true;
 }
 
 // ============================================================
@@ -220,9 +188,9 @@ bool VerticalKinematics::solve_x_y_from_a1_a2(double _a1_servo_deg, double _a2_s
 // ============================================================
 bool VerticalKinematics::solve_a1_a2_from_x_y(double _x, double _y, double _g_servo_deg) {
   if (!x_in_bounds(_x))
-    return_false("x=%.2f out of range [%.1f, %.1f]", _x, -0.01 * l_mm, 0.99 * l_mm);
+    return false;
   if (!y_in_bounds(_y))
-    return_false("y=%.2f out of range [%.1f, %.1f]", _y, 0.05 * l_mm, 1.99 * l_mm);
+    return false;
 
   double _ax = _x / l_mm;
   double _by = _y / l_mm;
@@ -233,7 +201,7 @@ bool VerticalKinematics::solve_a1_a2_from_x_y(double _x, double _y, double _g_se
   if (fabs(_cos_q) > 1e-9)
     _sin_p = clampd(_by / (2.0 * _cos_q), -1.0, 1.0);
   else
-    return_false("cos(q) near zero: %.6f", _cos_q);
+    return false;
 
   double _p = asin(_sin_p);
 
@@ -244,9 +212,9 @@ bool VerticalKinematics::solve_a1_a2_from_x_y(double _x, double _y, double _g_se
   double _a2_servo_deg = rad2deg(_a2_global_rad) + rad2deg(_a1_global_rad) - 90.0;
 
   if (!a1_servo_deg_in_bounds(_a1_servo_deg))
-    return_false("a1_servo_deg=%.2f° out of range", _a1_servo_deg);
+    return false;
   if (!a2_servo_deg_in_bounds(_a2_servo_deg))
-    return_false("a2_servo_deg=%.2f° out of range", _a2_servo_deg);
+    return false;
 
   a1_servo_deg = _a1_servo_deg;
   a2_servo_deg = _a2_servo_deg;
@@ -255,9 +223,9 @@ bool VerticalKinematics::solve_a1_a2_from_x_y(double _x, double _y, double _g_se
   if (_g_servo_deg >= -95.0 && _g_servo_deg <= 185.0) g_servo_deg = _g_servo_deg;
   else g_servo_deg = ticks2deg(ID_WRIST, dxl.getPresentPosition(ID_WRIST));
 
-  // LOG_VERBOSE("        kin | x=%.2f y=%.2f\n", x_mm, y_mm);
-  kin_summary("x=%.1f y=%.1f | a1=%.1f° a2=%.1f°", _x, _y, a1_servo_deg, a2_servo_deg);
-  return_true("OK | x=%.2f y=%.2f → a1=%.2f° a2=%.2f°", _x, _y, a1_servo_deg, a2_servo_deg);
+  // // serial_printf_verbose("        kin | x=%.2f y=%.2f\n", x_mm, y_mm);
+  // kin_summary("x=%.1f y=%.1f | a1=%.1f° a2=%.1f°", _x, _y, a1_servo_deg, a2_servo_deg);
+  return true;
 }
 
 // -------------------------------------------------------------------
@@ -300,19 +268,19 @@ double VerticalKinematics::getGdeg() const {
 #define W_HORIZ_LEFT 90 + VERT_CORRECTION //95
 */
 
-double VerticalKinematics::getGdeg_for_vertical() const { 
+double VerticalKinematics::getGdeg_for_vertical() const {
   // 0° = gripper vertical; positive tilts along Arm2
-  return -a2_servo_deg - a1_servo_deg + W_VERT + 180; // was + 180
+  return -a2_servo_deg - a1_servo_deg + W_VERT + 180;  // was + 180
 }
 
-double VerticalKinematics::getGdeg_for_horizontal_right() const { 
+double VerticalKinematics::getGdeg_for_horizontal_right() const {
   // 0° = gripper vertical; positive tilts along Arm2
-  return getGdeg_for_vertical() + W_HORIZ_RIGHT; // was -90
+  return getGdeg_for_vertical() + W_HORIZ_RIGHT;  // was -90
 }
 
 double VerticalKinematics::getGdeg_for_horizontal_left() const {
   // 0° = gripper vertical; positive tilts along Arm2
-  return getGdeg_for_vertical() + W_HORIZ_LEFT; // was + 90
+  return getGdeg_for_vertical() + W_HORIZ_LEFT;  // was + 90
 }
 
 int VerticalKinematics::getGticks() const {
@@ -325,7 +293,14 @@ int VerticalKinematics::getGticks() const {
 VerticalKinematics kin;
 
 void print_xy_status() {
-  LOG_VERBOSE("STATUS XY X=%.2fmm Y=%.2fmm A1=%.2fdeg A2=%.2fdeg G=%.2fdeg G horiz_r=%.2fdeg G horiz_l=%.2fdeg G vert=%.2fdeg \n",
-                        kin.getXmm(), kin.getYmm(), kin.getA1deg(), kin.getA2deg(),
-                        kin.getGdeg(), kin.getGdeg_for_horizontal_right(), kin.getGdeg_for_horizontal_left(), kin.getGdeg_for_vertical());
+  DEBUG_INFO(MOD_KIN, "status xy");
+
+  DEBUG_KV("x_mm", kin.getXmm());
+  DEBUG_KV("y_mm", kin.getYmm());
+  DEBUG_KV("a1_deg", kin.getA1deg());
+  DEBUG_KV("a2_deg", kin.getA2deg());
+  DEBUG_KV("g_deg", kin.getGdeg());
+  DEBUG_KV("g_horiz_r_deg", kin.getGdeg_for_horizontal_right());
+  DEBUG_KV("g_horiz_l_deg", kin.getGdeg_for_horizontal_left());
+  DEBUG_KV("g_vert_deg", kin.getGdeg_for_vertical());
 }

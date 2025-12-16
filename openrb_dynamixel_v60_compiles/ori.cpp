@@ -10,31 +10,6 @@ extern ColorAnalyzer color_analyzer;
 int cube_move_index = 0;
 int cube_move_total = 0;
 
-extern uint32_t start_ms;
-
-/*
-ORI logging (CubeOri)
-
-RB_INFO ORI
-  info=orientation_cleared
-  info=robot_move_start        move
-  info=robot_move_end          move
-  info=orientation_updated    orientation
-  info=cube_move_token        cube_move step total_steps
-  info=cube_move_applied      cube_move
-  info=restore_start
-  info=restore_move           move
-  info=restore_complete
-
-RB_ERR ORI
-  err=robot_callback_failed   move
-  err=logical_face_not_found  face
-  err=cube_move_not_found     key
-  err=robot_move_failed       move
-  err=restore_failed
-  err=invalid_cube_token      token
-  */
-
 // ============================================================
 // Tables
 // ============================================================
@@ -50,8 +25,6 @@ RB_ERR ORI
 //   new[R] = old[U];
 //
 // and any face not mentioned stays the same.
-
-
 struct OriMoveMap {
   const char *robot_move;  // "z_plus", etc
   const char *changes[4];  // up to 4 directional changes "u->r"
@@ -120,39 +93,30 @@ void CubeOri::clear_orientation_data() {
   ori_.B = 'b';
 
   orientation_log_ = "";
-
-  RB_INFO_CUBEORI("orientation_cleared", "", "");
 }
 
 bool CubeOri::restore_cube_orientation() {
-
-  RB_INFO_CUBEORI("restore_start", "", "");
-
-  // ------------------------------------------------------------
-  // Target orientation = identity
-  // ------------------------------------------------------------
+  // Goal (identity orientation)
   Orientation target;
   target.U = 'u';
-  target.R = 'r';
-  target.F = 'f';
   target.D = 'd';
-  target.L = 'l';
+  target.F = 'f';
   target.B = 'b';
+  target.L = 'l';
+  target.R = 'r';
 
   // Already aligned?
   if (orientations_equal_(ori_, target)) {
-    RB_INFO_CUBEORI("restore_complete",
-                    "already_identity=true", "");
     return true;
   }
 
-  // ------------------------------------------------------------
-  // BFS over the 24 possible cube orientations
-  // ------------------------------------------------------------
-  const String moves[6] = {
-    "z_plus", "z_minus", "z_180",
-    "y_plus", "y_minus", "y_180"
-  };
+  //
+  // BFS over the 24 possible cube orientations.
+  // We only use: y+, y-, z+, z'.
+  //
+
+  const String moves[6] = { "z_plus", "z_minus", "z_180",  //
+                            "y_plus", "y_minus", "y_180" };
 
   const int MAX_STATES = 24;
 
@@ -172,17 +136,16 @@ bool CubeOri::restore_cube_orientation() {
   int state_count = 1;
   int found_idx = -1;
 
-  // ------------------------------------------------------------
-  // BFS search
-  // ------------------------------------------------------------
+  // BFS loop
   while (q_head < q_tail && found_idx < 0) {
     int cur = queue[q_head++];
     Orientation cur_o = states[cur];
 
+    // Try applying each legal rotation
     for (int m = 0; m < 6; ++m) {
       Orientation next_o = apply_rotation_to_orientation_(cur_o, moves[m]);
 
-      // Check if already visited
+      // Check if visited
       bool seen = false;
       for (int i = 0; i < state_count; i++) {
         if (orientations_equal_(states[i], next_o)) {
@@ -192,7 +155,7 @@ bool CubeOri::restore_cube_orientation() {
       }
       if (seen) continue;
 
-      if (state_count >= MAX_STATES) break;
+      if (state_count >= MAX_STATES) break;  // Should never overflow
 
       int idx = state_count++;
       states[idx] = next_o;
@@ -208,14 +171,13 @@ bool CubeOri::restore_cube_orientation() {
   }
 
   if (found_idx < 0) {
-    RB_ERR_CUBEORI("restore_failed",
-                   "reason=no_path");
+    // Should never happen for a valid orientation group
     return false;
   }
 
-  // ------------------------------------------------------------
-  // Reconstruct path (reverse)
-  // ------------------------------------------------------------
+  //
+  // Reconstruct path from found_idx back to state 0 (reverse order)
+  //
   String path_moves[16];
   int path_len = 0;
 
@@ -225,26 +187,18 @@ bool CubeOri::restore_cube_orientation() {
     cur = parent_idx[cur];
   }
 
-  // ------------------------------------------------------------
-  // Replay moves forward
-  // ------------------------------------------------------------
+  //
+  // Replay moves forward (reverse order)
+  //
   for (int i = path_len - 1; i >= 0; --i) {
-
-    RB_INFO_CUBEORI("restore_move",
-                    "move=%s",
-                    path_moves[i].c_str());
-
     if (!robot_move(path_moves[i])) {
-      RB_ERR_CUBEORI("restore_failed",
-                     "move=%s",
-                     path_moves[i].c_str());
+
+      LOG_ERR(MOD_CUBEORI, "restore cube orientation robot move failed");
+      LOG_KV("move", path_moves[i].c_str());
+
       return false;
     }
   }
-
-  RB_INFO_CUBEORI("restore_complete",
-                  "orientation=%s",
-                  get_orientation_string().c_str());
 
   return true;
 }
@@ -360,35 +314,26 @@ void CubeOri::apply_ori_table_(const String &robot_move) {
 bool CubeOri::robot_move(const String &move_str) {
   if (move_str.length() == 0) return false;
 
-  RB_INFO_ROBOTMOVE("robot_move_start",
-                    "move=%s",
-                    move_str.c_str());
-
-  // Hardware callback
+  // Callback first (actual hardware movement)
   if (robot_cb_) {
     if (!robot_cb_(move_str)) {
-      RB_ERR_ROBOTMOVE("robot_callback_failed",
-                       "move=%s",
-                       move_str.c_str());
+
+      LOG_ERR(MOD_CMD, "robot callback failed");
+      LOG_KV("move", move_str.c_str());
+
       return false;
     }
   }
 
-  // Update orientation
+  // Then update orientation using table
   apply_ori_table_(move_str);
 
   // Append to log
   if (orientation_log_.length() > 0) orientation_log_ += ' ';
   orientation_log_ += move_str;
 
-  RB_INFO_ROBOTMOVE("robot_move_end",
-                    "move=%s orientation=%s",
-                    move_str.c_str(),
-                    get_orientation_string().c_str());
-
   return true;
 }
-
 
 // ============================================================
 // Parse cube token "f", "r+", "u2" into (face, quarter_turns)
@@ -448,33 +393,40 @@ char CubeOri::find_physical_dir_for_logical_(char logical_face) const {
 //  3) Run each robot move via robot_move().
 // ============================================================
 bool CubeOri::execute_single_cube_move_(char logical_face, int qt) {
-
+  // 1) Which physical direction currently holds this logical face?
   char phys = find_physical_dir_for_logical_(logical_face);
   if (phys == '\0') {
-    RB_ERR_CUBEORI("logical_face_not_found",
-                   "face=%c",
-                   logical_face);
+
+    LOG_ERR(MOD_CUBEORI, "logical face not found in orientation");
+    LOG_KV("face", logical_face);
+
     return false;
   }
 
+  // 2) Build canonical cube-move key, e.g. "F+", "B'", "R2"
   String key;
+  key.reserve(3);
   key += phys;
-  key += (qt == 1 ? '+' : qt == -1 ? '-'
-                                   : '2');
+  if (qt == 1) key += '+';
+  else if (qt == -1) key += '-';
+  else key += '2';
 
+  // 3) Find in k_cube_to_robot_table
   for (int i = 0; i < k_cube_to_robot_count; ++i) {
     if (key.equalsIgnoreCase(k_cube_to_robot_table[i].cube_move)) {
 
+      String moves_str = k_cube_to_robot_table[i].robot_moves;
       String toks[8];
       int count = 0;
-      split_moves_(k_cube_to_robot_table[i].robot_moves, toks, count, 8);
+      split_moves_(moves_str, toks, count, 8);
 
       for (int j = 0; j < count; ++j) {
         if (!robot_move(toks[j])) {
-          RB_ERR_CUBEORI("robot_move_failed",
-                         "cube_move=%s robot_move=%s",
-                         key.c_str(),
-                         toks[j].c_str());
+
+          LOG_ERR(MOD_CMD, "robot_move_failed_in_sequence");
+          LOG_KV("sequence", key.c_str());
+          LOG_KV("move", toks[j].c_str());
+
           return false;
         }
       }
@@ -482,9 +434,9 @@ bool CubeOri::execute_single_cube_move_(char logical_face, int qt) {
     }
   }
 
-  RB_ERR_CUBEORI("cube_move_not_found",
-                 "key=%s",
-                 key.c_str());
+  LOG_ERR(MOD_CUBEMOVE, "cube_move_not_found_in_table");
+  LOG_KV("move", key.c_str());
+
   return false;
 }
 
@@ -493,59 +445,71 @@ bool CubeOri::execute_single_cube_move_(char logical_face, int qt) {
 // ============================================================
 bool CubeOri::cube_move(const String &moves_str) {
 
+  // serial_printf_verbose("[cube_move] called with: \"%s\"\n", moves_str.c_str());
+
+  // --- Normalize input to lowercase ---
   String moves_lc = moves_str;
   moves_lc.toLowerCase();
 
-  String tokens[64];
+  const int MAX_TOKENS = 64;
+  String tokens[MAX_TOKENS];
   int token_count = 0;
-
   cube_move_index = 0;
-  split_moves_(moves_lc, tokens, token_count, 64);
+  cube_move_total = 0;
+
+  split_moves_(moves_lc, tokens, token_count, MAX_TOKENS);
+
+  // serial_printf_verbose("[cube_move] token_count=%d\n", token_count);
   cube_move_total = token_count;
 
-  if (token_count == 0) return true;
+  if (token_count == 0) return true;  // nothing to do
 
   for (int i = 0; i < token_count; ++i) {
     String t = tokens[i];
     t.trim();
-    if (!t.length()) continue;
+    if (t.length() == 0) continue;
+
+    // serial_printf_verbose("[cube_move] parsing token: \"%s\"\n", t.c_str());
 
     char face;
     int qt;
     if (!parse_cube_token_(t, face, qt)) {
-      RB_ERR_CUBEMOVE("invalid_cube_token",
-                      "token=%s",
-                      t.c_str());
+      LOG_ERR(MOD_CUBEMOVE, "not_a_cube_move");
+      LOG_KV("move", t.c_str());
+
       return false;
     }
+
+    // serial_printf_verbose("[cube_move] parsed: face=%c, qt=%d\n", face, qt);
+
+    // format logging: lowercase face + suffix (+, ', 2)
+    char face_l = tolower(face);
+    char suf;
+    if (qt == 1) suf = '+';
+    else if (qt == -1) suf = '-';
+    else suf = '2';
 
     cube_move_index++;
-
-    RB_INFO_CUBEMOVE("cube_move_token",
-                     "cube_move=%s step=%d total_steps=%d",
-                     t.c_str(),
-                     cube_move_index,
-                     cube_move_total);
+    LOG_INFO(MOD_CUBEMOVE, "cube_move_progress");
+    LOG_KV("index", cube_move_index);
+    LOG_KV("total", cube_move_total);
+    LOG_KV("face", face_l);
+    LOG_KV("suffix", suf);
 
     if (!execute_single_cube_move_(face, qt)) {
-      RB_ERR_CUBEMOVE("cube_move_failed",
-                      "cube_move=%s",
-                      t.c_str());
+      LOG_ERR(MOD_CUBEMOVE, "cube_move_failed_executing");
+      LOG_KV("move", t.c_str());
+
       return false;
     }
-
-    // keep color model in sync
     color_reader.apply_moves(t);
 
-    RB_ERR_CUBEORI("cube_move_applied",
-                    "cube_move=%s orientation=%s",
-                    t.c_str(),
-                    get_orientation_string().c_str());
+    String txt = "after cube move [" + t + "]";
+    print_colors_detail((char *)txt.c_str());
   }
-
+  // serial_printf_verbose("[cube_move] done\n");
   return true;
 }
-
 
 // ============================================================
 // get_face_mapping: logical -> physical mapping in standard order
@@ -581,8 +545,7 @@ void CubeOri::get_face_mapping(String out[6]) const {
 }
 
 // ============================================================
-// get_orientation_string from: U->U R->R F->F D->D L->L B->B
-// returned as URLDLB
+// get_orientation_string: U->U R->R F->F D->D L->L B->B
 // ============================================================
 String CubeOri::get_orientation_string() const {
   String maps[6];
@@ -590,13 +553,17 @@ String CubeOri::get_orientation_string() const {
 
   String s;
   s.reserve(48);
-  s = "URLDLB->";
-  s += String(maps[0].charAt(3));  //U
-  s += String(maps[1].charAt(3));
-  s += String(maps[2].charAt(3));
-  s += String(maps[3].charAt(3));
-  s += String(maps[4].charAt(3));
-  s += String(maps[5].charAt(3));
+  s += maps[0];
+  s += ' ';
+  s += maps[1];
+  s += ' ';
+  s += maps[2];
+  s += ' ';
+  s += maps[3];
+  s += ' ';
+  s += maps[4];
+  s += ' ';
+  s += maps[5];
   return s;
 }
 
@@ -610,7 +577,11 @@ void CubeOri::print_orientation_string() const {
   String maps[6];
   get_face_mapping(maps);
 
-  LOG_VERBOSE("      %c\n", maps[0].charAt(3));
-  LOG_VERBOSE("   %c  %c  %c  %c\n", maps[1].charAt(3), maps[2].charAt(3), maps[4].charAt(3), maps[5].charAt(3));
-  LOG_VERBOSE("      %c\n", maps[3].charAt(3));
+  LOG_INFO(MOD_CUBEORI, "ori_row_d");
+  LOG_KV("u", maps[0].charAt(3));
+  LOG_KV("l", maps[1].charAt(3));
+  LOG_KV("f", maps[2].charAt(3));
+  LOG_KV("r", maps[4].charAt(3));
+  LOG_KV("b", maps[5].charAt(3));
+  LOG_KV("d", maps[3].charAt(3));
 }

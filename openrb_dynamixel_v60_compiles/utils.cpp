@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "log.h"
 #include <Dynamixel2Arduino.h>
 
 // -------------------------------------------------------------------
@@ -54,4 +55,3 @@ double mapf(double val, double in_min, double in_max, double out_min, double out
 double constrainf(double val, double min_val, double max_val) {
   return (val < min_val) ? min_val : (val > max_val ? max_val : val);
 }
-

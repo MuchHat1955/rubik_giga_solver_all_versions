@@ -24,7 +24,7 @@ EXACTLY identical — only reorganized for readability and reuse.
   ┌── utils.h / utils.cpp
   │     ├── shared math & helper routines
   │     │     • clamp, rad2deg, deg2rad
-  │     │     • LOG_VERBOSE() template for formatted Serial output
+  │     │     • DEBUG_INFO() template for formatted Serial output
   │     │     • pvToTicksPerSec(), estimateTravelTimeMs()
   │     │     • mapf(), constrainf() for float-safe range mapping
   │     └── included by all other modules
