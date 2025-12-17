@@ -67,16 +67,6 @@ bool servo_ok(uint8_t id, bool attempt_reboot) {
     LOG_VAR("servo_name", id2name(id));
     return false;
   }
-
-  // 2) Read SHUTDOWN register (which bits are configured to trigger shutdown)
-  int shutdown = dxl.readControlTableItem(ControlTableItem::SHUTDOWN, id);
-
-  if (shutdown < 0) {
-    LOG_INFO(MOD_SERVOS, "failed to read__shutdown__tableitem");
-    LOG_VAR("servo_id", id);
-    LOG_VAR("servo_name", id2name(id));
-    return false;
-  }
   // If no hardware errors → OK
   if (hw_err == 0) {
     return true;
@@ -127,11 +117,11 @@ constexpr int LED_FLASH_DELAY_MS = 120;
 bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
 
   if (servoError) {
-    LOG_ERR(MOD_SERVOS, " servo error, skip everything");
+    LOG_ERR(MOD_SERVOS, "[!] global servo error skip everything");
     return false;
   }
 
-  uint8_t hw_err = dxl.readControlTableItem(ControlTableItem::HARDWARE_ERROR_STATUS, id);
+  int hw_err = dxl.readControlTableItem(ControlTableItem::HARDWARE_ERROR_STATUS, id);
 
   if (!servo_ok(id, false)) {
     LOG_ERR(MOD_SERVOS, "servo error");
@@ -221,7 +211,7 @@ void ServoConfig::init() {
 
   if (limit_max_ > 4095) limit_max_ = 4095;
 
-  if (!dxl.ping(id_)) {
+  if (!dxl_ping_cached(id_)) {
     // DEBUG_ERR(MOD_SERVOS, " [servo init ping failed] | %s id=%u zero=%u min=%u max=%u dir=%d\n",
     //          key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
     //      return;
@@ -254,18 +244,6 @@ double ServoConfig::dir() const {
   return dir_;
 }
 
-void ServoConfig::set_zero_ticks(uint16_t t) {
-  return;
-
-  zero_ticks_ = t;
-  // keep limits sane around update
-  if (limit_min_ > limit_max_) {
-    uint16_t a = limit_min_;
-    limit_min_ = limit_max_;
-    limit_max_ = a;
-  }
-  // DEBUG_INFO(MOD_SERVOS, "[set zero] %s id=%u set zero=%u\n", key_, id_, zero_ticks_);
-}
 void ServoConfig::set_min_ticks(uint16_t t) {
 
   limit_min_ = t;
@@ -355,7 +333,7 @@ ServoConfig *find_servo(uint8_t id) {
 
 ServoConfig *find_servo(const char *name) {
   for (uint8_t i = 0; i < SERVO_COUNT; i++)
-    if (strcmp(all_servos[i]->get_key(), name) == 0) return all_servos[i];
+    if (strcasecmp(all_servos[i]->get_key(), name) == 0) return all_servos[i];
   return nullptr;
 }
 
@@ -380,6 +358,8 @@ int per2ticks(uint8_t id, double per) {
   double range = max_t - min_t;
   double dir = s->dir();
 
+  if (range <= 0) return min_t;
+
   // Clamp 0–100%
   if (per < 0) per = 0;
   if (per > 100) per = 100;
@@ -400,6 +380,8 @@ double ticks2per(uint8_t id, int ticks) {
   double max_t = s->max_ticks();
   double dir = s->dir();
   double range = max_t - min_t;
+
+  if (range <= 0) return 0.0;
 
   double per = (dir > 0)
                  ? (ticks - min_t) * 100.0 / range
@@ -433,10 +415,10 @@ const char *id2name(uint8_t id) {
 // -------------------------------------------------------------------
 
 void lOn(uint8_t id) {
-  if (dxl.ping(id)) dxl.ledOn(id);
+  if (dxl_ping_cached(id)) dxl.ledOn(id);
 }
 void lOff(uint8_t id) {
-  if (dxl.ping(id)) dxl.ledOff(id);
+  if (dxl_ping_cached(id)) dxl.ledOff(id);
 }
 
 // -------------------------------------------------------------------
@@ -444,12 +426,12 @@ void lOff(uint8_t id) {
 // -------------------------------------------------------------------
 void torqueOnGroup(const std::vector<uint8_t> &ids) {
   for (auto id : ids)
-    if (dxl.ping(id)) dxl.torqueOn(id);
+    if (dxl_ping_cached(id)) dxl.torqueOn(id);
 }
 
 void torqueOffGroup(const std::vector<uint8_t> &ids) {
   for (auto id : ids)
-    if (dxl.ping(id)) {
+    if (dxl_ping_cached(id)) {
       dxl.torqueOff(id);
       delay(30);
     }
@@ -471,17 +453,6 @@ void setGoal_deg(int id, double goal_deg) {
   int goal_ticks = deg2ticks(id, goal_deg);
   safeSetGoalPosition(id, goal_ticks);
 }
-
-bool isInPosition(uint8_t id) {
-  int s = dxl.readControlTableItem(ControlTableItem::MOVING_STATUS, id);
-  return (s >= 0) && (s & 0x01);
-}
-
-bool isMoving(uint8_t id) {
-  int s = dxl.readControlTableItem(ControlTableItem::MOVING_STATUS, id);
-  return (s >= 0) && (s & 0x02);
-}
-
 int getMin_ticks(int id) {
   ServoConfig *s = find_servo(id);
   if (!s) return 0;
@@ -538,7 +509,7 @@ void print_servo_status(uint8_t id) {
     ServoConfig *s = all_servos[i];
     uint8_t sid = s->get_id();
 
-    if (!dxl.ping(sid)) {
+    if (!dxl_ping_cached(sid)) {
       // DEBUG_ERR(MOD_SERVOS, " no ping name=%s id=%d\n", s->get_key(), sid);
     } else {
       int pos_ticks = dxl.getPresentPosition(sid);
@@ -563,7 +534,7 @@ void print_servo_status(uint8_t id) {
   }
 
   // ---- XY metrics (for 2-arm systems) ----
-  if (id == 0 && dxl.ping(ID_ARM1) && dxl.ping(ID_ARM2)) {
+  if (id == 0 && dxl_ping_cached(ID_ARM1) && dxl_ping_cached(ID_ARM2)) {
     double _a1_servo_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
     double _a2_servo_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
     kin.solve_x_y_from_a1_a2(_a1_servo_deg, _a2_servo_deg);
@@ -572,3 +543,52 @@ void print_servo_status(uint8_t id) {
     print_kinematics_state();
   }
 }
+
+// -------------------------------------------------------------------
+//                   DXL PING CACHE (30s TTL)
+// -------------------------------------------------------------------
+
+static constexpr uint32_t DXL_PING_CACHE_TTL_MS = 30UL * 1000UL;
+
+struct ping_cache_entry_t {
+  bool     valid;
+  bool     present;
+  uint32_t last_check_ms;
+};
+
+static ping_cache_entry_t ping_cache[SERVO_COUNT];
+
+// -------------------------------------------------------------------
+// Cached ping wrapper
+// -------------------------------------------------------------------
+
+bool dxl_ping_cached(uint8_t id) {
+
+  uint32_t now = millis();
+
+  // Find servo index
+  for (uint8_t i = 0; i < SERVO_COUNT; i++) {
+    if (all_servos[i]->get_id() == id) {
+
+      ping_cache_entry_t &e = ping_cache[i];
+
+      // Use cached result if still valid
+      if (e.valid && (now - e.last_check_ms) < DXL_PING_CACHE_TTL_MS) {
+        return e.present;
+      }
+
+      // Re-check
+      bool ok = dxl.ping(id);
+
+      e.valid = true;
+      e.present = ok;
+      e.last_check_ms = now;
+
+      return ok;
+    }
+  }
+
+  // Unknown ID → do NOT spam the bus
+  return false;
+}
+

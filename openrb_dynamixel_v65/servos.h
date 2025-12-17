@@ -46,7 +46,6 @@ public:
   uint16_t min_ticks() const;
   uint16_t max_ticks() const;
   double dir() const;
-  void set_zero_ticks(uint16_t t);
   void set_min_ticks(uint16_t t);
   void set_max_ticks(uint16_t t);
   void set_dir(double d);
@@ -116,9 +115,11 @@ int getMax_ticks(int id);
 void setGoal_deg(int id, double goal_deg);
 
 // ---------------- Status helpers ----------------
-bool isInPosition(uint8_t id);
-bool isMoving(uint8_t id);
 bool checkStall(uint8_t id);
 void print_servo_status(uint8_t id);
 void reset_servo(uint8_t id);
 bool servo_ok(uint8_t id, bool attept_reboot);
+
+bool dxl_ping_cached(uint8_t id);
+void dxl_ping_cache_invalidate(uint8_t id);
+void dxl_ping_cache_invalidate_all();

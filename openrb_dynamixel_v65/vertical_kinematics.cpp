@@ -134,7 +134,7 @@ bool VerticalKinematics::solve_a2_x_from_a1_y(double _a1_servo_deg, double _y, d
 
 bool VerticalKinematics::update_from_present_pos() {
 
-  if (!dxl.ping(ID_ARM1) || !dxl.ping(ID_ARM2) || !dxl.ping(ID_WRIST)) return false;
+  if (!dxl_ping_cached(ID_ARM1) || !dxl_ping_cached(ID_ARM2) || !dxl_ping_cached(ID_WRIST)) return false;
 
   double _a1_servo_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
   double _a2_servo_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));

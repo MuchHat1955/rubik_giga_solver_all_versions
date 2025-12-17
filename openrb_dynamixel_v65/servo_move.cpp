@@ -352,7 +352,7 @@ bool AxisGroupController::initXY(bool keepX) {
   double g_present = kinPtr->getWdeg();
 
   // persistent state for hysteresis
-  WristPos wrist_last_state = WRIST_VERT;
+  static WristPos wrist_last_state = WRIST_VERT;
 
   auto norm180 = [&](double d) {
     while (d < -180) d += 360.0;
@@ -675,6 +675,10 @@ static void refineEndPositions(uint8_t id1, uint8_t id2, uint8_t id3,
   const int REFINE_THRESH = 40;
   const uint32_t TIMEOUT = 500;
 
+  int last_goal1 = -1;
+  int last_goal2 = -1;
+  int last_goal3 = -1;
+
   uint32_t t0 = millis();
 
   while (millis() - t0 < TIMEOUT) {
@@ -689,10 +693,6 @@ static void refineEndPositions(uint8_t id1, uint8_t id2, uint8_t id3,
     bool done3 = (!id3 || goal3 == -1) || (abs(goal3 - p3) < REFINE_ERR);
 
     if (done1 && done2 && done3) return;
-
-    static int last_goal1 = -1;
-    static int last_goal2 = -1;
-    static int last_goal3 = -1;
 
     if (id1 && goal1 != -1 && abs(goal1 - p1) > REFINE_THRESH) {
       if (last_goal1 != goal1)
@@ -748,14 +748,16 @@ bool safe_delay(unsigned long delay_millis, std::initializer_list<int> ids) {
     } else {
       // Check ONLY known IDs from the list
       for (int id : ids) {
-        if (!is_known_servo_id(id))
-          continue;  // skip unknown values silently
+        if (!is_known_servo_id(id)) {
+          LOG_ERR(MOD_SERVO_MOVE, "unknown_servo_id");
+          LOG_VAR("id", id);
+          continue;
+        }
 
         if (!servo_ok(id, false))
           return false;
       }
     }
-
     delay(5);
   }
 
@@ -944,7 +946,7 @@ void print_kinematics_state(char* descr) {
 }
 
 bool cmdMoveServoDeg(uint8_t id, double goal_deg) {
-  if (!dxl.ping(id)) return false;
+  if (!dxl_ping_cached(id)) return false;
 
   axes.setMode(AxisGroupController::AxisRunMode::SINGLE_SERVO);
   axes.setServoId(id);
@@ -958,7 +960,7 @@ bool cmdMoveServoDeg(uint8_t id, double goal_deg) {
 }
 
 bool cmdMoveServoPer(int id, double goal_per) {
-  if (!dxl.ping(id)) return false;
+  if (!dxl_ping_cached(id)) return false;
 
   if (goal_per < -15.0 || goal_per > 115.0) {
     LOG_ERR(MOD_SERVO_MOVE, "invalid_servo_percentage");
@@ -1052,8 +1054,8 @@ bool cmdMoveGripperClamp() {
       if (!touched1) per1 += STEP;
       if (!touched2) per2 += STEP;
 
-      if (per1 > 105.0) per1 = 105.0;
-      if (per2 > 105.0) per2 = 105.0;
+      if (per1 > 115.0) per1 = 115.0;
+      if (per2 > 115.0) per2 = 115.0;
     }
 
     return (touched1 && touched2);
@@ -1062,7 +1064,7 @@ bool cmdMoveGripperClamp() {
 }
 
 bool isGripperOpen(double min_open) {
-  if (!dxl.ping(ID_GRIP1) || !dxl.ping(ID_GRIP2)) return false;
+  if (!dxl_ping_cached(ID_GRIP1) || !dxl_ping_cached(ID_GRIP2)) return false;
   double g1_pos = getPos_per(ID_GRIP1);
   double g2_pos = getPos_per(ID_GRIP2);
   if (g1_pos < min_open + 3 && g2_pos < min_open + 3) return true;
@@ -1070,7 +1072,7 @@ bool isGripperOpen(double min_open) {
 }
 
 bool cmdMoveGripperPer(double goal_per) {
-  if (!dxl.ping(ID_GRIP1) || !dxl.ping(ID_GRIP2)) return false;
+  if (!dxl_ping_cached(ID_GRIP1) || !dxl_ping_cached(ID_GRIP2)) return false;
 
   axes.setMode(AxisGroupController::AxisRunMode::GRIPPER);
   axes.setGoalPercent(goal_per);
@@ -1083,7 +1085,7 @@ bool cmdMoveGripperPer(double goal_per) {
 }
 
 bool cmdMoveWristDegVertical(double goal_deg) {
-  if (!dxl.ping(ID_ARM1) || !dxl.ping(ID_ARM2) || !dxl.ping(ID_WRIST)) return false;
+  if (!dxl_ping_cached(ID_ARM1) || !dxl_ping_cached(ID_ARM2) || !dxl_ping_cached(ID_WRIST)) return false;
 
   double a1_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
   double a2_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
@@ -1123,11 +1125,14 @@ bool cmdMoveWristDegVertical(double goal_deg) {
 }
 
 bool cmdMoveYmm(double goal_ymm) {
-  if (!dxl.ping(ID_ARM1) || !dxl.ping(ID_ARM2)) return false;
+  if (!dxl_ping_cached(ID_ARM1) || !dxl_ping_cached(ID_ARM2)) return false;
 
   double g_at_vert = kin.getWdeg_for_vertical();
   double g_relative_to_vert = kin.getWdeg() - g_at_vert;
 
+  double a1_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
+  double a2_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
+  if (!kin.solve_x_y_from_a1_a2(a1_deg, a2_deg)) return false;
 
   if (goal_ymm < min_ymm) {
     DEBUG_ERR(MOD_SERVO_MOVE, "y too low due to vertical gripper");
@@ -1138,10 +1143,6 @@ bool cmdMoveYmm(double goal_ymm) {
 
     return false;
   }
-
-  double a1_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
-  double a2_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
-  if (!kin.solve_x_y_from_a1_a2(a1_deg, a2_deg)) return false;
 
   axes.setMode(AxisGroupController::AxisRunMode::XY_VERTICAL);
   axes.setXGoalMm(kin.getXmm());  // keep X
@@ -1159,7 +1160,7 @@ bool cmdMoveYmm(double goal_ymm) {
 }
 
 bool cmdMoveXmm(double x_mm) {
-  if (!dxl.ping(ID_ARM1) || !dxl.ping(ID_ARM2)) return false;
+  if (!dxl_ping_cached(ID_ARM1) || !dxl_ping_cached(ID_ARM2)) return false;
 
   double a1_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
   double a2_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));

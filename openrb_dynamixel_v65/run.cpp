@@ -381,7 +381,7 @@ bool cmd_move_xy(int argc, double *argv) {
 
 bool cmd_move_deg(int argc, double *argv) {
   int id = (int)argv[0];
-  if (!dxl.ping(id)) return false;
+  if (!dxl_ping_cached(id)) return false;
 
   double goal_deg = (double)argv[1];
 
@@ -400,7 +400,7 @@ bool cmd_move_deg(int argc, double *argv) {
 
 bool cmd_move_ticks(int argc, double *argv) {
   int id = (int)argv[0];
-  if (!dxl.ping(id)) return false;
+  if (!dxl_ping_cached(id)) return false;
 
   int goal_ticks = (int)argv[1];  // serial_printf_verbose("cmd_move_ticks: id=%d ticks=%d", id, goal_ticks);
 
@@ -411,7 +411,7 @@ bool cmd_move_ticks(int argc, double *argv) {
 
 bool cmd_move_per(int argc, double *argv) {
   int id = (int)argv[0];
-  if (!dxl.ping(id)) return false;
+  if (!dxl_ping_cached(id)) return false;
 
   double goal_per = argv[1];
   if (goal_per < -15.0 || goal_per > 115.0) {
@@ -431,7 +431,7 @@ bool cmd_move_per(int argc, double *argv) {
 
 bool cmd_set_min(int argc, double *argv) {
   int id = (int)argv[0];
-  if (!dxl.ping(id)) return false;
+  if (!dxl_ping_cached(id)) return false;
 
   int t = (int)argv[1];
 
@@ -445,7 +445,7 @@ bool cmd_set_min(int argc, double *argv) {
 
 bool cmd_set_max(int argc, double *argv) {
   int id = (int)argv[0];
-  if (!dxl.ping(id)) return false;
+  if (!dxl_ping_cached(id)) return false;
 
   int t = (int)argv[1];
 
@@ -486,7 +486,7 @@ bool cmd_move_x(int argc, double *argv) {
 }
 
 bool cmd_move_clamp(int argc, double *argv) {
-  if (!dxl.ping(ID_GRIP1) || !dxl.ping(ID_GRIP2)) return false;
+  if (!dxl_ping_cached(ID_GRIP1) || !dxl_ping_cached(ID_GRIP2)) return false;
   // serial_printf_verbose("cmd_move_clamp");  // turn off torque off base before clamp
   dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_BASE, 0);
   bool ok = cmdMoveGripperClamp();  // turn off torque on base after clamp
@@ -497,7 +497,7 @@ bool cmd_move_clamp(int argc, double *argv) {
 }
 
 bool cmd_move_gripper(int argc, double *argv) {
-  if (!dxl.ping(ID_GRIP1) || !dxl.ping(ID_GRIP2)) return false;
+  if (!dxl_ping_cached(ID_GRIP1) || !dxl_ping_cached(ID_GRIP2)) return false;
 
   double goal_deg = argv[0];
 
@@ -516,7 +516,7 @@ bool cmd_move_gripper(int argc, double *argv) {
 }
 
 bool cmd_move_wrist_vert(int argc, double *argv) {
-  if (!dxl.ping(ID_WRIST) || !dxl.ping(ID_ARM1) || !dxl.ping(ID_ARM2)) return false;
+  if (!dxl_ping_cached(ID_WRIST) || !dxl_ping_cached(ID_ARM1) || !dxl_ping_cached(ID_ARM2)) return false;
 
   double goal_deg = argv[0];
 
@@ -609,7 +609,7 @@ bool prepBaseForRotation(double nextBaseMoveRelative) {
 
 // below are relative moves
 bool rotateBaseRelative(double baseMoveRelative, bool gripperOn) {
-  if (!dxl.ping(ID_BASE)) return false;
+  if (!dxl_ping_cached(ID_BASE)) return false;
   // // serial_printf_verbose("***** start rotate base relative with %.2f", baseMoveRelative);  // // serial_printf_verbose("***** base before prepared pos is %.2f", getPos_deg(ID_BASE));
 
   if (baseMoveRelative == B_CENTER) return true;  // no move
@@ -964,7 +964,7 @@ bool cmd_ledoff(int argc, double *argv) {
 // INFOSERVO <id> : print key control-table data for one servo
 // -------------------------------------------------------------------
 void print_info(uint8_t id) {
-  if (!dxl.ping(id)) {
+  if (!dxl_ping_cached(id)) {
     //
     LOG_ERR(MOD_CMD, "servo not found");
     LOG_VAR("id", id);

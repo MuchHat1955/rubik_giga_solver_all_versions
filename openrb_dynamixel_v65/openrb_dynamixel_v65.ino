@@ -77,7 +77,7 @@ void setup() {
     ServoConfig *s = all_servos[i];
     uint8_t id = s->get_id();
 
-    if (dxl.ping(id)) {
+    if (dxl_ping_cached(id)) {
       dxl.torqueOff(id);
       dxl.setOperatingMode(id, OP_POSITION);
       dxl.torqueOn(id);
