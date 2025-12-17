@@ -3,21 +3,6 @@
 #include <Arduino.h>
 
 // -------------------------------------------------------------------
-//                         EXTERNAL VARIABLES
-// -------------------------------------------------------------------
-
-extern double max_xmm;
-extern double max_ymm;
-extern double min_ymm;
-extern double speed;
-
-extern CubeOri ori;
-extern CubeColorReader color_reader;
-extern ColorAnalyzer color_analyzer;
-
-extern char crrColorChar;
-
-// -------------------------------------------------------------------
 //                         POSITION CONSTANTS
 // -------------------------------------------------------------------
 

@@ -131,8 +131,8 @@ bool cmdMoveYmm(double goal_ymm);
 bool cmdMoveXmm(double x_mm);
 bool cmdMoveGripperClamp();
 
-void read_print_xy_status();
-void print_all_status();
+void read_print_kinematics_state();
+void print_kinematics_state(char* descr=nullptr);
 
 bool robot_move_callback(const String& mv);
 bool isGripperOpen(double min_open);

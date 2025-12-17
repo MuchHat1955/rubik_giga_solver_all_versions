@@ -1,4 +1,5 @@
 #include "servos.h"
+#include "servo_move.h"
 #include "vertical_kinematics.h"
 #include <Arduino.h>
 #include <vector>
@@ -63,7 +64,7 @@ bool servo_ok(uint8_t id, bool attempt_reboot) {
   if (hw_err < 0) {
     LOG_INFO(MOD_SERVOS, "failed to read__hw_error_status__tableitem");
     LOG_VAR("servo_id", id);
-    LOG_VAR("servo_name", id2name(sid));
+    LOG_VAR("servo_name", id2name(id));
     return false;
   }
 
@@ -73,7 +74,7 @@ bool servo_ok(uint8_t id, bool attempt_reboot) {
   if (shutdown < 0) {
     LOG_INFO(MOD_SERVOS, "failed to read__shutdown__tableitem");
     LOG_VAR("servo_id", id);
-    LOG_VAR("servo_name", id2name(sid));
+    LOG_VAR("servo_name", id2name(id));
     return false;
   }
   // If no hardware errors → OK
@@ -86,7 +87,7 @@ bool servo_ok(uint8_t id, bool attempt_reboot) {
   // 3) We have errors → try recovery
   LOG_INFO(MOD_SERVOS, "error detected attempting recovery");
   LOG_VAR("servo_id", id);
-  LOG_VAR("servo_name", id2name(sid));
+  LOG_VAR("servo_name", id2name(id));
 
   // Disable torque before reboot
   dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, id, 0);
@@ -98,7 +99,7 @@ bool servo_ok(uint8_t id, bool attempt_reboot) {
   if (!reboot_ok) {
     LOG_INFO(MOD_SERVOS, "reboot failed");
     LOG_VAR("servo_id", id);
-    LOG_VAR("servo_name", id2name(sid));
+    LOG_VAR("servo_name", id2name(id));
     return false;
   }
 
@@ -113,7 +114,7 @@ bool servo_ok(uint8_t id, bool attempt_reboot) {
 
   LOG_INFO(MOD_SERVOS, "post-reboot hardware error status");
   LOG_VAR("servo_id", id);
-  LOG_VAR("servo_name", id2name(sid));
+  LOG_VAR("servo_name", id2name(id));
   LOG_VAR("hw_err", hw_err);
 
   return hw_err == 0;
@@ -135,7 +136,7 @@ bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
   if (!servo_ok(id, false)) {
     LOG_ERR(MOD_SERVOS, "servo error");
     LOG_VAR("servo_id", id);
-    LOG_VAR("servo_name", id2name(sid));
+    LOG_VAR("servo_name", id2name(id));
     LOG_VAR("hw_err", hw_err);
 
     for (int i = 0; i < LED_FLASH_COUNT; i++) {
@@ -154,7 +155,7 @@ bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
     if (!servo_ok(id, false)) {
       LOG_ERR(MOD_SERVOS, "setting global servo error flag");
       LOG_VAR("servo_id", id);
-      LOG_VAR("servo_name", id2name(sid));
+      LOG_VAR("servo_name", id2name(id));
 
       servoError = true;
       return false;
@@ -173,14 +174,14 @@ bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
     if (goal_ticks < getMin_ticks(id)) {
       DEBUG_INFO(MOD_SERVOS, "safe move skipped: under min");
       DEBUG_VAR("servo_id", id);
-      LOG_VAR("servo_name", id2name(sid));
+      LOG_VAR("servo_name", id2name(id));
       DEBUG_VAR("goal_ticks", goal_ticks);
       DEBUG_VAR("min_ticks", getMin_ticks(id));
     }
     if (goal_ticks > getMax_ticks(id)) {
       DEBUG_INFO(MOD_SERVOS, "safe move skipped: over max");
       DEBUG_VAR("servo_id", id);
-      LOG_VAR("servo_name", id2name(sid));
+      LOG_VAR("servo_name", id2name(id));
       DEBUG_VAR("goal_ticks", goal_ticks);
       DEBUG_VAR("max_ticks", getMax_ticks(id));
     }
@@ -559,8 +560,6 @@ void print_servo_status(uint8_t id) {
       LOG_VAR("min_ticks", s->min_ticks());
       LOG_VAR("zero_ticks", s->zero_ticks());
       LOG_VAR("max_ticks", s->max_ticks());
-      LOG_END();
-      LOG_LN();
     }
   }
 

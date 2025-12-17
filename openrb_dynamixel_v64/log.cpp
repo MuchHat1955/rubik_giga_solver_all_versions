@@ -49,10 +49,11 @@ void log_begin(log_module_t enum_module,
     Serial.println();
   }
 
+  if (enum_module != MOD_CMD && i_type == log_info_type) Serial.print("        ");
   if (enum_module != MOD_CMD && i_type == debug_info_type) Serial.print("        ");
   if (i_type == debug_error_type) Serial.print("[!] ERR ");
   if (i_type == log_error_type) Serial.print("[!] ERR ");
-  if (i_type == log_info_type) Serial.print("        ");
+
 
   if (enum_module == MOD_RUN) Serial.print("RUN");
   if (enum_module == MOD_SERVO_MOVE) Serial.print("SERVOMOVE");

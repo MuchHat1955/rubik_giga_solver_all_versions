@@ -165,12 +165,10 @@ void process_serial_command(String &line) {
         }
 
         String params_ = "\"" + params + "\"";
-
         LOG_INFO(MOD_CMD, "command_start");
         LOG_VAR("command", cmd.name);
         LOG_VAR("params", params_.c_str());
 
-        read_print_kinematics_state();
         bool ok = false;
 
         if (strcmp(cmd.name, "MOVECUBE") == 0) {
@@ -199,10 +197,7 @@ void process_serial_command(String &line) {
           duration_str = String(duration_ms / 1000UL) + "s";
           duration_str += String(duration_ms % 1000UL) + "ms";
         }
-
         LOG_VAR("duration", duration_str.c_str());
-        read_print_kinematics_state();
-
         return;
       }
       // -----------------------------------------------------------
@@ -217,7 +212,6 @@ void process_serial_command(String &line) {
           LOG_ERR(MOD_CMD, "missing argument");
           return;
         }
-
         String params = line.substring(space_idx + 1);
         params.trim();
         if (params.length() == 0) {
@@ -226,9 +220,14 @@ void process_serial_command(String &line) {
           return;
         }
 
+        String params_ = "\"" + params + "\"";
+        LOG_INFO(MOD_CMD, "command_start");
+        LOG_VAR("command", cmd.name);
+        LOG_VAR("params", params_.c_str());
+
         // Unified logging (same style as MOVEROBOT)
         // serial_printf_verbose("---- START READCOLORS params: %s ----", params.c_str());
-        String params_ = "\"" + params + "\"";
+        params_ = "\"" + params + "\"";
         LOG_INFO(MOD_CMD, "readcolors start");
         LOG_VAR("mode", params_.c_str());
 
@@ -237,6 +236,18 @@ void process_serial_command(String &line) {
         LOG_INFO(MOD_CMD, "readcolors end");
         LOG_VAR("mode", params_.c_str());
         LOG_VAR("result", ok ? "ok" : "fail");
+
+        LOG_INFO(MOD_CMD, "command_end");
+        LOG_VAR("command", cmd.name);
+        LOG_VAR("result", ok ? "ok" : "fail");
+        unsigned long duration_ms = millis() - millis_start;
+        String duration_str = "";
+        if (duration_ms <= 999) duration_str = String(duration_ms) + "ms";
+        else {
+          duration_str = String(duration_ms / 1000UL) + "s";
+          duration_str += String(duration_ms % 1000UL) + "ms";
+        }
+        LOG_VAR("duration", duration_str.c_str());
 
         return;
       }
@@ -277,10 +288,17 @@ void process_serial_command(String &line) {
       // read_print_kinematics_state();
       bool ok = cmd.handler(argc, argv);
       //
-      LOG_INFO(MOD_CMD, "command end");
+      LOG_INFO(MOD_CMD, "command_end");
       LOG_VAR("command", cmd.name);
-      LOG_VAR("arg", p1);
       LOG_VAR("result", ok ? "ok" : "fail");
+      unsigned long duration_ms = millis() - millis_start;
+      String duration_str = "";
+      if (duration_ms <= 999) duration_str = String(duration_ms) + "ms";
+      else {
+        duration_str = String(duration_ms / 1000UL) + "s";
+        duration_str += String(duration_ms % 1000UL) + "ms";
+      }
+      LOG_VAR("duration", duration_str.c_str());
 
       // read_print_kinematics_state();
       return;
