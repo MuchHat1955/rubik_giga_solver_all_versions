@@ -549,7 +549,6 @@ void print_servo_status(uint8_t id) {
       double pos_per = ticks2per(sid, pos_ticks);  // percentage of configured range
 
       LOG_INFO(MOD_SERVOS, "servo_status");
-      LOG_VAR("name", s->get_key());
       LOG_VAR("servo_id", sid);
       LOG_VAR("servo_name", id2name(sid));
       LOG_VAR("pos_ticks", pos_ticks);
