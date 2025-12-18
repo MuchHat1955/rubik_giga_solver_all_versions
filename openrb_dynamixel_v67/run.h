@@ -159,5 +159,11 @@ bool cmd_run_reset_back();
 
 // cube alignment
 bool cmd_run_align_cube();
-
 char cmd_read_one_color_run(int slot);
+
+// needed for run 0
+bool prepArmsForWristRotation();
+bool isWristHoriz();
+bool isWristVert();
+bool isWristNearHoriz();
+bool isWristNearVert();
