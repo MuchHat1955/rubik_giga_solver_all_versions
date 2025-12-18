@@ -12,9 +12,9 @@
 #define Y_MID 97
 #define Y_UP 112
 #define Y_DOWN 33
-#define Y_ROTATE_BASE 93
+#define Y_ROTATE_BASE 95
 #define Y_ABOVE_DROP 93
-#define Y_DROP 83
+#define Y_DROP 80
 
 // ---- y read color poses
 #define Y_C_TOP 65
@@ -114,8 +114,8 @@ bool cmd_move_gripper(int argc, double *argv);
 bool cmd_move_wrist_vert(int argc, double *argv);
 
 // ---- servo config
-bool cmd_set_min(int argc, double *argv);
-bool cmd_set_max(int argc, double *argv);
+bool cmd_set_servo_min(int argc, double *argv);
+bool cmd_set_servo_max(int argc, double *argv);
 
 // ---- color / cube read
 bool cmd_color(int argc, double *argv);
@@ -128,8 +128,8 @@ bool cmd_getcolor_data(int argc, double *argv);
 char read_one_color_cb(int slot);
 
 // ---- info / diagnostics
-bool cmd_read(int argc, double *argv);
-bool cmd_info(int argc, double *argv);
+bool cmd_read_servo(int argc, double *argv);
+bool cmd_servo_info(int argc, double *argv);
 bool cmd_ledon(int argc, double *argv);
 bool cmd_ledoff(int argc, double *argv);
 

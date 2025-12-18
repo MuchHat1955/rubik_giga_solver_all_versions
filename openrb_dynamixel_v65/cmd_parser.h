@@ -44,8 +44,8 @@ bool cmd_move_ticks(int argc, double *argv);
 bool cmd_move_per(int argc, double *argv);
 
 // Servo min/max
-bool cmd_set_min(int argc, double *argv);
-bool cmd_set_max(int argc, double *argv);
+bool cmd_set_servo_min(int argc, double *argv);
+bool cmd_set_servo_max(int argc, double *argv);
 
 // Center (currently disabled)
 bool cmd_move_center(int argc, double *argv);
@@ -68,11 +68,11 @@ bool cmd_color(int argc, double *argv);
 bool cmd_run(int argc, double *argv);
 
 // Servo info
-bool cmd_read(int argc, double *argv);
+bool cmd_read_servo(int argc, double *argv);
 bool cmd_reboot_servos(int argc, double *argv);
-bool cmd_set_flag_servos_stop_all(int argc, double *argv);
-bool cmd_reset_flag_servos_stop_all(int argc, double *argv);
-bool cmd_info(int argc, double *argv);
+bool cmd_set_servo_flag_servos_stop_all(int argc, double *argv);
+bool cmd_clear_flag_servos_stop_all(int argc, double *argv);
+bool cmd_servo_info(int argc, double *argv);
 
 // Led
 bool cmd_ledon(int argc, double *argv);
@@ -82,19 +82,12 @@ bool cmd_ledoff(int argc, double *argv);
 bool cmd_help(int argc, double *argv);
 
 bool cmd_getori_data(int argc, double *argv);
-
 bool cmd_clear_ori_data(int argc, double *argv);
-
 bool cmd_restore_ori(int argc, double *argv);
-
 bool cmd_read_cube_colors(int argc, double *argv);
-
 bool cmd_read_one_color(int argc, double *argv);
-
 char read_one_color_cb(int slot);
-
 bool cmd_read_one_face_colors(int argc, double *argv);
-
 bool cmd_getcolor_data(int argc, double *argv);
-
 void print_colors_detail(char * txt);
+bool cmd_get_version(int argc, double *argv);

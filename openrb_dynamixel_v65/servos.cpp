@@ -113,7 +113,7 @@ bool reboot_all_servos() {
   return all_ok;
 }
 
-bool reset_flag_servos_stop_all() {
+bool clear_flag_servos_stop_all() {
   // already set
   if (!servo_error_global_flag) {
     return true;
@@ -153,6 +153,20 @@ bool check_all_servos_if_ok() {
   return all_ok;
 }
 
+void set_torque_all_servos(bool _on) {
+  LOG_INFO(MOD_SERVOS, "set torque all servos");
+  LOG_VAR("torque", _on ? "on" : "off");
+
+  if (_on) flash_led_all_servos(1);
+  else flash_led_all_servos(2);
+
+  for (uint8_t i = 0; i < SERVO_COUNT; i++) {
+    ServoConfig *s = all_servos[i];
+    uint8_t sid = s->get_id();
+    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, sid, _on ? 1 : 0);
+  }
+}
+
 // -------------------------------------------------------------------
 //   SAFE GOAL POSITION WRAPPER (with LED flash on fault)
 // -------------------------------------------------------------------
@@ -174,7 +188,7 @@ bool reboot_servo(uint8_t id) {
   delay(50);
 
   // Optional: re-enable torque
-  dxl.torqueOn(id);
+  dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, id, 1);
   delay(200);
 
   bool ok_now = servo_ok(id);
@@ -244,13 +258,13 @@ bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
     flash_led_servo(id, 3);
 
     if (goal_ticks < getMin_ticks(id)) {
-      DEBUG_INFO(MOD_SERVOS, "safe move skipped under min ticks");
+      DEBUG_INFO(MOD_SERVOS, "safe move skipped goal under min ticks");
       LOG_VAR("servo_name", id2name(id));
       DEBUG_VAR("goal_ticks", goal_ticks);
       DEBUG_VAR("min_ticks", getMin_ticks(id));
     }
     if (goal_ticks > getMax_ticks(id)) {
-      DEBUG_INFO(MOD_SERVOS, "safe move skipped over max ticks");
+      DEBUG_INFO(MOD_SERVOS, "safe move skipped goal over max ticks");
       LOG_VAR("servo_name", id2name(id));
       DEBUG_VAR("goal_ticks", goal_ticks);
       DEBUG_VAR("max_ticks", getMax_ticks(id));
@@ -261,7 +275,8 @@ bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
   }
 
   // Otherwise safe to move
-  dxl.setGoalPosition(id, goal_ticks);
+  dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION,
+                            id, goal_ticks);
   return true;
 }
 
@@ -524,9 +539,9 @@ double getPos_per(int id) {
   return ticks2per(id, dxl.getPresentPosition(id));
 }
 
-void setGoal_deg(int id, double goal_deg) {
+bool setGoal_deg(int id, double goal_deg) {
   int goal_ticks = deg2ticks(id, goal_deg);
-  safeSetGoalPosition(id, goal_ticks);
+  return safeSetGoalPosition(id, goal_ticks);
 }
 int getMin_ticks(int id) {
   ServoConfig *s = find_servo(id);

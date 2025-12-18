@@ -137,4 +137,6 @@ void print_kinematics_state(char* descr=nullptr);
 bool robot_move_callback(const String& mv);
 bool isGripperOpen(double min_open);
 
+bool isYmmAbove(double min_y);
+
 #endif  // MOVEMENT_H

@@ -73,7 +73,7 @@ void CubeColorReader::apply_slot_to_face_(char face, int slot, char color, bool 
       case 3: offset = 6; break;  // bottom-right
       default:
         // slots 4,5,6 shouldn't be used in mirrored mode
-        LOG_INFO(MOD_COLORSCAN, "color reader mirrored slot");
+        LOG_INFO(MOD_COLORSCAN, "mirrored slot");
         LOG_VAR("slot", slot);
         LOG_VAR("face", face);
         return;
@@ -94,15 +94,11 @@ void CubeColorReader::apply_slot_to_face_(char face, int slot, char color, bool 
 void CubeColorReader::print_face_compact(char face) const {
   int base = face_base_index_(face);
   if (base < 0) return;
-  LOG_INFO(MOD_COLORSCAN, "color scan face start");
-  LOG_VAR("face", face);
-
-  for (int i = 0; i < 9; i++) {
-    LOG_INFO(MOD_COLORSCAN, "color scan value");
-    LOG_VAR("color", colors_[base + i]);
-  }
-
-  LOG_INFO(MOD_COLORSCAN, "color scan face end");
+  Serial.print(face);
+  Serial.print("=");
+  for (int i = 0; i < 9; i++)
+    Serial.print(colors_[base + i]);
+  Serial.println();
 }
 
 void CubeColorReader::rotate_face(char face, char dir) {
@@ -281,7 +277,7 @@ void CubeColorReader::apply_moves(const String &moves) {
 
     rotate_face(tolower(face), dir);
     //serial_printf_verbose("applied move: %c%c", tolower(face), dir);
-    print_cube_colors_string();
+    print_cube_colors_diagram();
   }
 }
 
@@ -647,20 +643,20 @@ bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
   else total_steps = k_num_color_map_steps_bottom;
 
   if (total_steps < 1) {
-    LOG_ERR(MOD_COLORSCAN, "color reader step count invalid");
+    LOG_ERR(MOD_COLORSCAN, "step count invalid");
     LOG_VAR("total_steps", total_steps);
 
     return false;
   }
 
-  LOG_INFO(MOD_COLORSCAN, "color reader start");
+  LOG_INFO(MOD_COLORSCAN, "start");
   LOG_VAR("total_steps", total_steps);
   LOG_VAR("mode", mode_all_vs_bottom ? "all" : "bottom");
 
   if (mode_all_vs_bottom) fill_unknown_();
   else fill_solved_cube_top2layers_();
 
-  LOG_INFO(MOD_COLORSCAN, "color reader - orientation cleared");
+  LOG_INFO(MOD_COLORSCAN, "color reader: orientation cleared");
   // Ensure orientation is clear
   ori_.clear_orientation_data();
 
@@ -669,7 +665,7 @@ bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
     for (int i = 0; i < total_steps; i++) {
       const auto &s = k_color_map_steps_all[i];
       if (!process_step_(i, s.robot_move, s.face, s.mirrored, s.order)) {
-        LOG_ERR(MOD_COLORSCAN, "color reader step failed");
+        LOG_ERR(MOD_COLORSCAN, "step failed");
         LOG_VAR("step_index", i);
         LOG_VAR("total_steps", total_steps);
 
@@ -681,7 +677,7 @@ bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
       LOG_VAR("total_steps", total_steps);
 
       ori.print_orientation_string();
-      print_cube_colors_string();
+      print_cube_colors_diagram();
     }
     // ~~~~~~~~~~~~~~~~ end all cube ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   } else {
@@ -689,7 +685,7 @@ bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
     for (int i = 0; i < total_steps; i++) {
       const auto &s = k_color_map_steps_bottom[i];
       if (!process_step_(i, s.robot_move, s.face, s.mirrored, s.order)) {
-        LOG_ERR(MOD_COLORSCAN, "color reader step failed");
+        LOG_ERR(MOD_COLORSCAN, "step failed");
         LOG_VAR("step_index", i);
         LOG_VAR("total_steps", total_steps);
 
@@ -701,12 +697,12 @@ bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
       LOG_VAR("total_steps", total_steps);
 
       ori.print_orientation_string();
-      print_cube_colors_string();
+      print_cube_colors_diagram();
     }
     // ~~~~~~~~~~~~~~~~ end just bottom layer ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   }
   LOG_INFO(MOD_COLORSCAN, "color read completed");
-  LOG_INFO(MOD_COLORSCAN, "color reader end - orientation restore");
+  LOG_INFO(MOD_COLORSCAN, "orientation restore");
 
   // Final restore
   if (!ori_.restore_cube_orientation()) {
@@ -714,7 +710,7 @@ bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
     return false;
   }
   ori.print_orientation_string();
-  print_cube_colors_string();
+  print_cube_colors_diagram();
 
   return true;
 }
@@ -757,12 +753,12 @@ String CubeColorReader::get_cube_colors_string() const {
   return s;
 }
 
-void CubeColorReader::print_cube_colors_string() {
+void CubeColorReader::print_cube_colors_diagram() {
   String cube = "";
   cube.reserve(54);
   for (int i = 0; i < 54; i++)
     cube += colors_[i];
-
+  Serial.println();
   // Print U face (top)
   for (int i = 0; i < 3; i++) {
     Serial.print("       ");  // Padding
@@ -814,6 +810,7 @@ void CubeColorReader::print_cube_colors_string() {
     }
     Serial.println();
   }
+  Serial.println();
 }
 
 // ============================================================

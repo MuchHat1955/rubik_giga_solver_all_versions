@@ -583,7 +583,6 @@ static void setPid(uint8_t id, double nP, double nI, double nD) {
   dxl.writeControlTableItem(ControlTableItem::POSITION_D_GAIN, id, D);
 }
 
-/**/
 static void syncServoMotion(uint8_t id1, uint8_t id2, uint8_t id3,
                             int dist1, int dist2, int dist3) {
   if (dist1 < 0) dist1 = 0;
@@ -669,7 +668,7 @@ static void syncServoMotion(uint8_t id1, uint8_t id2, uint8_t id3,
   //    id1, v1, a1, id2, v2, a2, id3, v3, a3);
 }
 
-static void refineEndPositions(uint8_t id1, uint8_t id2, uint8_t id3,
+static bool refineEndPositions(uint8_t id1, uint8_t id2, uint8_t id3,
                                int goal1, int goal2, int goal3) {
   const int REFINE_ERR = 4;
   const int REFINE_THRESH = 40;
@@ -692,26 +691,27 @@ static void refineEndPositions(uint8_t id1, uint8_t id2, uint8_t id3,
     bool done2 = (!id2 || goal2 == -1) || (abs(goal2 - p2) < REFINE_ERR);
     bool done3 = (!id3 || goal3 == -1) || (abs(goal3 - p3) < REFINE_ERR);
 
-    if (done1 && done2 && done3) return;
+    if (done1 && done2 && done3) return true;
 
     if (id1 && goal1 != -1 && abs(goal1 - p1) > REFINE_THRESH) {
       if (last_goal1 != goal1)
-        dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, id1, goal1);
+        if (!safeSetGoalPosition(id1, goal1)) return false;
       last_goal1 = goal1;
     }
 
     if (id2 && goal2 != -1 && abs(goal2 - p2) > REFINE_THRESH) {
       if (last_goal2 != goal2)
-        dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, id2, goal2);
+        if (!safeSetGoalPosition(id2, goal2)) return false;
       last_goal2 = goal2;
     }
 
     if (id3 && goal3 != -1 && abs(goal3 - p3) > REFINE_THRESH) {
       if (last_goal3 != goal3)
-        dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, id3, goal3);
+        if (!safeSetGoalPosition(id3, goal3)) return false;
       last_goal3 = goal3;
     }
   }
+  return true;
 }
 
 // ----------------------------------------------------------------------
@@ -818,19 +818,19 @@ bool move_smooth_v2() {
     distA, distB, distC);
 
   if (axes_count >= 1)
-    dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, ids[0], goalTicks[0]);
+    if (!safeSetGoalPosition(ids[0], goalTicks[0])) return false;
   if (axes_count >= 2)
-    dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, ids[1], goalTicks[1]);
+    if (!safeSetGoalPosition(ids[1], goalTicks[1])) return false;
   if (axes_count >= 3)
-    dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION, ids[2], goalTicks[2]);
+    if (!safeSetGoalPosition(ids[2], goalTicks[2])) return false;
 
-  refineEndPositions(
-    (axes_count >= 1) ? ids[0] : 0,
-    (axes_count >= 2) ? ids[1] : 0,
-    (axes_count >= 3) ? ids[2] : 0,
-    (axes_count >= 1) ? goalTicks[0] : -1,
-    (axes_count >= 2) ? goalTicks[1] : -1,
-    (axes_count >= 3) ? goalTicks[2] : -1);
+  if (!refineEndPositions(
+        (axes_count >= 1) ? ids[0] : 0,
+        (axes_count >= 2) ? ids[1] : 0,
+        (axes_count >= 3) ? ids[2] : 0,
+        (axes_count >= 1) ? goalTicks[0] : -1,
+        (axes_count >= 2) ? goalTicks[1] : -1,
+        (axes_count >= 3) ? goalTicks[2] : -1)) return false;
 
   // ----------------------------------------------------
   //   FINAL VERIFY: Make sure movement actually finished
@@ -869,7 +869,6 @@ bool move_smooth_v2() {
         t0 = millis();
         lastPos = p;
       }
-
       if (!safe_delay(5, { id })) return false;
     }
   }
@@ -888,8 +887,7 @@ bool move_smooth_v2() {
       if (diff > 4) {
         //DEBUG_INFO(MOD_SERVO_MOVE, "final check: servo %d still off by %d → resending goal",
         //        id, diff);
-        dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION,
-                                  id, goalTicks[i]);
+        if (!safeSetGoalPosition(id, goalTicks[i])) return false;
         if (!safe_delay(50, { id })) return false;
       }
     }
@@ -1068,6 +1066,16 @@ bool isGripperOpen(double min_open) {
   double g1_pos = getPos_per(ID_GRIP1);
   double g2_pos = getPos_per(ID_GRIP2);
   if (g1_pos < min_open + 3 && g2_pos < min_open + 3) return true;
+  return false;
+}
+
+bool isYmmAbove(double min_y) {
+  if (!dxl_ping_cached(ID_ARM1) || !dxl_ping_cached(ID_ARM2)) return false;
+  double a1_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
+  double a2_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
+  kin.solve_x_y_from_a1_a2(a1_deg, a2_deg);
+
+  if (kin.getYmm() > min_y) return true;
   return false;
 }
 

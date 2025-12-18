@@ -11,6 +11,7 @@ extern double max_xmm;
 extern double max_ymm;
 extern double min_ymm;
 extern double speed;
+extern String version_str;
 
 extern CubeOri ori;
 extern CubeColorReader color_reader;
@@ -26,53 +27,78 @@ struct CommandEntry {
 };
 
 static CommandEntry command_table[] = {
-  { "SETMIN", "%d %d", cmd_set_min, "SETMIN <id> <ticks> - set the min ticks" },
-  { "SETMAX", "%d %d", cmd_set_max, "SETMAX <id> <ticks> - set the max ticks" },
 
+  // version
+  { "", "", nullptr, "------------------ HELP / VERSION ------------------" },
+  { "HELP", "", cmd_help, "HELP - list all available commands" },
+  { "VERSION", "", cmd_get_version, "VERSION - show firmware version info" },
+
+  // main robot commands for cube solving
+  { "", "", nullptr, "-------------- MAIN CUBE SOLVING COMMANDS ----------" },
+  { "MOVEROBOT", "<moves>", nullptr, "MOVEROBOT <moves> - robot moves (z_plus z_minus z_180 y_plus y_minus y_180 d_plus d_minus d_180)" },
+  { "MOVECUBE", "<moves>", nullptr, "MOVECUBE <moves> - cube moves (f+ f- f2 b+ b- b2 r+ r- r2 l+ l- l2 u+ u- u2 d+ d- d2)" },
+  { "READCOLORS", "<mode>", nullptr, "READCOLORS <all|bottom|solved> - read cube colors (u=white f=green r=red)" },
+
+  // debug for robot moves
+  { "", "", nullptr, "---------------- DEBUG : ROBOT MOVES ----------------" },
   { "RUN", "%d", cmd_run, runHelp },
 
-  { "MOVETICKS", "%d %d", cmd_move_ticks, "MOVETICKS <id> <ticks goal> - move one servo to ticks (not smooth)" },
-  { "MOVEDEG", "%d %f", cmd_move_deg, "MOVEDEG <id> <deg goal> - move one servo to degree (smooth)" },
-  { "MOVEPER", "%d %f", cmd_move_per, "MOVEPER <id> <per goal> - move one servo to percent (smooth)" },
+  // servos data
+  { "", "", nullptr, "------------------ SERVOS : DATA --------------------" },
+  { "READSERVO", "%d", cmd_read_servo, "READSERVO <id> - show servo summary status" },
+  { "INFOSERVO", "%d", cmd_servo_info, "INFOSERVO <id> - show full servo status" },
+  { "SETMIN", "%d %d", cmd_set_servo_min, "SETMIN <id> <ticks> - set servo minimum ticks" },
+  { "SETMAX", "%d %d", cmd_set_servo_max, "SETMAX <id> <ticks> - set servo maximum ticks" },
 
-  { "MOVEYMM", "%f", cmd_move_y, "MOVEYMM <float mm> - vertical move (42 to 102)" },
-  { "MOVEXMM", "%f", cmd_move_x, "MOVEXMM <float mm> - lateral move (-30 to 30)" },
-  { "MOVEXYMM", "%f %f", cmd_move_xy, "MOVEXYMM <float mm> <float mm> - lateral then vertical move (-25 to 25)(42 to 102)" },
-  { "MOVEGRIPPER", "%f", cmd_move_gripper, "MOVEGRIPPER <percentage> - move both grips to percentage (0 to 100)" },
+  // servo leds
+  { "", "", nullptr, "------------------ SERVOS : LEDS --------------------" },
+  { "LEDON", "%d", cmd_ledon, "LEDON <id> - turn servo LED on" },
+  { "LEDOFF", "%d", cmd_ledoff, "LEDOFF <id> - turn servo LED off" },
+
+  // global servo error clearing
+  { "", "", nullptr, "---------------- SERVOS : ERRORS --------------------" },
+  { "REBOOTALL", "", cmd_reboot_servos, "REBOOTALL - reboot all servos" },
+  { "SETSTOPALL", "", cmd_set_servo_flag_servos_stop_all, "SETSTOPALL - set global servo error flag" },
+  { "CLEARSTOPALL", "", cmd_clear_flag_servos_stop_all, "CLEARSTOPALL - clear global servo error flag" },
+
+  // move servos
+  { "", "", nullptr, "------------------ SERVOS : MOTION ------------------" },
+  { "MOVETICKS", "%d %d", cmd_move_ticks, "MOVETICKS <id> <ticks> - move servo to ticks (no smoothing)" },
+  { "MOVEDEG", "%d %f", cmd_move_deg, "MOVEDEG <id> <deg> - move servo to degrees (smooth)" },
+  { "MOVEPER", "%d %f", cmd_move_per, "MOVEPER <id> <percent> - move servo to percentage (smooth)" },
+
+  // xy arms
+  { "", "", nullptr, "------------------ XY ARMS ---------------------------" },
+  { "MOVEYMM", "%f", cmd_move_y, "MOVEYMM <mm> - vertical move (42 to 102)" },
+  { "MOVEXMM", "%f", cmd_move_x, "MOVEXMM <mm> - lateral move (-30 to 30)" },
+  { "MOVEXYMM", "%f %f", cmd_move_xy, "MOVEXYMM <x_mm> <y_mm> - lateral then vertical move (-25..25, 42..102)" },
+
+  // gripper
+  { "", "", nullptr, "------------------ GRIPPER ---------------------------" },
+  { "MOVEGRIPPER", "%f", cmd_move_gripper, "MOVEGRIPPER <percent> - move both grippers (0 to 100)" },
   { "MOVEWRISTVERTDEG", "%f", cmd_move_wrist_vert, "MOVEWRISTVERTDEG <deg> - move wrist relative to vertical (-5 to 185)" },
   { "CLAMP", "", cmd_move_clamp, "CLAMP - clamp gripper" },
 
-  { "READSERVO", "%d", cmd_read, "READSERVO <id> - show servo summary status" },
-  { "INFOSERVO", "%d", cmd_info, "INFOSERVO <id> - show servo full status" },
-  { "REBOOTSERVOS", "", cmd_reboot_servos, "REBOOTSERVOS - reboot servos and reset error flag" },
-  { "SETSERVOSSTOPALL", "", cmd_set_flag_servos_stop_all, "SETSERVOSSTOPALL - reboot servos and reset error flag" },
-  { "REBOOTSERVOSSTOPALL", "", cmd_reset_flag_servos_stop_all, "REBOOTSERVOSSTOPALL - reboot servos and reset error flag" },
-
+  // color sensor
+  { "", "", nullptr, "------------------ COLOR SENSOR ----------------------" },
   { "COLORSENSOR", "%d", cmd_color, "COLORSENSOR <count> - read color <count> times" },
-  { "ONECOLOR", "", cmd_read_one_color, "ONECOLOR - read one slot 1...6" },
-  { "ONEFACECOLOR", "", cmd_read_one_face_colors, "ONEFACECOLOR the colors of the face in front" },
+  { "ONECOLOR", "", cmd_read_one_color, "ONECOLOR - read one slot (1..6)" },
+  { "ONEFACECOLOR", "", cmd_read_one_face_colors, "ONEFACECOLOR - read colors of the front face" },
+  { "GETCOLORDATA", "", cmd_getcolor_data, "GETCOLORDATA - print raw color data" },
 
-  { "READCOLORS", "<mode>", nullptr, "READCOLORS <all | bottom | solved (u=White, f=Green r=red)> - read cube colors" },
-
-  { "LEDON", "%d", cmd_ledon, "LEDON <id> - turn servo LED on" },
-  { "LEDOFF", "%d", cmd_ledoff, "LEDOFF <id> - turn servo LED off" },
-  // NEW: string-based move commands using CubeOri
-  { "MOVEROBOT", "<moves>", nullptr, "MOVEROBOT <moves> - robot moves space-separated list (z_plus z_minus z_180 y_plus y_minus y_180 d_plus d_minus d_180)" },
-  { "MOVECUBE", "<moves>", nullptr, "MOVECUBE <moves> - cube moves space-separated list (f+ f- f2 b+ b- b2 r+ r- r2 l+ l- l2 u+ u- u2 d+ d- d2)" },
-
+  // orientation
+  { "", "", nullptr, "------------------ ORIENTATION -----------------------" },
   { "GETORIDATA", "", cmd_getori_data, "GETORIDATA - print orientation move log" },
-  { "CLEARORIDATA", "", cmd_clear_ori_data, "CLEARORIDATA - reset orientation data" },
-  { "RESTOREORI", "", cmd_restore_ori, "RESTOREORI - move cube back in the original orientation" },
-  { "GETCOLORDATA", "", cmd_getcolor_data, "GETCOLORDATA - print color data" },
-
-  { "HELP", "", cmd_help, "HELP list of commands" },
+  { "CLEARORIDATA", "", cmd_clear_ori_data, "CLEARORIDATA - clear orientation data" },
+  { "RESTOREORI", "", cmd_restore_ori, "RESTOREORI - restore cube to original orientation" },
 };
+
 
 static constexpr int COMMAND_COUNT = sizeof(command_table) / sizeof(command_table[0]);
 
-// -------------------------------------------------------------------
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-
 //                            PARSE HELPERS
-// -------------------------------------------------------------------
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-
 
 static int parse_args(const String &line, const char *fmt, double *out, int max_args, String *raw_tokens = nullptr) {  // Skip command word
   int space_idx = line.indexOf(' ');
@@ -98,30 +124,37 @@ static int parse_args(const String &line, const char *fmt, double *out, int max_
   return argc;
 }
 
-bool cmd_help(int argc, double *argv) {
+bool cmd_get_version(int argc, double *argv) {
   Serial.println();
-  Serial.println(get_help_text());
+  Serial.println(version_str);
   Serial.println();
   return true;
 }
 
-// -------------------------------------------------------------------
+bool cmd_help(int argc, double *argv) {
+  Serial.println();
+  Serial.println(get_help_text());
+  return true;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-
 //                        GET HELP TEXT
-// -------------------------------------------------------------------
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-
 
 String get_help_text() {
-  String help = "Supported commands:";
+  String help = "\nCOMMANDS:\n";
   for (int i = 0; i < COMMAND_COUNT; i++) {
     help += "  ";
+    if (command_table[i].name == "") help += "\n";
     help += command_table[i].desc;
     help += "\n";
   }
   return help;
 }
 
-// -------------------------------------------------------------------
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-
 //                    PROCESS SERIAL COMMAND (DISPATCHER)
-// -------------------------------------------------------------------
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-
 
 void process_serial_command(String &line) {
   String U = line;
@@ -138,14 +171,15 @@ void process_serial_command(String &line) {
   };
 
   for (int i = 0; i < COMMAND_COUNT; i++) {
+    if (command_table[i].name == "") continue;
     const CommandEntry &cmd = command_table[i];
 
     if (U.startsWith(cmd.name)) {
 
       unsigned long millis_start = millis();
-      // -----------------------------------------------------------
+      // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~--
       // Special handling for MOVEROBOT and MOVECUBE (string commands)
-      // -----------------------------------------------------------
+      // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~--
       if (strcmp(cmd.name, "MOVEROBOT") == 0 || strcmp(cmd.name, "MOVECUBE") == 0) {
 
         // Extract raw params after command
@@ -215,9 +249,9 @@ void process_serial_command(String &line) {
         LOG_VAR("duration", duration_str.c_str());
         return;
       }
-      // -----------------------------------------------------------
+      // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~--
       // Special handling for READCOLORS (string command)
-      // -----------------------------------------------------------
+      // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~--
       if (strcmp(cmd.name, "READCOLORS") == 0) {
 
         // Extract raw params after command
@@ -241,7 +275,7 @@ void process_serial_command(String &line) {
         LOG_VAR("params", params_.c_str());
 
         // Unified logging (same style as MOVEROBOT)
-        // serial_printf_verbose("---- START READCOLORS params: %s ----", params.c_str());
+        // serial_printf_verbose("~~~- START READCOLORS params: %s ~~~-", params.c_str());
         params_ = "\"" + params + "\"";
         LOG_INFO(MOD_CMD, "readcolors start");
         LOG_VAR("mode", params_.c_str());
@@ -268,9 +302,9 @@ void process_serial_command(String &line) {
       }
 
 
-      // ---------------- Existing numeric-command path ----------------
+      // ~~~~~~~~~~~~~~~- Existing numeric-command path ~~~~~~~~~~~~~~~-
       // serial_printf_verbose(
-      //  "---- START %s params: %s ----", cmd.name, line.c_str());
+      //  "~~~- START %s params: %s ~~~-", cmd.name, line.c_str());
 
       int min_args = 0;
       derive_format_info(cmd.fmt, min_args);
@@ -280,7 +314,7 @@ void process_serial_command(String &line) {
       String raw[8];
       argc = parse_args(line, cmd.fmt, argv, 8, raw);
 
-      // ---------------- Argument validation ----------------
+      // ~~~~~~~~~~~~~~~- Argument validation ~~~~~~~~~~~~~~~-
       if (argc < min_args) {
 
         LOG_ERR(MOD_CMD, "invalid_command_usage");
@@ -289,7 +323,7 @@ void process_serial_command(String &line) {
         return;
       }
 
-      // ---------------- Execute Command ----------------
+      // ~~~~~~~~~~~~~~~- Execute Command ~~~~~~~~~~~~~~~-
       double p1 = 0;
       if (argc > 0) p1 = (double)argv[0];
 

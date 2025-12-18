@@ -11,6 +11,8 @@
 #include <algorithm>
 
 bool serial_ok = false;
+String version_str = "na";
+String protocol_str = "protocol v1";
 
 // -------------------------------------------------------------------
 //                           HELPER for version
@@ -45,13 +47,17 @@ const char *extract_version_from_file() {
 }
 
 void print_build_banner() {
-  Serial.print("---- dynamixel controller ");
-  Serial.print(extract_version_from_file());
-  Serial.print(" | built ");
-  serial_print_lowercase(__DATE__);
-  Serial.print(" ");
-  Serial.print(__TIME__);   // already numeric, no case
-  Serial.println(" ---------------------------------------------");
+  Serial.print("----- dynamixel servos controller ");
+  version_str = String(extract_version_from_file());
+  version_str += " | built ";
+  version_str += String(__DATE__);
+  version_str += " ";
+  version_str += String(__TIME__);  // already numeric, no case
+  version_str += " | ";
+  version_str += protocol_str;
+  version_str.toLowerCase();
+  Serial.print(version_str.c_str());
+  Serial.println(" -----");
 }
 
 // -------------------------------------------------------------------
@@ -107,7 +113,6 @@ void setup() {
 
   Serial.println();
   print_build_banner();
-  Serial.println();
   Serial.println(get_help_text());
   Serial.println("----------------------------------------------------------------------------");
 

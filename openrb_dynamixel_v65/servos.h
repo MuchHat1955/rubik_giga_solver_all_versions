@@ -112,7 +112,7 @@ double getPos_deg(int id);
 double getPos_per(int id);
 int getMin_ticks(int id);
 int getMax_ticks(int id);
-void setGoal_deg(int id, double goal_deg);
+bool setGoal_deg(int id, double goal_deg);
 
 // ---------------- Status helpers ----------------
 bool checkStall(uint8_t id);
@@ -125,7 +125,8 @@ void dxl_ping_cache_invalidate(uint8_t id);
 void dxl_ping_cache_invalidate_all();
 
 void set_flag_servos_stop_all();
-bool reset_flag_servos_stop_all();
+bool clear_flag_servos_stop_all();
 bool check_servos_stop_all();
 bool reboot_all_servos();
 bool check_all_servos_if_ok();
+void set_torque_all_servos(bool _on);

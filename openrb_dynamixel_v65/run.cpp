@@ -73,14 +73,14 @@ bool cmd_reboot_servos(int argc, double *argv) {
   LOG_INFO(MOD_SERVOS, "reboot servos start");
   return reboot_all_servos();
 }
-bool cmd_set_flag_servos_stop_all(int argc, double *argv) {
+bool cmd_set_servo_flag_servos_stop_all(int argc, double *argv) {
   LOG_INFO(MOD_SERVOS, "set stop all start");
   set_flag_servos_stop_all();
   return true;
 }
-bool cmd_reset_flag_servos_stop_all(int argc, double *argv) {
+bool cmd_clear_flag_servos_stop_all(int argc, double *argv) {
   LOG_INFO(MOD_SERVOS, "reset stop all start");
-  return reset_flag_servos_stop_all();
+  return clear_flag_servos_stop_all();
 }
 bool cmd_check_servos(int argc, double *argv) {
   LOG_INFO(MOD_SERVOS, "check all servos start");
@@ -112,6 +112,44 @@ bool robot_move_callback(const String &mv) {
 // RUN_ZERO
 // ------------------------------------------------------------
 bool cmd_run_zero() {
+
+  if (!dxl_ping_cached(ID_ARM1) || !dxl_ping_cached(ID_ARM2)) return false;
+  double a1_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
+  double a2_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
+  kin.solve_x_y_from_a1_a2(a1_deg, a2_deg);
+
+  // soften the gripper
+  dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP1, 0);
+  dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP2, 0);
+  // fix the gripper
+  dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP1, 1);
+  dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP2, 1);
+  double prev_speed = speed;
+  speed = 0.15;
+  if (!isGripperOpen(G_WIDE_OPEN)) {
+    if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
+  }
+  dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP1, 0);
+  dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP2, 0);
+
+  // soften the wrist
+  dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_WRIST, 0);
+  if (!cmdMoveYmm(Y_UP)) return false;
+  set_torque_all_servos(true);
+  if (!cmdMoveXmm(X_CENTER)) return false;
+
+  // fix the wrist
+  dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_WRIST, 1);
+  if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
+
+  speed = prev_speed;
+
+  if (!isGripperOpen(G_WIDE_OPEN)) {
+    if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
+  }
+  if (!cmdMoveXmm(X_CENTER)) return false;
+
+  if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
   if (!prepBaseForRotation(B_LEFT)) return false;
   if (!prepBaseForRotation(B_RIGHT)) return false;
   if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
@@ -124,6 +162,7 @@ bool cmd_run_zero() {
   if (!cmdMoveGripperPer(G_OPEN)) return false;
   if (!cmdMoveYmm(Y_DOWN)) return false;
   if (!cmdMoveGripperPer(G_SOFT_CLOSE)) return false;
+
   return true;
 }
 
@@ -448,28 +487,28 @@ bool cmd_move_per(int argc, double *argv) {
   return true;
 }
 
-bool cmd_set_min(int argc, double *argv) {
+bool cmd_set_servo_min(int argc, double *argv) {
   int id = (int)argv[0];
   if (!dxl_ping_cached(id)) return false;
 
   int t = (int)argv[1];
 
   if (auto *s = find_servo(id)) {
-    // serial_printf_verbose("cmd_set_min: id=%d ticks=%d", id, t);
+    // serial_printf_verbose("cmd_set_servo_min: id=%d ticks=%d", id, t);
     s->set_min_ticks(t);
     return true;
   }
   return false;
 }
 
-bool cmd_set_max(int argc, double *argv) {
+bool cmd_set_servo_max(int argc, double *argv) {
   int id = (int)argv[0];
   if (!dxl_ping_cached(id)) return false;
 
   int t = (int)argv[1];
 
   if (auto *s = find_servo(id)) {
-    // serial_printf_verbose("cmd_set_max: id=%d ticks=%d", id, t);
+    // serial_printf_verbose("cmd_set_servo_max: id=%d ticks=%d", id, t);
     s->set_max_ticks(t);
     return true;
   }
@@ -580,6 +619,9 @@ bool prepBaseForRotation(double nextBaseMoveRelative) {
   if (nextBaseMoveRelative == B_CENTER) return true;
   // // serial_printf_verbose("***** start prep base for rotation %.2f", nextBaseMoveRelative);
 
+  if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
+  if (!cmdMoveXmm(X_CENTER)) return false;
+
   double b_pos = getPos_deg(ID_BASE);
   // // serial_printf_verbose("***** before prep base at %.2f", b_pos);
 
@@ -605,14 +647,13 @@ bool prepBaseForRotation(double nextBaseMoveRelative) {
   }
   // // serial_printf_verbose("***** prep base for rotation move to center");
 
+  if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
   if (!cmdMoveXmm(X_CENTER)) return false;
-  if (!isGripperOpen(G_OPEN)) {
-    if (!cmdMoveGripperPer(G_OPEN)) return false;
-  }
   if (!cmdMoveYmm(Y_CENTER)) return false;
   if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
   if (!cmdMoveGripperClamp()) return false;
-  if (!cmdMoveYmm(Y_ROTATE_BASE)) return false;
+  if (!isYmmAbove(Y_ROTATE_BASE))
+    if (!cmdMoveYmm(Y_ROTATE_BASE)) return false;
   if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
   if (!lowerCube()) return false;
   // // serial_printf_verbose("***** move to center done");
@@ -671,7 +712,8 @@ bool rotateBaseRelative(double baseMoveRelative, bool gripperOn) {
 
   if (!gripperOn) {
     if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveYmm(Y_ROTATE_BASE)) return false;
+    if (!isYmmAbove(Y_ROTATE_BASE))
+      if (!cmdMoveYmm(Y_ROTATE_BASE)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
   }
   if (gripperOn) {
@@ -786,6 +828,8 @@ bool cmd_read_one_color(int argc, double *argv) {
   int slot = (int)d_slot;
 
   char c = cmd_read_one_color_run(slot);
+  LOG_INFO(MOD_COLORSENSOR, "read_one_color");
+  LOG_VAR("color", c);
 
   if (c == '.') return false;
   return true;
@@ -868,51 +912,52 @@ bool cmd_read_one_face_colors(int argc, double *argv) {  // desired read order
 void print_colors_detail(char *txt) {
   String all54 = color_reader.get_cube_colors_string();
   //
-  LOG_INFO(MOD_CMD, "color analyzer start");
+  LOG_INFO(MOD_COLORCHECK, "color analyzer data");
   LOG_VAR("context", txt);
   //
-  LOG_INFO(MOD_CMD, "cube colors");
+  LOG_INFO(MOD_COLORCHECK, "cube colors");
   LOG_VAR("cube_colors", all54.c_str());
 
   color_analyzer.set_colors(all54);
   bool valid_colors = color_analyzer.is_color_string_valid_bool();
   //
-  LOG_INFO(MOD_CMD, "color validity");
+  LOG_INFO(MOD_COLORCHECK, "color validity");
   LOG_VAR("valid", valid_colors);
   if (!valid_colors) {
     //
-    LOG_INFO(MOD_CMD, "color analyzer log");
+    LOG_INFO(MOD_COLORCHECK, "color analyzer log");
     LOG_VAR("log", color_analyzer.get_string_check_log().c_str());
 
     if (color_analyzer.is_string_fixable_bool()) {
       String fixed;
       if (color_analyzer.try_fix_color_string(fixed)) {
-        LOG_INFO(MOD_CMD, "color string is fixable");
-        LOG_INFO(MOD_CMD, "color string corrected");
+        LOG_INFO(MOD_COLORCHECK, "color string is fixable");
+        LOG_INFO(MOD_COLORCHECK, "color string corrected");
         LOG_VAR("corrected", fixed.c_str());
       } else {
-        LOG_ERR(MOD_CMD, "color string fix failed");
+        LOG_ERR(MOD_COLORCHECK, "color string fix failed");
       }
     } else {
       //
-      LOG_ERR(MOD_CMD, "color string not fixable");
+      LOG_ERR(MOD_COLORCHECK, "color string not fixable");
     }
   } else {
     // show the stage//
-    LOG_INFO(MOD_CMD, "solving stage");
+    LOG_LN();
     for (int s = 0; s < color_analyzer.get_stage_count(); s++) {
-      String state = "...";
-      if (color_analyzer.is_stage_done_bool(s)) state = "done";
-      else if (color_analyzer.is_stage_partial_bool(s)) state = "partial";
-      //
+      String state = "(...)";
+      if (color_analyzer.is_stage_done_bool(s)) state = "(done)";
+      else if (color_analyzer.is_stage_partial_bool(s)) state = "(partial)";
+
+      LOG_INFO(MOD_COLORCHECK, "solving stage");
       LOG_VAR("stage", s);
-      //
       LOG_VAR("name", color_analyzer.get_stage_name(s));
-      //
       LOG_VAR("state", state.c_str());
     }
+    LOG_LN();
   }
-  LOG_INFO(MOD_CMD, "color analyzer end");
+
+  LOG_INFO(MOD_COLORCHECK, "color analyzer end");
   LOG_VAR("context", txt);
 }
 
@@ -948,7 +993,7 @@ bool cmd_read_cube_colors_string(const String &mode_in) {
   String before = color_reader.get_cube_colors_string();
   LOG_INFO(MOD_CMD, "before read cube colors");
   LOG_VAR("cube_colors", before.c_str());
-  color_reader.print_cube_colors_string();
+  color_reader.print_cube_colors_diagram();
   print_colors_detail("before read cube colors");
 
   ori.clear_orientation_data();
@@ -978,10 +1023,13 @@ bool cmd_read_cube_colors_string(const String &mode_in) {
   ori.restore_cube_orientation();  //
   LOG_INFO(MOD_CMD, "after read orientation");
   LOG_VAR("orientation", ori.get_orientation_string().c_str());
+  LOG_LN();
   ori.print_orientation_string();
   //
   LOG_INFO(MOD_CMD, "after read cube colors");
+  LOG_LN();
   LOG_VAR("cube_colors", after.c_str());
+  LOG_LN();
   print_colors_detail("after read cube colors");
 
   static double arg = 0;
@@ -993,25 +1041,28 @@ bool cmd_getcolor_data(int argc, double *argv) {
   //
   LOG_INFO(MOD_CMD, "cube colors");
   LOG_VAR("cube_colors", all54.c_str());
+  LOG_LN();
 
+  LOG_LN();
   color_reader.print_face_compact('u');
   color_reader.print_face_compact('r');
   color_reader.print_face_compact('f');
   color_reader.print_face_compact('d');
   color_reader.print_face_compact('l');
   color_reader.print_face_compact('b');
-  color_reader.print_cube_colors_string();
+  LOG_LN();
 
+  color_reader.print_cube_colors_diagram();
   print_colors_detail("get color data");
   return true;
 }
 
-bool cmd_read(int argc, double *argv) {
+bool cmd_read_servo(int argc, double *argv) {
   print_servo_status((argc > 0) ? (int)argv[0] : 0);
   return true;
 }
 
-bool cmd_info(int argc, double *argv) {
+bool cmd_servo_info(int argc, double *argv) {
   print_servo_info((uint8_t)argv[0]);
   return true;
 }
