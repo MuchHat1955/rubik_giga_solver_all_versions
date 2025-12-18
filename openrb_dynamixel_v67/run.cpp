@@ -259,8 +259,7 @@ bool cmd_run_zero() {
 bool cmd_run_right_down() {
   if (!cmdMoveGripperPer(G_OPEN)) return false;
 
-  if (!cmdMoveYmm(Y_CENTER)) return false;
-  if (!cmdMoveXmm(X_CENTER)) return false;
+  if (!prepArmsForWristRotation()) return false;
   if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
   if (!cmdMoveXmm(X_CENTER)) return false;
   if (!cmdMoveGripperClamp()) return false;
@@ -298,6 +297,7 @@ bool cmd_run_left_down() {
   if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
   if (!cmdMoveXmm(X_CENTER)) return false;
 
+  if (!prepArmsForWristRotation()) return false;
   if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
 
   if (!lowerCube()) return false;
@@ -346,8 +346,7 @@ bool cmd_run_back_down() {
   if (!cmdMoveGripperPer(G_OPEN)) return false;
   if (!rotateBaseRelative(B_LEFT)) return false;
 
-  if (!cmdMoveYmm(Y_CENTER)) return false;
-  if (!cmdMoveXmm(X_CENTER)) return false;
+  if (!prepArmsForWristRotation()) return false;
   if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
   if (!cmdMoveXmm(X_CENTER)) return false;
   if (!cmdMoveGripperClamp()) return false;
@@ -675,7 +674,7 @@ bool cmd_move_wrist_vert(int argc, double *argv) {
   // serial_printf_verbose("cmd_move_wrist: deg=%.2f", goal_deg);
 
   if (!cmdMoveWristDegVertical(goal_deg)) return false;
-  print_servo_status(ID_WRIST);
+  // print_servo_status(ID_WRIST);
   return true;
 }
 
@@ -792,8 +791,7 @@ bool prepBaseForRotation(double nextBaseMoveRelative) {
   // // serial_printf_verbose("***** prep base for rotation move to center");
 
   if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
-  if (!cmdMoveXmm(X_CENTER)) return false;
-  if (!cmdMoveYmm(Y_CENTER)) return false;
+  if (!prepArmsForWristRotation()) return false;
   if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
   if (!cmdMoveGripperClamp()) return false;
   if (!isYmmAbove(Y_ROTATE_BASE))
@@ -880,8 +878,7 @@ bool rotateBaseRelative(double baseMoveRelative, bool gripperOn) {
 
 bool alignCube() {
   if (!cmdMoveGripperPer(G_OPEN)) return false;
-  if (!cmdMoveXmm(X_CENTER)) return false;
-  if (!cmdMoveYmm(Y_CENTER)) return false;
+  if (!prepArmsForWristRotation()) return false;
   if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
 
   if (!cmdMoveServoPer(ID_GRIP2, G_ALIGN_LEFT)) return false;
@@ -984,6 +981,7 @@ char cmd_read_one_color_run(int slot) {
 
   while (1) {
     if (!cmdMoveGripperPer(G_WIDE_OPEN)) break;
+    if (!prepArmsForWristRotation()) return false;
     if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) break;
 
     speed = 0.25;
@@ -1012,6 +1010,7 @@ char cmd_read_one_color_run(int slot) {
       if (!cmdMoveYmm(Y_C_MID)) break;
       if (!cmdMoveXmm(X_C_RIGHT)) break;
     }
+    if (!prepArmsForWristRotation()) return false;
     if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) break;
 
     speed = prev_speed;
