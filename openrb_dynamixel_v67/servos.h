@@ -130,3 +130,5 @@ bool check_servos_stop_all();
 bool reboot_all_servos();
 bool check_all_servos_if_ok();
 void set_torque_all_servos(bool _on);
+void flash_led_all_servos(int count);
+void flash_led_servo(int sid, int count);

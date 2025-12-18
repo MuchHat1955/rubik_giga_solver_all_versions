@@ -712,7 +712,7 @@ bool prepArmsForWristRotation() {
   double y_mm = kin.getYmm();
   double x_mm = kin.getXmm();
   bool y_ok = (y_mm > (Y_CENTER - 1)) && (y_mm < (Y_CENTER + 1));
-  bool x_ok = (y_mm > (X_CENTER - 1)) && (X_mm < (X_CENTER + 1));
+  bool x_ok = (x_mm > (X_CENTER - 1)) && (x_mm < (X_CENTER + 1));
 
   if (!y_ok)
     if (!cmdMoveYmm(Y_CENTER)) return false;
@@ -728,7 +728,7 @@ bool isWristHoriz() {
   double diff = fabs(goal_deg - w_deg);
   if (diff < W_TOL) return true;
 
-  double goal_deg = kin.getWdeg_for_horizontal_left();
+  goal_deg = kin.getWdeg_for_horizontal_left();
   diff = fabs(goal_deg - w_deg);
   return diff < W_TOL;
 }
@@ -746,7 +746,7 @@ bool isWristNearHoriz() {
   double diff = fabs(goal_deg - w_deg);
   if (diff < 3 * W_TOL) return true;
 
-  double goal_deg = kin.getWdeg_for_horizontal_left();
+  goal_deg = kin.getWdeg_for_horizontal_left();
   diff = fabs(goal_deg - w_deg);
   return diff < 3 * W_TOL;
 }
