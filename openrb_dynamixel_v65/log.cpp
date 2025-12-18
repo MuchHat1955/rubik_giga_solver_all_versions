@@ -36,6 +36,8 @@ void serial_print_with_underscores(const char *description) {
     char c = *description++;
     if (c == ' ') c = '_';
     if (c == ',') c = '_';
+    if (c == ':') c = '_';
+    if (c == ',') c = '_';
     Serial.print(c);
   }
 }

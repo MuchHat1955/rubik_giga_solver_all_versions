@@ -133,7 +133,7 @@ bool cmd_info(int argc, double *argv);
 bool cmd_ledon(int argc, double *argv);
 bool cmd_ledoff(int argc, double *argv);
 
-void print_info(uint8_t id);
+bool print_servo_info(uint8_t id);
 void print_colors_detail(char *txt);
 
 
@@ -159,3 +159,5 @@ bool cmd_run_reset_back();
 
 // cube alignment
 bool cmd_run_align_cube();
+
+char cmd_read_one_color_run(int slot);

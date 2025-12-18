@@ -69,6 +69,9 @@ bool cmd_run(int argc, double *argv);
 
 // Servo info
 bool cmd_read(int argc, double *argv);
+bool cmd_reboot_servos(int argc, double *argv);
+bool cmd_set_flag_servos_stop_all(int argc, double *argv);
+bool cmd_reset_flag_servos_stop_all(int argc, double *argv);
 bool cmd_info(int argc, double *argv);
 
 // Led

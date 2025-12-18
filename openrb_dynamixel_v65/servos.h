@@ -117,9 +117,15 @@ void setGoal_deg(int id, double goal_deg);
 // ---------------- Status helpers ----------------
 bool checkStall(uint8_t id);
 void print_servo_status(uint8_t id);
-void reset_servo(uint8_t id);
-bool servo_ok(uint8_t id, bool attept_reboot);
+bool reboot_servo(uint8_t id);
+bool servo_ok(uint8_t id);
 
-bool dxl_ping_cached(uint8_t id);
+bool dxl_ping_cached(uint8_t id, bool invalidate_cache = false);
 void dxl_ping_cache_invalidate(uint8_t id);
 void dxl_ping_cache_invalidate_all();
+
+void set_flag_servos_stop_all();
+bool reset_flag_servos_stop_all();
+bool check_servos_stop_all();
+bool reboot_all_servos();
+bool check_all_servos_if_ok();

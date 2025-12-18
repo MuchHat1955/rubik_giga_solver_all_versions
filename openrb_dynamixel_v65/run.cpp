@@ -7,7 +7,7 @@
 #include "color_analyzer.h"
 #include "run.h"
 
-void print_info(uint8_t id);
+bool print_servo_info(uint8_t id);
 
 extern double max_xmm;
 extern double max_ymm;
@@ -64,7 +64,27 @@ bool cmd_run(int argc, double *argv) {
   }
 
   speed = 1.0;
+  LOG_ERR(MOD_RUN, "invalid run argument");
+  LOG_VAR("run_no", run_no);
   return false;
+}
+
+bool cmd_reboot_servos(int argc, double *argv) {
+  LOG_INFO(MOD_SERVOS, "reboot servos start");
+  return reboot_all_servos();
+}
+bool cmd_set_flag_servos_stop_all(int argc, double *argv) {
+  LOG_INFO(MOD_SERVOS, "set stop all start");
+  set_flag_servos_stop_all();
+  return true;
+}
+bool cmd_reset_flag_servos_stop_all(int argc, double *argv) {
+  LOG_INFO(MOD_SERVOS, "reset stop all start");
+  return reset_flag_servos_stop_all();
+}
+bool cmd_check_servos(int argc, double *argv) {
+  LOG_INFO(MOD_SERVOS, "check all servos start");
+  return check_all_servos_if_ok();
 }
 
 bool robot_move_callback(const String &mv) {
@@ -391,7 +411,6 @@ bool cmd_move_deg(int argc, double *argv) {
     LOG_VAR("goal_deg", goal_deg);
     return false;
   }
-  int goal_ticks = per2ticks(id, goal_deg);  // serial_printf_verbose("cmd_move_deg: id=%d deg=%d", id, goal_deg);
 
   if (!cmdMoveServoDeg((uint8_t)id, goal_deg)) return false;
   print_servo_status(id);
@@ -437,7 +456,7 @@ bool cmd_set_min(int argc, double *argv) {
 
   if (auto *s = find_servo(id)) {
     // serial_printf_verbose("cmd_set_min: id=%d ticks=%d", id, t);
-    // s->set_min_ticks(t);
+    s->set_min_ticks(t);
     return true;
   }
   return false;
@@ -546,10 +565,11 @@ bool cmd_color(int argc, double *argv) {
 
   for (int i = 0; i < read_count; i++) {
     //
-    LOG_INFO(MOD_CMD, "calling read color");
+    LOG_INFO(MOD_COLORSENSOR, "calling read color");
     LOG_VAR("iteration", i);
-    String crrColor = read_color();
-    // serial_printf_verbose("COLOR READSERVO clr=%s", crrColor.c_str());
+    char crrColor = read_color();
+    LOG_INFO(MOD_COLORSENSOR, "read_sensor");
+    LOG_VAR("color", crrColor);
     delay(555);
   }
 
@@ -713,13 +733,65 @@ bool liftCube() {
 
 char crrColorChar = '.';
 
+// face index: u r f d l b
+static const char k_faces[] = { 'u', 'r', 'f', 'd', 'l', 'b' };
+
+// [face][slot] → char
+// slots indexed 1..6 (0 unused)
+static char last_color[6][7];
+
+static int face_to_index(char face) {
+  face = tolower(face);
+  for (int i = 0; i < 6; i++) {
+    if (k_faces[i] == face) return i;
+  }
+  return -1;
+}
+
+bool is_valid_face(char face) {
+  return face_to_index(face) >= 0;
+}
+
+bool is_valid_slot(int slot) {
+  return slot >= 1 && slot <= 6;
+}
+
+void clear_last_color_reads() {
+  for (int f = 0; f < 6; f++) {
+    for (int s = 1; s <= 6; s++) {
+      last_color[f][s] = '.';
+    }
+  }
+}
+
+bool set_last_color_read(char face, int slot, char color) {
+  int fi = face_to_index(face);
+  if (fi < 0 || !is_valid_slot(slot)) return false;
+
+  last_color[fi][slot] = color;
+  return true;
+}
+
+char get_last_color_read(char face, int slot) {
+  int fi = face_to_index(face);
+  if (fi < 0 || !is_valid_slot(slot)) return '.';
+
+  return last_color[fi][slot];
+}
+
 bool cmd_read_one_color(int argc, double *argv) {
   if (argc < 1) return false;
 
   double d_slot = (double)argv[0];
   int slot = (int)d_slot;
-  // read one color for slot
-  crrColorChar = '.';
+
+  char c = cmd_read_one_color_run(slot);
+
+  if (c == '.') return false;
+  return true;
+}
+
+char cmd_read_one_color_run(int slot) {
   int prev_speed = speed;
 
   while (1) {
@@ -754,15 +826,12 @@ bool cmd_read_one_color(int argc, double *argv) {
     }
     if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) break;
 
-    crrColorChar = read_color().charAt(0);
-    // // serial_printf_verbose("      ---C%d=%c", slot, crrColorChar);
-
     speed = prev_speed;
-    return true;
+    return read_color();
   }
 
   speed = prev_speed;
-  return true;
+  return '.';
 }
 
 bool cmd_read_one_face_colors(int argc, double *argv) {  // desired read order
@@ -776,16 +845,13 @@ bool cmd_read_one_face_colors(int argc, double *argv) {  // desired read order
     int pos = readOrder[idx];
     double slot = (double)pos;
 
-    crrColorChar = '.';
-    bool ok = cmd_read_one_color(1, &slot);
+    char crrColorChar = cmd_read_one_color_run(slot);
 
-    char result = ok ? crrColorChar : '.';
-    face[pos] = result;
-
+    face[pos] = crrColorChar;
     //
-    LOG_INFO(MOD_CMD, "read slot");
+    LOG_INFO(MOD_COLORSENSOR, "read slot");
     LOG_VAR("slot", pos);
-    LOG_VAR("color", result);
+    LOG_VAR("color", crrColorChar);
   }
   // build final string in normal 123456 order
   String faceColors = "";
@@ -845,7 +911,7 @@ void print_colors_detail(char *txt) {
       //
       LOG_VAR("state", state.c_str());
     }
-  }  // ~~~~~~~~~~~~~~~~~~~~~~~~  //
+  }
   LOG_INFO(MOD_CMD, "color analyzer end");
   LOG_VAR("context", txt);
 }
@@ -879,7 +945,7 @@ bool cmd_read_cube_colors_string(const String &mode_in) {
     return false;
   }
   // Before read
-  String before = color_reader.get_cube_colors_string();  // ~~~~~~~~~~~~~~~~~~~~~~~~  //
+  String before = color_reader.get_cube_colors_string();
   LOG_INFO(MOD_CMD, "before read cube colors");
   LOG_VAR("cube_colors", before.c_str());
   color_reader.print_cube_colors_string();
@@ -946,7 +1012,7 @@ bool cmd_read(int argc, double *argv) {
 }
 
 bool cmd_info(int argc, double *argv) {
-  print_info((uint8_t)argv[0]);
+  print_servo_info((uint8_t)argv[0]);
   return true;
 }
 
@@ -963,25 +1029,24 @@ bool cmd_ledoff(int argc, double *argv) {
 // -------------------------------------------------------------------
 // INFOSERVO <id> : print key control-table data for one servo
 // -------------------------------------------------------------------
-void print_info(uint8_t id) {
+bool print_servo_info(uint8_t id) {
   if (!dxl_ping_cached(id)) {
     //
     LOG_ERR(MOD_CMD, "servo not found");
     LOG_VAR("id", id);
-    return;
+    return false;
   }
-
-  bool _ok = servo_ok(id, true);  //
+  LOG_INFO(MOD_CMD, "checking_if_servo_is_ok");
+  bool _ok = servo_ok(id);  //
   LOG_INFO(MOD_CMD, "servo ok");
-  LOG_VAR("id", id);
+  LOG_VAR("servo_id", id);
+  LOG_VAR("servo_name", id2name(id));
   LOG_VAR("ok", _ok);
+
   if (!_ok) {  //
-    LOG_INFO(MOD_CMD, "servo resetting");
+    LOG_ERR(MOD_CMD, "servo_not_ok");
     LOG_VAR("id", id);
-    reset_servo(id);  //
-    LOG_INFO(MOD_CMD, "servo ok");
-    LOG_VAR("id", id);
-    LOG_VAR("ok", _ok);
+    LOG_VAR("servo_name", id2name(id));
   }
 
   int op = dxl.readControlTableItem(ControlTableItem::OPERATING_MODE, id);
@@ -999,29 +1064,31 @@ void print_info(uint8_t id) {
   //
   LOG_INFO(MOD_CMD, "infoservo");
   LOG_VAR("id", id);
-  // ~~~~~~~~~~~~~~~~~~~~~~~~  //
+
   LOG_INFO(MOD_CMD, "operating mode");
   LOG_VAR("op_mode", op);
-  // ~~~~~~~~~~~~~~~~~~~~~~~~  //
+
   LOG_INFO(MOD_CMD, "drive mode");
   LOG_VAR("drive_mode", drv);
   LOG_VAR("profile_type", (drv & 0x01) ? "TIME" : "VELOCITY");
-  // ~~~~~~~~~~~~~~~~~~~~~~~~  //
+
   LOG_INFO(MOD_CMD, "profile velocity");
   LOG_VAR("profile_vel", pv);
   LOG_VAR("rpm", rpm);
   LOG_VAR("ticks_per_sec", tps);
-  // ~~~~~~~~~~~~~~~~~~~~~~~~  //
+
   LOG_INFO(MOD_CMD, "profile acceleration");
   LOG_VAR("profile_accel", pa);
-  // ~~~~~~~~~~~~~~~~~~~~~~~~  //
+
   LOG_INFO(MOD_CMD, "position limits");
   LOG_VAR("min_ticks", minL);
   LOG_VAR("max_ticks", maxL);
-  // ~~~~~~~~~~~~~~~~~~~~~~~~  //
+
   LOG_INFO(MOD_CMD, "position span");
   LOG_VAR("span_deg", spanDeg);
-  // ~~~~~~~~~~~~~~~~~~~~~~~~  //
+
   LOG_INFO(MOD_CMD, "present position");
   LOG_VAR("pos_ticks", pos);
+
+  return true;
 }

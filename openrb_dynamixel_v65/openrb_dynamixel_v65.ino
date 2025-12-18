@@ -67,7 +67,7 @@ void setup() {
   if (Serial) serial_ok = true;
   delay(666);
 
-  init_tcs_led();
+  init_color_sensor_led();
 
   dxl.begin(57600);
   dxl.setPortProtocolVersion(PROTOCOL);

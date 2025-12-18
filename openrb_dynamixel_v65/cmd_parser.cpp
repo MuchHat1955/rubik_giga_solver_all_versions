@@ -7,8 +7,6 @@
 #include "color_analyzer.h"
 #include "run.h"
 
-void print_info(uint8_t id);
-
 extern double max_xmm;
 extern double max_ymm;
 extern double min_ymm;
@@ -46,6 +44,9 @@ static CommandEntry command_table[] = {
 
   { "READSERVO", "%d", cmd_read, "READSERVO <id> - show servo summary status" },
   { "INFOSERVO", "%d", cmd_info, "INFOSERVO <id> - show servo full status" },
+  { "REBOOTSERVOS", "", cmd_reboot_servos, "REBOOTSERVOS - reboot servos and reset error flag" },
+  { "SETSERVOSSTOPALL", "", cmd_set_flag_servos_stop_all, "SETSERVOSSTOPALL - reboot servos and reset error flag" },
+  { "REBOOTSERVOSSTOPALL", "", cmd_reset_flag_servos_stop_all, "REBOOTSERVOSSTOPALL - reboot servos and reset error flag" },
 
   { "COLORSENSOR", "%d", cmd_color, "COLORSENSOR <count> - read color <count> times" },
   { "ONECOLOR", "", cmd_read_one_color, "ONECOLOR - read one slot 1...6" },
@@ -153,6 +154,9 @@ void process_serial_command(String &line) {
           //
           LOG_ERR(MOD_CMD, "missing argument");
           LOG_VAR("command", cmd.name);
+          LOG_INFO(MOD_CMD, "command_end");
+          LOG_VAR("command", cmd.name);
+          LOG_VAR("result", "fail");
           return;
         }
         String params = line.substring(space_idx + 1);
@@ -161,6 +165,9 @@ void process_serial_command(String &line) {
           //
           LOG_ERR(MOD_CMD, "missing argument");
           LOG_VAR("command", cmd.name);
+          LOG_INFO(MOD_CMD, "command_end");
+          LOG_VAR("command", cmd.name);
+          LOG_VAR("result", "fail");
           return;
         }
 
@@ -171,17 +178,25 @@ void process_serial_command(String &line) {
 
         bool ok = false;
 
+        if (check_servos_stop_all()) {
+          LOG_ERR(MOD_CMD, "servos_stop_flag_on");
+          LOG_INFO(MOD_CMD, "command_end");
+          LOG_VAR("command", cmd.name);
+          LOG_VAR("result", ok ? "ok" : "fail");
+          return;
+        }
+
         if (strcmp(cmd.name, "MOVECUBE") == 0) {
           // pass full raw string — ori parses sequence itself
           //
-          LOG_INFO(MOD_CMD, "calling ori_cube_move");
+          LOG_INFO(MOD_CMD, "calling_cube_move");
           LOG_VAR("moves", params_.c_str());
 
           ok = ori.cube_move(params);
         } else if (strcmp(cmd.name, "MOVEROBOT") == 0) {
           // pass full raw string — NO splitting
           //
-          LOG_INFO(MOD_CMD, "calling_sori_robot_move");
+          LOG_INFO(MOD_CMD, "calling_robot_move");
           LOG_VAR("moves", params_.c_str());
 
           ok = ori.robot_move(params);

@@ -744,7 +744,7 @@ bool safe_delay(unsigned long delay_millis, std::initializer_list<int> ids) {
       // Check ALL servos
       int all_ids[] = { ID_BASE, ID_ARM1, ID_ARM2, ID_GRIP1, ID_GRIP2, ID_WRIST };
       for (int id : all_ids)
-        if (!servo_ok(id, false)) return false;
+        if (!servo_ok(id)) return false;
     } else {
       // Check ONLY known IDs from the list
       for (int id : ids) {
@@ -754,7 +754,7 @@ bool safe_delay(unsigned long delay_millis, std::initializer_list<int> ids) {
           continue;
         }
 
-        if (!servo_ok(id, false))
+        if (!servo_ok(id))
           return false;
       }
     }
