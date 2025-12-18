@@ -126,6 +126,19 @@ bool cmd_run_zero() {
   // case 4 - wrist is exactly vert
   // case 5 - wrist is in between (fixable only by hand)
 
+
+  // ============================================================
+  // case 3 - wrist is exactly horiz
+  if (isWristHoriz()) {
+    // 0 - do nothing
+  }
+
+  // ============================================================
+  // case 4 - wrist is exactly vert
+  else if (isWristHoriz()) {
+    // 0 - do nothing
+  }
+
   // ============================================================
   // case 1 - wrist is near horiz
   if (isWristNearHoriz()) {
@@ -134,7 +147,7 @@ bool cmd_run_zero() {
     // 2 - soften the gripper
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP1, 0);
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP2, 0);
-    // 3 - fix the gripper to wide open
+    // 3 - open the gripper to wide open
     speed = 0.15;
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP1, 1);
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP2, 1);
@@ -171,22 +184,44 @@ bool cmd_run_zero() {
     // ============================================================
     // case 2 - wrist is near vert
   } else if (isWristNearVert()) {
-    // move to y center
-
-    // move to x center
-
-    // rotate wrist to horiz
-
-    // ============================================================
-    // case 3 - wrist is exactly horiz
-  } else if (isWristHoriz()) {
-    // 1 - move to center
-    // needs to be hand adjusted
-  }
-
-  // ============================================================
-  // case 4 - wrist is exactly vert
-  else if (isWristHoriz()) {
+    // 1 - soften the base
+    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_BASE, 0);
+    // 2 - soften the gripper
+    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP1, 0);
+    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP2, 0);
+    // 3 - open the gripper to wide open
+    speed = 0.15;
+    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP1, 1);
+    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP2, 1);
+    if (!isGripperOpen(G_WIDE_OPEN)) {
+      if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
+    }
+    // 4 - soften the gripper gain
+    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP1, 0);
+    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP2, 0);
+    // 5 - move to center
+    speed = 0.35;
+    if (!cmdMoveYmm(Y_CENTER)) return false;
+    // 6 - fix the gripper again
+    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP1, 1);
+    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP2, 1);
+    if (!isGripperOpen(G_WIDE_OPEN))
+      if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
+    // 7 - soften the wrist
+    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_WRIST, 0);
+    if (!cmdMoveYmm(Y_UP)) return false;
+    if (!cmdMoveXmm(X_CENTER)) return false;
+    // 8 - fix the wrist
+    speed = 0.35;
+    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_WRIST, 1);
+    if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
+    // 9 - fix the base
+    speed = 0.65;
+    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_BASE, 1);
+    if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
+    speed = prev_speed;
+    // 10 - regular run 0 from now
+    set_torque_all_servos(true);
   }
 
   // ============================================================
@@ -667,30 +702,61 @@ bool cmd_color(int argc, double *argv) {
   return true;
 }
 
-TODO
-bool prepArmsForWristRotation(){
+bool prepArmsForWristRotation() {
   // need to be at the right y and center x
 
+  if (!dxl_ping_cached(ID_ARM1) || !dxl_ping_cached(ID_ARM2)) return false;
+  double a1_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
+  double a2_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
+  kin.solve_x_y_from_a1_a2(a1_deg, a2_deg);
+
+  double y_mm = kin.getYmm();
+  double x_mm = kin.getXmm();
+  bool y_ok = (y_mm > (Y_CENTER - 1)) && (y_mm < (Y_CENTER + 1));
+  bool x_ok = (y_mm > (X_CENTER - 1)) && (X_mm < (X_CENTER + 1));
+
+  if (!y_ok)
+    if (!cmdMoveYmm(Y_CENTER)) return false;
+  if (!x_ok)
+    if (!cmdMoveXmm(X_CENTER)) return false;
+
+  return true;
 }
+bool isWristHoriz() {
+  double goal_deg = kin.getWdeg_for_horizontal_right();
+  double w_deg = getPos_deg(ID_WRIST);
 
-TODO
-bool isWristHoriz(){
+  double diff = fabs(goal_deg - w_deg);
+  if (diff < W_TOL) return true;
 
+  double goal_deg = kin.getWdeg_for_horizontal_left();
+  diff = fabs(goal_deg - w_deg);
+  return diff < W_TOL;
 }
+bool isWristVert() {
+  double goal_deg = kin.getWdeg_for_vertical();
+  double w_deg = getPos_deg(ID_WRIST);
 
-TODO
-bool isWristVert(){
-  
+  double diff = fabs(goal_deg - w_deg);
+  return diff < W_TOL;
 }
+bool isWristNearHoriz() {
+  double goal_deg = kin.getWdeg_for_horizontal_right();
+  double w_deg = getPos_deg(ID_WRIST);
 
-TODO
-bool isWristNearHoriz(){
+  double diff = fabs(goal_deg - w_deg);
+  if (diff < 3 * W_TOL) return true;
 
+  double goal_deg = kin.getWdeg_for_horizontal_left();
+  diff = fabs(goal_deg - w_deg);
+  return diff < 3 * W_TOL;
 }
+bool isWristNearVert() {
+  double goal_deg = kin.getWdeg_for_vertical();
+  double w_deg = getPos_deg(ID_WRIST);
 
-TODO
-bool isWristNearVert(){
-  
+  double diff = fabs(goal_deg - w_deg);
+  return diff < 3 * W_TOL;
 }
 
 bool prepBaseForRotation(double nextBaseMoveRelative) {

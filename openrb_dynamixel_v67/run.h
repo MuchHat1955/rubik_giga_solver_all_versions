@@ -50,6 +50,7 @@
 #define W_HORIZ_RIGHT -90 + VERT_CORRECTION  // -85
 #define W_VERT 0 + VERT_CORRECTION           // 0
 #define W_HORIZ_LEFT 90 + VERT_CORRECTION    //95
+#define W_TOL 6
 
 // -------------------------------------------------------------------
 //                        RUN COMMAND CONSTANTS
