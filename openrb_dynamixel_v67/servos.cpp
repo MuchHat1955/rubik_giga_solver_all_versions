@@ -72,35 +72,35 @@ bool check_servos_stop_all() {
   if (!servo_error_global_flag) {
     return false;
   }
-  LOG_ERR(MOD_SERVOS, "global_stop_all_servos_is_set");
+  LOG_ERR(MOD_SERVOS, "error", "global_stop_all_servos_is_set");
   return true;
 }
 
 void set_flag_servos_stop_all() {
   // already set
   if (servo_error_global_flag) {
-    LOG_ERR(MOD_SERVOS, "set_global_stop_all_servos_already_set");
+    LOG_ERR(MOD_SERVOS, "error", "set_global_stop_all_servos_already_set");
     return;
   }
-  LOG_ERR(MOD_SERVOS, "setting_global_stop_all_servos");
+  LOG_ERR(MOD_SERVOS, "error", "setting_global_stop_all_servos");
 
   for (uint8_t i = 0; i < SERVO_COUNT; i++) {
     ServoConfig *s = all_servos[i];
     uint8_t sid = s->get_id();
 
-    LOG_ERR(MOD_SERVOS, "disabling_torque");
+    LOG_ERR(MOD_SERVOS, "error", "disabling_torque");
     LOG_VAR("servo_name", id2name(sid));
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, sid, 0);
     LOG_VAR("torque", "off");
   }
 
   servo_error_global_flag = true;
-  LOG_ERR(MOD_SERVOS, "global_stop_all_servos_is_set");
+  LOG_ERR(MOD_SERVOS, "error", "global_stop_all_servos_is_set");
   flash_led_all_servos(3);
 }
 
 bool reboot_all_servos() {
-  LOG_ERR(MOD_SERVOS, "rebooting_all_servos");
+  LOG_ERR(MOD_SERVOS, "error", "rebooting_all_servos");
 
   bool all_ok = true;
 
@@ -118,20 +118,20 @@ bool clear_flag_servos_stop_all() {
   if (!servo_error_global_flag) {
     return true;
   }
-  LOG_ERR(MOD_SERVOS, "resetting_global_stop_all_servos");
+  LOG_ERR(MOD_SERVOS, "error", "resetting_global_stop_all_servos");
 
   for (uint8_t i = 0; i < SERVO_COUNT; i++) {
     ServoConfig *s = all_servos[i];
     uint8_t sid = s->get_id();
 
-    LOG_ERR(MOD_SERVOS, "enabling_torque");
+    LOG_ERR(MOD_SERVOS, "error", "enabling_torque");
     LOG_VAR("servo_name", id2name(sid));
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, sid, 1);
     LOG_VAR("torque", "on");
   }
 
   servo_error_global_flag = false;
-  LOG_ERR(MOD_SERVOS, "global_stop_all_servos_is_reset");
+  LOG_ERR(MOD_SERVOS, "error", "global_stop_all_servos_is_reset");
 
   bool ok = check_all_servos_if_ok();
   if (ok) flash_led_all_servos(1);
@@ -140,7 +140,7 @@ bool clear_flag_servos_stop_all() {
 }
 
 bool check_all_servos_if_ok() {
-  LOG_ERR(MOD_SERVOS, "checking_all_servos");
+  LOG_ERR(MOD_SERVOS, "error", "checking_all_servos");
 
   bool all_ok = true;
 
@@ -154,7 +154,7 @@ bool check_all_servos_if_ok() {
 }
 
 void set_torque_all_servos(bool _on) {
-  LOG_INFO(MOD_SERVOS, "set torque all servos");
+  LOG_INFO(MOD_SERVOS, "info","set torque all servos");
   LOG_VAR("torque", _on ? "on" : "off");
 
   if (_on) flash_led_all_servos(1);
@@ -177,7 +177,7 @@ void set_torque_all_servos(bool _on) {
 
 bool reboot_servo(uint8_t id) {
 
-  LOG_INFO(MOD_SERVOS, "rebooting_servo");
+  LOG_INFO(MOD_SERVOS, "info","rebooting_servo");
   LOG_VAR("servo_name", id2name(id));
 
   // Disable torque before reboot
@@ -193,12 +193,12 @@ bool reboot_servo(uint8_t id) {
 
   bool ok_now = servo_ok(id);
   if (ok_now) {
-    LOG_INFO(MOD_SERVOS, "servo_ok_after_servo_reboot");
+    LOG_INFO(MOD_SERVOS, "info","servo_ok_after_servo_reboot");
     LOG_VAR("servo_name", id2name(id));
     LOG_VAR("torque", "on");
     return true;
   }
-  LOG_ERR(MOD_SERVOS, "servo_failed_after_servo_reboot");
+  LOG_ERR(MOD_SERVOS, "error", "servo_failed_after_servo_reboot");
   LOG_VAR("servo_name", id2name(id));
   return false;
 }
@@ -210,7 +210,7 @@ bool servo_ok(uint8_t id) {
 
   // -1 means read failed
   if (hw_err < 0) {
-    LOG_INFO(MOD_SERVOS, "failed to read_hw_error_status");
+    LOG_INFO(MOD_SERVOS, "info","failed to read_hw_error_status");
     LOG_VAR("servo_name", id2name(id));
     return false;
   }
@@ -219,7 +219,7 @@ bool servo_ok(uint8_t id) {
     return true;
   }
 
-  LOG_ERR(MOD_SERVOS, "servo_error");
+  LOG_ERR(MOD_SERVOS, "error", "servo_error");
   LOG_VAR("servo_name", id2name(id));
   LOG_VAR("hw_err", hw_err);
 
@@ -229,14 +229,14 @@ bool servo_ok(uint8_t id) {
 bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
 
   if (check_servos_stop_all()) {
-    LOG_ERR(MOD_SERVOS, "global servo error is set skip everything");
+    LOG_ERR(MOD_SERVOS, "error", "global servo error is set skip everything");
     return false;
   }
 
   int hw_err = dxl.readControlTableItem(ControlTableItem::HARDWARE_ERROR_STATUS, id);
 
   if (!servo_ok(id)) {
-    LOG_ERR(MOD_SERVOS, "servo error");
+    LOG_ERR(MOD_SERVOS, "error", "servo error");
     LOG_VAR("servo_name", id2name(id));
     LOG_VAR("hw_err", hw_err);
 
@@ -244,7 +244,7 @@ bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
     // attempt one reboot
     reboot_servo(id);
     if (!servo_ok(id)) {
-      LOG_ERR(MOD_SERVOS, "setting global servo error flag");
+      LOG_ERR(MOD_SERVOS, "error", "setting global servo error flag");
       LOG_VAR("servo_responsible_name", id2name(id));
       set_flag_servos_stop_all();
       return false;
@@ -609,7 +609,7 @@ void print_servo_status(uint8_t id) {
       double pos_deg = ticks2deg(sid, pos_ticks);
       double pos_per = ticks2per(sid, pos_ticks);  // percentage of configured range
 
-      LOG_INFO(MOD_SERVOS, "servo_status");
+      LOG_INFO(MOD_SERVOS, "info","servo_status");
       LOG_VAR("servo_id", sid);
       LOG_VAR("servo_name", id2name(sid));
       LOG_VAR("pos_ticks", pos_ticks);

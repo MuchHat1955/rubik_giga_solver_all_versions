@@ -19,6 +19,7 @@ extern VerticalKinematics kin;
 extern double min_ymm;
 
 double speed = 1.0;
+double max_speed = 1.0;
 
 enum WristPos {
   WRIST_VERT,
@@ -637,7 +638,9 @@ static void syncServoMotion(uint8_t id1, uint8_t id2, uint8_t id3,
   };
 
   // ---- Velocity scaled by speed ----
-  double s = clamp01(speed);
+  double speed_to_use = speed;
+  if (speed > max_speed) speed_to_use = max_speed;
+  double s = clamp01(speed_to_use);
   int v1 = (int)(velFromRatio(r1) * s);
   int v2 = (int)(velFromRatio(r2) * s);
   int v3 = (int)(velFromRatio(r3) * s);
@@ -749,7 +752,7 @@ bool safe_delay(unsigned long delay_millis, std::initializer_list<int> ids) {
       // Check ONLY known IDs from the list
       for (int id : ids) {
         if (!is_known_servo_id(id)) {
-          LOG_ERR(MOD_SERVO_MOVE, "unknown_servo_id");
+          LOG_ERR(MOD_SERVO_MOVE, "error", "unknown_servo_id");
           LOG_VAR("id", id);
           continue;
         }
@@ -918,26 +921,26 @@ void read_print_kinematics_state(char* descr) {
 }
 
 void print_kinematics_state(char* descr) {
-  LOG_INFO(MOD_SERVO_MOVE, "kinematics_state");
+  LOG_INFO(MOD_SERVO_MOVE, "info", "kinematics_state");
   if (descr != nullptr) LOG_VAR("at", descr);
 
   double g1_per = ticks2per(ID_GRIP1, dxl.getPresentPosition(ID_GRIP1));
   double g2_per = ticks2per(ID_GRIP2, dxl.getPresentPosition(ID_GRIP2));
   double base_deg = ticks2deg(ID_BASE, dxl.getPresentPosition(ID_BASE));
 
-  LOG_INFO(MOD_SERVO_MOVE, "xy_arms");
+  LOG_INFO(MOD_SERVO_MOVE, "info", "xy_arms");
   LOG_VAR("x_mm", kin.getXmm());
   LOG_VAR("y_mm", kin.getYmm());
   LOG_VAR("a1_deg", kin.getA1deg());
   LOG_VAR("a2_deg", kin.getA2deg());
 
-  LOG_INFO(MOD_SERVO_MOVE, "wrist");
+  LOG_INFO(MOD_SERVO_MOVE, "info", "wrist");
   LOG_VAR("w_deg", kin.getWdeg());
   LOG_VAR("w_horiz_r_deg", kin.getWdeg_for_horizontal_right());
   LOG_VAR("w_horiz_l_deg", kin.getWdeg_for_horizontal_left());
   LOG_VAR("w_vert_deg", kin.getWdeg_for_vertical());
 
-  LOG_INFO(MOD_SERVO_MOVE, "grip_and_base");
+  LOG_INFO(MOD_SERVO_MOVE, "info", "grip_and_base");
   LOG_VAR("g1_per", g1_per);
   LOG_VAR("g2_per", g2_per);
   LOG_VAR("base_deg", base_deg);
@@ -961,7 +964,7 @@ bool cmdMoveServoPer(int id, double goal_per) {
   if (!dxl_ping_cached(id)) return false;
 
   if (goal_per < -15.0 || goal_per > 115.0) {
-    LOG_ERR(MOD_SERVO_MOVE, "invalid_servo_percentage");
+    LOG_ERR(MOD_SERVO_MOVE, "error", "invalid_servo_percentage");
 
     LOG_VAR("goal_per", goal_per);
     LOG_VAR("expected_min_per", -15.0);

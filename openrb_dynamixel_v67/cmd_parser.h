@@ -89,5 +89,5 @@ bool cmd_read_one_color(int argc, double *argv);
 char read_one_color_cb(int slot);
 bool cmd_read_one_face_colors(int argc, double *argv);
 bool cmd_getcolor_data(int argc, double *argv);
-void print_colors_detail(char * txt);
+void print_colors_analyzer_detail(char * txt);
 bool cmd_get_version(int argc, double *argv);

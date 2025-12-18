@@ -13,6 +13,7 @@ extern double max_xmm;
 extern double max_ymm;
 extern double min_ymm;
 extern double speed;
+extern double max_speed;
 
 extern CubeOri ori;
 extern CubeColorReader color_reader;
@@ -34,7 +35,7 @@ const char runHelp[] PROGMEM =
 
 bool cmd_run(int argc, double *argv) {
   if (argc < 1) {
-    LOG_ERR(MOD_RUN, "missing run argument");
+    LOG_ERR(MOD_RUN, "error", "missing run argument");
     return false;
   }
 
@@ -64,31 +65,31 @@ bool cmd_run(int argc, double *argv) {
   }
 
   speed = 1.0;
-  LOG_ERR(MOD_RUN, "invalid run argument");
+  LOG_ERR(MOD_RUN, "error", "invalid run argument");
   LOG_VAR("run_no", run_no);
   return false;
 }
 
 bool cmd_reboot_servos(int argc, double *argv) {
-  LOG_INFO(MOD_SERVOS, "reboot servos start");
+  LOG_INFO(MOD_SERVOS, "info", "reboot servos start");
   return reboot_all_servos();
 }
 bool cmd_set_servo_flag_servos_stop_all(int argc, double *argv) {
-  LOG_INFO(MOD_SERVOS, "set stop all start");
+  LOG_INFO(MOD_SERVOS, "info", "set stop all start");
   set_flag_servos_stop_all();
   return true;
 }
 bool cmd_clear_flag_servos_stop_all(int argc, double *argv) {
-  LOG_INFO(MOD_SERVOS, "reset stop all start");
+  LOG_INFO(MOD_SERVOS, "info", "reset stop all start");
   return clear_flag_servos_stop_all();
 }
 bool cmd_check_servos(int argc, double *argv) {
-  LOG_INFO(MOD_SERVOS, "check all servos start");
+  LOG_INFO(MOD_SERVOS, "info", "check all servos start");
   return check_all_servos_if_ok();
 }
 
 bool robot_move_callback(const String &mv) {
-  LOG_INFO(MOD_ROBOTMOVE, "robot move start");
+  LOG_INFO(MOD_ROBOTMOVE, "info", "robot move start");
   LOG_VAR("move", mv.c_str());
 
   if (mv == "z_plus") return cmd_run_right_down();
@@ -103,7 +104,7 @@ bool robot_move_callback(const String &mv) {
   if (mv == "d_plus") return cmd_run_down_layer(RUN_DOWN_RIGHT);
   if (mv == "d_180") return cmd_run_down_layer(RUN_DOWN_BACK);
 
-  LOG_ERR(MOD_CMD, "invalid robot move");
+  LOG_ERR(MOD_CMD, "error", "invalid robot move");
   LOG_VAR("move", mv.c_str());
   return false;
 }
@@ -148,7 +149,7 @@ bool cmd_run_zero() {
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP1, 0);
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP2, 0);
     // 3 - open the gripper to wide open
-    speed = 0.15;
+    max_speed = 0.15;
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP1, 1);
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP2, 1);
     if (!isGripperOpen(G_WIDE_OPEN)) {
@@ -158,7 +159,7 @@ bool cmd_run_zero() {
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP1, 0);
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP2, 0);
     // 5 - move high
-    speed = 0.35;
+    max_speed = 0.35;
     if (!cmdMoveYmm(Y_UP)) return false;
     // 6 - fix the gripper again
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP1, 1);
@@ -170,14 +171,15 @@ bool cmd_run_zero() {
     if (!cmdMoveYmm(Y_UP)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
     // 8 - fix the wrist
-    speed = 0.35;
+    max_speed = 0.35;
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_WRIST, 1);
     if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
     // 9 - fix the base
-    speed = 0.65;
+    max_speed = 0.65;
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_BASE, 1);
     if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
     speed = prev_speed;
+    max_speed = 1.0;
     // 10 - regular run 0 from now
     set_torque_all_servos(true);
 
@@ -190,7 +192,7 @@ bool cmd_run_zero() {
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP1, 0);
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP2, 0);
     // 3 - open the gripper to wide open
-    speed = 0.15;
+    max_speed = 0.15;
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP1, 1);
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP2, 1);
     if (!isGripperOpen(G_WIDE_OPEN)) {
@@ -200,7 +202,7 @@ bool cmd_run_zero() {
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP1, 0);
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP2, 0);
     // 5 - move to center
-    speed = 0.35;
+    max_speed = 0.35;
     if (!cmdMoveYmm(Y_CENTER)) return false;
     // 6 - fix the gripper again
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP1, 1);
@@ -212,14 +214,15 @@ bool cmd_run_zero() {
     if (!cmdMoveYmm(Y_UP)) return false;
     if (!cmdMoveXmm(X_CENTER)) return false;
     // 8 - fix the wrist
-    speed = 0.35;
+    max_speed = 0.35;
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_WRIST, 1);
     if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
     // 9 - fix the base
-    speed = 0.65;
+    max_speed = 0.65;
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_BASE, 1);
     if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
     speed = prev_speed;
+    max_speed = 1.0;
     // 10 - regular run 0 from now
     set_torque_all_servos(true);
   }
@@ -434,15 +437,15 @@ bool cmd_run_align_cube() {
 bool cmd_getori_data(int argc, double *argv) {
   String s = ori.get_orientation_string();
   //
-  LOG_INFO(MOD_CMD, "ori orientation");
+  LOG_INFO(MOD_CMD, "info", "ori orientation");
   LOG_VAR("orientation", s.c_str());
 
   ori.print_orientation_string();
   String log = ori.get_move_log();  //
-  LOG_INFO(MOD_CMD, "ori move log");
+  LOG_INFO(MOD_CMD, "info", "ori move log");
   LOG_VAR("move_log", log.c_str());
 
-  print_colors_detail("get ori data");
+  print_colors_analyzer_detail("get ori data");
 
   return true;
 }
@@ -453,14 +456,14 @@ bool cmd_getori_data(int argc, double *argv) {
 bool cmd_clear_ori_data(int argc, double *argv) {
   ori.clear_orientation_data();
   ori.clear_move_log();  //
-  LOG_INFO(MOD_CMD, "ori reset");
+  LOG_INFO(MOD_CMD, "info", "ori reset");
 
   String s = ori.get_orientation_string();  //
-  LOG_INFO(MOD_CMD, "ori orientation");
+  LOG_INFO(MOD_CMD, "info", "ori orientation");
   LOG_VAR("orientation", s.c_str());
 
   String log = ori.get_move_log();  //
-  LOG_INFO(MOD_CMD, "ori move log");
+  LOG_INFO(MOD_CMD, "info", "ori move log");
   LOG_VAR("move_log", log.c_str());
 
   return true;
@@ -469,15 +472,15 @@ bool cmd_clear_ori_data(int argc, double *argv) {
 bool cmd_restore_ori(int argc, double *argv) {
   if (!ori.restore_cube_orientation()) {
     //
-    LOG_ERR(MOD_CMD, "failed to restore orientation");
+    LOG_ERR(MOD_CMD, "error", "failed to restore orientation");
     String s = ori.get_orientation_string();
     //
-    LOG_INFO(MOD_CMD, "ori orientation");
+    LOG_INFO(MOD_CMD, "info", "ori orientation");
     LOG_VAR("orientation", s.c_str());
 
     String ori_log = ori.get_move_log();
     //
-    LOG_INFO(MOD_CMD, "ori move log");
+    LOG_INFO(MOD_CMD, "info", "ori move log");
     LOG_VAR("move_log", ori_log.c_str());
 
     return false;
@@ -488,14 +491,14 @@ bool cmd_restore_ori(int argc, double *argv) {
   if (!cmdMoveGripperPer(G_SOFT_CLOSE)) return false;
   // At this point ori_ is already identity.  // Only clear the move log.
   ori.clear_move_log();  //
-  LOG_INFO(MOD_CMD, "ori restored to identity");
+  LOG_INFO(MOD_CMD, "info", "ori restored to identity");
 
   String s = ori.get_orientation_string();  //
-  LOG_INFO(MOD_CMD, "ori orientation");
+  LOG_INFO(MOD_CMD, "info", "ori orientation");
   LOG_VAR("orientation", s.c_str());
 
   String log = ori.get_move_log();  //
-  LOG_INFO(MOD_CMD, "ori move log");
+  LOG_INFO(MOD_CMD, "info", "ori move log");
   LOG_VAR("move_log", log.c_str());
   return true;
 }
@@ -504,7 +507,7 @@ bool cmd_move_xy(int argc, double *argv) {
   double goal_xmm = argv[0];
   if (goal_xmm < -max_xmm || goal_xmm > max_xmm) {
     //
-    LOG_ERR(MOD_CMD, "invalid x mm");
+    LOG_ERR(MOD_CMD, "error", "invalid x mm");
     LOG_VAR("goal_x_mm", goal_xmm);
     LOG_VAR("min_x_mm", -max_xmm);
     LOG_VAR("max_x_mm", max_xmm);
@@ -513,7 +516,7 @@ bool cmd_move_xy(int argc, double *argv) {
   double goal_ymm = argv[1];
   if (goal_ymm < min_ymm || goal_ymm > max_ymm) {
     //
-    LOG_ERR(MOD_CMD, "invalid y mm");
+    LOG_ERR(MOD_CMD, "error", "invalid y mm");
     LOG_VAR("goal_y_mm", goal_ymm);
     LOG_VAR("min_y_mm", min_ymm);
     LOG_VAR("max_y_mm", max_ymm);
@@ -532,7 +535,7 @@ bool cmd_move_deg(int argc, double *argv) {
 
   if (goal_deg < -185.0 || goal_deg > 360.0) {
     //
-    LOG_ERR(MOD_CMD, "invalid servo deg");
+    LOG_ERR(MOD_CMD, "error", "invalid servo deg");
     LOG_VAR("goal_deg", goal_deg);
     return false;
   }
@@ -561,7 +564,7 @@ bool cmd_move_per(int argc, double *argv) {
   if (goal_per < -15.0 || goal_per > 115.0) {
 
     //
-    LOG_ERR(MOD_CMD, "invalid servo percentage");
+    LOG_ERR(MOD_CMD, "error", "invalid servo percentage");
     LOG_VAR("goal_per", goal_per);
     return false;
   }
@@ -605,7 +608,7 @@ bool cmd_move_y(int argc, double *argv) {
   double goal_mm = argv[0];
   if (goal_mm < min_ymm || goal_mm > max_ymm) {
     //
-    LOG_ERR(MOD_CMD, "invalid y mm");
+    LOG_ERR(MOD_CMD, "error", "invalid y mm");
     LOG_VAR("goal_y_mm", goal_mm);
     //
     return false;
@@ -620,7 +623,7 @@ bool cmd_move_x(int argc, double *argv) {
   if (goal_mm < -max_xmm || goal_mm > max_xmm) {
 
     //
-    LOG_ERR(MOD_CMD, "invalid x mm");
+    LOG_ERR(MOD_CMD, "error", "invalid x mm");
     LOG_VAR("goal_x_mm", goal_mm);
     return false;
   }
@@ -648,7 +651,7 @@ bool cmd_move_gripper(int argc, double *argv) {
   if (goal_deg < -5.0 || goal_deg > 115.0) {
 
     //
-    LOG_ERR(MOD_CMD, "invalid gripper percentage");
+    LOG_ERR(MOD_CMD, "error", "invalid gripper percentage");
     LOG_VAR("goal_per", goal_deg);
     return false;
   }
@@ -667,7 +670,7 @@ bool cmd_move_wrist_vert(int argc, double *argv) {
   if (goal_deg < -95 || goal_deg > 95) {
 
     //
-    LOG_ERR(MOD_CMD, "invalid wrist degrees");
+    LOG_ERR(MOD_CMD, "error", "invalid wrist degrees");
     LOG_VAR("goal_deg", goal_deg);
     return false;
   }
@@ -690,10 +693,10 @@ bool cmd_color(int argc, double *argv) {
 
   for (int i = 0; i < read_count; i++) {
     //
-    LOG_INFO(MOD_COLORSENSOR, "calling read color");
+    LOG_INFO(MOD_COLORSENSOR, "info", "calling read color");
     LOG_VAR("iteration", i);
     char crrColor = read_color();
-    LOG_INFO(MOD_COLORSENSOR, "read_sensor");
+    LOG_INFO(MOD_COLORSENSOR, "info", "read_sensor");
     LOG_VAR("color", crrColor);
     delay(555);
   }
@@ -899,11 +902,14 @@ bool alignCube() {
 
 bool lowerCube() {
   if (!cmdMoveXmm(X_CENTER)) return false;
+  max_speed = 0.35;
   if (!cmdMoveYmm(Y_ABOVE_DROP)) return false;
   if (!cmdMoveXmm(X_CENTER)) return false;
   if (!cmdMoveXmm(X_CENTER)) return false;
+  max_speed = 0.20;
   if (!cmdMoveYmm(Y_DROP)) return false;
   if (!cmdMoveGripperPer(G_OPEN)) return false;
+  max_speed = 1.0;
   return true;
 }
 
@@ -969,7 +975,7 @@ bool cmd_read_one_color(int argc, double *argv) {
   int slot = (int)d_slot;
 
   char c = cmd_read_one_color_run(slot);
-  LOG_INFO(MOD_COLORSENSOR, "read_one_color");
+  LOG_INFO(MOD_COLORSENSOR, "info", "read_one_color");
   LOG_VAR("color", c);
 
   if (c == '.') return false;
@@ -1036,7 +1042,7 @@ bool cmd_read_one_face_colors(int argc, double *argv) {  // desired read order
 
     face[pos] = crrColorChar;
     //
-    LOG_INFO(MOD_COLORSENSOR, "read slot");
+    LOG_INFO(MOD_COLORSENSOR, "info", "read slot");
     LOG_VAR("slot", pos);
     LOG_VAR("color", crrColorChar);
   }
@@ -1045,63 +1051,42 @@ bool cmd_read_one_face_colors(int argc, double *argv) {  // desired read order
   for (int i = 1; i <= 6; i++) {
     faceColors += face[i];
   }  //
-  LOG_INFO(MOD_CMD, "face colors");
+  LOG_INFO(MOD_CMD, "info", "face colors");
   LOG_VAR("colors", faceColors.c_str());
   return true;
 }
 
 //---------------------------------------------------------------------------
 
-void print_colors_detail(char *txt) {
-  String all54 = color_reader.get_cube_colors_string();
-  //
-  LOG_INFO(MOD_COLORCHECK, "color analyzer data");
-  LOG_VAR("context", txt);
-  //
-  LOG_INFO(MOD_COLORCHECK, "cube colors");
-  LOG_VAR("cube_colors", all54.c_str());
-
-  color_analyzer.set_colors(all54);
+void print_colors_analyzer_detail(char *txt) {
+  LOG_INFO(MOD_COLORCHECK, "info", "color analyzer data for" + String(txt));
   bool valid_colors = color_analyzer.is_color_string_valid_bool();
-  //
-  LOG_INFO(MOD_COLORCHECK, "color validity");
-  LOG_VAR("valid", valid_colors);
-  if (!valid_colors) {
-    //
-    LOG_INFO(MOD_COLORCHECK, "color analyzer log");
-    LOG_VAR("log", color_analyzer.get_string_check_log().c_str());
 
+  if (!valid_colors) {
+    LOG_ERR(MOD_COLORCHECK, "error", "color string not valid");
+    LOG_VAR("log", color_analyzer.get_string_check_log().c_str());
     if (color_analyzer.is_string_fixable_bool()) {
       String fixed;
       if (color_analyzer.try_fix_color_string(fixed)) {
-        LOG_INFO(MOD_COLORCHECK, "color string is fixable");
-        LOG_INFO(MOD_COLORCHECK, "color string corrected");
+        LOG_INFO(MOD_COLORCHECK, "info", "color string corrected");
         LOG_VAR("corrected", fixed.c_str());
       } else {
-        LOG_ERR(MOD_COLORCHECK, "color string fix failed");
+        LOG_ERR(MOD_COLORCHECK, "error", "color string fix failed");
       }
     } else {
-      //
-      LOG_ERR(MOD_COLORCHECK, "color string not fixable");
+      LOG_ERR(MOD_COLORCHECK, "error", "color string not fixable");
     }
   } else {
     // show the stage//
-    LOG_LN();
+    LOG_INFO(MOD_COLORCHECK, "info","color string is valid");
     for (int s = 0; s < color_analyzer.get_stage_count(); s++) {
       String state = "(...)";
       if (color_analyzer.is_stage_done_bool(s)) state = "(done)";
       else if (color_analyzer.is_stage_partial_bool(s)) state = "(partial)";
-
-      LOG_INFO(MOD_COLORCHECK, "solving stage");
-      LOG_VAR("stage", s);
-      LOG_VAR("name", color_analyzer.get_stage_name(s));
-      LOG_VAR("state", state.c_str());
+      String stage_txt = String("stage + ") + String(s) + ": (" + state + ")";
+      LOG_INFO(MOD_COLORCHECK, "info", stage_txt);
     }
-    LOG_LN();
   }
-
-  LOG_INFO(MOD_COLORCHECK, "color analyzer end");
-  LOG_VAR("context", txt);
 }
 
 // Your callback implementation
@@ -1111,7 +1096,7 @@ char read_one_color_cb(int slot) {
   return crrColorChar;
 }
 
-bool cmd_read_cube_colors_string(const String &mode_in) {
+bool cmd_read_cube_colors(const String &mode_in) {
   String mode = mode_in;
   mode.toLowerCase();
 
@@ -1128,52 +1113,35 @@ bool cmd_read_cube_colors_string(const String &mode_in) {
   } else {
     // ~~~~~~~~~~~~~~~~~~~~~~~~
     //
-    LOG_ERR(MOD_CMD, "invalid mode");
+    LOG_ERR(MOD_CMD, "error", "invalid mode");
     LOG_VAR("mode", mode.c_str());
     return false;
   }
-  // Before read
-  String before = color_reader.get_cube_colors_string();
-  LOG_INFO(MOD_CMD, "before read cube colors");
-  LOG_VAR("cube_colors", before.c_str());
-  color_reader.print_cube_colors_diagram();
-  print_colors_detail("before read cube colors");
-
   ori.clear_orientation_data();
   ori.clear_move_log();
 
   bool ok = false;
 
   if (do_full) {  //
-    LOG_INFO(MOD_CMD, "full");
+    LOG_INFO(MOD_CMD, "info", "full");
     ok = color_reader.read_cube_full();
   } else if (do_solved) {  //
-    LOG_INFO(MOD_CMD, "solved");
+    LOG_INFO(MOD_CMD, "info", "solved");
     color_reader.fill_solved_cube();
     ok = true;
   } else if (do_bottom) {  //
-    LOG_INFO(MOD_CMD, "bottom");
+    LOG_INFO(MOD_CMD, "info", "bottom");
     ok = color_reader.read_cube_bottom();
   }
-
   if (!ok) {
     //
-    LOG_ERR(MOD_CMD, "failed");
+    LOG_ERR(MOD_CMD, "error", "failed");
     return false;
   }
   // After read
-  String after = color_reader.get_cube_colors_string();
   ori.restore_cube_orientation();  //
-  LOG_INFO(MOD_CMD, "after read orientation");
-  LOG_VAR("orientation", ori.get_orientation_string().c_str());
-  LOG_LN();
-  ori.print_orientation_string();
-  //
-  LOG_INFO(MOD_CMD, "after read cube colors");
-  LOG_LN();
-  LOG_VAR("cube_colors", after.c_str());
-  LOG_LN();
-  print_colors_detail("after read cube colors");
+  LOG_INFO(MOD_CMD, "cube_colors=", color_reader.get_cube_colors_string());
+  LOG_INFO(MOD_CMD, "orientation=", ori.get_orientation_string());
 
   static double arg = 0;
   return cmd_run(1, &arg);
@@ -1182,21 +1150,20 @@ bool cmd_read_cube_colors_string(const String &mode_in) {
 bool cmd_getcolor_data(int argc, double *argv) {
   String all54 = color_reader.get_cube_colors_string();
   //
-  LOG_INFO(MOD_CMD, "cube colors");
-  LOG_VAR("cube_colors", all54.c_str());
-  LOG_LN();
+  LOG_INFO(MOD_CMD, "info", "cube colors");
+  LOG_VAR("color_string_54", all54.c_str());
 
-  LOG_LN();
-  color_reader.print_face_compact('u');
-  color_reader.print_face_compact('r');
-  color_reader.print_face_compact('f');
-  color_reader.print_face_compact('d');
-  color_reader.print_face_compact('l');
-  color_reader.print_face_compact('b');
-  LOG_LN();
+  String color_str_faces = color_reader.get_color_string_face('u');
+  color_str_faces += String(" ") + color_reader.get_color_string_face('u');
+  color_str_faces += String(" ") + color_reader.get_color_string_face('r');
+  color_str_faces += String(" ") + color_reader.get_color_string_face('f');
+  color_str_faces += String(" ") + color_reader.get_color_string_face('d');
+  color_str_faces += String(" ") + color_reader.get_color_string_face('l');
+  color_str_faces += String(" ") + color_reader.get_color_string_face('b');
 
-  color_reader.print_cube_colors_diagram();
-  print_colors_detail("get color data");
+  LOG_VAR("color_string_faces", color_str_faces);
+  //  color_reader.print_cube_colors_diagram();
+  print_colors_analyzer_detail("get color data");
   return true;
 }
 
@@ -1226,19 +1193,19 @@ bool cmd_ledoff(int argc, double *argv) {
 bool print_servo_info(uint8_t id) {
   if (!dxl_ping_cached(id)) {
     //
-    LOG_ERR(MOD_CMD, "servo not found");
+    LOG_ERR(MOD_CMD, "error", "servo not found");
     LOG_VAR("id", id);
     return false;
   }
-  LOG_INFO(MOD_CMD, "checking_if_servo_is_ok");
+  LOG_INFO(MOD_CMD, "info", "checking_if_servo_is_ok");
   bool _ok = servo_ok(id);  //
-  LOG_INFO(MOD_CMD, "servo ok");
+  LOG_INFO(MOD_CMD, "info", "servo ok");
   LOG_VAR("servo_id", id);
   LOG_VAR("servo_name", id2name(id));
   LOG_VAR("ok", _ok);
 
   if (!_ok) {  //
-    LOG_ERR(MOD_CMD, "servo_not_ok");
+    LOG_ERR(MOD_CMD, "error", "servo_not_ok");
     LOG_VAR("id", id);
     LOG_VAR("servo_name", id2name(id));
   }
@@ -1256,32 +1223,32 @@ bool print_servo_info(uint8_t id) {
   float spanTicks = (maxL > minL) ? (float)(maxL - minL) : TICKS_PER_REV;
   float spanDeg = spanTicks * DEG_PER_TICK;
   //
-  LOG_INFO(MOD_CMD, "infoservo");
+  LOG_INFO(MOD_CMD, "info", "infoservo");
   LOG_VAR("id", id);
 
-  LOG_INFO(MOD_CMD, "operating mode");
+  LOG_INFO(MOD_CMD, "info", "operating mode");
   LOG_VAR("op_mode", op);
 
-  LOG_INFO(MOD_CMD, "drive mode");
+  LOG_INFO(MOD_CMD, "info", "drive mode");
   LOG_VAR("drive_mode", drv);
   LOG_VAR("profile_type", (drv & 0x01) ? "TIME" : "VELOCITY");
 
-  LOG_INFO(MOD_CMD, "profile velocity");
+  LOG_INFO(MOD_CMD, "info", "profile velocity");
   LOG_VAR("profile_vel", pv);
   LOG_VAR("rpm", rpm);
   LOG_VAR("ticks_per_sec", tps);
 
-  LOG_INFO(MOD_CMD, "profile acceleration");
+  LOG_INFO(MOD_CMD, "info", "profile acceleration");
   LOG_VAR("profile_accel", pa);
 
-  LOG_INFO(MOD_CMD, "position limits");
+  LOG_INFO(MOD_CMD, "info", "position limits");
   LOG_VAR("min_ticks", minL);
   LOG_VAR("max_ticks", maxL);
 
-  LOG_INFO(MOD_CMD, "position span");
+  LOG_INFO(MOD_CMD, "info", "position span");
   LOG_VAR("span_deg", spanDeg);
 
-  LOG_INFO(MOD_CMD, "present position");
+  LOG_INFO(MOD_CMD, "info", "present position");
   LOG_VAR("pos_ticks", pos);
 
   return true;

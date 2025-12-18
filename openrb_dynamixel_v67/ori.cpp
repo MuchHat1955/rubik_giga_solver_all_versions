@@ -193,7 +193,7 @@ bool CubeOri::restore_cube_orientation() {
   for (int i = path_len - 1; i >= 0; --i) {
     if (!robot_move(path_moves[i])) {
 
-      LOG_ERR(MOD_CUBEORI, "restore cube orientation robot move failed");
+      LOG_ERR(MOD_CUBEORI, "error", "restore cube orientation robot move failed");
       LOG_VAR("move", path_moves[i].c_str());
 
       return false;
@@ -318,7 +318,7 @@ bool CubeOri::robot_move(const String &move_str) {
   if (robot_cb_) {
     if (!robot_cb_(move_str)) {
 
-      LOG_ERR(MOD_CMD, "robot callback failed");
+      LOG_ERR(MOD_CMD, "error","robot callback failed");
       LOG_VAR("move", move_str.c_str());
 
       return false;
@@ -397,7 +397,7 @@ bool CubeOri::execute_single_cube_move_(char logical_face, int qt) {
   char phys = find_physical_dir_for_logical_(logical_face);
   if (phys == '\0') {
 
-    LOG_ERR(MOD_CUBEORI, "logical face not found in orientation");
+    LOG_ERR(MOD_CUBEORI, "error", "logical face not found in orientation");
     LOG_VAR("face", logical_face);
 
     return false;
@@ -423,7 +423,7 @@ bool CubeOri::execute_single_cube_move_(char logical_face, int qt) {
       for (int j = 0; j < count; ++j) {
         if (!robot_move(toks[j])) {
 
-          LOG_ERR(MOD_CMD, "robot_move_failed_in_sequence");
+          LOG_ERR(MOD_CMD, "error","robot_move_failed_in_sequence");
           LOG_VAR("sequence", key.c_str());
           LOG_VAR("move", toks[j].c_str());
 
@@ -434,7 +434,7 @@ bool CubeOri::execute_single_cube_move_(char logical_face, int qt) {
     }
   }
 
-  LOG_ERR(MOD_CUBEMOVE, "cube_move_not_found_in_table");
+  LOG_ERR(MOD_CUBEMOVE, "error", "cube_move_not_found_in_table");
   LOG_VAR("move", key.c_str());
 
   return false;
@@ -474,7 +474,7 @@ bool CubeOri::cube_move(const String &moves_str) {
     char face;
     int qt;
     if (!parse_cube_token_(t, face, qt)) {
-      LOG_ERR(MOD_CUBEMOVE, "not_a_cube_move");
+      LOG_ERR(MOD_CUBEMOVE, "error", "not_a_cube_move");
       LOG_VAR("move", t.c_str());
 
       return false;
@@ -490,14 +490,14 @@ bool CubeOri::cube_move(const String &moves_str) {
     else suf = '2';
 
     cube_move_index++;
-    LOG_INFO(MOD_CUBEMOVE, "cube_move_progress");
+    LOG_INFO(MOD_CUBEMOVE, "info","cube_move_progress");
     LOG_VAR("index", cube_move_index);
     LOG_VAR("total", cube_move_total);
     LOG_VAR("face", face_l);
     LOG_VAR("suffix", suf);
 
     if (!execute_single_cube_move_(face, qt)) {
-      LOG_ERR(MOD_CUBEMOVE, "cube_move_failed_executing");
+      LOG_ERR(MOD_CUBEMOVE, "error", "cube_move_failed_executing");
       LOG_VAR("move", t.c_str());
 
       return false;
@@ -505,7 +505,7 @@ bool CubeOri::cube_move(const String &moves_str) {
     color_reader.apply_moves(t);
 
     String txt = "after cube move [" + t + "]";
-    print_colors_detail((char *)txt.c_str());
+    print_colors_analyzer_detail((char *)txt.c_str());
   }
   // serial_printf_verbose("[cube_move] done\n");
   return true;
@@ -577,7 +577,7 @@ void CubeOri::print_orientation_string() const {
   String maps[6];
   get_face_mapping(maps);
 
-  LOG_INFO(MOD_CUBEORI, "ori_row_d");
+  LOG_INFO(MOD_CUBEORI, "info","ori_row_d");
   LOG_VAR("u", maps[0].charAt(3));
   LOG_VAR("l", maps[1].charAt(3));
   LOG_VAR("f", maps[2].charAt(3));

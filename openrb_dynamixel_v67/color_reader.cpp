@@ -46,7 +46,7 @@ void CubeColorReader::apply_slot_to_face_(char face, int slot, char color, bool 
   if (base < 0) return;
 
   if (slot < 1 || slot > 6) {
-    LOG_ERR(MOD_COLORSCAN, "invalid color reader slot");
+    LOG_ERR(MOD_COLORSCAN, "error", "invalid color reader slot");
     LOG_VAR("slot", slot);
     LOG_VAR("face", face);
     return;
@@ -73,7 +73,7 @@ void CubeColorReader::apply_slot_to_face_(char face, int slot, char color, bool 
       case 3: offset = 6; break;  // bottom-right
       default:
         // slots 4,5,6 shouldn't be used in mirrored mode
-        LOG_INFO(MOD_COLORSCAN, "mirrored slot");
+        LOG_INFO(MOD_COLORSCAN, "info", "mirrored slot");
         LOG_VAR("slot", slot);
         LOG_VAR("face", face);
         return;
@@ -83,7 +83,7 @@ void CubeColorReader::apply_slot_to_face_(char face, int slot, char color, bool 
 
   if (offset >= 0) {
     colors_[base + offset] = color;
-    LOG_INFO(MOD_COLORSCAN, "color read");
+    LOG_INFO(MOD_COLORSCAN, "info", "color read");
     LOG_VAR("face", face);
     LOG_VAR("slot", offset + 1);
     LOG_VAR("color", color);
@@ -91,14 +91,14 @@ void CubeColorReader::apply_slot_to_face_(char face, int slot, char color, bool 
 }
 
 // Print compact face state
-void CubeColorReader::print_face_compact(char face) const {
+String CubeColorReader::get_color_string_face(char face) const {
   int base = face_base_index_(face);
-  if (base < 0) return;
-  Serial.print(face);
-  Serial.print("=");
-  for (int i = 0; i < 9; i++)
-    Serial.print(colors_[base + i]);
-  Serial.println();
+  if (base < 0) return "";
+  String return_str = String(face) + "=";
+  for (int i = 0; i < 9; i++) {
+    return_str += String(colors_[base + i]);
+  }
+  return return_str;
 }
 
 void CubeColorReader::rotate_face(char face, char dir) {
@@ -107,7 +107,7 @@ void CubeColorReader::rotate_face(char face, char dir) {
 
   int base = face_base_index_(face);
   if (base < 0) {
-    LOG_ERR(MOD_COLORSCAN, "invalid face");
+    LOG_ERR(MOD_COLORSCAN, "error", "invalid face");
     LOG_VAR("face", face);
     return;
   }
@@ -264,7 +264,7 @@ void CubeColorReader::apply_moves(const String &moves) {
     // Validate token using your single source of truth
     if (!is_valid_move(token)) {
 
-      LOG_ERR(MOD_COLORSCAN, "invalid move");
+      LOG_ERR(MOD_COLORSCAN, "error", "invalid move");
       LOG_VAR("move", token.c_str());
 
       continue;
@@ -577,8 +577,7 @@ bool CubeColorReader::process_step_(int step_index,
   // Robot move (if any)
   if (robot_move && robot_move[0] != '\0' && strcmp(robot_move, "none") != 0) {
     if (!ori_.robot_move(robot_move)) {
-      LOG_ERR(MOD_COLORSCAN, "robot move failed");
-
+      LOG_ERR(MOD_COLORSCAN, "error", "robot move failed");
       LOG_VAR("step_index", step_index);
       LOG_VAR("robot_move", robot_move);
       return false;
@@ -602,22 +601,18 @@ bool CubeColorReader::process_step_(int step_index,
 
     apply_slot_to_face_(F, slot, color, mirrored);
 
-    // log single read
-    //serial_printf_verbose("   ---%d %c%d c=%c",
-    //            step_index,
-    //            F,
-    //           slot,
-    //           color);
-    print_face_compact(F);
+    String color_string_face = String(get_color_string_face(F));
+    LOG_INFO(MOD_COLORSCAN, "info", "color_string");
+    LOG_VAR("color_string_face", step_index);
   }
 
   // log completion of this step for this face
-  LOG_INFO(MOD_COLORSCAN, "color scan step");
+  LOG_INFO(MOD_COLORSCAN, "info", "color scan step");
   LOG_VAR("step_index", step_index);
   LOG_VAR("robot_move", robot_move ? robot_move : "");
 
-  print_face_compact(F);
-  LOG_INFO(MOD_COLORSCAN, "cube colors read");
+  get_color_string_face(F);
+  LOG_INFO(MOD_COLORSCAN, "info", "cube colors read");
   LOG_VAR("cube_colors", get_cube_colors_string().c_str());
 
   return true;
@@ -635,7 +630,7 @@ bool CubeColorReader::read_cube_bottom() {
 
 bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
   if (!cb_) {
-    LOG_ERR(MOD_COLORSCAN, "color reader: no callback");
+    LOG_ERR(MOD_COLORSCAN, "error", "color reader: no callback");
     return false;
   }
   int total_steps = 0;
@@ -643,20 +638,20 @@ bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
   else total_steps = k_num_color_map_steps_bottom;
 
   if (total_steps < 1) {
-    LOG_ERR(MOD_COLORSCAN, "step count invalid");
+    LOG_ERR(MOD_COLORSCAN, "error", "step count invalid");
     LOG_VAR("total_steps", total_steps);
 
     return false;
   }
 
-  LOG_INFO(MOD_COLORSCAN, "start");
+  LOG_INFO(MOD_COLORSCAN, "info", "start");
   LOG_VAR("total_steps", total_steps);
   LOG_VAR("mode", mode_all_vs_bottom ? "all" : "bottom");
 
   if (mode_all_vs_bottom) fill_unknown_();
   else fill_solved_cube_top2layers_();
 
-  LOG_INFO(MOD_COLORSCAN, "color reader: orientation cleared");
+  // LOG_INFO(MOD_COLORSCAN, "info","color reader: orientation cleared");
   // Ensure orientation is clear
   ori_.clear_orientation_data();
 
@@ -665,19 +660,19 @@ bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
     for (int i = 0; i < total_steps; i++) {
       const auto &s = k_color_map_steps_all[i];
       if (!process_step_(i, s.robot_move, s.face, s.mirrored, s.order)) {
-        LOG_ERR(MOD_COLORSCAN, "step failed");
+        LOG_ERR(MOD_COLORSCAN, "error", "step failed");
         LOG_VAR("step_index", i);
         LOG_VAR("total_steps", total_steps);
 
         ori_.restore_cube_orientation();
         return false;
       }
-      LOG_INFO(MOD_COLORSCAN, "color scan step completed");
+      LOG_INFO(MOD_COLORSCAN, "info", "step completed");
       LOG_VAR("step_index", i);
       LOG_VAR("total_steps", total_steps);
-
-      ori.print_orientation_string();
-      print_cube_colors_diagram();
+      //TODO
+      // ori.print_orientation_string();
+      // print_cube_colors_diagram();
     }
     // ~~~~~~~~~~~~~~~~ end all cube ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   } else {
@@ -685,14 +680,14 @@ bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
     for (int i = 0; i < total_steps; i++) {
       const auto &s = k_color_map_steps_bottom[i];
       if (!process_step_(i, s.robot_move, s.face, s.mirrored, s.order)) {
-        LOG_ERR(MOD_COLORSCAN, "step failed");
+        LOG_ERR(MOD_COLORSCAN, "error", "step failed");
         LOG_VAR("step_index", i);
         LOG_VAR("total_steps", total_steps);
 
         ori_.restore_cube_orientation();
         return false;
       }
-      LOG_INFO(MOD_COLORSCAN, "color scan step completed");
+      LOG_INFO(MOD_COLORSCAN, "info", "color scan step completed");
       LOG_VAR("step_index", i);
       LOG_VAR("total_steps", total_steps);
 
@@ -701,12 +696,12 @@ bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
     }
     // ~~~~~~~~~~~~~~~~ end just bottom layer ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   }
-  LOG_INFO(MOD_COLORSCAN, "color read completed");
-  LOG_INFO(MOD_COLORSCAN, "orientation restore");
+  LOG_INFO(MOD_COLORSCAN, "info", "color read completed");
+  LOG_INFO(MOD_COLORSCAN, "info", "orientation restore");
 
   // Final restore
   if (!ori_.restore_cube_orientation()) {
-    LOG_ERR(MOD_COLORSCAN, "color reader: final restore failed");
+    LOG_ERR(MOD_COLORSCAN, "error", "color reader: final restore failed");
     return false;
   }
   ori.print_orientation_string();
@@ -718,7 +713,7 @@ bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
 // eg update_color_string('f', 0, 'r');
 void CubeColorReader::update_color_string(char face, int offset, char color) {
   if (offset < 0 || offset >= 9) {
-    LOG_ERR(MOD_COLORSCAN, "update_color_string_invalid_params");
+    LOG_ERR(MOD_COLORSCAN, "error", "update_color_string_invalid_params");
     LOG_VAR("face", face);
     LOG_VAR("offset", offset);
     LOG_VAR("color", color);
@@ -734,7 +729,7 @@ void CubeColorReader::update_color_string(char face, int offset, char color) {
     case 'l': base = 36; break;
     case 'b': base = 45; break;
     default:
-      LOG_ERR(MOD_COLORSCAN, "update_color_string_invalid_face");
+      LOG_ERR(MOD_COLORSCAN, "error", "update_color_string_invalid_face");
       LOG_VAR("face", face);
       return;
   }

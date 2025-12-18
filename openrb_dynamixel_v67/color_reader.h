@@ -26,7 +26,7 @@ public:
   String get_cube_colors_string() const;
   void apply_moves(const String &moves);
   void print_cube_colors_diagram();
-  void print_face_compact(char face) const;
+  String get_color_string_face(char face) const;
 
 
 private:

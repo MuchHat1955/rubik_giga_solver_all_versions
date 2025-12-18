@@ -11,6 +11,7 @@ extern double max_xmm;
 extern double max_ymm;
 extern double min_ymm;
 extern double speed;
+extern double max_speed;
 extern String version_str;
 
 extern CubeOri ori;
@@ -170,6 +171,9 @@ void process_serial_command(String &line) {
     }
   };
 
+  max_speed = 1.0;
+  speed = 1.0;
+
   for (int i = 0; i < COMMAND_COUNT; i++) {
     if (command_table[i].name == "") continue;
     const CommandEntry &cmd = command_table[i];
@@ -186,9 +190,9 @@ void process_serial_command(String &line) {
         int space_idx = line.indexOf(' ');
         if (space_idx < 0) {
           //
-          LOG_ERR(MOD_CMD, "missing argument");
+          LOG_ERR(MOD_CMD, "error","missing argument");
           LOG_VAR("command", cmd.name);
-          LOG_INFO(MOD_CMD, "command_end");
+          LOG_INFO(MOD_CMD, "info","command_end");
           LOG_VAR("command", cmd.name);
           LOG_VAR("result", "fail");
           return;
@@ -197,24 +201,24 @@ void process_serial_command(String &line) {
         params.trim();
         if (params.length() == 0) {
           //
-          LOG_ERR(MOD_CMD, "missing argument");
+          LOG_ERR(MOD_CMD, "error","missing argument");
           LOG_VAR("command", cmd.name);
-          LOG_INFO(MOD_CMD, "command_end");
+          LOG_INFO(MOD_CMD, "info","command_end");
           LOG_VAR("command", cmd.name);
           LOG_VAR("result", "fail");
           return;
         }
 
         String params_ = "\"" + params + "\"";
-        LOG_INFO(MOD_CMD, "command_start");
+        LOG_INFO(MOD_CMD, "info","command_start");
         LOG_VAR("command", cmd.name);
         LOG_VAR("params", params_.c_str());
 
         bool ok = false;
 
         if (check_servos_stop_all()) {
-          LOG_ERR(MOD_CMD, "servos_stop_flag_on");
-          LOG_INFO(MOD_CMD, "command_end");
+          LOG_ERR(MOD_CMD, "error","servos_stop_flag_on");
+          LOG_INFO(MOD_CMD, "info","command_end");
           LOG_VAR("command", cmd.name);
           LOG_VAR("result", ok ? "ok" : "fail");
           return;
@@ -223,20 +227,20 @@ void process_serial_command(String &line) {
         if (strcmp(cmd.name, "MOVECUBE") == 0) {
           // pass full raw string — ori parses sequence itself
           //
-          LOG_INFO(MOD_CMD, "calling_cube_move");
+          LOG_INFO(MOD_CMD, "info","calling_cube_move");
           LOG_VAR("moves", params_.c_str());
 
           ok = ori.cube_move(params);
         } else if (strcmp(cmd.name, "MOVEROBOT") == 0) {
           // pass full raw string — NO splitting
           //
-          LOG_INFO(MOD_CMD, "calling_robot_move");
+          LOG_INFO(MOD_CMD, "info","calling_robot_move");
           LOG_VAR("moves", params_.c_str());
 
           ok = ori.robot_move(params);
         }
 
-        LOG_INFO(MOD_CMD, "command_end");
+        LOG_INFO(MOD_CMD, "info","command_end");
         LOG_VAR("command", cmd.name);
         LOG_VAR("result", ok ? "ok" : "fail");
         unsigned long duration_ms = millis() - millis_start;
@@ -258,35 +262,35 @@ void process_serial_command(String &line) {
         int space_idx = line.indexOf(' ');
         if (space_idx < 0) {
           //
-          LOG_ERR(MOD_CMD, "missing argument");
+          LOG_ERR(MOD_CMD, "error","missing argument");
           return;
         }
         String params = line.substring(space_idx + 1);
         params.trim();
         if (params.length() == 0) {
           //
-          LOG_ERR(MOD_CMD, "missing argument");
+          LOG_ERR(MOD_CMD, "error","missing argument");
           return;
         }
 
         String params_ = "\"" + params + "\"";
-        LOG_INFO(MOD_CMD, "command_start");
+        LOG_INFO(MOD_CMD, "info","command_start");
         LOG_VAR("command", cmd.name);
         LOG_VAR("params", params_.c_str());
 
         // Unified logging (same style as MOVEROBOT)
         // serial_printf_verbose("~~~- START READCOLORS params: %s ~~~-", params.c_str());
         params_ = "\"" + params + "\"";
-        LOG_INFO(MOD_CMD, "readcolors start");
+        LOG_INFO(MOD_CMD, "info","readcolors start");
         LOG_VAR("mode", params_.c_str());
 
-        bool ok = cmd_read_cube_colors_string(params);
+        bool ok = cmd_read_cube_colors(params);
 
-        LOG_INFO(MOD_CMD, "readcolors end");
+        LOG_INFO(MOD_CMD, "info","readcolors end");
         LOG_VAR("mode", params_.c_str());
         LOG_VAR("result", ok ? "ok" : "fail");
 
-        LOG_INFO(MOD_CMD, "command_end");
+        LOG_INFO(MOD_CMD, "info","command_end");
         LOG_VAR("command", cmd.name);
         LOG_VAR("result", ok ? "ok" : "fail");
         unsigned long duration_ms = millis() - millis_start;
@@ -317,7 +321,7 @@ void process_serial_command(String &line) {
       // ~~~~~~~~~~~~~~~- Argument validation ~~~~~~~~~~~~~~~-
       if (argc < min_args) {
 
-        LOG_ERR(MOD_CMD, "invalid_command_usage");
+        LOG_ERR(MOD_CMD, "error","invalid_command_usage");
         LOG_VAR("command", cmd.name);
         LOG_VAR("usage", cmd.desc);
         return;
@@ -330,14 +334,14 @@ void process_serial_command(String &line) {
       //
       increment_cmd_no();
       LOG_LN();
-      LOG_INFO(MOD_CMD, "command_start");
+      LOG_INFO(MOD_CMD, "info","command_start");
       LOG_VAR("command", cmd.name);
       LOG_VAR("arg", p1);
 
       // read_print_kinematics_state();
       bool ok = cmd.handler(argc, argv);
       //
-      LOG_INFO(MOD_CMD, "command_end");
+      LOG_INFO(MOD_CMD, "info","command_end");
       LOG_VAR("command", cmd.name);
       LOG_VAR("result", ok ? "ok" : "fail");
       unsigned long duration_ms = millis() - millis_start;
@@ -354,7 +358,7 @@ void process_serial_command(String &line) {
     }
   }
   //
-  LOG_ERR(MOD_CMD, "unknown command");  //
-  LOG_INFO(MOD_CMD, "help text");
+  LOG_ERR(MOD_CMD, "error","unknown command");  //
+  LOG_INFO(MOD_CMD, "info","help text");
   LOG_VAR("text", get_help_text().c_str());
 }

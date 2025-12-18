@@ -46,9 +46,13 @@ void increment_cmd_no();
 // ===================================================================
 // LOW-LEVEL EMIT (implemented in log.cpp)
 // ===================================================================
-void log_begin(log_module_t e_module,
-               int i_type,
-               const char *description);
+void log_begin_str(log_module_t enum_module, int i_type, const char *key, const String v);
+void log_begin(log_module_t e_module, int i_type, const char *key, int32_t v);
+void log_begin(log_module_t e_module, int i_type, const char *key, int v);
+void log_begin(log_module_t e_module, int i_type, const char *key, double v);
+void log_begin(log_module_t e_module, int i_type, const char *key, const char *v);
+void log_begin(log_module_t e_module, int i_type, const char *key, char v);
+void log_begin(log_module_t e_module, int i_type, const char *key, const String v);
 
 void log_var_(const char *key, int32_t v);
 void log_var_(const char *key, int v);
@@ -57,6 +61,7 @@ void log_var_(const char *key, const char *s);
 void log_var_(const char *key, char c);
 void log_var_(const char *key, const String &s);
 void log_end_();
+void log_ln_();
 
 
 // ===================================================================
@@ -70,11 +75,11 @@ void log_end_();
 
 #if LOG_ENABLE
 
-#define LOG_INFO(mod, tag) \
-  do { log_begin(mod, log_info_type, tag); } while (0)
+#define LOG_INFO(mod, key, val) \
+  do { log_begin(mod, log_info_type, key, val); } while (0)
 
-#define LOG_ERR(mod, tag) \
-  do { log_begin(mod, log_error_type, tag); } while (0)
+#define LOG_ERR(mod, key, val) \
+  do { log_begin(mod, log_error_type, key, val); } while (0)
 
 #define LOG_VAR(key, val) \
   do { log_var_(key, val); } while (0)
@@ -83,14 +88,14 @@ void log_end_();
   do { log_end_(); } while (0)
 
 #define LOG_LN() \
-  do { Serial.println(); } while (0)
+  do { log_ln_(); } while (0)
 
 #else
 
-#define LOG_INFO(mod, tag) \
+#define LOG_INFO(mod, tag, val) \
   do { \
   } while (0)
-#define LOG_ERR(mod, tag) \
+#define LOG_ERR(mod, tag, val) \
   do { \
   } while (0)
 #define LOG_VAR(key, val) \
@@ -109,10 +114,10 @@ void log_end_();
 #if DEBUG_ENABLE
 
 #define DEBUG_INFO(mod, tag) \
-  do { log_begin(mod, debug_info_type, tag); } while (0)
+  do { log_begin(mod, debug_info_type, key, val); } while (0)
 
 #define DEBUG_ERR(mod, tag) \
-  do { log_begin(mod, debug_error_type, tag); } while (0)
+  do { log_begin(mod, debug_error_type, key, val); } while (0)
 
 #define DEBUG_VAR(key, val) \
   do { log_var_(key, val); } while (0)

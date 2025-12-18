@@ -18,7 +18,7 @@
 // INTERNAL STATE
 // ============================================================
 
-bool log_line_open = false;
+int log_line_open = 0;
 int cmd_no = 0;
 
 extern bool serial_ok;
@@ -42,13 +42,34 @@ void serial_print_with_underscores(const char *description) {
   }
 }
 
-void log_begin(log_module_t enum_module,
-               int i_type,
-               const char *description) {
+void log_begin(log_module_t e_module, int i_type, const char *key, int32_t v) {
+  log_begin_str(e_module, i_type, key, String(v));
+}
+void log_begin(log_module_t e_module, int i_type, const char *key, int v) {
+  log_begin_str(e_module, i_type, key, String(v));
+}
+void log_begin(log_module_t e_module, int i_type, const char *key, double v) {
+  log_begin_str(e_module, i_type, key, String(v, 2));
+}
+void log_begin(log_module_t e_module, int i_type, const char *key, const char *v) {
+  log_begin_str(e_module, i_type, key, String(v));
+}
+void log_begin(log_module_t e_module, int i_type, const char *key, char v) {
+  log_begin_str(e_module, i_type, key, String(v));
+}
+void log_begin(log_module_t e_module, int i_type, const char *key, const String v) {
+  log_begin_str(e_module, i_type, key, v);
+}
+
+void log_begin_str(log_module_t enum_module, int i_type, const char *key, const String v) {
 #if LOG_ENABLE || DEBUG_ENABLE
   if (!serial_ok) return;
-  if (log_line_open) {
+  if (log_line_open > 0) {
     Serial.println();
+    log_line_open--;
+    if (log_line_open > 0)
+      Serial.println();
+    log_line_open = 0;
   }
 
   if (enum_module != MOD_CMD && i_type == log_info_type) Serial.print("        ");
@@ -72,14 +93,11 @@ void log_begin(log_module_t enum_module,
   Serial.print(") ");
 
 
-  if (i_type == log_error_type) Serial.print("error=");
-  else if (i_type == log_info_type) Serial.print("info=");
-  else if (i_type == debug_error_type) Serial.print("debug_error=");
-  else if (i_type == debug_info_type) Serial.print("debug_info=");
-  else Serial.print("other=");
-  serial_print_with_underscores(description);
+  Serial.print(key);
+  Serial.print("=");
+  serial_print_with_underscores(v.c_str());
 
-  log_line_open = true;
+  log_line_open = 1;
 #else
   (void)e_module;
   (void)i_type;
@@ -90,10 +108,21 @@ void log_begin(log_module_t enum_module,
 void log_end_() {
 #if DEBUG_ENABLE || LOG_ENABLE
   if (!serial_ok) return;
-  if (log_line_open) {
+  if (log_line_open > 0) {
     Serial.println();
-    log_line_open = false;
+    log_line_open = 0;
   }
+#endif
+}
+
+void log_ln_() {
+#if DEBUG_ENABLE || LOG_ENABLE
+  if (!serial_ok) return;
+  if (log_line_open > 0) {
+    Serial.println();
+  }
+  Serial.println();
+  log_line_open = 0;
 #endif
 }
 
@@ -153,7 +182,7 @@ void log_var_(const char *key, double val_d) {
 #endif
 }
 
-inline void log_var_(const char *key, const String &val_s) {
+void log_var_(const char *key, const String &val_s) {
 #if DEBUG_ENABLE || LOG_ENABLE
   log_var_(key, val_s.c_str());
 #else

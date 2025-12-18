@@ -43,7 +43,7 @@ static const ColorRef refs[] = {
 char classify_color(float r, float g, float b, float c) {
 
   if (c < 1.0f) {
-    LOG_ERR(MOD_COLORSENSOR, "clear_channel_zero");
+    LOG_ERR(MOD_COLORSENSOR, "error", "clear_channel_zero");
     return '.';
   }
 

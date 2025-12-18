@@ -122,7 +122,7 @@ bool cmd_set_servo_max(int argc, double *argv);
 bool cmd_color(int argc, double *argv);
 bool cmd_read_one_color(int argc, double *argv);
 bool cmd_read_one_face_colors(int argc, double *argv);
-bool cmd_read_cube_colors_string(const String &mode);
+bool cmd_read_cube_colors(const String &mode);
 bool cmd_getcolor_data(int argc, double *argv);
 
 // ---- callbacks
@@ -135,7 +135,7 @@ bool cmd_ledon(int argc, double *argv);
 bool cmd_ledoff(int argc, double *argv);
 
 bool print_servo_info(uint8_t id);
-void print_colors_detail(char *txt);
+void print_colors_analyzer_detail(char *txt);
 
 
 // base / cube positioning
