@@ -503,11 +503,7 @@ bool CubeOri::cube_move(const String &moves_str) {
       return false;
     }
     color_reader.apply_moves(t);
-
-    String txt = "after cube move [" + t + "]";
-    print_colors_analyzer_detail((char *)txt.c_str());
   }
-  // serial_printf_verbose("[cube_move] done\n");
   return true;
 }
 

@@ -154,8 +154,8 @@ bool check_all_servos_if_ok() {
 }
 
 void set_torque_all_servos(bool _on) {
-  LOG_INFO(MOD_SERVOS, "info","set torque all servos");
-  LOG_VAR("torque", _on ? "on" : "off");
+  //LOG_INFO(MOD_SERVOS, "info","set torque all servos");
+  //LOG_VAR("torque", _on ? "on" : "off");
 
   if (_on) flash_led_all_servos(1);
   else flash_led_all_servos(2);

@@ -135,7 +135,7 @@ bool cmd_ledon(int argc, double *argv);
 bool cmd_ledoff(int argc, double *argv);
 
 bool print_servo_info(uint8_t id);
-void print_colors_analyzer_detail(char *txt);
+void print_colors_analyzer_detail();
 
 
 // base / cube positioning

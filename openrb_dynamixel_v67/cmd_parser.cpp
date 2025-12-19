@@ -30,65 +30,65 @@ struct CommandEntry {
 static CommandEntry command_table[] = {
 
   // version
-  { "", "", nullptr, "------------------ HELP / VERSION ------------------" },
+  // { "", "", nullptr, "------------------ HELP / VERSION ------------------" },
   { "HELP", "", cmd_help, "HELP - list all available commands" },
   { "VERSION", "", cmd_get_version, "VERSION - show firmware version info" },
 
   // main robot commands for cube solving
-  { "", "", nullptr, "-------------- MAIN CUBE SOLVING COMMANDS ----------" },
+  // { "", "", nullptr, "-------------- MAIN CUBE SOLVING COMMANDS ----------" },
   { "MOVEROBOT", "<moves>", nullptr, "MOVEROBOT <moves> - robot moves (z_plus z_minus z_180 y_plus y_minus y_180 d_plus d_minus d_180)" },
   { "MOVECUBE", "<moves>", nullptr, "MOVECUBE <moves> - cube moves (f+ f- f2 b+ b- b2 r+ r- r2 l+ l- l2 u+ u- u2 d+ d- d2)" },
   { "READCOLORS", "<mode>", nullptr, "READCOLORS <all|bottom|solved> - read cube colors (u=white f=green r=red)" },
 
   // debug for robot moves
-  { "", "", nullptr, "---------------- DEBUG : ROBOT MOVES ----------------" },
+  // { "", "", nullptr, "---------------- DEBUG : ROBOT MOVES ----------------" },
   { "RUN", "%d", cmd_run, runHelp },
 
   // servos data
-  { "", "", nullptr, "------------------ SERVOS : DATA --------------------" },
+  // { "", "", nullptr, "------------------ SERVOS : DATA --------------------" },
   { "READSERVO", "%d", cmd_read_servo, "READSERVO <id> - show servo summary status" },
   { "INFOSERVO", "%d", cmd_servo_info, "INFOSERVO <id> - show full servo status" },
   { "SETMIN", "%d %d", cmd_set_servo_min, "SETMIN <id> <ticks> - set servo minimum ticks" },
   { "SETMAX", "%d %d", cmd_set_servo_max, "SETMAX <id> <ticks> - set servo maximum ticks" },
 
   // servo leds
-  { "", "", nullptr, "------------------ SERVOS : LEDS --------------------" },
+  // { "", "", nullptr, "------------------ SERVOS : LEDS --------------------" },
   { "LEDON", "%d", cmd_ledon, "LEDON <id> - turn servo LED on" },
   { "LEDOFF", "%d", cmd_ledoff, "LEDOFF <id> - turn servo LED off" },
 
   // global servo error clearing
-  { "", "", nullptr, "---------------- SERVOS : ERRORS --------------------" },
+  // { "", "", nullptr, "---------------- SERVOS : ERRORS --------------------" },
   { "REBOOTALL", "", cmd_reboot_servos, "REBOOTALL - reboot all servos" },
   { "SETSTOPALL", "", cmd_set_servo_flag_servos_stop_all, "SETSTOPALL - set global servo error flag" },
   { "CLEARSTOPALL", "", cmd_clear_flag_servos_stop_all, "CLEARSTOPALL - clear global servo error flag" },
 
   // move servos
-  { "", "", nullptr, "------------------ SERVOS : MOTION ------------------" },
+  // { "", "", nullptr, "------------------ SERVOS : MOTION ------------------" },
   { "MOVETICKS", "%d %d", cmd_move_ticks, "MOVETICKS <id> <ticks> - move servo to ticks (no smoothing)" },
   { "MOVEDEG", "%d %f", cmd_move_deg, "MOVEDEG <id> <deg> - move servo to degrees (smooth)" },
   { "MOVEPER", "%d %f", cmd_move_per, "MOVEPER <id> <percent> - move servo to percentage (smooth)" },
 
   // xy arms
-  { "", "", nullptr, "------------------ XY ARMS ---------------------------" },
+  // { "", "", nullptr, "------------------ XY ARMS ---------------------------" },
   { "MOVEYMM", "%f", cmd_move_y, "MOVEYMM <mm> - vertical move (42 to 102)" },
   { "MOVEXMM", "%f", cmd_move_x, "MOVEXMM <mm> - lateral move (-30 to 30)" },
   { "MOVEXYMM", "%f %f", cmd_move_xy, "MOVEXYMM <x_mm> <y_mm> - lateral then vertical move (-25..25, 42..102)" },
 
   // gripper
-  { "", "", nullptr, "------------------ GRIPPER ---------------------------" },
+  // { "", "", nullptr, "------------------ GRIPPER ---------------------------" },
   { "MOVEGRIPPER", "%f", cmd_move_gripper, "MOVEGRIPPER <percent> - move both grippers (0 to 100)" },
   { "MOVEWRISTVERTDEG", "%f", cmd_move_wrist_vert, "MOVEWRISTVERTDEG <deg> - move wrist relative to vertical (-5 to 185)" },
   { "CLAMP", "", cmd_move_clamp, "CLAMP - clamp gripper" },
 
   // color sensor
-  { "", "", nullptr, "------------------ COLOR SENSOR ----------------------" },
+  // { "", "", nullptr, "------------------ COLOR SENSOR ----------------------" },
   { "COLORSENSOR", "%d", cmd_color, "COLORSENSOR <count> - read color <count> times" },
   { "ONECOLOR", "", cmd_read_one_color, "ONECOLOR - read one slot (1..6)" },
   { "ONEFACECOLOR", "", cmd_read_one_face_colors, "ONEFACECOLOR - read colors of the front face" },
   { "GETCOLORDATA", "", cmd_getcolor_data, "GETCOLORDATA - print raw color data" },
 
   // orientation
-  { "", "", nullptr, "------------------ ORIENTATION -----------------------" },
+  // { "", "", nullptr, "------------------ ORIENTATION -----------------------" },
   { "GETORIDATA", "", cmd_getori_data, "GETORIDATA - print orientation move log" },
   { "CLEARORIDATA", "", cmd_clear_ori_data, "CLEARORIDATA - clear orientation data" },
   { "RESTOREORI", "", cmd_restore_ori, "RESTOREORI - restore cube to original orientation" },
@@ -190,9 +190,7 @@ void process_serial_command(String &line) {
         int space_idx = line.indexOf(' ');
         if (space_idx < 0) {
           //
-          LOG_ERR(MOD_CMD, "error","missing argument");
-          LOG_VAR("command", cmd.name);
-          LOG_INFO(MOD_CMD, "info","command_end");
+          LOG_ERR(MOD_CMD, "error", "missing argument");
           LOG_VAR("command", cmd.name);
           LOG_VAR("result", "fail");
           return;
@@ -201,47 +199,35 @@ void process_serial_command(String &line) {
         params.trim();
         if (params.length() == 0) {
           //
-          LOG_ERR(MOD_CMD, "error","missing argument");
+          LOG_ERR(MOD_CMD, "error", "missing argument");
           LOG_VAR("command", cmd.name);
-          LOG_INFO(MOD_CMD, "info","command_end");
-          LOG_VAR("command", cmd.name);
-          LOG_VAR("result", "fail");
           return;
         }
 
         String params_ = "\"" + params + "\"";
-        LOG_INFO(MOD_CMD, "info","command_start");
-        LOG_VAR("command", cmd.name);
+        LOG_INFO(MOD_CMD, "command_start", cmd.name);
         LOG_VAR("params", params_.c_str());
 
         bool ok = false;
 
         if (check_servos_stop_all()) {
-          LOG_ERR(MOD_CMD, "error","servos_stop_flag_on");
-          LOG_INFO(MOD_CMD, "info","command_end");
+          LOG_ERR(MOD_CMD, "error", "servos_stop_flag_on");
           LOG_VAR("command", cmd.name);
-          LOG_VAR("result", ok ? "ok" : "fail");
           return;
         }
 
         if (strcmp(cmd.name, "MOVECUBE") == 0) {
           // pass full raw string — ori parses sequence itself
-          //
-          LOG_INFO(MOD_CMD, "info","calling_cube_move");
-          LOG_VAR("moves", params_.c_str());
 
+          LOG_INFO(MOD_CMD, "calling_cube_move", params_.c_str());
           ok = ori.cube_move(params);
         } else if (strcmp(cmd.name, "MOVEROBOT") == 0) {
           // pass full raw string — NO splitting
-          //
-          LOG_INFO(MOD_CMD, "info","calling_robot_move");
-          LOG_VAR("moves", params_.c_str());
-
+          LOG_INFO(MOD_CMD, "calling_robot_move", params_.c_str());
           ok = ori.robot_move(params);
         }
 
-        LOG_INFO(MOD_CMD, "info","command_end");
-        LOG_VAR("command", cmd.name);
+        LOG_INFO(MOD_CMD, "command_end", cmd.name);
         LOG_VAR("result", ok ? "ok" : "fail");
         unsigned long duration_ms = millis() - millis_start;
         String duration_str = "";
@@ -261,37 +247,29 @@ void process_serial_command(String &line) {
         // Extract raw params after command
         int space_idx = line.indexOf(' ');
         if (space_idx < 0) {
-          //
-          LOG_ERR(MOD_CMD, "error","missing argument");
+          LOG_ERR(MOD_CMD, "error", "missing argument");
+          LOG_VAR("command", cmd.name);
           return;
         }
         String params = line.substring(space_idx + 1);
         params.trim();
         if (params.length() == 0) {
-          //
-          LOG_ERR(MOD_CMD, "error","missing argument");
+          LOG_ERR(MOD_CMD, "error", "missing argument");
+          LOG_VAR("command", cmd.name);
           return;
         }
 
         String params_ = "\"" + params + "\"";
-        LOG_INFO(MOD_CMD, "info","command_start");
-        LOG_VAR("command", cmd.name);
+        LOG_INFO(MOD_CMD, "command_start", cmd.name);
         LOG_VAR("params", params_.c_str());
 
         // Unified logging (same style as MOVEROBOT)
         // serial_printf_verbose("~~~- START READCOLORS params: %s ~~~-", params.c_str());
         params_ = "\"" + params + "\"";
-        LOG_INFO(MOD_CMD, "info","readcolors start");
-        LOG_VAR("mode", params_.c_str());
+        LOG_INFO(MOD_CMD, "readcolors_start_mode", params_.c_str());
 
         bool ok = cmd_read_cube_colors(params);
-
-        LOG_INFO(MOD_CMD, "info","readcolors end");
-        LOG_VAR("mode", params_.c_str());
-        LOG_VAR("result", ok ? "ok" : "fail");
-
-        LOG_INFO(MOD_CMD, "info","command_end");
-        LOG_VAR("command", cmd.name);
+        LOG_INFO(MOD_CMD, "command_end", cmd.name);
         LOG_VAR("result", ok ? "ok" : "fail");
         unsigned long duration_ms = millis() - millis_start;
         String duration_str = "";
@@ -321,8 +299,7 @@ void process_serial_command(String &line) {
       // ~~~~~~~~~~~~~~~- Argument validation ~~~~~~~~~~~~~~~-
       if (argc < min_args) {
 
-        LOG_ERR(MOD_CMD, "error","invalid_command_usage");
-        LOG_VAR("command", cmd.name);
+        LOG_ERR(MOD_CMD, "invalid_command_usage", cmd.name);
         LOG_VAR("usage", cmd.desc);
         return;
       }
@@ -334,15 +311,13 @@ void process_serial_command(String &line) {
       //
       increment_cmd_no();
       LOG_LN();
-      LOG_INFO(MOD_CMD, "info","command_start");
-      LOG_VAR("command", cmd.name);
+      LOG_INFO(MOD_CMD, "command_start", cmd.name);
       LOG_VAR("arg", p1);
 
       // read_print_kinematics_state();
       bool ok = cmd.handler(argc, argv);
       //
-      LOG_INFO(MOD_CMD, "info","command_end");
-      LOG_VAR("command", cmd.name);
+      LOG_INFO(MOD_CMD, "command_end", cmd.name);
       LOG_VAR("result", ok ? "ok" : "fail");
       unsigned long duration_ms = millis() - millis_start;
       String duration_str = "";
@@ -358,7 +333,5 @@ void process_serial_command(String &line) {
     }
   }
   //
-  LOG_ERR(MOD_CMD, "error","unknown command");  //
-  LOG_INFO(MOD_CMD, "info","help text");
-  LOG_VAR("text", get_help_text().c_str());
+  LOG_ERR(MOD_CMD, "error","unknown_command");  //
 }

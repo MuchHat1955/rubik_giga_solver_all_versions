@@ -9,7 +9,7 @@ extern CubeOri ori;
 // Constructor
 // ============================================================
 CubeColorReader::CubeColorReader(CubeOri &ori, read_color_cb_t cb)
-  : ori_(ori), cb_(cb) {
+  : ori_(ori), color_sensor_cb_(cb) {
   fill_unknown_();
 }
 
@@ -73,8 +73,7 @@ void CubeColorReader::apply_slot_to_face_(char face, int slot, char color, bool 
       case 3: offset = 6; break;  // bottom-right
       default:
         // slots 4,5,6 shouldn't be used in mirrored mode
-        LOG_INFO(MOD_COLORSCAN, "info", "mirrored slot");
-        LOG_VAR("slot", slot);
+        LOG_ERR(MOD_COLORSCAN, "skipping mirrored slot", slot);
         LOG_VAR("face", face);
         return;
     }
@@ -83,8 +82,7 @@ void CubeColorReader::apply_slot_to_face_(char face, int slot, char color, bool 
 
   if (offset >= 0) {
     colors_[base + offset] = color;
-    LOG_INFO(MOD_COLORSCAN, "info", "color read");
-    LOG_VAR("face", face);
+    LOG_INFO(MOD_COLORSCAN, "read face", face);
     LOG_VAR("slot", offset + 1);
     LOG_VAR("color", color);
   }
@@ -107,8 +105,7 @@ void CubeColorReader::rotate_face(char face, char dir) {
 
   int base = face_base_index_(face);
   if (base < 0) {
-    LOG_ERR(MOD_COLORSCAN, "error", "invalid face");
-    LOG_VAR("face", face);
+    LOG_ERR(MOD_COLORSCAN, "invalid face", face);
     return;
   }
 
@@ -264,8 +261,7 @@ void CubeColorReader::apply_moves(const String &moves) {
     // Validate token using your single source of truth
     if (!is_valid_move(token)) {
 
-      LOG_ERR(MOD_COLORSCAN, "error", "invalid move");
-      LOG_VAR("move", token.c_str());
+      LOG_ERR(MOD_COLORSCAN, "invalid move", token.c_str());
 
       continue;
     }
@@ -577,8 +573,7 @@ bool CubeColorReader::process_step_(int step_index,
   // Robot move (if any)
   if (robot_move && robot_move[0] != '\0' && strcmp(robot_move, "none") != 0) {
     if (!ori_.robot_move(robot_move)) {
-      LOG_ERR(MOD_COLORSCAN, "error", "robot move failed");
-      LOG_VAR("step_index", step_index);
+      LOG_ERR(MOD_COLORSCAN, "robot move failed", step_index);
       LOG_VAR("robot_move", robot_move);
       return false;
     }
@@ -597,23 +592,20 @@ bool CubeColorReader::process_step_(int step_index,
     if (d < '1' || d > '6') continue;
 
     int slot = d - '0';
-    char color = cb_ ? cb_(slot) : '.';
+    char color = color_sensor_cb_ ? color_sensor_cb_(slot) : '.';
 
     apply_slot_to_face_(F, slot, color, mirrored);
-
-    String color_string_face = String(get_color_string_face(F));
-    LOG_INFO(MOD_COLORSCAN, "info", "color_string");
-    LOG_VAR("color_string_face", step_index);
+    LOG_INFO(MOD_COLORSCAN, "color_string_curr_face", String(F));
+    LOG_VAR("color", get_color_string_face(F));
   }
 
   // log completion of this step for this face
-  LOG_INFO(MOD_COLORSCAN, "info", "color scan step");
-  LOG_VAR("step_index", step_index);
+  LOG_INFO(MOD_COLORSCAN, "color scan step", step_index);
   LOG_VAR("robot_move", robot_move ? robot_move : "");
 
   get_color_string_face(F);
-  LOG_INFO(MOD_COLORSCAN, "info", "cube colors read");
-  LOG_VAR("cube_colors", get_cube_colors_string().c_str());
+  LOG_INFO(MOD_COLORSCAN, "cube_color_string_54", get_color_string_54().c_str());
+  LOG_INFO(MOD_COLORSCAN, "cube_color_string_faces", get_color_string_faces().c_str());
 
   return true;
 }
@@ -629,8 +621,8 @@ bool CubeColorReader::read_cube_bottom() {
 }
 
 bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
-  if (!cb_) {
-    LOG_ERR(MOD_COLORSCAN, "error", "color reader: no callback");
+  if (!color_sensor_cb_) {
+    LOG_ERR(MOD_COLORSCAN, "error", "no callback");
     return false;
   }
   int total_steps = 0;
@@ -638,15 +630,11 @@ bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
   else total_steps = k_num_color_map_steps_bottom;
 
   if (total_steps < 1) {
-    LOG_ERR(MOD_COLORSCAN, "error", "step count invalid");
-    LOG_VAR("total_steps", total_steps);
-
+    LOG_ERR(MOD_COLORSCAN, "step count invalid", total_steps);
     return false;
   }
-
-  LOG_INFO(MOD_COLORSCAN, "info", "start");
+  LOG_INFO(MOD_COLORSCAN, "color scan start", mode_all_vs_bottom ? "all" : "bottom");
   LOG_VAR("total_steps", total_steps);
-  LOG_VAR("mode", mode_all_vs_bottom ? "all" : "bottom");
 
   if (mode_all_vs_bottom) fill_unknown_();
   else fill_solved_cube_top2layers_();
@@ -660,17 +648,11 @@ bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
     for (int i = 0; i < total_steps; i++) {
       const auto &s = k_color_map_steps_all[i];
       if (!process_step_(i, s.robot_move, s.face, s.mirrored, s.order)) {
-        LOG_ERR(MOD_COLORSCAN, "error", "step failed");
-        LOG_VAR("step_index", i);
-        LOG_VAR("total_steps", total_steps);
-
+        LOG_ERR(MOD_COLORSCAN, "step failed", i);
+        LOG_INFO(MOD_COLORSCAN, "color scan failed", "restoring_ori");
         ori_.restore_cube_orientation();
         return false;
       }
-      LOG_INFO(MOD_COLORSCAN, "info", "step completed");
-      LOG_VAR("step_index", i);
-      LOG_VAR("total_steps", total_steps);
-      //TODO
       // ori.print_orientation_string();
       // print_cube_colors_diagram();
     }
@@ -680,19 +662,11 @@ bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
     for (int i = 0; i < total_steps; i++) {
       const auto &s = k_color_map_steps_bottom[i];
       if (!process_step_(i, s.robot_move, s.face, s.mirrored, s.order)) {
-        LOG_ERR(MOD_COLORSCAN, "error", "step failed");
-        LOG_VAR("step_index", i);
-        LOG_VAR("total_steps", total_steps);
-
+        LOG_ERR(MOD_COLORSCAN, "step failed", i);
+        LOG_INFO(MOD_COLORSCAN, "color scan failed", "restoring_ori");
         ori_.restore_cube_orientation();
         return false;
       }
-      LOG_INFO(MOD_COLORSCAN, "info", "color scan step completed");
-      LOG_VAR("step_index", i);
-      LOG_VAR("total_steps", total_steps);
-
-      ori.print_orientation_string();
-      print_cube_colors_diagram();
     }
     // ~~~~~~~~~~~~~~~~ end just bottom layer ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   }
@@ -701,11 +675,12 @@ bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
 
   // Final restore
   if (!ori_.restore_cube_orientation()) {
-    LOG_ERR(MOD_COLORSCAN, "error", "color reader: final restore failed");
+    LOG_ERR(MOD_COLORSCAN, "error", "final restore failed");
     return false;
   }
-  ori.print_orientation_string();
-  print_cube_colors_diagram();
+  LOG_INFO(MOD_COLORSCAN, "color_string_54", get_color_string_54().c_str());
+  LOG_INFO(MOD_COLORSCAN, "color_string_faces", get_color_string_faces().c_str());
+  LOG_INFO(MOD_COLORSCAN, "orientation", ori.get_orientation_string().c_str());
 
   return true;
 }
@@ -740,14 +715,29 @@ void CubeColorReader::update_color_string(char face, int offset, char color) {
 // ============================================================
 // Return full cube string
 // ============================================================
-String CubeColorReader::get_cube_colors_string() const {
+String CubeColorReader::get_color_string_54() const {
   String s;
-  s.reserve(54);
+  s.reserve(55);
   for (int i = 0; i < 54; i++)
     s += colors_[i];
   return s;
 }
 
+String CubeColorReader::get_color_string_faces() const {
+  String color_str_faces;
+
+  color_str_faces.reserve(73);
+  color_str_faces = get_color_string_face('u');
+  color_str_faces += String(" ") + get_color_string_face('u');
+  color_str_faces += String(" ") + get_color_string_face('r');
+  color_str_faces += String(" ") + get_color_string_face('f');
+  color_str_faces += String(" ") + get_color_string_face('d');
+  color_str_faces += String(" ") + get_color_string_face('l');
+  color_str_faces += String(" ") + get_color_string_face('b');
+  return color_str_faces;
+}
+
+//TODO not used
 void CubeColorReader::print_cube_colors_diagram() {
   String cube = "";
   cube.reserve(54);
