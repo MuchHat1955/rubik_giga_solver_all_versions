@@ -54,7 +54,7 @@ static const EdgeDef k_edge_defs[12] = {
   { 23, 12 },  // FR  (F mid-right, R mid-left)
   { 21, 41 },  // FL  (F mid-left, L mid-right)
   { 48, 14 },  // BR  (B mid-left, R mid-right)
-  { 50, 39 }   // BL  (B mid-right, L mid-left)
+  { 50, 41 }   // BL  (B mid-right, L mid-left)
 };
 
 // Corners: URF, UFL, ULB, UBR, DRF, DFL, DLB, DBR
@@ -98,7 +98,7 @@ static const char *k_corner_names[8] = {
 // ============================================================
 ColorAnalyzer::ColorAnalyzer() {
   colors_.reserve(54);
-  colors_ = "......................................................";  // 54 dots
+  colors_ = String('.', 54);
   last_error_ = "";
 }
 
@@ -113,6 +113,9 @@ int ColorAnalyzer::base_index(char face) const {
     case 'd': return 27;
     case 'l': return 36;
     case 'b': return 45;
+    default:
+      LOG_ERR(MOD_COLORCHECK, "invalid face", face);
+      return 0;
   }
   return 0;
 }
@@ -182,13 +185,14 @@ bool ColorAnalyzer::face_solved_bool(char face) const {
   int idx = base_index(face);
   char c = colors_[idx + 4];
   for (int i = 0; i < 9; i++) {
-    if (colors_[idx + i] != c) return false;
+    if (colors_[idx + i] == '.') return false;
+    if (colors_[idx + i] == c) return false;
   }
   return true;
 }
 
 // ============================================================
-// Stage detection (visual band-based checks)
+// top layer solved
 // ============================================================
 bool ColorAnalyzer::top_layer_solved_bool() const {
   // U face solid
@@ -772,7 +776,9 @@ bool ColorAnalyzer::check_edge_flip_parity_simplified(const String &s) const {
 
     // Edge definitions are set up so 'a' is the reference facelet (U/D for most).
     // Flip is 1 if the reference color is NOT on the reference facelet (def.a).
-    int flip = (s[def.a] != ref_color) ? 1 : 0;
+    int flip =
+      (s[def.a] == ref_color) ? 0 : (s[def.b] == ref_color) ? 1
+                                                            : 0;
     flip_sum += flip;
   }
 
