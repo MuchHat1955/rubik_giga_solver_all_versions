@@ -26,7 +26,7 @@ public:
     String get_last_error() const { return last_error_; }
 
 private:
-    String colors_54_str;
+    String colors_;
     mutable String last_error_;
     
     // --- Index/Helper Methods ---

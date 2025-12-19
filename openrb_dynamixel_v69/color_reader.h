@@ -23,16 +23,18 @@ public:
   bool read_cube_bottom();
   void fill_solved_cube();
 
+  String _54() const;
   void apply_moves(const String &moves);
   void print_cube_colors_diagram();
   String get_color_string_face(char face) const;
   String get_color_string_faces() const;
-  String get_color_string_54() const;
+    String get_color_string_54() const;
+
 
 private:
   CubeOri &ori_;
   read_color_cb_t color_sensor_cb_;
-  char colors_c54[54];  // u r f d l b, 9 stickers each
+  char colors_[54];  // u r f d l b, 9 stickers each
 
   void fill_unknown_();
   void fill_solved_cube_top2layers_();

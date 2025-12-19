@@ -1,11 +1,9 @@
 #include "color_reader.h"
-#include "color_analyzer.h"
 #include "utils.h"
 #include "cmd_parser.h"
 #include "ori.h"
 
 extern CubeOri ori;
-extern ColorAnalyzer color_analyzer;
 
 // ============================================================
 // Constructor
@@ -19,15 +17,14 @@ CubeColorReader::CubeColorReader(CubeOri &ori, read_color_cb_t cb)
 // Helpers
 // ============================================================
 void CubeColorReader::fill_unknown_() {
-  for (int i = 0; i < 54; i++) colors_c54[i] = '.';
-  color_analyzer.set_colors(String(colors_c54));
+  for (int i = 0; i < 54; i++) colors_[i] = '.';
 }
 
 void CubeColorReader::clear() {
   fill_unknown_();
 }
 
-// Return base index in colors_c54[ ] for a face letter
+// Return base index in colors_[ ] for a face letter
 int CubeColorReader::face_base_index_(char face) const {
   switch (face) {
     case 'u': return 0;
@@ -84,7 +81,7 @@ void CubeColorReader::apply_slot_to_face_(char face, int slot, char color, bool 
   update_color_string(face, offset, color);
 
   if (offset >= 0) {
-    colors_c54[base + offset] = color;
+    colors_[base + offset] = color;
     LOG_INFO(MOD_COLORSCAN, "read face", face);
     LOG_VAR("slot", offset + 1);
     LOG_VAR("color", color);
@@ -97,7 +94,7 @@ String CubeColorReader::get_color_string_face(char face) const {
   if (base < 0) return "";
   String return_str = String(face) + "=";
   for (int i = 0; i < 9; i++) {
-    return_str += String(colors_c54[base + i]);
+    return_str += String(colors_[base + i]);
   }
   return return_str;
 }
@@ -116,31 +113,30 @@ void CubeColorReader::rotate_face(char face, char dir) {
   // 1. Rotate the face (3x3 matrix) - This part was correct.
   // ------------------------------------------------------------
   char t[9];
-  memcpy(t, &colors_c54[base], 9);
-  color_analyzer.set_colors(String(colors_c54));
+  memcpy(t, &colors_[base], 9);
 
   if (cw) {
     // clockwise: 0->6, 1->3, 2->0, 3->7, 4->4, 5->1, 6->8, 7->5, 8->2
-    colors_c54[base + 0] = t[6];
-    colors_c54[base + 1] = t[3];
-    colors_c54[base + 2] = t[0];
-    colors_c54[base + 3] = t[7];
-    colors_c54[base + 4] = t[4];
-    colors_c54[base + 5] = t[1];
-    colors_c54[base + 6] = t[8];
-    colors_c54[base + 7] = t[5];
-    colors_c54[base + 8] = t[2];
+    colors_[base + 0] = t[6];
+    colors_[base + 1] = t[3];
+    colors_[base + 2] = t[0];
+    colors_[base + 3] = t[7];
+    colors_[base + 4] = t[4];
+    colors_[base + 5] = t[1];
+    colors_[base + 6] = t[8];
+    colors_[base + 7] = t[5];
+    colors_[base + 8] = t[2];
   } else {
     // counter-clockwise: 0->2, 1->5, 2->8, 3->1, 4->4, 5->7, 6->0, 7->3, 8->6
-    colors_c54[base + 0] = t[2];
-    colors_c54[base + 1] = t[5];
-    colors_c54[base + 2] = t[8];
-    colors_c54[base + 3] = t[1];
-    colors_c54[base + 4] = t[4];
-    colors_c54[base + 5] = t[7];
-    colors_c54[base + 6] = t[0];
-    colors_c54[base + 7] = t[3];
-    colors_c54[base + 8] = t[6];
+    colors_[base + 0] = t[2];
+    colors_[base + 1] = t[5];
+    colors_[base + 2] = t[8];
+    colors_[base + 3] = t[1];
+    colors_[base + 4] = t[4];
+    colors_[base + 5] = t[7];
+    colors_[base + 6] = t[0];
+    colors_[base + 7] = t[3];
+    colors_[base + 8] = t[6];
   }
 
   // ------------------------------------------------------------
@@ -194,7 +190,6 @@ void CubeColorReader::rotate_face(char face, char dir) {
     set3(2, 29, 32, 35);  // D2, D5, D8
     set3(3, 51, 48, 45);  // B6, B3, B0 (Reversed)
   } else {
-    color_analyzer.set_colors(String(colors_c54));
     return;
   }
 
@@ -206,16 +201,15 @@ void CubeColorReader::rotate_face(char face, char dir) {
   // Store stickers *before* the cycle
   for (int i = 0; i < 4; i++)
     for (int j = 0; j < 3; j++)
-      buf[i * 3 + j] = colors_c54[idx[i][j]];
+      buf[i * 3 + j] = colors_[idx[i][j]];
 
   // Move stickers: source (src) to destination (i)
   for (int i = 0; i < 4; i++)
     for (int j = 0; j < 3; j++) {
       // Source is (i - 1) mod 4 for CW, (i + 1) mod 4 for CCW
       int src = cw ? (i + 3) % 4 : (i + 1) % 4;
-      colors_c54[idx[i][j]] = buf[src * 3 + j];
+      colors_[idx[i][j]] = buf[src * 3 + j];
     }
-  color_analyzer.set_colors(String(colors_c54));
 }
 
 // ============================================================
@@ -620,14 +614,10 @@ bool CubeColorReader::process_step_(int step_index,
 // Perform full scan
 // ============================================================
 bool CubeColorReader::read_cube_full() {
-  bool ok = read_cube(true);
-  if (ok) color_analyzer.set_colors(get_color_string_54());
-  return ok;
+  return read_cube(true);
 }
 bool CubeColorReader::read_cube_bottom() {
-  bool ok = read_cube(false);
-  if (ok) color_analyzer.set_colors(get_color_string_54());
-  return ok;
+  return read_cube(false);
 }
 
 bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
@@ -688,8 +678,6 @@ bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
     LOG_ERR(MOD_COLORSCAN, "error", "final restore failed");
     return false;
   }
-  color_analyzer.set_colors(get_color_string_54());
-
   LOG_INFO(MOD_COLORSCAN, "color_string_54", get_color_string_54().c_str());
   LOG_INFO(MOD_COLORSCAN, "color_string_faces", get_color_string_faces().c_str());
   LOG_INFO(MOD_COLORSCAN, "orientation", ori.get_orientation_string().c_str());
@@ -721,8 +709,7 @@ void CubeColorReader::update_color_string(char face, int offset, char color) {
       return;
   }
 
-  colors_c54[base + offset] = color;
-  color_analyzer.set_colors(String(colors_c54));
+  colors_[base + offset] = color;
 }
 
 // ============================================================
@@ -732,7 +719,7 @@ String CubeColorReader::get_color_string_54() const {
   String s;
   s.reserve(55);
   for (int i = 0; i < 54; i++)
-    s += colors_c54[i];
+    s += colors_[i];
   return s;
 }
 
@@ -755,7 +742,7 @@ void CubeColorReader::print_cube_colors_diagram() {
   String cube = "";
   cube.reserve(54);
   for (int i = 0; i < 54; i++)
-    cube += colors_c54[i];
+    cube += colors_[i];
   Serial.println();
   // Print U face (top)
   for (int i = 0; i < 3; i++) {
@@ -840,12 +827,10 @@ static const char solved_top2layers_54[55] =
   "BBBBBB...";
 
 void CubeColorReader::fill_solved_cube() {
-  memcpy(colors_c54, solved_54, 54);
-  color_analyzer.set_colors(get_color_string_54());
+  memcpy(colors_, solved_54, 54);
 }
 void CubeColorReader::fill_solved_cube_top2layers_() {
-  memcpy(colors_c54, solved_top2layers_54, 54);
-  color_analyzer.set_colors(get_color_string_54());
+  memcpy(colors_, solved_top2layers_54, 54);
 }
 
 CubeColorReader color_reader(ori, read_one_color_cb);

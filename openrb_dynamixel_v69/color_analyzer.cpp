@@ -54,7 +54,7 @@ static const EdgeDef k_edge_defs[12] = {
   { 23, 12 },  // FR  (F mid-right, R mid-left)
   { 21, 41 },  // FL  (F mid-left, L mid-right)
   { 48, 14 },  // BR  (B mid-left, R mid-right)
-  { 50, 41 }   // BL  (B mid-right, L mid-left)
+  { 50, 39 }   // BL  (B mid-right, L mid-left)
 };
 
 // Corners: URF, UFL, ULB, UBR, DRF, DFL, DLB, DBR
@@ -97,8 +97,8 @@ static const char *k_corner_names[8] = {
 // Constructor
 // ============================================================
 ColorAnalyzer::ColorAnalyzer() {
-  colors_54_str.reserve(54);
-  colors_54_str = String('.', 54);
+  colors_.reserve(54);
+  colors_ = "......................................................";  // 54 dots
   last_error_ = "";
 }
 
@@ -113,9 +113,6 @@ int ColorAnalyzer::base_index(char face) const {
     case 'd': return 27;
     case 'l': return 36;
     case 'b': return 45;
-    default:
-      LOG_ERR(MOD_COLORCHECK, "invalid face", face);
-      return 0;
   }
   return 0;
 }
@@ -149,7 +146,7 @@ void ColorAnalyzer::sort_triple(char &a, char &b, char &c) const {
 // center color from an arbitrary color string
 char ColorAnalyzer::face_center_color_from(const String &s, char face) const {
   int idx = base_index(face);
-  if (colors_54_str.length() < idx + 5) return '.';
+  if (s.length() < idx + 5) return '.';
   return s[idx + 4];  // center is always index base+4
 }
 
@@ -157,9 +154,8 @@ char ColorAnalyzer::face_center_color_from(const String &s, char face) const {
 // Set colors
 // ============================================================
 void ColorAnalyzer::set_colors(const String &colors) {
-  Serial.print("set colors ");
   if (colors.length() == 54) {
-  colors_54_str = colors;
+    colors_ = colors;
   }
 }
 
@@ -184,26 +180,25 @@ const char *ColorAnalyzer::get_stage_name(int id) const {
 // ============================================================
 bool ColorAnalyzer::face_solved_bool(char face) const {
   int idx = base_index(face);
-  char c = colors_54_str.charAt(idx + 4);
+  char c = colors_[idx + 4];
   for (int i = 0; i < 9; i++) {
-    if (colors_54_str.charAt(idx + i) == '.') return false;
-    if (colors_54_str.charAt(idx + i) == c) return false;
+    if (colors_[idx + i] != c) return false;
   }
   return true;
 }
 
 // ============================================================
-// top layer solved
+// Stage detection (visual band-based checks)
 // ============================================================
 bool ColorAnalyzer::top_layer_solved_bool() const {
   // U face solid
   if (!face_solved_bool('u')) return false;
 
   // Top rows of F, R, B, L match their centers
-  char cf = face_center_color_from(colors_54_str, 'f');
-  char cr = face_center_color_from(colors_54_str, 'r');
-  char cb = face_center_color_from(colors_54_str, 'b');
-  char cl = face_center_color_from(colors_54_str, 'l');
+  char cf = face_center_color_from(colors_, 'f');
+  char cr = face_center_color_from(colors_, 'r');
+  char cb = face_center_color_from(colors_, 'b');
+  char cl = face_center_color_from(colors_, 'l');
 
   int bf = base_index('f');
   int br = base_index('r');
@@ -211,10 +206,10 @@ bool ColorAnalyzer::top_layer_solved_bool() const {
   int bl = base_index('l');
 
   for (int i = 0; i < 3; i++) {
-    if (colors_54_str.charAt(bf + i) != cf) return false;
-    if (colors_54_str.charAt(br + i) != cr) return false;
-    if (colors_54_str.charAt(bb + i) != cb) return false;
-    if (colors_54_str.charAt(bl + i) != cl) return false;
+    if (colors_[bf + i] != cf) return false;
+    if (colors_[br + i] != cr) return false;
+    if (colors_[bb + i] != cb) return false;
+    if (colors_[bl + i] != cl) return false;
   }
   return true;
 }
@@ -222,10 +217,10 @@ bool ColorAnalyzer::top_layer_solved_bool() const {
 bool ColorAnalyzer::middle_layer_solved_bool() const {
   if (!top_layer_solved_bool()) return false;
 
-  char cf = face_center_color_from(colors_54_str, 'f');
-  char cr = face_center_color_from(colors_54_str, 'r');
-  char cb = face_center_color_from(colors_54_str, 'b');
-  char cl = face_center_color_from(colors_54_str, 'l');
+  char cf = face_center_color_from(colors_, 'f');
+  char cr = face_center_color_from(colors_, 'r');
+  char cb = face_center_color_from(colors_, 'b');
+  char cl = face_center_color_from(colors_, 'l');
 
   int bf = base_index('f');
   int br = base_index('r');
@@ -233,10 +228,10 @@ bool ColorAnalyzer::middle_layer_solved_bool() const {
   int bl = base_index('l');
 
   // middle row left+right on each side
-  if (colors_54_str.charAt(bf + 3) != cf || colors_54_str.charAt(bf + 5) != cf) return false;
-  if (colors_54_str.charAt(br + 3) != cr || colors_54_str.charAt(br + 5) != cr) return false;
-  if (colors_54_str.charAt(bb + 3) != cb || colors_54_str.charAt(bb + 5) != cb) return false;
-  if (colors_54_str.charAt(bl + 3) != cl || colors_54_str.charAt(bl + 5) != cl) return false;
+  if (colors_[bf + 3] != cf || colors_[bf + 5] != cf) return false;
+  if (colors_[br + 3] != cr || colors_[br + 5] != cr) return false;
+  if (colors_[bb + 3] != cb || colors_[bb + 5] != cb) return false;
+  if (colors_[bl + 3] != cl || colors_[bl + 5] != cl) return false;
 
   return true;
 }
@@ -245,29 +240,29 @@ bool ColorAnalyzer::bottom_cross_solved_bool() const {
   if (!middle_layer_solved_bool()) return false;
 
   int bd = base_index('d');
-  char cd = face_center_color_from(colors_54_str, 'd');
+  char cd = face_center_color_from(colors_, 'd');
 
   // cross on D face: positions 1,3,5,7
-  if (colors_54_str.charAt(bd + 1) != cd) return false;
-  if (colors_54_str.charAt(bd + 3) != cd) return false;
-  if (colors_54_str.charAt(bd + 5) != cd) return false;
-  if (colors_54_str.charAt(bd + 7) != cd) return false;
+  if (colors_[bd + 1] != cd) return false;
+  if (colors_[bd + 3] != cd) return false;
+  if (colors_[bd + 5] != cd) return false;
+  if (colors_[bd + 7] != cd) return false;
 
   // side alignment at bottom centers
-  char cf = face_center_color_from(colors_54_str, 'f');
-  char cr = face_center_color_from(colors_54_str, 'r');
-  char cb = face_center_color_from(colors_54_str, 'b');
-  char cl = face_center_color_from(colors_54_str, 'l');
+  char cf = face_center_color_from(colors_, 'f');
+  char cr = face_center_color_from(colors_, 'r');
+  char cb = face_center_color_from(colors_, 'b');
+  char cl = face_center_color_from(colors_, 'l');
 
   int bf = base_index('f');
   int br = base_index('r');
   int bb = base_index('b');
   int bl = base_index('l');
 
-  if (colors_54_str.charAt(bf + 7) != cf) return false;
-  if (colors_54_str.charAt(br + 7) != cr) return false;
-  if (colors_54_str.charAt(bb + 7) != cb) return false;
-  if (colors_54_str.charAt(bl + 7) != cl) return false;
+  if (colors_[bf + 7] != cf) return false;
+  if (colors_[br + 7] != cr) return false;
+  if (colors_[bb + 7] != cb) return false;
+  if (colors_[bl + 7] != cl) return false;
 
   return true;
 }
@@ -276,18 +271,18 @@ bool ColorAnalyzer::bottom_layer_solved_bool() const {
   if (!bottom_cross_solved_bool()) return false;
 
   int bd = base_index('d');
-  char cd = face_center_color_from(colors_54_str, 'd');
+  char cd = face_center_color_from(colors_, 'd');
 
   // D face solid
   for (int i = 0; i < 9; i++) {
-    if (colors_54_str.charAt(bd + i) != cd) return false;
+    if (colors_[bd + i] != cd) return false;
   }
 
   // bottom rows of side faces solid
-  char cf = face_center_color_from(colors_54_str, 'f');
-  char cr = face_center_color_from(colors_54_str, 'r');
-  char cb = face_center_color_from(colors_54_str, 'b');
-  char cl = face_center_color_from(colors_54_str, 'l');
+  char cf = face_center_color_from(colors_, 'f');
+  char cr = face_center_color_from(colors_, 'r');
+  char cb = face_center_color_from(colors_, 'b');
+  char cl = face_center_color_from(colors_, 'l');
 
   int bf = base_index('f');
   int br = base_index('r');
@@ -295,10 +290,10 @@ bool ColorAnalyzer::bottom_layer_solved_bool() const {
   int bl = base_index('l');
 
   for (int i = 6; i < 9; i++) {
-    if (colors_54_str.charAt(bf + i) != cf) return false;
-    if (colors_54_str.charAt(br + i) != cr) return false;
-    if (colors_54_str.charAt(bb + i) != cb) return false;
-    if (colors_54_str.charAt(bl + i) != cl) return false;
+    if (colors_[bf + i] != cf) return false;
+    if (colors_[br + i] != cr) return false;
+    if (colors_[bb + i] != cb) return false;
+    if (colors_[bl + i] != cl) return false;
   }
 
   return true;
@@ -329,9 +324,9 @@ bool ColorAnalyzer::is_stage_partial_bool(int id) const {
   if (id == 0) {
     // top face partial: any U sticker matches center, but face not solved
     int bu = base_index('u');
-    char cu = face_center_color_from(colors_54_str, 'u');
+    char cu = face_center_color_from(colors_, 'u');
     for (int i = 0; i < 9; i++) {
-      if (colors_54_str.charAt(bu + i) == cu) return true;
+      if (colors_[bu + i] == cu) return true;
     }
     return false;
   }
@@ -345,23 +340,23 @@ bool ColorAnalyzer::is_stage_partial_bool(int id) const {
 // ============================================================
 bool ColorAnalyzer::is_color_string_valid_bool() const {
   last_error_ = "";
-  return is_color_string_valid_impl(colors_54_str);
+  return is_color_string_valid_impl(colors_);
 }
 
 // Already valid OR 1-sticker-change fixable?
 bool ColorAnalyzer::is_string_fixable_bool() const {
   if (is_color_string_valid_bool()) return true;
-  if (colors_54_str.length() != 54) return false;
+  if (colors_.length() != 54) return false;
 
-  String tmp = colors_54_str;
+  String tmp = colors_;
 
   char centers[6] = {
-    face_center_color_from(colors_54_str, 'u'),
-    face_center_color_from(colors_54_str, 'r'),
-    face_center_color_from(colors_54_str, 'f'),
-    face_center_color_from(colors_54_str, 'd'),
-    face_center_color_from(colors_54_str, 'l'),
-    face_center_color_from(colors_54_str, 'b')
+    face_center_color_from(colors_, 'u'),
+    face_center_color_from(colors_, 'r'),
+    face_center_color_from(colors_, 'f'),
+    face_center_color_from(colors_, 'd'),
+    face_center_color_from(colors_, 'l'),
+    face_center_color_from(colors_, 'b')
   };
 
   for (int i = 0; i < 54; i++) {
@@ -382,20 +377,20 @@ bool ColorAnalyzer::is_string_fixable_bool() const {
 
 bool ColorAnalyzer::try_fix_color_string(String &fixed_out) const {
   if (is_color_string_valid_bool()) {
-    fixed_out = colors_54_str;
+    fixed_out = colors_;
     return true;
   }
-  if (colors_54_str.length() != 54) return false;
+  if (colors_.length() != 54) return false;
 
-  String tmp = colors_54_str;
+  String tmp = colors_;
 
   char centers[6] = {
-    face_center_color_from(colors_54_str, 'u'),
-    face_center_color_from(colors_54_str, 'r'),
-    face_center_color_from(colors_54_str, 'f'),
-    face_center_color_from(colors_54_str, 'd'),
-    face_center_color_from(colors_54_str, 'l'),
-    face_center_color_from(colors_54_str, 'b')
+    face_center_color_from(colors_, 'u'),
+    face_center_color_from(colors_, 'r'),
+    face_center_color_from(colors_, 'f'),
+    face_center_color_from(colors_, 'd'),
+    face_center_color_from(colors_, 'l'),
+    face_center_color_from(colors_, 'b')
   };
 
   for (int i = 0; i < 54; i++) {
@@ -415,53 +410,37 @@ bool ColorAnalyzer::try_fix_color_string(String &fixed_out) const {
   return false;
 }
 
-bool is_valid_color(char c) {
-  Serial.println(c);
-  if (c == 'R') return true;
-  if (c == 'G') return true;
-  if (c == 'Y') return true;
-  if (c == 'O') return true;
-  if (c == 'W') return true;
-  if (c == 'B') return true;
-  return false;
-}
-
 // ============================================================
 // Validation - diagnostics
 // ============================================================
 String ColorAnalyzer::get_string_check_log() const {
+  const String &s = colors_;
   last_error_ = "";
-  Serial.println(colors_54_str);
-  Serial.println(colors_54_str.length());
-  int color_count = 0;
-  for (int i = 0; i < colors_54_str.length(); i++) {
-    if (is_valid_color(colors_54_str.charAt(i))) color_count++;
+
+  if (s.length() != 54) {
+    last_error_ = "invalid length";
+    return "invalid length: must be 54 characters";
   }
 
-  if (color_count != 54) {
-    last_error_ = "invalid length " + String(color_count);
-    return last_error_;
-  }
-
-  if (!centers_correct_from(colors_54_str)) {
+  if (!centers_correct_from(s)) {
     if (last_error_.length() == 0)
       last_error_ = "center colors invalid (must be 6 distinct colors)";
     return last_error_;
   }
 
-  if (!valid_color_counts_from(colors_54_str)) {
+  if (!valid_color_counts_from(s)) {
     if (last_error_.length() == 0)
       last_error_ = "color counts invalid";
     return last_error_;
   }
 
-  if (!edges_corners_color_consistent_from(colors_54_str)) {
+  if (!edges_corners_color_consistent_from(s)) {
     // last_error_ already set inside edges_corners_color_consistent_from
     if (last_error_.length() > 0) return last_error_;
     return "edge/corner color combinations impossible (not a legal Rubik's Cube state)";
   }
 
-  if (!check_edge_flip_parity_simplified(colors_54_str)) {
+  if (!check_edge_flip_parity_simplified(s)) {
     if (last_error_.length() > 0) return last_error_;
     return "edge flip parity invalid (odd number of flipped edges)";
   }
@@ -474,7 +453,7 @@ String ColorAnalyzer::get_string_check_log() const {
 // Validation - core implementation
 // ============================================================
 bool ColorAnalyzer::is_color_string_valid_impl(const String &s) const {
-  if (colors_54_str.length() != 54) {
+  if (s.length() != 54) {
     last_error_ = "invalid length";
     return false;
   }
@@ -518,7 +497,7 @@ bool ColorAnalyzer::is_color_string_valid_impl(const String &s) const {
 // ============================================================
 void ColorAnalyzer::compute_color_counts_from(const String &s, int out[256]) const {
   for (int i = 0; i < 256; i++) out[i] = 0;
-  int len = colors_54_str.length();
+  int len = s.length();
   for (int i = 0; i < len; i++) {
     out[(uint8_t)s[i]]++;
   }
@@ -565,7 +544,7 @@ bool ColorAnalyzer::valid_color_counts_from(const String &s) const {
   };
 
   // every sticker must be one of the 6 center colors
-  int len = colors_54_str.length();
+  int len = s.length();
   for (int i = 0; i < len; i++) {
     char ch = s[i];
     bool ok = false;
@@ -793,9 +772,7 @@ bool ColorAnalyzer::check_edge_flip_parity_simplified(const String &s) const {
 
     // Edge definitions are set up so 'a' is the reference facelet (U/D for most).
     // Flip is 1 if the reference color is NOT on the reference facelet (def.a).
-    int flip =
-      (s[def.a] == ref_color) ? 0 : (s[def.b] == ref_color) ? 1
-                                                            : 0;
+    int flip = (s[def.a] != ref_color) ? 1 : 0;
     flip_sum += flip;
   }
 
