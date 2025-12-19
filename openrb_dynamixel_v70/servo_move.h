@@ -138,5 +138,6 @@ bool robot_move_callback(const String& mv);
 bool isGripperOpen(double min_open);
 
 bool isYmmAbove(double min_y);
+int16_t readReg16(uint8_t id, uint16_t addr);
 
 #endif  // MOVEMENT_H

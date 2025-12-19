@@ -983,7 +983,7 @@ bool cmdMoveServoPer(int id, double goal_per) {
 //------------------------------------------------------
 // RAW 16-bit read (works with your library)
 //------------------------------------------------------
-static int16_t readReg16(uint8_t id, uint16_t addr) {
+int16_t readReg16(uint8_t id, uint16_t addr) {
   uint8_t data[2] = { 0, 0 };
   int32_t res = dxl.read(id, addr, 2, data, 2, 20);
   if (res > 0)
@@ -999,7 +999,7 @@ bool cmdMoveGripperClamp() {
     setPid(ID_GRIP2, 0.8, 0.10, 0.35);
 
     const uint16_t PWM_REG = 124;
-    const int PWM_TOUCH = 90;
+    const int PWM_TOUCH = 0.2 * 885; // TODO was 90, setting now to 20%, range is −885 ~ 885
     const double EXTRA = 3.5;  //TODO was 1.5
 
     bool touched1 = false;

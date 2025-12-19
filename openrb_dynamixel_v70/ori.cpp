@@ -116,7 +116,7 @@ bool CubeOri::restore_cube_orientation() {
   // We only use: y+, y-, z+, z'.
   //
 
-  LOG_INFO(MOD_CUBEORI, "start restore", "start");
+  LOG_INFO(MOD_CUBEORI, "info", "orietation_restore_start");
   const String moves[6] = { "z_plus", "z_minus", "z_180",  //
                             "y_plus", "y_minus", "y_180" };
 
@@ -174,7 +174,7 @@ bool CubeOri::restore_cube_orientation() {
 
   if (found_idx < 0) {
     // Should never happen for a valid orientation group
-      LOG_ERR(MOD_CUBEORI, "no solution found", found_idx);
+    LOG_ERR(MOD_CUBEORI, "orentation restore no solution found", found_idx);
     return false;
   }
 
@@ -192,7 +192,7 @@ bool CubeOri::restore_cube_orientation() {
 
   //
   // Replay moves forward (reverse order)
-  LOG_INFO(MOD_CUBEORI, "apply moves", "path_len");
+  LOG_INFO(MOD_CUBEORI, "oerientation restore solution found with moves count", path_len);
   for (int i = path_len - 1; i >= 0; --i) {
     if (!robot_move(path_moves[i])) {
 

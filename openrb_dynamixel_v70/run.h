@@ -168,3 +168,4 @@ bool isWristHoriz();
 bool isWristVert();
 bool isWristNearHoriz();
 bool isWristNearVert();
+bool cmd_detect_cube(int argc, double *argv);

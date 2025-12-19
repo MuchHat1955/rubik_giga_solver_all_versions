@@ -273,7 +273,7 @@ void CubeColorReader::apply_moves(const String &moves) {
 
     rotate_face(tolower(face), dir);
     //serial_printf_verbose("applied move: %c%c", tolower(face), dir);
-    print_cube_colors_diagram();
+    // print_cube_colors_diagram();
   }
 }
 
@@ -670,8 +670,8 @@ bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
     }
     // ~~~~~~~~~~~~~~~~ end just bottom layer ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   }
-  LOG_INFO(MOD_COLORSCAN, "info", "color read completed");
-  LOG_INFO(MOD_COLORSCAN, "info", "orientation restore");
+  LOG_INFO(MOD_COLORSCAN, "info", "color scan completed");
+  LOG_INFO(MOD_COLORSCAN, "info", "start orientation restore after color scan");
 
   // Final restore
   if (!ori_.restore_cube_orientation()) {

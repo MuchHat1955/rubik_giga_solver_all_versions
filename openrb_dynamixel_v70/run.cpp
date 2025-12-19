@@ -707,25 +707,36 @@ bool cmd_color(int argc, double *argv) {
 }
 
 bool prepArmsForWristRotation() {
-  // need to be at the right y and center x
-
   if (!dxl_ping_cached(ID_ARM1) || !dxl_ping_cached(ID_ARM2)) return false;
+
   double a1_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
   double a2_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
   kin.solve_x_y_from_a1_a2(a1_deg, a2_deg);
 
   double y_mm = kin.getYmm();
   double x_mm = kin.getXmm();
-  bool y_ok = (y_mm > (Y_CENTER - 1)) && (y_mm < (Y_CENTER + 1));
+
+  double target = Y_UP;
+
+  bool y_ok = (y_mm > (target - 1)) && (y_mm < (target + 1));
   bool x_ok = (x_mm > (X_CENTER - 1)) && (x_mm < (X_CENTER + 1));
 
-  if (!y_ok)
-    if (!cmdMoveYmm(Y_CENTER)) return false;
-  if (!x_ok)
-    if (!cmdMoveXmm(X_CENTER)) return false;
+  //Serial.print("\nprepare arms y_mm=");
+  //Serial.println(y_mm);
+
+  // ✅ Always fix Y first and RETURN
+  if (!y_ok) {
+    return cmdMoveYmm(Y_CENTER) && cmdMoveXmm(X_CENTER);
+  }
+
+  // ✅ Only touch X once Y is correct
+  if (!x_ok) {
+    return cmdMoveXmm(X_CENTER);
+  }
 
   return true;
 }
+
 bool isWristHoriz() {
   double goal_deg = kin.getWdeg_for_horizontal_right();
   double w_deg = getPos_deg(ID_WRIST);
@@ -1169,6 +1180,95 @@ bool cmd_ledon(int argc, double *argv) {
 bool cmd_ledoff(int argc, double *argv) {
   dxl.ledOff((uint8_t)argv[0]);
   return true;
+}
+
+bool cmd_detect_cube(int argc, double *argv) {
+  if (!dxl_ping_cached(ID_GRIP1) || !dxl_ping_cached(ID_GRIP2))
+    return false;
+
+  // bring the grip in position
+  if (!cmdMoveGripperPer(G_OPEN)) return false;
+  if (!cmdMoveXmm(X_CENTER)) return false;
+  if (!prepArmsForWristRotation()) return false;
+  if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
+  if (!cmdMoveXmm(X_CENTER)) return false;
+  if (!cmdMoveYmm(Y_CENTER)) return false;
+
+  const uint16_t PWM_REG = 124;
+  const int PWM_TOUCH = 200;
+
+  double per1 = getPos_per(ID_GRIP1);
+  double per2 = getPos_per(ID_GRIP2);
+
+  const double STEP = 0.8;
+  const double MAX_CLOSE = 105.0;
+
+  bool touched1 = false;
+  bool touched2 = false;
+
+  for (int step = 0; step < 133; step++) {
+
+    dxl.setGoalPosition(ID_GRIP1, per2ticks(ID_GRIP1, per1));
+    dxl.setGoalPosition(ID_GRIP2, per2ticks(ID_GRIP2, per2));
+
+    unsigned long until = millis() + 10;
+    while (millis() < until) {
+      int16_t pwm1 = readReg16(ID_GRIP1, PWM_REG);
+      int16_t pwm2 = readReg16(ID_GRIP2, PWM_REG);
+
+      if (abs(pwm1) >= PWM_TOUCH) touched1 = true;
+      if (abs(pwm2) >= PWM_TOUCH) touched2 = true;
+
+      if (touched1 && touched2) {
+        LOG_INFO(MOD_SERVO_MOVE, "cube detect pwm1 at touch", pwm1);
+        LOG_INFO(MOD_SERVO_MOVE, "cube detect pwm2 at touch", pwm2);
+        break;
+      } else if (touched1 || touched2) {
+        LOG_INFO(MOD_SERVO_MOVE, "cube detect pwm1 at touch", pwm1);
+        LOG_INFO(MOD_SERVO_MOVE, "cube detect pwm2 at touch", pwm2);
+        break;
+      }
+      delay(2);
+    }
+    delay(25);
+
+    // If either side touches early → cube IS present
+    if (touched1 || touched2) {
+      if (!cmdMoveGripperPer(G_OPEN)) return false;
+      if (!cmdMoveXmm(X_CENTER)) return false;
+      if (!cmdMoveYmm(Y_DOWN)) return false;
+
+      if (touched1) LOG_INFO(MOD_SERVO_MOVE, "cube_detection_info", "(touch grip1)");
+      if (touched2) LOG_INFO(MOD_SERVO_MOVE, "cube_detection_info", "(touch grip2)");
+      LOG_INFO(MOD_SERVO_MOVE, "cube_detected", "yes");
+      return true;
+    }
+
+    // Advance closing
+    per1 += STEP;
+    per2 += STEP;
+
+    if (per1 > MAX_CLOSE) per1 = MAX_CLOSE;
+    if (per2 > MAX_CLOSE) per2 = MAX_CLOSE;
+
+    // Fully closed without load → no cube
+    if (per1 >= MAX_CLOSE && per2 >= MAX_CLOSE) {
+      if (!cmdMoveGripperPer(G_OPEN)) return false;
+      if (!cmdMoveXmm(X_CENTER)) return false;
+      if (!cmdMoveYmm(Y_DOWN)) return false;
+      LOG_INFO(MOD_SERVO_MOVE, "cube_detection_info", "(free close)");
+      LOG_INFO(MOD_SERVO_MOVE, "cube_detected", "no");
+      return false;
+    }
+  }
+
+  // Safety fallback: no touch detected
+  if (!cmdMoveGripperPer(G_OPEN)) return false;
+  if (!cmdMoveXmm(X_CENTER)) return false;
+  if (!cmdMoveYmm(Y_DOWN)) return false;
+  LOG_INFO(MOD_SERVO_MOVE, "cube_detection_info", "(timeout)");
+  LOG_INFO(MOD_SERVO_MOVE, "cube_detected", "no");
+  return false;
 }
 
 // -------------------------------------------------------------------

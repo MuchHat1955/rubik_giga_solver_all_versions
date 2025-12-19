@@ -39,6 +39,7 @@ static CommandEntry command_table[] = {
   { "MOVEROBOT", "<moves>", nullptr, "MOVEROBOT <moves> - robot moves (z_plus z_minus z_180 y_plus y_minus y_180 d_plus d_minus d_180)" },
   { "MOVECUBE", "<moves>", nullptr, "MOVECUBE <moves> - cube moves (f+ f- f2 b+ b- b2 r+ r- r2 l+ l- l2 u+ u- u2 d+ d- d2)" },
   { "READCOLORS", "<mode>", nullptr, "READCOLORS <all|bottom|solved> - read cube colors (u=white f=green r=red)" },
+  { "DETECTCUBE", "", cmd_detect_cube, "DETECTCUBE - detect if a cube is in the base" },
 
   // debug for robot moves
   // { "", "", nullptr, "---------------- DEBUG : ROBOT MOVES ----------------" },
@@ -333,5 +334,5 @@ void process_serial_command(String &line) {
     }
   }
   //
-  LOG_ERR(MOD_CMD, "error","unknown_command");  //
+  LOG_ERR(MOD_CMD, "error", "unknown_command");  //
 }
