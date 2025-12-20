@@ -786,6 +786,708 @@ bool ColorAnalyzer::check_edge_flip_parity_simplified(const String &s) const {
   return true;
 }
 
+// TODOTODO NEWNEW
+
+String ColorAnalyzer::fix_string_unknown_3() const {
+  if (colors_.length() != 54) return "";
+
+  int cnt[256];
+  int unk = 0;
+  count_colors_and_unknowns(colors_, cnt, unk);
+
+  if (unk != 3) return "";
+
+  char missing[3];
+  int m = 0;
+
+  for (int i = 0; i < 256 && m < 3; i++) {
+    if (cnt[i] < 9) {
+      missing[m++] = (char)i;
+    }
+  }
+
+  if (m == 0) return "";
+
+  int idx[3], k = 0;
+  for (int i = 0; i < 54; i++) {
+    if (colors_[i] == '.') idx[k++] = i;
+  }
+
+  String tmp = colors_;
+
+  // Try all reasonable assignments (bounded)
+  for (int a = 0; a < m; a++) {
+    for (int b = 0; b < m; b++) {
+      for (int c = 0; c < m; c++) {
+        tmp[idx[0]] = missing[a];
+        tmp[idx[1]] = missing[b];
+        tmp[idx[2]] = missing[c];
+
+        if (is_color_string_valid_impl(tmp)) {
+          return tmp;
+        }
+      }
+    }
+  }
+
+  return "";
+}
+
+String ColorAnalyzer::fix_string_unknown_2() const {
+  if (colors_.length() != 54) return "";
+
+  int cnt[256];
+  int unk = 0;
+  count_colors_and_unknowns(colors_, cnt, unk);
+
+  if (unk != 2) return "";
+
+  char missing[2];
+  int m = 0;
+
+  for (int i = 0; i < 256; i++) {
+    if (cnt[i] < 9 && m < 2) {
+      missing[m++] = (char)i;
+    }
+  }
+
+  if (m == 0) return "";
+
+  int idx[2], k = 0;
+  for (int i = 0; i < 54; i++) {
+    if (colors_[i] == '.') idx[k++] = i;
+  }
+
+  String tmp = colors_;
+
+  // Case 1: same color twice
+  if (m == 1 || cnt[(uint8_t)missing[0]] == 7) {
+    tmp[idx[0]] = missing[0];
+    tmp[idx[1]] = missing[0];
+
+    if (is_color_string_valid_impl(tmp)) {
+      return tmp;
+    }
+  }
+
+  // Case 2: two different colors
+  if (m == 2) {
+    tmp[idx[0]] = missing[0];
+    tmp[idx[1]] = missing[1];
+    if (is_color_string_valid_impl(tmp)) return tmp;
+
+    tmp[idx[0]] = missing[1];
+    tmp[idx[1]] = missing[0];
+    if (is_color_string_valid_impl(tmp)) return tmp;
+  }
+
+  return "";
+}
+
+String ColorAnalyzer::fix_string_unknown_1() const {
+  if (colors_.length() != 54) return "";
+
+  int cnt[256];
+  int unk = 0;
+  count_colors_and_unknowns(colors_, cnt, unk);
+
+  if (unk != 1) return "";
+
+  char missing = 0;
+  for (int i = 0; i < 256; i++) {
+    if (cnt[i] == 8) {
+      missing = (char)i;
+      break;
+    }
+  }
+
+  if (!missing) return "";
+
+  String tmp = colors_;
+  for (int i = 0; i < 54; i++) {
+    if (tmp[i] == '.') {
+      tmp[i] = missing;
+      break;
+    }
+  }
+
+  if (is_color_string_valid_impl(tmp)) {
+    return tmp;
+  }
+
+  return "";
+}
+
+static void count_colors_and_unknowns(
+    const String &s,
+    int counts[256],
+    int &unknown_count
+) {
+  memset(counts, 0, 256 * sizeof(int));
+  unknown_count = 0;
+
+  for (int i = 0; i < s.length(); i++) {
+    char c = s[i];
+    if (c == '.') {
+      unknown_count++;
+    } else {
+      counts[(uint8_t)c]++;
+    }
+  }
+}
+
+String ColorAnalyzer::fix_string_count_2() const {
+  if (is_color_string_valid_bool()) {
+    return colors_;
+  }
+  if (colors_.length() != 54) {
+    return "";
+  }
+
+  int cnt[256];
+  count_colors(colors_, cnt);
+
+  char too_many = 0;
+  char too_few  = 0;
+  int delta = 0;
+
+  for (int i = 0; i < 256; i++) {
+    if (cnt[i] > 9) {
+      too_many = (char)i;
+      delta = cnt[i] - 9;
+    }
+    if (cnt[i] < 9) {
+      too_few = (char)i;
+    }
+  }
+
+  if (!too_many || !too_few || delta < 2) {
+    return "";
+  }
+
+  String tmp = colors_;
+
+  for (int i = 0; i < 54; i++) {
+    if (tmp[i] != too_many) continue;
+
+    for (int j = i + 1; j < 54; j++) {
+      if (tmp[j] != too_many) continue;
+
+      tmp[i] = too_few;
+      tmp[j] = too_few;
+
+      if (is_color_string_valid_impl(tmp)) {
+        return tmp;
+      }
+
+      tmp[i] = too_many;
+      tmp[j] = too_many;
+    }
+  }
+
+  return "";
+}
+
+String ColorAnalyzer::fix_string_count_1() const {
+  if (is_color_string_valid_bool()) {
+    return colors_;
+  }
+  if (colors_.length() != 54) {
+    return "";
+  }
+
+  int cnt[256];
+  count_colors(colors_, cnt);
+
+  char too_many = 0;
+  char too_few  = 0;
+
+  for (int i = 0; i < 256; i++) {
+    if (cnt[i] == 10) too_many = (char)i;
+    if (cnt[i] == 8)  too_few  = (char)i;
+  }
+
+  if (!too_many || !too_few) {
+    return "";
+  }
+
+  String tmp = colors_;
+
+  for (int i = 0; i < 54; i++) {
+    if (tmp[i] != too_many) continue;
+
+    tmp[i] = too_few;
+
+    if (is_color_string_valid_impl(tmp)) {
+      return tmp;
+    }
+
+    tmp[i] = too_many;
+  }
+
+  return "";
+}
+
+String ColorAnalyzer::fix_string_general_1() const {
+  if (is_color_string_valid_bool()) {
+    return colors_;
+  }
+  if (colors_.length() != 54) {
+    return "";
+  }
+
+  String tmp = colors_;
+
+  char centers[6] = {
+    face_center_color_from(colors_, 'u'),
+    face_center_color_from(colors_, 'r'),
+    face_center_color_from(colors_, 'f'),
+    face_center_color_from(colors_, 'd'),
+    face_center_color_from(colors_, 'l'),
+    face_center_color_from(colors_, 'b')
+  };
+
+  for (int i = 0; i < 54; i++) {
+    char orig = tmp[i];
+
+    for (int k = 0; k < 6; k++) {
+      char c = centers[k];
+      if (c == orig) continue;
+
+      tmp[i] = c;
+
+      if (is_color_string_valid_impl(tmp)) {
+        return tmp;
+      }
+    }
+
+    tmp[i] = orig;
+  }
+
+  return "";
+}
+
+String ColorAnalyzer::fix_string_ro_2() const {
+  if (is_color_string_valid_bool()) {
+    return colors_;
+  }
+  if (colors_.length() != 54) {
+    return "";
+  }
+
+  String tmp = colors_;
+
+  for (int i = 0; i < 54; i++) {
+    char orig_i = tmp[i];
+    if (orig_i != 'r' && orig_i != 'o') continue;
+
+    for (int j = i + 1; j < 54; j++) {
+      char orig_j = tmp[j];
+      if (orig_j != 'r' && orig_j != 'o') continue;
+
+      tmp[i] = (orig_i == 'r') ? 'o' : 'r';
+      tmp[j] = (orig_j == 'r') ? 'o' : 'r';
+
+      if (is_color_string_valid_impl(tmp)) {
+        return tmp;
+      }
+
+      tmp[i] = orig_i;
+      tmp[j] = orig_j;
+    }
+  }
+
+  return "";
+}
+
+String ColorAnalyzer::fix_string_ro_1() const {
+  if (is_color_string_valid_bool()) {
+    return colors_;
+  }
+  if (colors_.length() != 54) {
+    return "";
+  }
+
+  String tmp = colors_;
+
+  for (int i = 0; i < 54; i++) {
+    char orig = tmp[i];
+
+    if (orig == 'r') {
+      tmp[i] = 'o';
+    } else if (orig == 'o') {
+      tmp[i] = 'r';
+    } else {
+      continue;
+    }
+
+    if (is_color_string_valid_impl(tmp)) {
+      return tmp;
+    }
+
+    tmp[i] = orig;
+  }
+
+  return "";
+}
+
+static void count_colors(const String &s, int counts[256]) {
+  memset(counts, 0, 256 * sizeof(int));
+  for (int i = 0; i < s.length(); i++) {
+    counts[(uint8_t)s[i]]++;
+  }
+}
+
+String ColorAnalyzer::fix_string_smart() const {
+  String s;
+
+  s = fix_string_unknown_1();
+  if (s.length() == 54) return s;
+
+  s = fix_string_unknown_2();
+  if (s.length() == 54) return s;
+
+  s = fix_string_unknown_3();
+  if (s.length() == 54) return s;
+
+  s = fix_string_ro_1();
+  if (s.length() == 54) return s;
+
+  s = fix_string_count_1();
+  if (s.length() == 54) return s;
+
+  s = fix_string_ro_2();
+  if (s.length() == 54) return s;
+
+  s = fix_string_count_2();
+  if (s.length() == 54) return s;
+
+  s = fix_string_general_1();
+  if (s.length() == 54) return s;
+
+  return "";
+}
+
+static const int face_rotations[24][6] = {
+  // Identity
+  {0,1,2,3,4,5},
+
+  // Rotate around Y (vertical)
+  {0,2,4,3,5,1},
+  {0,4,5,3,1,2},
+  {0,5,1,3,2,4},
+
+  // Rotate around X
+  {2,1,3,5,4,0},
+  {3,1,5,0,4,2},
+  {5,1,0,2,4,3},
+
+  // Rotate around Z
+  {4,0,2,1,3,5},
+  {3,4,2,0,1,5},
+  {1,3,2,4,0,5},
+
+  // Remaining 14 (full 24 cube orientations)
+  {2,0,4,5,3,1},
+  {4,3,0,1,5,2},
+  {5,4,3,2,1,0},
+  {3,5,1,0,2,4},
+  {1,2,0,4,5,3},
+  {0,3,1,5,2,4},
+  {2,4,1,3,0,5},
+  {4,1,3,0,5,2},
+  {5,3,4,2,0,1},
+  {3,0,5,1,4,2},
+  {1,5,2,4,3,0},
+  {0,2,5,3,1,4},
+  {0,5,4,3,2,1}
+};
+
+static void apply_face_rotation(
+    const String &in,
+    String &out,
+    const int face_map[6]
+) {
+  for (int f = 0; f < 6; f++) {
+    int src_face = face_map[f];
+    for (int i = 0; i < 9; i++) {
+      out[f * 9 + i] = in[src_face * 9 + i];
+    }
+  }
+}
+
+static int opposite_face(int f) {
+  switch (f) {
+    case 0: return 3; // U-D
+    case 3: return 0;
+    case 1: return 4; // R-L
+    case 4: return 1;
+    case 2: return 5; // F-B
+    case 5: return 2;
+    default: return -1;
+  }
+}
+
+static int face_of_center_index(int idx) {
+  switch (idx) {
+    case 4:  return 0; // U
+    case 13: return 1; // R
+    case 22: return 2; // F
+    case 31: return 3; // D
+    case 40: return 4; // L
+    case 49: return 5; // B
+    default: return -1;
+  }
+}
+
+struct SchemePair {
+  char a;
+  char b;
+};
+
+static const SchemePair scheme_pairs[3] = {
+  { 'w', 'y' }, // U-D
+  { 'r', 'o' }, // R-L
+  { 'g', 'b' }  // F-B
+};
+
+String ColorAnalyzer::infer_centers_from_partial(const String &s) const {
+  if (s.length() != 54) return "";
+
+  char centers[6] = { '.', '.', '.', '.', '.', '.' };
+  bool used[256] = { false };
+  int known = 0;
+
+  // Step 1: read known centers
+  for (int i = 0; i < 6; i++) {
+    char c = s[center_idx[i]];
+    if (c != '.') {
+      if (used[(uint8_t)c]) return ""; // duplicate center
+      centers[i] = c;
+      used[(uint8_t)c] = true;
+      known++;
+    }
+  }
+
+  if (known < 2) return "";
+
+  // Step 2: assign opposite faces if one side known
+  for (int p = 0; p < 3; p++) {
+    int f1 = p;
+    int f2 = opp_face[p];
+
+    char c1 = centers[f1];
+    char c2 = centers[f2];
+
+    if (c1 != '.' && c2 != '.') {
+      // Must match scheme pair
+      if (!(
+          (c1 == scheme_pairs[p].a && c2 == scheme_pairs[p].b) ||
+          (c1 == scheme_pairs[p].b && c2 == scheme_pairs[p].a)
+      )) {
+        return "";
+      }
+    } else if (c1 != '.' || c2 != '.') {
+      char known_c = (c1 != '.') ? c1 : c2;
+      char fill =
+        (known_c == scheme_pairs[p].a) ? scheme_pairs[p].b :
+        (known_c == scheme_pairs[p].b) ? scheme_pairs[p].a :
+        0;
+
+      if (!fill) return "";
+
+      if (c1 == '.') centers[f1] = fill;
+      else           centers[f2] = fill;
+
+      used[(uint8_t)fill] = true;
+    }
+  }
+
+  // Step 3: fill remaining pairs ONLY if unambiguous
+  for (int p = 0; p < 3; p++) {
+    int f1 = p;
+    int f2 = opp_face[p];
+
+    if (centers[f1] == '.' && centers[f2] == '.') {
+      char a = scheme_pairs[p].a;
+      char b = scheme_pairs[p].b;
+
+      bool a_used = used[(uint8_t)a];
+      bool b_used = used[(uint8_t)b];
+
+      // exactly one of the pair must be unused
+      if (a_used == b_used) {
+        return ""; // ambiguous or impossible
+      }
+
+      char first  = a_used ? b : a;
+      char second = a_used ? a : b;
+
+      centers[f1] = first;
+      centers[f2] = second;
+
+      used[(uint8_t)first]  = true;
+      used[(uint8_t)second] = true;
+    }
+  }
+
+  // Step 4: verify all centers filled
+  for (int i = 0; i < 6; i++) {
+    if (centers[i] == '.') return "";
+  }
+
+  // Step 5: write back
+  String out = s;
+  for (int i = 0; i < 6; i++) {
+    out[center_idx[i]] = centers[i];
+  }
+
+  return out;
+}
+
+String ColorAnalyzer::rotate_to_standard_scheme(const String &s) const {
+  if (s.length() != 54) return "";
+
+  // 1) Ensure centers are inferable + scheme-valid
+  String full = infer_centers_from_partial(s);
+  if (full.length() != 54) return "";
+
+  if (!are_centers_valid_scheme_bool()) return "";
+
+  // 2) Try all cube orientations
+  for (int r = 0; r < 24; r++) {
+    String tmp = full;
+
+    apply_face_rotation(full, tmp, face_rotations[r]);
+
+    char U = tmp[center_idx[0]];
+    char F = tmp[center_idx[2]];
+
+    // Standard orientation condition
+    if (U == 'w' && F == 'g') {
+      return tmp;
+    }
+  }
+
+  return "";
+}
+
+
+bool ColorAnalyzer::is_orientation_string_valid_bool(const String &s) const {
+  bool src_seen[6] = { false };
+  bool dst_seen[6] = { false };
+
+  auto face_index = [](char c) -> int {
+    switch (c) {
+      case 'u': return 0;
+      case 'r': return 1;
+      case 'f': return 2;
+      case 'd': return 3;
+      case 'l': return 4;
+      case 'b': return 5;
+      default:  return -1;
+    }
+  };
+
+  int pos = 0;
+  int pairs = 0;
+
+  while (pos < s.length()) {
+    // skip spaces
+    while (pos < s.length() && s[pos] == ' ') pos++;
+    if (pos >= s.length()) break;
+
+    // need at least x->y (4 chars)
+    if (pos + 3 >= s.length()) return false;
+
+    char src = tolower(s[pos]);
+    if (face_index(src) < 0) return false;
+
+    if (s[pos + 1] != '-' || s[pos + 2] != '>') return false;
+
+    char dst = tolower(s[pos + 3]);
+    if (face_index(dst) < 0) return false;
+
+    int si = face_index(src);
+    int di = face_index(dst);
+
+    if (src_seen[si] || dst_seen[di]) return false;
+
+    src_seen[si] = true;
+    dst_seen[di] = true;
+    pairs++;
+
+    pos += 4;
+
+    // optional trailing space
+    if (pos < s.length() && s[pos] == ' ') pos++;
+  }
+
+  return pairs == 6;
+}
+
+String ColorAnalyzer::get_orientation_string(const String &s) const {
+  if (s.length() != 54) return "";
+
+  // Step 1: infer full centers using scheme rules
+  String full = infer_centers_from_partial(s);
+  if (full.length() != 54) return "";
+
+  if (!are_centers_valid_scheme_bool()) return "";
+
+  // Step 2: extract centers
+  char centers[6];
+  extract_centers(full, centers);
+
+  // Standard target centers (U R F D L B)
+  const char target[6] = { 'w', 'r', 'g', 'y', 'o', 'b' };
+
+  // Step 3: find matching rotation
+  for (int r = 0; r < 24; r++) {
+    char rotated[6];
+    apply_face_rotation_centers(centers, rotated, face_rotations[r]);
+
+    bool ok = true;
+    for (int i = 0; i < 6; i++) {
+      if (rotated[i] != target[i]) {
+        ok = false;
+        break;
+      }
+    }
+
+    if (!ok) continue;
+
+    // Step 4: build orientation string
+    static const char face_char[6] = { 'u','r','f','d','l','b' };
+    String out;
+
+    for (int new_f = 0; new_f < 6; new_f++) {
+      int old_f = face_rotations[r][new_f];
+      out += face_char[old_f];
+      out += "->";
+      out += face_char[new_f];
+      if (new_f < 5) out += " ";
+    }
+
+    return out;
+  }
+
+  return "";
+}
+
+static bool extract_centers(const String &s, char centers[6]) {
+  if (s.length() != 54) return false;
+
+  const int center_idx[6] = {4,13,22,31,40,49};
+
+  for (int i = 0; i < 6; i++) {
+    centers[i] = s[center_idx[i]];
+  }
+  return true;
+}
+
+
+
 // ============================================================
 // Global instance
 // ============================================================

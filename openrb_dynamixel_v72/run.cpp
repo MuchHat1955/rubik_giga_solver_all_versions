@@ -1220,6 +1220,7 @@ bool cmd_detect_cube(int argc, double *argv) {
     return false;
 
   // bring the grip in position
+  LOG_INFO(MOD_SERVO_MOVE, "bring grip in position", Y_CENTER);
   if (!cmdMoveGripperPer(G_OPEN)) return false;
   if (!cmdMoveXmm(X_CENTER)) return false;
   if (!prepArmsForWristRotationGripOpen()) return false;
@@ -1228,15 +1229,17 @@ bool cmd_detect_cube(int argc, double *argv) {
   if (!cmdMoveYmm(Y_CENTER)) return false;
 
   const uint16_t PWM_REG = 124;
-
-  double per1 = getPos_per(ID_GRIP1);
-  double per2 = getPos_per(ID_GRIP2);
-
   const double STEP = 0.8;
 
   bool touched1 = false;
   bool touched2 = false;
 
+  if (!cmdMoveGripperPer(G_NEARCLOSE)) return false;
+  double per1 = getPos_per(ID_GRIP1);
+  double per2 = getPos_per(ID_GRIP2);
+
+  LOG_INFO(MOD_SERVO_MOVE, "test grip from grip1 per", per1);
+  LOG_VAR("grip 2 per", per2);
   for (int step = 0; step < 133; step++) {
 
     dxl.setGoalPosition(ID_GRIP1, per2ticks(ID_GRIP1, per1));
@@ -1379,4 +1382,13 @@ bool print_servo_info(uint8_t id) {
   LOG_VAR("pos_ticks", pos);
 
   return true;
+}
+
+bool cmd_detect_ori(int argc, double *argv) {
+  //TODOTODO
+  return false;
+}
+bool cmd_restore_color_ori(int argc, double *argv) {
+  //TODOTODO
+  return false;
 }

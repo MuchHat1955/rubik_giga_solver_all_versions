@@ -833,4 +833,13 @@ void CubeColorReader::fill_solved_cube_top2layers_() {
   memcpy(colors_, solved_top2layers_54, 54);
 }
 
+bool CubeColorReader::read_cube_centers() {
+  //TODOTODO
+  return false;
+}
+String CubeColorReader::get_color_string_centers() const {
+  //TODOTODO
+  return "";
+}
+
 CubeColorReader color_reader(ori, read_one_color_cb);

@@ -40,6 +40,12 @@ static CommandEntry command_table[] = {
   { "MOVECUBE", "<moves>", nullptr, "MOVECUBE <moves> - cube moves (f+ f- f2 b+ b- b2 r+ r- r2 l+ l- l2 u+ u- u2 d+ d- d2)" },
   { "READCOLORS", "<mode>", nullptr, "READCOLORS <all|bottom|solved> - read cube colors (u=white f=green r=red)" },
   { "DETECTCUBE", "", cmd_detect_cube, "DETECTCUBE - detect if a cube is in the base" },
+  { "DETECTORI", "", cmd_detect_ori, "DETECTORI - detect orientation from center colors" },
+  { "RESTORECOLORORI", "", cmd_restore_color_ori, "RESTORECOLORORI - restore cube to standard center colors orientation" },
+  { "RESTOREORI", "", cmd_restore_ori, "RESTOREORI - restore cube to original orientation" },
+  { "GETCOLORDATA", "", cmd_getcolor_data, "GETCOLORDATA - print raw color data" },
+  { "GETORIDATA", "", cmd_getori_data, "GETORIDATA - print orientation move log" },
+  { "CLEARORIDATA", "", cmd_clear_ori_data, "CLEARORIDATA - clear orientation data" },
 
   // debug for robot moves
   // { "", "", nullptr, "---------------- DEBUG : ROBOT MOVES ----------------" },
@@ -86,13 +92,6 @@ static CommandEntry command_table[] = {
   { "COLORSENSOR", "%d", cmd_color, "COLORSENSOR <count> - read color <count> times" },
   { "ONECOLOR", "", cmd_read_one_color, "ONECOLOR - read one slot (1..6)" },
   { "ONEFACECOLOR", "", cmd_read_one_face_colors, "ONEFACECOLOR - read colors of the front face" },
-  { "GETCOLORDATA", "", cmd_getcolor_data, "GETCOLORDATA - print raw color data" },
-
-  // orientation
-  // { "", "", nullptr, "------------------ ORIENTATION -----------------------" },
-  { "GETORIDATA", "", cmd_getori_data, "GETORIDATA - print orientation move log" },
-  { "CLEARORIDATA", "", cmd_clear_ori_data, "CLEARORIDATA - clear orientation data" },
-  { "RESTOREORI", "", cmd_restore_ori, "RESTOREORI - restore cube to original orientation" },
 };
 
 

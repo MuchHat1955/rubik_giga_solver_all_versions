@@ -21,6 +21,7 @@ public:
   void clear();
   bool read_cube_full();
   bool read_cube_bottom();
+  bool read_cube_centers();
   void fill_solved_cube();
 
   String _54() const;
@@ -28,8 +29,8 @@ public:
   void print_cube_colors_diagram();
   String get_color_string_face(char face) const;
   String get_color_string_faces() const;
-    String get_color_string_54() const;
-
+  String get_color_string_54() const;
+  String get_color_string_centers() const;
 
 private:
   CubeOri &ori_;

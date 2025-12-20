@@ -31,8 +31,9 @@
 // ---- gripper poses
 #define G_OPEN 28
 #define G_WIDE_OPEN -1
-#define G_CLOSE 100
-#define G_SOFT_CLOSE 60
+#define G_CLOSE 95
+#define G_SOFT_CLOSE 65
+#define G_NEARCLOSE 77
 #define G_ALIGN_LEFT 100
 #define G_ALIGN_RIGHT 100
 
@@ -170,3 +171,7 @@ bool isWristVert();
 bool isWristNearHoriz();
 bool isWristNearVert();
 bool cmd_detect_cube(int argc, double *argv);
+
+// new
+bool cmd_detect_ori(int argc, double *argv);
+bool cmd_restore_color_ori(int argc, double *argv);
