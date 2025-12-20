@@ -991,6 +991,14 @@ int16_t readReg16(uint8_t id, uint16_t addr) {
   return 0;
 }
 
+// TODO was 90, setting now to 20%, range is −885 ~ 885
+const int PWM_TOUCH = 0.2 * 885;
+double MAX_PER_CLAMP_GRIP = 90.0;
+
+bool isGripAtTouch(int pwm) {
+  return (abs(pwm) > PWM_TOUCH);
+}
+
 bool cmdMoveGripperClamp() {
   if (getPos_per(ID_GRIP1) < 85.0 || getPos_per(ID_GRIP2) < 85.0) {
     if (!cmdMoveGripperPer(85.0)) return false;
@@ -999,7 +1007,6 @@ bool cmdMoveGripperClamp() {
     setPid(ID_GRIP2, 0.8, 0.10, 0.35);
 
     const uint16_t PWM_REG = 124;
-    const int PWM_TOUCH = 0.2 * 885; // TODO was 90, setting now to 20%, range is −885 ~ 885
     const double EXTRA = 3.5;  //TODO was 1.5
 
     bool touched1 = false;
@@ -1010,8 +1017,15 @@ bool cmdMoveGripperClamp() {
     double per2 = getPos_per(ID_GRIP2);
 
     const double STEP = 0.8;  // faster closing
+    double extraGripForOneFinger = 6.0;
 
     for (int step = 0; step < 80; step++) {
+      if (per1 > (MAX_PER_CLAMP_GRIP + extraGripForOneFinger) &&  //
+          per2 > (MAX_PER_CLAMP_GRIP + extraGripForOneFinger)) {
+        LOG_ERR(MOD_SERVO_MOVE, "no clamp at max grip per1", per1);
+        LOG_VAR("per2", per2);
+        return false;
+      }
       if (!touched1) dxl.setGoalPosition(ID_GRIP1, per2ticks(ID_GRIP1, per1));
       if (!touched2) dxl.setGoalPosition(ID_GRIP2, per2ticks(ID_GRIP2, per2));
 
@@ -1021,8 +1035,8 @@ bool cmdMoveGripperClamp() {
         int16_t pwm1 = readReg16(ID_GRIP1, PWM_REG);
         int16_t pwm2 = readReg16(ID_GRIP2, PWM_REG);
 
-        if (!touched1 && abs(pwm1) >= PWM_TOUCH) touched1 = true;
-        if (!touched2 && abs(pwm2) >= PWM_TOUCH) touched2 = true;
+        if (!touched1 && isGripAtTouch(pwm1)) touched1 = true;
+        if (!touched2 && isGripAtTouch(pwm2)) touched2 = true;
 
         delay(2);  // faster update
       }

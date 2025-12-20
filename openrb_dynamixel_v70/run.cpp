@@ -15,6 +15,8 @@ extern double min_ymm;
 extern double speed;
 extern double max_speed;
 
+extern double MAX_PER_CLAMP_GRIP;
+
 extern CubeOri ori;
 extern CubeColorReader color_reader;
 extern ColorAnalyzer color_analyzer;
@@ -833,7 +835,8 @@ bool rotateBaseRelative(double baseMoveRelative, bool gripperOn) {
 
   if (baseMoveRelative == B_CENTER) return true;  // no move
 
-  if (!prepBaseForRotation(baseMoveRelative)) return false;
+  if (!gripperOn)
+    if (!prepBaseForRotation(baseMoveRelative)) return false;
 
   double b_pos = getPos_deg(ID_BASE);
   // // serial_printf_verbose("***** base after prep pos is %.2f", b_pos);
@@ -1195,13 +1198,11 @@ bool cmd_detect_cube(int argc, double *argv) {
   if (!cmdMoveYmm(Y_CENTER)) return false;
 
   const uint16_t PWM_REG = 124;
-  const int PWM_TOUCH = 200;
 
   double per1 = getPos_per(ID_GRIP1);
   double per2 = getPos_per(ID_GRIP2);
 
   const double STEP = 0.8;
-  const double MAX_CLOSE = 105.0;
 
   bool touched1 = false;
   bool touched2 = false;
@@ -1216,16 +1217,28 @@ bool cmd_detect_cube(int argc, double *argv) {
       int16_t pwm1 = readReg16(ID_GRIP1, PWM_REG);
       int16_t pwm2 = readReg16(ID_GRIP2, PWM_REG);
 
-      if (abs(pwm1) >= PWM_TOUCH) touched1 = true;
-      if (abs(pwm2) >= PWM_TOUCH) touched2 = true;
+      if (isGripAtTouch(pwm1)) touched1 = true;
+      if (isGripAtTouch(pwm2)) touched2 = true;
 
       if (touched1 && touched2) {
-        LOG_INFO(MOD_SERVO_MOVE, "cube detect pwm1 at touch", pwm1);
-        LOG_INFO(MOD_SERVO_MOVE, "cube detect pwm2 at touch", pwm2);
+        if (touched1) {
+          LOG_INFO(MOD_SERVO_MOVE, "grip1 touched pmw1", pwm1);
+          LOG_VAR("grip1 pos", getPos_per(ID_GRIP1));
+        }
+        if (touched2) {
+          LOG_INFO(MOD_SERVO_MOVE, "grip2 touched pmw2", pwm2);
+          LOG_VAR("grip2 pos", getPos_per(ID_GRIP2));
+        }
         break;
       } else if (touched1 || touched2) {
-        LOG_INFO(MOD_SERVO_MOVE, "cube detect pwm1 at touch", pwm1);
-        LOG_INFO(MOD_SERVO_MOVE, "cube detect pwm2 at touch", pwm2);
+        if (touched1) {
+          LOG_INFO(MOD_SERVO_MOVE, "grip1 touched pmw1", pwm1);
+          LOG_VAR("grip1 pos", getPos_per(ID_GRIP1));
+        }
+        if (touched2) {
+          LOG_INFO(MOD_SERVO_MOVE, "grip2 touched pmw2", pwm2);
+          LOG_VAR("grip2 pos", getPos_per(ID_GRIP2));
+        }
         break;
       }
       delay(2);
@@ -1248,11 +1261,11 @@ bool cmd_detect_cube(int argc, double *argv) {
     per1 += STEP;
     per2 += STEP;
 
-    if (per1 > MAX_CLOSE) per1 = MAX_CLOSE;
-    if (per2 > MAX_CLOSE) per2 = MAX_CLOSE;
+    if (per1 > MAX_PER_CLAMP_GRIP) per1 = MAX_PER_CLAMP_GRIP;
+    if (per2 > MAX_PER_CLAMP_GRIP) per2 = MAX_PER_CLAMP_GRIP;
 
     // Fully closed without load → no cube
-    if (per1 >= MAX_CLOSE && per2 >= MAX_CLOSE) {
+    if (per1 >= MAX_PER_CLAMP_GRIP && per2 >= MAX_PER_CLAMP_GRIP) {
       if (!cmdMoveGripperPer(G_OPEN)) return false;
       if (!cmdMoveXmm(X_CENTER)) return false;
       if (!cmdMoveYmm(Y_DOWN)) return false;

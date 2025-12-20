@@ -131,13 +131,14 @@ bool cmdMoveYmm(double goal_ymm);
 bool cmdMoveXmm(double x_mm);
 bool cmdMoveGripperClamp();
 
-void read_print_kinematics_state(char* descr=nullptr);
-void print_kinematics_state(char* descr=nullptr);
+void read_print_kinematics_state(char* descr = nullptr);
+void print_kinematics_state(char* descr = nullptr);
 
 bool robot_move_callback(const String& mv);
 bool isGripperOpen(double min_open);
 
 bool isYmmAbove(double min_y);
 int16_t readReg16(uint8_t id, uint16_t addr);
+bool isGripAtTouch(int pwm);
 
 #endif  // MOVEMENT_H
