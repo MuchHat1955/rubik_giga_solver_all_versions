@@ -1221,15 +1221,10 @@ void ColorAnalyzer::apply_face_rotation_centers(
   }
 }
 
-bool ColorAnalyzer::extract_centers(const String &s, char centers[6]) {
-  if (s.length() != 54) return false;
-
-  for (int i = 0; i < 6; i++) {
-    centers[i] = s[ColorAnalyzer::center_idx[i]];
-  }
-  return true;
+bool ColorAnalyzer::fill_top_2_layers_as_solved();
+{
+  TODO
 }
-
 bool ColorAnalyzer::are_centers_valid_scheme_bool() const {
   // Expected opposite-face color pairs
   struct Pair {
@@ -1288,6 +1283,7 @@ bool ColorAnalyzer::are_centers_valid_scheme_bool() const {
 
   return true;
 }
+
 char get_color_from_color_string_54(char face, int slot) {
   if (slot < 0 || slot > 8) return '\0';
   char lf = tolower(face);

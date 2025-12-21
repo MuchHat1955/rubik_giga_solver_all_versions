@@ -1202,7 +1202,7 @@ bool cmd_read_cube_colors(const String &mode_in) {
     // no clear colors, update in place
     ok = color_reader.read_cube_bottom();
     if (ok) {
-      if (!color_reader.update_top_2_layers()) {
+      if (!color_reader.fill_top_2_layers_as_solved()) {
         LOG_ERR(MOD_RUN, "error", "update top 2 layers failed");
         color_reader.clear_colors();
         ok = false;

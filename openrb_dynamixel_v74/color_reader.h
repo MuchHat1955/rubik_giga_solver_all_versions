@@ -37,7 +37,7 @@ private:
   char colors_[54];  // u r f d l b, 9 stickers each
 
   void fill_unknown_();
-  void fill_solved_cube_top2layers_();
+  void fill_solved_cube_top2_layers_();
   void apply_slot_to_face_(char face, int slot, char color, bool mirrored);
   int face_base_index_(char face) const;
   bool read_cube(int scan_mode);

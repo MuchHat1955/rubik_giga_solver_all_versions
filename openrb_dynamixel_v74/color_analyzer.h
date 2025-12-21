@@ -11,6 +11,7 @@ public:
 
   // Public wrappers
   void set_colors(const String &colors);
+  bool fill_top_2_layers_as_solved();
   bool is_color_string_valid_bool() const;
   bool is_string_fixable_bool() const;
   bool try_fix_color_string(String &fixed_out) const;

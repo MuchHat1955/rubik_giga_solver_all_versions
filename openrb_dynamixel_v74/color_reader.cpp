@@ -705,11 +705,12 @@ bool CubeColorReader::read_cube(int scan_mode) {
   LOG_VAR("total_steps", total_steps);
 
   if (scan_mode == SCAN_MODE_FULL) fill_unknown_();
-  if (scan_mode == SCAN_MODE_BOTTOM) fill_solved_cube_top2layers_();
+  if (scan_mode == SCAN_MODE_BOTTOM) fill_solved_cube_top2_layers_();
 
   // LOG_INFO(MOD_COLORSCAN, "info","orientation cleared");
   // Ensure orientation is clear
-  if (scan_mode != SCAN_MODE_CENTERS) ori_.clear_orientation_data();
+
+  // if (scan_mode != SCAN_MODE_CENTERS) ori_.clear_orientation_data(); TODO check if this is needed
   const color_map_step_t *orientation_map_ptr = k_color_map_steps_all;
   if (scan_mode == SCAN_MODE_BOTTOM) orientation_map_ptr = k_color_map_steps_bottom;
   if (scan_mode == SCAN_MODE_CENTERS) orientation_map_ptr = k_color_map_steps_centers;
@@ -888,7 +889,7 @@ static const char solved_54[55] =
   "OOOOOOOOO"   // L
   "BBBBBBBBB";  // B
 
-static const char solved_top2layers_54[55] =
+static const char solved_top2_layers_54[55] =
   "WWWWWWWWW"   // U
   "RRRRRR..."   // R
   "GGGGGG..."   // F
@@ -899,7 +900,7 @@ static const char solved_top2layers_54[55] =
 void CubeColorReader::fill_solved_cube() {
   memcpy(colors_, solved_54, 54);
 }
-void CubeColorReader::fill_solved_cube_top2layers_() {
+void CubeColorReader::fill_solved_cube_top2_layers_() {
   // Default center colors in URFDLB order
   static const char default_centers[6] = {
     'W', 'R', 'G', 'Y', 'O', 'B'
@@ -911,7 +912,7 @@ void CubeColorReader::fill_solved_cube_top2layers_() {
   };
 
   // 1) Start from default solved top-2-layers template
-  memcpy(colors_, solved_top2layers_54, 54);
+  memcpy(colors_, solved_top2_layers_54, 54);
 
   // 2) Determine effective centers
   char centers[6];
