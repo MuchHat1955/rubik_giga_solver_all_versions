@@ -1160,6 +1160,12 @@ char read_one_color_cb(int slot) {
   return c;
 }
 
+TODO
+add a check orientation by reading front sticker
+use
+ori.robot_face_to_cube_face
+ori.cube_face_to_robot_face
+
 bool cmd_read_cube_colors(const String &mode_in) {
   String mode = mode_in;
   mode.toLowerCase();

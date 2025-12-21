@@ -645,6 +645,14 @@ String CubeOri::get_orientation_string() const {
   return out;
 }
 
+char CubeOri::robot_face_to_cube_face(char f_face) {
+  TODO
+}
+char CubeOri::cube_face_to_robot_face(char f_face)
+}
+TODO
+}
+
 // ============================================================
 // set orintation knowing: F->... R->...
 // ============================================================
@@ -657,5 +665,9 @@ char oposite_face(char face) {
 }
 
 bool is_orientation_string_valid(String ori_string) {
+  TODO
+}
+
+bool is_valid_face(char face) {
   TODO
 }

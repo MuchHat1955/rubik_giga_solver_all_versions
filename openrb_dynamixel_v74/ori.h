@@ -87,6 +87,9 @@ public:
     return orientations_equal_(ori_, other);
   }
 
+  char robot_face_to_cube_face(char f_face);
+char cube_face_to_robot_face(char f_face);
+
 private:
 
   Orientation ori_;
@@ -120,3 +123,4 @@ private:
 
 char oposite_face(char face);
 bool   is_orientation_string_valid(String ori_string);
+bool is_valid_face(char face);
