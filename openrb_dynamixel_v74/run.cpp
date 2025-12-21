@@ -1160,12 +1160,6 @@ char read_one_color_cb(int slot) {
   return c;
 }
 
-TODO
-add a check orientation by reading front sticker
-use
-ori.robot_face_to_cube_face
-ori.cube_face_to_robot_face
-
 bool cmd_read_cube_colors(const String &mode_in) {
   String mode = mode_in;
   mode.toLowerCase();
@@ -1192,49 +1186,56 @@ bool cmd_read_cube_colors(const String &mode_in) {
   }
   ori.clear_orientation_data();
   ori.clear_move_log();
-
   bool ok = false;
 
   if (do_full) {  //
     LOG_INFO(MOD_RUN, "info", "full");
+    color_reader.clear_colors();
     ok = color_reader.read_cube_full();
   } else if (do_solved) {  //
     LOG_INFO(MOD_RUN, "info", "solved");
+    color_reader.clear_colors();
     color_reader.fill_solved_cube();
     ok = true;
   } else if (do_bottom) {  //
     LOG_INFO(MOD_RUN, "info", "bottom");
+    // no clear colors, update in place
     ok = color_reader.read_cube_bottom();
+    if (ok) {
+      if (!color_reader.update_top_2_layers()) {
+        LOG_ERR(MOD_RUN, "error", "update top 2 layers failed");
+        color_reader.clear_colors();
+        ok = false;
+      }
+    }
   } else if (do_centers) {  //
     LOG_INFO(MOD_RUN, "info", "centers");
+    // no clear colors, update in place
     ok = color_reader.read_cube_centers();
   }
+  // restore ori
+  ori.clear_orientation_data();
+  ori.clear_move_log();
+  if (ok) {
+    if (!ori.restore_cube_orientation()) {
+      LOG_ERR(MOD_RUN, "error", "could not restore ori");
+      color_reader.clear_colors();
+      ok = false;
+    }
+  }
+  if (ok) {
+    if (!update_ori_from_color_54(color_reader.get_color_string_54())) {
+      LOG_ERR(MOD_RUN, "error", "could not update ori from colors");
+      color_reader.clear_colors();
+      ok = false;
+    }
+  }
   if (!ok) {
-    //
     LOG_ERR(MOD_RUN, "error", "failed");
     return false;
   }
+  color_analyzer.set_colors(colors_just_read);
 
-  String colors_just_read = color_reader.get_color_string_54();
-  if (do_centers) {
-    LOG_INFO(MOD_RUN, "infer all centers from", colors_just_read);
-    //
-    TODO
-      use set_orientation_from_front_and_right_faces
-        use char
-        get_color_from_color_string_54(char face, int slot)
-    /*
-    String color_string_with_centers = color_analyzer.infer_centers_from_partial(colors_just_read);
-    if (color_string_with_centers = "") {
-      LOG_ERR(MOD_RUN, "cannot infer all centers from", colors_just_read);
-      ok = false;
-    } else {
-      color_analyzer.set_colors(color_string_with_centers);
-    }
-    */
-  } else {
-    color_analyzer.set_colors(colors_just_read);
-  }
   // After read
   LOG_INFO(MOD_RUN, "color_reader_color_string_54", colors_just_read);
   LOG_INFO(MOD_RUN, "color_reader_string_faces", color_reader.get_color_string_faces());
@@ -1441,45 +1442,34 @@ bool print_servo_info(uint8_t id) {
   return true;
 }
 
+bool cmd_check_ori(int argc, double *argv) {
+  return bool cmd_check_ori_run();
+}
+
+bool cmd_check_ori_run() {
+
+  char robot_face_front = ori.cube_face_to_robot_face('f');
+  if (!is_valid_face(robot_face_front)) {
+    LOG_ERR(MOD_RUN, "ori does not have orientation", robot_face_front);
+    return false;
+  }
+  char just_read_robot_color_front = char cmd_read_one_color_run(6);
+  if (!is_valid_color(just_read_robot_color_front)) {
+    LOG_ERR(MOD_RUN, "invalid_robot_center_color", just_read_robot_color_front);
+    return false;
+  }
+  char just_read_robot_face_front = color_to_face(just_read_robot_color_front);
+  if (just_read_robot_face_front == robot_face_front) {
+    LOG_INFO(MOD_CMD, "ori data matched color read on front", just_read_robot_face_front);
+    return true;
+  }
+  LOG_ERR(MOD_CMD, "ori data matched does not match color read on front", just_read_robot_face_front);
+  LOG_VAR("ori expects", robot_face_front);
+  return false;
+}
+
 bool cmd_detect_ori(int argc, double *argv) {
+  LOG_INFO(MOD_RUN, "info", "color read for centers will update ori")
   if (!color_reader.read_cube_centers()) return false;
-  String centers_colors = color_reader.get_color_string_centers();
-  if (centers_colors = "") {
-    LOG_ERR(MOD_CMD, "no center colors scan", centers_colors);
-    return false;
-  }
-  String color_string_with_centers = color_reader.get_color_string_54();
-  String ori_by_color = "";
-  ori_by_color = color_analyzer.get_orientation_string_from_colors(color_string_with_centers);
-  if (ori_by_color = "") {
-    LOG_ERR(MOD_CMD, "could not detect orientation by colors", ori_by_color);
-    return false;
-  }
-  LOG_INFO(MOD_CMD, "orintation by colors", ori_by_color);
   return true;
-}
-bool cmd_restore_ori_by_colors(int argc, double *argv) {
-  return cmd_restore_ori_by_colors_run();
-}
-
-bool cmd_restore_ori_by_colors_run() {
-  String color_string_with_centers = color_reader.get_color_string_54();
-  color_analyzer.set_colors(color_string_with_centers);
-  if (!color_analyzer.is_color_string_valid_bool()) {
-    LOG_ERR(MOD_CMD, "no valid color string", color_string_with_centers);
-    return false;
-  }
-
-  String ori_by_color = color_analyzer.get_orientation_string_from_colors(color_string_with_centers);
-  if (ori_by_color = "") {
-    LOG_ERR(MOD_CMD, "could not detect orientation by colors", ori_by_color);
-    return false;
-  }
-
-  LOG_INFO(MOD_CMD, "orintation by colors to use", ori_by_color);
-  if (!ori.set_orientation_string(ori_by_color)) {
-    LOG_ERR(MOD_CMD, "set ori string by colors failed", ori_by_color);
-    return false;
-  }
-  return cmd_restore_ori_run();
 }

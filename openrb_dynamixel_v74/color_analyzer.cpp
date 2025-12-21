@@ -1288,13 +1288,32 @@ bool ColorAnalyzer::are_centers_valid_scheme_bool() const {
 
   return true;
 }
+char get_color_from_color_string_54(char face, int slot) {
+  if (slot < 0 || slot > 8) return '\0';
+  char lf = tolower(face);
+  if (!is_valid_face(lf)) return '\0';
 
-char oposite_color(char color){
-  TODO
-}
+  // Convert logical face to current physical face
+  char phys = cube_ori.cube_face_to_robot_face(lf);
+  if (!is_valid_face(phys)) return '\0';
 
-char get_color_from_color_string_54(char face, int slot){
-  TODO
+  int base = -1;
+  switch (phys) {
+    case 'u': base = 0; break;
+    case 'r': base = 9; break;
+    case 'f': base = 18; break;
+    case 'd': base = 27; break;
+    case 'l': base = 36; break;
+    case 'b': base = 45; break;
+    default: return '\0';
+  }
+
+  // Fetch from current 54-color string
+  String s = color_reader.get_color_string_54();
+  if (s.length() != 54) return '\0';
+
+  char c = s.charAt(base + slot);
+  return (c == '.' ? '\0' : tolower(c));
 }
 
 // ============================================================

@@ -88,7 +88,7 @@ public:
   }
 
   char robot_face_to_cube_face(char f_face);
-char cube_face_to_robot_face(char f_face);
+  char cube_face_to_robot_face(char f_face);
 
 private:
 
@@ -122,5 +122,6 @@ private:
 };
 
 char oposite_face(char face);
-bool   is_orientation_string_valid(String ori_string);
+bool is_orientation_string_valid(String ori_string);
 bool is_valid_face(char face);
+bool update_ori_from_color_54(String color_54);

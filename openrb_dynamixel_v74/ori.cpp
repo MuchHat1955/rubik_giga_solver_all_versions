@@ -645,29 +645,220 @@ String CubeOri::get_orientation_string() const {
   return out;
 }
 
-char CubeOri::robot_face_to_cube_face(char f_face) {
-  TODO
-}
-char CubeOri::cube_face_to_robot_face(char f_face)
-}
-TODO
-}
+// ============================================================
+// Helpers
+// ============================================================
 
-// ============================================================
-// set orintation knowing: F->... R->...
-// ============================================================
-bool String CubeOri::set_orientation_from_front_and_right_faces(char f_face, char r_face) {
-  TODO
+bool is_valid_face(char face) {
+  char c = tolower(face);
+  return (c == 'u' || c == 'r' || c == 'f' || c == 'd' || c == 'l' || c == 'b');
 }
 
 char oposite_face(char face) {
-  TODO
+  char c = tolower(face);
+  switch (c) {
+    case 'u': return 'd';
+    case 'd': return 'u';
+    case 'r': return 'l';
+    case 'l': return 'r';
+    case 'f': return 'b';
+    case 'b': return 'f';
+    default: return '\0';
+  }
 }
 
 bool is_orientation_string_valid(String ori_string) {
-  TODO
+  bool src_seen[6] = { false };
+  bool dst_seen[6] = { false };
+
+  auto face_index = [](char c) -> int {
+    switch (tolower(c)) {
+      case 'u': return 0;
+      case 'r': return 1;
+      case 'f': return 2;
+      case 'd': return 3;
+      case 'l': return 4;
+      case 'b': return 5;
+      default: return -1;
+    }
+  };
+
+  int pos = 0;
+  int pairs = 0;
+
+  while (pos < ori_string.length()) {
+    while (pos < ori_string.length() && ori_string[pos] == ' ')
+      pos++;
+
+    if (pos >= ori_string.length())
+      break;
+
+    // must have at least x->y
+    if (pos + 3 >= ori_string.length())
+      return false;
+
+    char src = tolower(ori_string[pos]);
+    if (ori_string[pos + 1] != '-' || ori_string[pos + 2] != '>')
+      return false;
+
+    char dst = tolower(ori_string[pos + 3]);
+
+    int si = face_index(src);
+    int di = face_index(dst);
+    if (si < 0 || di < 0)
+      return false;
+
+    // no duplicates
+    if (src_seen[si] || dst_seen[di])
+      return false;
+
+    src_seen[si] = true;
+    dst_seen[di] = true;
+    pairs++;
+
+    pos += 4;
+    if (pos < ori_string.length() && ori_string[pos] == ' ')
+      pos++;
+  }
+
+  if (pairs != 6) return false;
+
+  for (int i = 0; i < 6; i++) {
+    if (!src_seen[i] || !dst_seen[i]) return false;
+  }
+  return true;
 }
 
-bool is_valid_face(char face) {
-  TODO
+// ============================================================
+// Face conversion helpers using current orientation
+// ============================================================
+
+char CubeOri::robot_face_to_cube_face(char f_face) {
+  char c = tolower(f_face);
+  if (!is_valid_face(c)) return '\0';
+
+  switch (c) {
+    case 'u': return ori_.U;
+    case 'r': return ori_.R;
+    case 'f': return ori_.F;
+    case 'd': return ori_.D;
+    case 'l': return ori_.L;
+    case 'b': return ori_.B;
+    default: return '\0';
+  }
+}
+
+char CubeOri::cube_face_to_robot_face(char f_face) {
+  char c = tolower(f_face);
+  if (!is_valid_face(c)) return '\0';
+
+  // inverse: physical direction where this logical face currently is
+  return find_physical_dir_for_logical_(c);  // returns '\0' if not found
+}
+
+// ============================================================
+// set orientation knowing: physical F has logical f_face, physical R has logical r_face
+// ============================================================
+
+bool CubeOri::set_orientation_from_front_and_right_faces(char f_face, char r_face) {
+  char f = tolower(f_face);
+  char r = tolower(r_face);
+
+  if (!is_valid_face(f) || !is_valid_face(r)) return false;
+
+  // Must be perpendicular (not same, not opposites)
+  if (f == r) return false;
+  if (oposite_face(f) == r) return false;
+
+  // Vector encoding in cube logical space:
+  // r=(+1,0,0), l=(-1,0,0), u=(0,+1,0), d=(0,-1,0), f=(0,0,+1), b=(0,0,-1)
+  struct V3 {
+    int x, y, z;
+  };
+
+  auto face_to_vec = [](char c) -> V3 {
+    switch (tolower(c)) {
+      case 'r': return { 1, 0, 0 };
+      case 'l': return { -1, 0, 0 };
+      case 'u': return { 0, 1, 0 };
+      case 'd': return { 0, -1, 0 };
+      case 'f': return { 0, 0, 1 };
+      case 'b': return { 0, 0, -1 };
+      default: return { 0, 0, 0 };
+    }
+  };
+
+  auto cross = [](V3 a, V3 b) -> V3 {
+    return {
+      a.y * b.z - a.z * b.y,
+      a.z * b.x - a.x * b.z,
+      a.x * b.y - a.y * b.x
+    };
+  };
+
+  auto vec_to_face = [](V3 v) -> char {
+    if (v.x == 1 && v.y == 0 && v.z == 0) return 'r';
+    if (v.x == -1 && v.y == 0 && v.z == 0) return 'l';
+    if (v.x == 0 && v.y == 1 && v.z == 0) return 'u';
+    if (v.x == 0 && v.y == -1 && v.z == 0) return 'd';
+    if (v.x == 0 && v.y == 0 && v.z == 1) return 'f';
+    if (v.x == 0 && v.y == 0 && v.z == -1) return 'b';
+    return '\0';
+  };
+
+  V3 vf = face_to_vec(f);
+  V3 vr = face_to_vec(r);
+
+  // Physical axes: X=R, Y=U, Z=F. For a right-handed frame: U = F x R
+  V3 vu = cross(vf, vr);
+  char u = vec_to_face(vu);
+  if (!is_valid_face(u)) return false;
+
+  // Build full consistent orientation (physical -> logical)
+  Orientation o;
+  o.F = f;
+  o.R = r;
+  o.U = u;
+  o.B = oposite_face(o.F);
+  o.L = oposite_face(o.R);
+  o.D = oposite_face(o.U);
+
+  if (!is_valid_face(o.B) || !is_valid_face(o.L) || !is_valid_face(o.D)) return false;
+
+  // Sanity: all 6 must be unique
+  bool used[256] = { false };
+  char faces[6] = { o.U, o.R, o.F, o.D, o.L, o.B };
+  for (int i = 0; i < 6; i++) {
+    uint8_t k = (uint8_t)faces[i];
+    if (used[k]) return false;
+    used[k] = true;
+  }
+
+  // Commit
+  ori_ = o;
+  orientation_log_ = get_orientation_string();
+  return true;
+}
+
+bool update_ori_from_color_54(String color_54) {
+  LOG_INFO(MOD_RUN, "infer all centers from", colors_just_read);
+
+  char front_color = get_color_from_color_string_54(colors_just_read, 'f', 5);
+  char right_color = get_color_from_color_string_54(colors_just_read, 'r', 5);
+
+  if (!is_valid_color(front_color) || !is_valid_color(right_color)) {
+    LOG_ERR(MOD_RUN, "front and right colors just read invalid front", front_color);
+    LOG_INFO("right", right_color);
+    return false;
+  }
+  char robot_front_face = color_to_face(front_color);
+  char robot_right_face = color_to_face(right_color);
+  //
+  bool ok = ori.set_orientation_from_front_and_right_faces(robot_front_face, robot_right_face);
+  if (ok) {
+    LOG_ERR(MOD_RUN, "ori set orintation from front and right faces failed attempted front", robot_front_face);
+    LOG_INFO("right", robot_right_face);
+    return false;
+  }
+  return true;
 }
