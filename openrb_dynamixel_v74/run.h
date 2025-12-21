@@ -174,5 +174,6 @@ bool cmd_detect_cube(int argc, double *argv);
 
 // new
 bool cmd_detect_ori(int argc, double *argv);
-bool cmd_restore_color_ori(int argc, double *argv);
+bool cmd_restore_ori_by_colors(int argc, double *argv);
 bool cmd_restore_ori_run();
+bool cmd_restore_ori_by_colors_run();

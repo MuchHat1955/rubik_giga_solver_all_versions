@@ -93,7 +93,7 @@ void log_begin_str(log_module_t enum_module, int i_type, const char *key, const 
   Serial.print(") ");
 
 
-  Serial.print(key);
+  serial_print_with_underscores(key);
   Serial.print("=");
   serial_print_with_underscores(v.c_str());
 

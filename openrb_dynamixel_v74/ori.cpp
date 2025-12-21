@@ -201,7 +201,7 @@ bool CubeOri::restore_cube_orientation() {
   // We only use: y+, y-, z+, z'.
   //
 
-  LOG_INFO(MOD_CUBEORI, "info", "orietation_restore_start");
+  LOG_INFO(MOD_CUBEORI, "info", "orientation_restore_start");
   const String moves[6] = { "z_plus", "z_minus", "z_180",  //
                             "y_plus", "y_minus", "y_180" };
 
@@ -643,4 +643,19 @@ String CubeOri::get_orientation_string() const {
     if (i < 5) out += ' ';
   }
   return out;
+}
+
+// ============================================================
+// set orintation knowing: F->... R->...
+// ============================================================
+bool String CubeOri::set_orientation_from_front_and_right_faces(char f_face, char r_face) {
+  TODO
+}
+
+char oposite_face(char face) {
+  TODO
+}
+
+bool is_orientation_string_valid(String ori_string) {
+  TODO
 }

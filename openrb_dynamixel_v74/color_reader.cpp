@@ -571,7 +571,7 @@ static const color_map_step_t k_color_map_steps_centers[] = {
   //      D
   //
   // -----------------------------------------------------------
-  { "none", "f", not_inverted, "1" },
+  { "none", "f", not_inverted, "5" },
 
   // -----------------------------------------------------------
   // 2) y_plus
@@ -582,7 +582,29 @@ static const color_map_step_t k_color_map_steps_centers[] = {
   //      D
   //
   // -----------------------------------------------------------
-  { "y_plus", "l", not_inverted, "1" }
+  { "y_plus", "l", not_inverted, "5" },
+
+  // -----------------------------------------------------------
+  // 3) z_plus
+  //
+  // --- orintentation after the step --------------------------
+  //      F
+  //   D  L  U  R  [reposition]
+  //      B
+  //
+  // -----------------------------------------------------------
+  { "z_plus", "", not_inverted, "" },
+
+  // -----------------------------------------------------------
+  // 4) y_plus
+  //
+  // --- orintentation after the step --------------------------
+  //      F
+  //   L  U  R  D  []
+  //      B
+  //
+  // -----------------------------------------------------------
+  { "y_plus", "u", not_inverted, "5" }
 };
 
 static const int k_num_color_map_steps_centers =
@@ -638,8 +660,8 @@ bool CubeColorReader::process_color_scan_step_(int step_index,
 }
 
 #define SCAN_MODE_FULL 0
-#define SCAN_MODE_BOTTOM 0
-#define SCAN_MODE_CENTERS 0
+#define SCAN_MODE_BOTTOM 1
+#define SCAN_MODE_CENTERS 2
 
 // ============================================================
 // Perform  scan
@@ -685,7 +707,7 @@ bool CubeColorReader::read_cube(int scan_mode) {
   if (scan_mode == SCAN_MODE_FULL) fill_unknown_();
   if (scan_mode == SCAN_MODE_BOTTOM) fill_solved_cube_top2layers_();
 
-  // LOG_INFO(MOD_COLORSCAN, "info","color reader: orientation cleared");
+  // LOG_INFO(MOD_COLORSCAN, "info","orientation cleared");
   // Ensure orientation is clear
   if (scan_mode != SCAN_MODE_CENTERS) ori_.clear_orientation_data();
   const color_map_step_t *orientation_map_ptr = k_color_map_steps_all;
@@ -705,16 +727,7 @@ bool CubeColorReader::read_cube(int scan_mode) {
   }
   // ~~~~~~~~~~~~~~~~ end scan ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  LOG_INFO(MOD_COLORSCAN, "info", "color scan completed");
-
-  if (scan_mode != SCAN_MODE_CENTERS) {
-    LOG_INFO(MOD_COLORSCAN, "info", "start orientation restore after color scan");
-    // Final restore
-    if (!ori_.restore_cube_orientation()) {
-      LOG_ERR(MOD_COLORSCAN, "error", "final restore failed");
-      return false;
-    }
-  }
+  LOG_INFO(MOD_COLORSCAN, "info", "color_scan_completed");
   LOG_INFO(MOD_COLORSCAN, "color_string_54", get_color_string_54().c_str());
   LOG_INFO(MOD_COLORSCAN, "color_string_faces", get_color_string_faces().c_str());
   LOG_INFO(MOD_COLORSCAN, "orientation", ori.get_orientation_string().c_str());
@@ -761,18 +774,38 @@ String CubeColorReader::get_color_string_54() const {
 }
 
 String CubeColorReader::get_color_string_faces() const {
-  String color_str_faces;
+  String out;
+  out.reserve(100);
 
-  color_str_faces.reserve(73);
-  color_str_faces = get_color_string_face('u');
-  color_str_faces += String(" ") + get_color_string_face('u');
-  color_str_faces += String(" ") + get_color_string_face('r');
-  color_str_faces += String(" ") + get_color_string_face('f');
-  color_str_faces += String(" ") + get_color_string_face('d');
-  color_str_faces += String(" ") + get_color_string_face('l');
-  color_str_faces += String(" ") + get_color_string_face('b');
-  return color_str_faces;
+  // Faces
+  out += "{";
+  out += get_color_string_face('u');
+  out += " ";
+  out += get_color_string_face('r');
+  out += " ";
+  out += get_color_string_face('f');
+  out += " ";
+  out += get_color_string_face('d');
+  out += " ";
+  out += get_color_string_face('l');
+  out += " ";
+  out += get_color_string_face('b');
+  out += "}";
+
+  // Centers (URFDLB)
+  out += " centers{";
+
+  static const int center_idx[6] = { 4, 13, 22, 31, 40, 49 };
+  for (int i = 0; i < 6; i++) {
+    char c = colors_[center_idx[i]];
+    out += (c ? c : '.');
+  }
+
+  out += "}";
+
+  return out;
 }
+
 
 //TODO_NOTUSED
 void CubeColorReader::print_cube_colors_diagram() {

@@ -18,12 +18,16 @@ public:
 
   // Stage detection
   const char *get_stage_name(int id) const;
-  int get_stage_count() const { return 7; }
+  int get_stage_count() const {
+    return 7;
+  }
   bool is_stage_done_bool(int id) const;
   bool is_stage_partial_bool(int id) const;
 
   // Diagnostic
-  String get_last_error() const { return last_error_; }
+  String get_last_error() const {
+    return last_error_;
+  }
 
   // ---- Smart fix entrypoint ----
   String fix_string_smart() const;
@@ -44,15 +48,8 @@ public:
   // ---- General single-sticker try ----
   String fix_string_general_1() const;
 
-  // ---- Center / orientation helpers ----
-  String infer_centers_from_partial(const String &s) const;
-  String rotate_to_standard_scheme(const String &s) const;
-
-  bool is_orientation_string_valid_bool(const String &s) const;
-  String get_orientation_string(const String &s) const;
-
 private:
-  String colors_;
+  String colors_standard_orientation_54_;
   mutable String last_error_;
 
   // --- Index / helper methods ---
@@ -83,7 +80,6 @@ private:
   bool are_centers_valid_scheme_bool() const;
 
   // ---- Rotation helpers ----
-  static int opposite_face(int f);
   static int face_of_center_index(int idx);
 
   static void apply_face_rotation(const String &, String &, const int[6]);
@@ -96,9 +92,12 @@ private:
 
   // ---- Geometry constants ----
   static constexpr int center_idx[6] = { 4, 13, 22, 31, 40, 49 };
-  static constexpr int opp_face[3]   = { 3, 4, 5 };
+  static constexpr int opp_face[3] = { 3, 4, 5 };
   static const int face_rotations[24][6];
 };
+
+char oposite_color(char color);
+char get_color_from_color_string_54(char face, int slot);
 
 // Global instance
 extern ColorAnalyzer color_analyzer;

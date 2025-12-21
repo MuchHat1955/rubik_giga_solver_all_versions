@@ -449,7 +449,7 @@ bool cmd_getori_data(int argc, double *argv) {
   LOG_INFO(MOD_RUN, "info", "ori move log");
   LOG_VAR("move_log", log.c_str());
 
-  print_colors_analyzer_detail();
+  // print_colors_analyzer_detail();
 
   return true;
 }
@@ -478,21 +478,43 @@ bool cmd_restore_ori(int argc, double *argv) {
 }
 
 bool cmd_restore_ori_run() {
-  if (!ori.restore_cube_orientation()) {
-    //
-    LOG_ERR(MOD_RUN, "error", "failed to restore orientation");
-    String s = ori.get_orientation_string();
-    //
-    LOG_INFO(MOD_RUN, "info", "ori orientation");
-    LOG_VAR("orientation", s.c_str());
 
-    String ori_log = ori.get_move_log();
-    //
-    LOG_INFO(MOD_RUN, "info", "ori move log");
-    LOG_VAR("move_log", ori_log.c_str());
+  bool ok_with_colors = true;
 
-    return false;
+  // get current colors
+  String colors_54 = color_reader.get_color_string_54();
+  LOG_INFO(MOD_RUN, "attempt_restore_with_colors", colors_54);
+
+  String colors_54_with_orientation = color_analyzer.infer_centers_from_partial(colors_54);
+  String orientation_string = "";
+
+  if (colors_54_with_orientation = "") {
+    ok_with_colors = false;
+    LOG_INFO(MOD_RUN, "will not restore by colors no centers", colors_54);
   }
+  if (ok_with_colors) {
+    LOG_INFO(MOD_RUN, "will attempt restore by colors", colors_54_with_orientation);
+    orientation_string = color_analyzer.get_orientation_string_from_colors(colors_54_with_orientation);
+    if (!color_analyzer.is_orientation_string_valid_bool(orientation_string)) {
+      LOG_INFO(MOD_RUN, "will not restore by colors cannot infer orientation", colors_54);
+      ok_with_colors = false;
+    }
+  }
+  if (ok_with_colors) {
+    LOG_INFO(MOD_RUN, "will restore by colors curr orientation", orientation_string);
+    if (!ori.set_orientation_string(orientation_string)) {
+      LOG_INFO(MOD_RUN, "will not restore by colors ori set orientation failed", orientation_string);
+    }
+  }
+
+  LOG_INFO(MOD_RUN, "start orientation restor from orientation", ori.get_orientation_string());
+  bool ok = ori.restore_cube_orientation();
+  if (!ok) {
+    LOG_ERR(MOD_RUN, "error", "failed to restore orientation");
+    LOG_VAR("orientation", ori.get_orientation_string());
+  }
+
+  LOG_INFO(MOD_RUN, "info", "return to pos zero");
 
   if (!cmdMoveGripperPer(G_OPEN)) return false;
   if (!cmdMoveYmm(Y_DOWN)) return false;
@@ -936,7 +958,7 @@ bool alignCube() {
 
   if (!cmdMoveServoPer(ID_GRIP2, G_ALIGN_LEFT)) return false;
   if (!cmdMoveServoDeg(ID_GRIP2, G_OPEN)) return false;
-  if (!cmdMoveServoDeg(ID_GRIP1, G_ALIGN_RIGHT)) return false; 
+  if (!cmdMoveServoDeg(ID_GRIP1, G_ALIGN_RIGHT)) return false;
   if (!cmdMoveServoDeg(ID_GRIP1, G_OPEN)) return false;
   if (!cmdMoveGripperPer(G_OPEN)) return false;
 
@@ -1186,15 +1208,34 @@ bool cmd_read_cube_colors(const String &mode_in) {
     LOG_ERR(MOD_RUN, "error", "failed");
     return false;
   }
-  // After read
-  ori.restore_cube_orientation();  //
-  LOG_INFO(MOD_RUN, "cube_color_string_54", color_reader.get_color_string_54());
-  LOG_INFO(MOD_RUN, "cube_color_string_faces", color_reader.get_color_string_faces().c_str());
-  LOG_INFO(MOD_RUN, "orientation", ori.get_orientation_string());
-  print_colors_analyzer_detail();
 
-  // reset position
-  return cmd_run_zero();
+  String colors_just_read = color_reader.get_color_string_54();
+  if (do_centers) {
+    LOG_INFO(MOD_RUN, "infer all centers from", colors_just_read);
+    //
+    TODO
+      use set_orientation_from_front_and_right_faces
+        use char
+        get_color_from_color_string_54(char face, int slot)
+    /*
+    String color_string_with_centers = color_analyzer.infer_centers_from_partial(colors_just_read);
+    if (color_string_with_centers = "") {
+      LOG_ERR(MOD_RUN, "cannot infer all centers from", colors_just_read);
+      ok = false;
+    } else {
+      color_analyzer.set_colors(color_string_with_centers);
+    }
+    */
+  } else {
+    color_analyzer.set_colors(colors_just_read);
+  }
+  // After read
+  LOG_INFO(MOD_RUN, "color_reader_color_string_54", colors_just_read);
+  LOG_INFO(MOD_RUN, "color_reader_string_faces", color_reader.get_color_string_faces());
+  LOG_INFO(MOD_RUN, "color_analyzer_is_valid", color_analyzer.is_color_string_valid_bool());
+  LOG_INFO(MOD_RUN, "color_analyzer_is_fixable", color_analyzer.is_string_fixable_bool());
+  LOG_INFO(MOD_RUN, "ori_orientation", ori.get_orientation_string());
+  return true;
 }
 
 bool cmd_getcolor_data(int argc, double *argv) {
@@ -1403,7 +1444,7 @@ bool cmd_detect_ori(int argc, double *argv) {
   }
   String color_string_with_centers = color_reader.get_color_string_54();
   String ori_by_color = "";
-  ori_by_color = color_analyzer.get_orientation_string(color_string_with_centers);
+  ori_by_color = color_analyzer.get_orientation_string_from_colors(color_string_with_centers);
   if (ori_by_color = "") {
     LOG_ERR(MOD_CMD, "could not detect orientation by colors", ori_by_color);
     return false;
@@ -1411,15 +1452,25 @@ bool cmd_detect_ori(int argc, double *argv) {
   LOG_INFO(MOD_CMD, "orintation by colors", ori_by_color);
   return true;
 }
-bool cmd_restore_color_ori(int argc, double *argv) {
+bool cmd_restore_ori_by_colors(int argc, double *argv) {
+  return cmd_restore_ori_by_colors_run();
+}
+
+bool cmd_restore_ori_by_colors_run() {
   String color_string_with_centers = color_reader.get_color_string_54();
-  String ori_by_color = "";
-  ori_by_color = color_analyzer.get_orientation_string(color_string_with_centers);
+  color_analyzer.set_colors(color_string_with_centers);
+  if (!color_analyzer.is_color_string_valid_bool()) {
+    LOG_ERR(MOD_CMD, "no valid color string", color_string_with_centers);
+    return false;
+  }
+
+  String ori_by_color = color_analyzer.get_orientation_string_from_colors(color_string_with_centers);
   if (ori_by_color = "") {
     LOG_ERR(MOD_CMD, "could not detect orientation by colors", ori_by_color);
     return false;
   }
-  LOG_INFO(MOD_CMD, "orintation by colors", ori_by_color);
+
+  LOG_INFO(MOD_CMD, "orintation by colors to use", ori_by_color);
   if (!ori.set_orientation_string(ori_by_color)) {
     LOG_ERR(MOD_CMD, "set ori string by colors failed", ori_by_color);
     return false;

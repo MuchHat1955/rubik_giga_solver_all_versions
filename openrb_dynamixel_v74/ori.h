@@ -80,6 +80,8 @@ public:
     return ori_;
   }
 
+  bool set_orientation_from_front_and_right_faces(char f_face, char r_face);
+
   // Compare current orientation with another
   bool is_orientation_equal(const Orientation &other) const {
     return orientations_equal_(ori_, other);
@@ -115,3 +117,6 @@ private:
 
   Orientation apply_rotation_to_orientation_(const Orientation &o, const String &move) const;
 };
+
+char oposite_face(char face);
+bool   is_orientation_string_valid(String ori_string);

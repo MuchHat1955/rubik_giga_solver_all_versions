@@ -24,7 +24,6 @@ public:
   bool read_cube_centers();
   void fill_solved_cube();
 
-  String _54() const;
   void apply_moves(const String &moves);
   void print_cube_colors_diagram();
   String get_color_string_face(char face) const;
