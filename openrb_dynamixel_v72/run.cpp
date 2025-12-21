@@ -445,7 +445,6 @@ bool cmd_getori_data(int argc, double *argv) {
   LOG_INFO(MOD_RUN, "info", "ori orientation");
   LOG_VAR("orientation", s.c_str());
 
-  ori.print_orientation_string();
   String log = ori.get_move_log();  //
   LOG_INFO(MOD_RUN, "info", "ori move log");
   LOG_VAR("move_log", log.c_str());
@@ -475,6 +474,10 @@ bool cmd_clear_ori_data(int argc, double *argv) {
 }
 
 bool cmd_restore_ori(int argc, double *argv) {
+  return cmd_restore_ori_run();
+}
+
+bool cmd_restore_ori_run() {
   if (!ori.restore_cube_orientation()) {
     //
     LOG_ERR(MOD_RUN, "error", "failed to restore orientation");
@@ -494,6 +497,7 @@ bool cmd_restore_ori(int argc, double *argv) {
   if (!cmdMoveGripperPer(G_OPEN)) return false;
   if (!cmdMoveYmm(Y_DOWN)) return false;
   if (!cmdMoveGripperPer(G_SOFT_CLOSE)) return false;
+
   // At this point ori_ is already identity.  // Only clear the move log.
   ori.clear_move_log();  //
   LOG_INFO(MOD_RUN, "info", "ori restored to identity");
@@ -1141,11 +1145,14 @@ bool cmd_read_cube_colors(const String &mode_in) {
   bool do_bottom = false;
   bool do_full = false;
   bool do_solved = false;
+  bool do_centers = false;
 
   if (mode == "all") {
     do_full = true;
   } else if (mode == "bottom") {
     do_bottom = true;
+  } else if (mode == "centers") {
+    do_centers = true;
   } else if (mode == "solved") {
     do_solved = true;
   } else {
@@ -1170,6 +1177,9 @@ bool cmd_read_cube_colors(const String &mode_in) {
   } else if (do_bottom) {  //
     LOG_INFO(MOD_RUN, "info", "bottom");
     ok = color_reader.read_cube_bottom();
+  } else if (do_centers) {  //
+    LOG_INFO(MOD_RUN, "info", "centers");
+    ok = color_reader.read_cube_centers();
   }
   if (!ok) {
     //
@@ -1385,10 +1395,34 @@ bool print_servo_info(uint8_t id) {
 }
 
 bool cmd_detect_ori(int argc, double *argv) {
-  //TODOTODO
-  return false;
+  if (!color_reader.read_cube_centers()) return false;
+  String centers_colors = color_reader.get_color_string_centers();
+  if (centers_colors = "") {
+    LOG_ERR(MOD_CMD, "no center colors scan", centers_colors);
+    return false;
+  }
+  String color_string_with_centers = color_reader.get_color_string_54();
+  String ori_by_color = "";
+  ori_by_color = color_analyzer.get_orientation_string(color_string_with_centers);
+  if (ori_by_color = "") {
+    LOG_ERR(MOD_CMD, "could not detect orientation by colors", ori_by_color);
+    return false;
+  }
+  LOG_INFO(MOD_CMD, "orintation by colors", ori_by_color);
+  return true;
 }
 bool cmd_restore_color_ori(int argc, double *argv) {
-  //TODOTODO
-  return false;
+  String color_string_with_centers = color_reader.get_color_string_54();
+  String ori_by_color = "";
+  ori_by_color = color_analyzer.get_orientation_string(color_string_with_centers);
+  if (ori_by_color = "") {
+    LOG_ERR(MOD_CMD, "could not detect orientation by colors", ori_by_color);
+    return false;
+  }
+  LOG_INFO(MOD_CMD, "orintation by colors", ori_by_color);
+  if (!ori.set_orientation_string(ori_by_color)) {
+    LOG_ERR(MOD_CMD, "set ori string by colors failed", ori_by_color);
+    return false;
+  }
+  return cmd_restore_ori_run();
 }

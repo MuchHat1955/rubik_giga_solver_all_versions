@@ -95,6 +95,91 @@ void CubeOri::clear_orientation_data() {
   orientation_log_ = "";
 }
 
+bool CubeOri::set_orientation_string(String ori_string) {
+  // reset first
+  clear_orientation_data();
+
+  bool src_seen[6] = { false };
+  bool dst_seen[6] = { false };
+
+  auto face_index = [](char c) -> int {
+    switch (c) {
+      case 'u': return 0;
+      case 'r': return 1;
+      case 'f': return 2;
+      case 'd': return 3;
+      case 'l': return 4;
+      case 'b': return 5;
+      default: return -1;
+    }
+  };
+
+  int pos = 0;
+  int pairs = 0;
+
+  while (pos < ori_string.length()) {
+    // skip spaces
+    while (pos < ori_string.length() && ori_string[pos] == ' ')
+      pos++;
+
+    if (pos >= ori_string.length())
+      break;
+
+    // must have at least x->y
+    if (pos + 3 >= ori_string.length())
+      return false;
+
+    char src = tolower(ori_string[pos]);
+    if (ori_string[pos + 1] != '-' || ori_string[pos + 2] != '>')
+      return false;
+
+    char dst = tolower(ori_string[pos + 3]);
+
+    int si = face_index(src);
+    int di = face_index(dst);
+
+    if (si < 0 || di < 0)
+      return false;
+
+    // no duplicates
+    if (src_seen[si] || dst_seen[di])
+      return false;
+
+    src_seen[si] = true;
+    dst_seen[di] = true;
+    pairs++;
+
+    // apply mapping
+    switch (src) {
+      case 'u': ori_.U = dst; break;
+      case 'r': ori_.R = dst; break;
+      case 'f': ori_.F = dst; break;
+      case 'd': ori_.D = dst; break;
+      case 'l': ori_.L = dst; break;
+      case 'b': ori_.B = dst; break;
+    }
+
+    pos += 4;
+
+    // optional space
+    if (pos < ori_string.length() && ori_string[pos] == ' ')
+      pos++;
+  }
+
+  // must have exactly 6 mappings
+  if (pairs != 6)
+    return false;
+
+  // final validation: all faces used exactly once
+  for (int i = 0; i < 6; i++) {
+    if (!src_seen[i] || !dst_seen[i])
+      return false;
+  }
+
+  orientation_log_ = ori_string;
+  return true;
+}
+
 bool CubeOri::restore_cube_orientation() {
   // Goal (identity orientation)
   Orientation target;
@@ -550,37 +635,12 @@ String CubeOri::get_orientation_string() const {
   String maps[6];
   get_face_mapping(maps);
 
-  String s;
-  s.reserve(48);
-  s += maps[0];
-  s += ' ';
-  s += maps[1];
-  s += ' ';
-  s += maps[2];
-  s += ' ';
-  s += maps[3];
-  s += ' ';
-  s += maps[4];
-  s += ' ';
-  s += maps[5];
-  return s;
-}
+  String out;
+  out.reserve(6 * 4 + 5);  // "u->x " * 5 + last
 
-// ============================================================
-// print_orientation_string: 0->U 1->R 2->F 3->D 4->L 5->B
-// ============================================================
-//      U
-//   R  F  L  B
-//      D
-void CubeOri::print_orientation_string() const {
-  String maps[6];
-  get_face_mapping(maps);
-
-  LOG_INFO(MOD_CUBEORI, "info", "ori_row_d");
-  LOG_VAR("u", maps[0].charAt(3));
-  LOG_VAR("l", maps[1].charAt(3));
-  LOG_VAR("f", maps[2].charAt(3));
-  LOG_VAR("r", maps[4].charAt(3));
-  LOG_VAR("b", maps[5].charAt(3));
-  LOG_VAR("d", maps[3].charAt(3));
+  for (int i = 0; i < 6; i++) {
+    out += maps[i];
+    if (i < 5) out += ' ';
+  }
+  return out;
 }

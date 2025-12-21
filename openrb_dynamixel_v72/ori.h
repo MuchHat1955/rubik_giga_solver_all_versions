@@ -65,8 +65,7 @@ public:
   // One-line orientation string like:
   // "U->F R->R F->D D->B L->U B->L"
   String get_orientation_string() const;
-
-  void print_orientation_string() const;
+  bool set_orientation_string(String ori_string);
 
   // Move-log helpers
   String get_move_log() const {

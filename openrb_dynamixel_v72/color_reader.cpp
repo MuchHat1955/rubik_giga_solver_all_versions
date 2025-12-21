@@ -557,18 +557,45 @@ static const color_map_step_t k_color_map_steps_bottom[] = {
   { "z_180", "d", not_inverted, "145632" }  // end
 };
 
-
 static const int k_num_color_map_steps_bottom =
   sizeof(k_color_map_steps_bottom) / sizeof(k_color_map_steps_bottom[0]);
+
+static const color_map_step_t k_color_map_steps_centers[] = {
+
+  // -----------------------------------------------------------
+  // 1) ""
+  //
+  // --- orintentation after the step --------------------------
+  //      U
+  //   R  F  L  B  []
+  //      D
+  //
+  // -----------------------------------------------------------
+  { "none", "f", not_inverted, "1" },
+
+  // -----------------------------------------------------------
+  // 2) y_plus
+  //
+  // --- orintentation after the step --------------------------
+  //      U
+  //   F  L  B  R  []
+  //      D
+  //
+  // -----------------------------------------------------------
+  { "y_plus", "l", not_inverted, "1" }
+};
+
+static const int k_num_color_map_steps_centers =
+  sizeof(k_color_map_steps_centers) / sizeof(k_color_map_steps_centers[0]);
 
 // ============================================================
 // One step processor
 // ============================================================
-bool CubeColorReader::process_step_(int step_index,
-                                    const char *robot_move,
-                                    const char *face,
-                                    bool mirrored,
-                                    const char *order) {
+bool CubeColorReader::process_color_scan_step_(int step_index,
+                                               const char *robot_move,
+                                               const char *face,
+                                               bool mirrored,
+                                               const char *order) {
 
   // Robot move (if any)
   if (robot_move && robot_move[0] != '\0' && strcmp(robot_move, "none") != 0) {
@@ -610,73 +637,83 @@ bool CubeColorReader::process_step_(int step_index,
   return true;
 }
 
+#define SCAN_MODE_FULL 0
+#define SCAN_MODE_BOTTOM 0
+#define SCAN_MODE_CENTERS 0
+
 // ============================================================
-// Perform full scan
+// Perform  scan
 // ============================================================
 bool CubeColorReader::read_cube_full() {
-  return read_cube(true);
+  return read_cube(SCAN_MODE_FULL);
 }
 bool CubeColorReader::read_cube_bottom() {
-  return read_cube(false);
+  return read_cube(SCAN_MODE_BOTTOM);
+}
+bool CubeColorReader::read_cube_centers() {
+  return read_cube(SCAN_MODE_CENTERS);
 }
 
-bool CubeColorReader::read_cube(bool mode_all_vs_bottom) {
+bool CubeColorReader::read_cube(int scan_mode) {
+  if (scan_mode != SCAN_MODE_FULL &&    //
+      scan_mode != SCAN_MODE_BOTTOM &&  //
+      scan_mode != SCAN_MODE_CENTERS) {
+    LOG_ERR(MOD_COLORSCAN, "invalid scan mode", scan_mode);
+    return false;
+  }
+
   if (!color_sensor_cb_) {
     LOG_ERR(MOD_COLORSCAN, "error", "no callback");
     return false;
   }
-  int total_steps = 0;
-  if (mode_all_vs_bottom) total_steps = k_num_color_map_steps_all;
-  else total_steps = k_num_color_map_steps_bottom;
+  int total_steps = k_num_color_map_steps_all;
+  if (scan_mode == SCAN_MODE_BOTTOM) total_steps = k_num_color_map_steps_bottom;
+  if (scan_mode == SCAN_MODE_CENTERS) total_steps = k_num_color_map_steps_centers;
 
   if (total_steps < 1) {
     LOG_ERR(MOD_COLORSCAN, "step count invalid", total_steps);
     return false;
   }
-  LOG_INFO(MOD_COLORSCAN, "color scan start", mode_all_vs_bottom ? "all" : "bottom");
+  String mode_string =
+    (scan_mode == SCAN_MODE_BOTTOM) ? "bottom" :    //
+      (scan_mode == SCAN_MODE_CENTERS) ? "centers"  //
+                                       : "full";
+
+  LOG_INFO(MOD_COLORSCAN, "color scan start", mode_string);
   LOG_VAR("total_steps", total_steps);
 
-  if (mode_all_vs_bottom) fill_unknown_();
-  else fill_solved_cube_top2layers_();
+  if (scan_mode == SCAN_MODE_FULL) fill_unknown_();
+  if (scan_mode == SCAN_MODE_BOTTOM) fill_solved_cube_top2layers_();
 
   // LOG_INFO(MOD_COLORSCAN, "info","color reader: orientation cleared");
   // Ensure orientation is clear
-  ori_.clear_orientation_data();
+  if (scan_mode != SCAN_MODE_CENTERS) ori_.clear_orientation_data();
+  const color_map_step_t *orientation_map_ptr = k_color_map_steps_all;
+  if (scan_mode == SCAN_MODE_BOTTOM) orientation_map_ptr = k_color_map_steps_bottom;
+  if (scan_mode == SCAN_MODE_CENTERS) orientation_map_ptr = k_color_map_steps_centers;
 
-  if (mode_all_vs_bottom) {
-    // ~~~~~~~~~~~~~~~~ start all cube ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    for (int i = 0; i < total_steps; i++) {
-      const auto &s = k_color_map_steps_all[i];
-      if (!process_step_(i, s.robot_move, s.face, s.mirrored, s.order)) {
-        LOG_ERR(MOD_COLORSCAN, "step failed", i);
-        LOG_INFO(MOD_COLORSCAN, "color scan failed", "restoring_ori");
-        ori_.restore_cube_orientation();
-        return false;
-      }
-      // ori.print_orientation_string();
-      // print_cube_colors_diagram();
+  // ~~~~~~~~~~~~~~~~ start scan ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  for (int i = 0; i < total_steps; i++) {
+    const auto &s = orientation_map_ptr[i];
+    if (!process_color_scan_step_(i, s.robot_move, s.face, s.mirrored, s.order)) {
+      LOG_ERR(MOD_COLORSCAN, "step failed", i);
+      LOG_INFO(MOD_COLORSCAN, "color scan failed", "restoring_ori");
+      if (scan_mode != SCAN_MODE_CENTERS) ori_.restore_cube_orientation();
+      return false;
     }
-    // ~~~~~~~~~~~~~~~~ end all cube ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  } else {
-    // ~~~~~~~~~~~~~~~~ start just bottom layer ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    for (int i = 0; i < total_steps; i++) {
-      const auto &s = k_color_map_steps_bottom[i];
-      if (!process_step_(i, s.robot_move, s.face, s.mirrored, s.order)) {
-        LOG_ERR(MOD_COLORSCAN, "step failed", i);
-        LOG_INFO(MOD_COLORSCAN, "color scan failed", "restoring_ori");
-        ori_.restore_cube_orientation();
-        return false;
-      }
-    }
-    // ~~~~~~~~~~~~~~~~ end just bottom layer ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // print_cube_colors_diagram();
   }
-  LOG_INFO(MOD_COLORSCAN, "info", "color scan completed");
-  LOG_INFO(MOD_COLORSCAN, "info", "start orientation restore after color scan");
+  // ~~~~~~~~~~~~~~~~ end scan ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  // Final restore
-  if (!ori_.restore_cube_orientation()) {
-    LOG_ERR(MOD_COLORSCAN, "error", "final restore failed");
-    return false;
+  LOG_INFO(MOD_COLORSCAN, "info", "color scan completed");
+
+  if (scan_mode != SCAN_MODE_CENTERS) {
+    LOG_INFO(MOD_COLORSCAN, "info", "start orientation restore after color scan");
+    // Final restore
+    if (!ori_.restore_cube_orientation()) {
+      LOG_ERR(MOD_COLORSCAN, "error", "final restore failed");
+      return false;
+    }
   }
   LOG_INFO(MOD_COLORSCAN, "color_string_54", get_color_string_54().c_str());
   LOG_INFO(MOD_COLORSCAN, "color_string_faces", get_color_string_faces().c_str());
@@ -833,13 +870,18 @@ void CubeColorReader::fill_solved_cube_top2layers_() {
   memcpy(colors_, solved_top2layers_54, 54);
 }
 
-bool CubeColorReader::read_cube_centers() {
-  //TODOTODO
-  return false;
-}
 String CubeColorReader::get_color_string_centers() const {
-  //TODOTODO
-  return "";
+  // Center indices for URFDLB
+  static const int center_idx[6] = { 4, 13, 22, 31, 40, 49 };
+
+  String out;
+  out.reserve(6);
+
+  for (int i = 0; i < 6; i++) {
+    out += colors_[center_idx[i]];
+  }
+
+  return out;
 }
 
 CubeColorReader color_reader(ori, read_one_color_cb);

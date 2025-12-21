@@ -41,14 +41,14 @@ private:
   void fill_solved_cube_top2layers_();
   void apply_slot_to_face_(char face, int slot, char color, bool mirrored);
   int face_base_index_(char face) const;
-  bool read_cube(bool all_cube_vs_just_bottom_layer);
+  bool read_cube(int scan_mode);
   void update_color_string(char face, int offset, char color);
 
-  bool process_step_(int step_index,
-                     const char *robot_move,
-                     const char *face,
-                     bool mirrored,
-                     const char *order);
+  bool process_color_scan_step_(int step_index,
+                                const char *robot_move,
+                                const char *face,
+                                bool mirrored,
+                                const char *order);
 
   void rotate_face(char face, char dir);
 };
