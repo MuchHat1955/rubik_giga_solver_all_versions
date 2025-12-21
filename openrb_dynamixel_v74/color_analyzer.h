@@ -11,7 +11,8 @@ public:
 
   // Public wrappers
   void set_colors(const String &colors);
-  bool fill_top_2_layers_as_solved();
+  void clear_colors(const String &colors);
+  bool apply_move(String m);
   bool is_color_string_valid_bool() const;
   bool is_string_fixable_bool() const;
   bool try_fix_color_string(String &fixed_out) const;
@@ -48,6 +49,11 @@ public:
 
   // ---- General single-sticker try ----
   String fix_string_general_1() const;
+
+  update_color_string(char face, int offset, char color);
+  void ColorAnalyzer::apply_slot_to_face_(char face, int slot, char color, bool mirrored);
+  void ColorAnalyzer::apply_moves(const String &moves);
+  void ColorAnalyzer::rotate_face(char face, char dir);
 
 private:
   String colors_standard_orientation_54_;
@@ -98,7 +104,9 @@ private:
 };
 
 char oposite_color(char color);
-char get_color_from_color_string_54(char face, int slot);
+char get_stickercolor_from_color_string_54(char face, int slot);
+int face_base_index_(char face) const ;
+bool is_valid_move(const String &token);
 
 // Global instance
 extern ColorAnalyzer color_analyzer;

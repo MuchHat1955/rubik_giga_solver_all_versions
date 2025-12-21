@@ -24,25 +24,21 @@ public:
   bool read_cube_centers();
   void fill_solved_cube();
 
-  void apply_moves(const String &moves);
-  void print_cube_colors_diagram();
-  String get_color_string_face(char face) const;
-  String get_color_string_faces() const;
-  String get_color_string_54() const;
-  String get_color_string_centers() const;
+  String get_justread_color_string_face(char face) const;
+  String get_justread_color_string_faces() const;
+  String get_justread_color_string_54() const;
+  String get_justread_color_string_centers() const;
 
 private:
   CubeOri &ori_;
   read_color_cb_t color_sensor_cb_;
-  char colors_[54];  // u r f d l b, 9 stickers each
+  char colors_justread_54[54];  // u r f d l b, 9 stickers each
 
   void fill_unknown_();
-  void fill_solved_cube_top2_layers_();
+  void fill_solved_cube_top_2_layers_();
   void apply_slot_to_face_(char face, int slot, char color, bool mirrored);
-  int face_base_index_(char face) const;
   bool read_cube(int scan_mode);
   void update_color_string(char face, int offset, char color);
-
   bool process_color_scan_step_(int step_index,
                                 const char *robot_move,
                                 const char *face,

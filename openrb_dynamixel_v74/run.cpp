@@ -478,42 +478,12 @@ bool cmd_restore_ori(int argc, double *argv) {
 }
 
 bool cmd_restore_ori_run() {
-
-  bool ok_with_colors = true;
-
-  // get current colors
-  String colors_54 = color_reader.get_color_string_54();
-  LOG_INFO(MOD_RUN, "attempt_restore_with_colors", colors_54);
-
-  String colors_54_with_orientation = color_analyzer.infer_centers_from_partial(colors_54);
-  String orientation_string = "";
-
-  if (colors_54_with_orientation = "") {
-    ok_with_colors = false;
-    LOG_INFO(MOD_RUN, "will not restore by colors no centers", colors_54);
-  }
-  if (ok_with_colors) {
-    LOG_INFO(MOD_RUN, "will attempt restore by colors", colors_54_with_orientation);
-    orientation_string = color_analyzer.get_orientation_string_from_colors(colors_54_with_orientation);
-    if (!color_analyzer.is_orientation_string_valid_bool(orientation_string)) {
-      LOG_INFO(MOD_RUN, "will not restore by colors cannot infer orientation", colors_54);
-      ok_with_colors = false;
-    }
-  }
-  if (ok_with_colors) {
-    LOG_INFO(MOD_RUN, "will restore by colors curr orientation", orientation_string);
-    if (!ori.set_orientation_string(orientation_string)) {
-      LOG_INFO(MOD_RUN, "will not restore by colors ori set orientation failed", orientation_string);
-    }
-  }
-
-  LOG_INFO(MOD_RUN, "start orientation restor from orientation", ori.get_orientation_string());
+  LOG_INFO(MOD_RUN, "restore ori based on moves history", ori.get_orientation_string());
   bool ok = ori.restore_cube_orientation();
   if (!ok) {
     LOG_ERR(MOD_RUN, "error", "failed to restore orientation");
     LOG_VAR("orientation", ori.get_orientation_string());
   }
-
   LOG_INFO(MOD_RUN, "info", "return to pos zero");
 
   if (!cmdMoveGripperPer(G_OPEN)) return false;
@@ -1125,7 +1095,6 @@ bool cmd_read_one_face_colors(int argc, double *argv) {  // desired read order
 
 void print_colors_analyzer_detail() {
   LOG_INFO(MOD_COLORCHECK, "info", "color analyzer data");
-  color_analyzer.set_colors(color_reader.get_color_string_54());
   bool valid_colors = color_analyzer.is_color_string_valid_bool();
 
   if (!valid_colors) {
@@ -1184,6 +1153,7 @@ bool cmd_read_cube_colors(const String &mode_in) {
     LOG_VAR("mode", mode.c_str());
     return false;
   }
+  // needed to restore after read
   ori.clear_orientation_data();
   ori.clear_move_log();
   bool ok = false;
@@ -1192,6 +1162,10 @@ bool cmd_read_cube_colors(const String &mode_in) {
     LOG_INFO(MOD_RUN, "info", "full");
     color_reader.clear_colors();
     ok = color_reader.read_cube_full();
+    if (!ok) {
+      LOG_ERR(MOD_RUN, "error", "read full cube failed");
+      color_reader.clear_colors();
+    }
   } else if (do_solved) {  //
     LOG_INFO(MOD_RUN, "info", "solved");
     color_reader.clear_colors();
@@ -1207,13 +1181,20 @@ bool cmd_read_cube_colors(const String &mode_in) {
         color_reader.clear_colors();
         ok = false;
       }
+    } else {
+      LOG_ERR(MOD_RUN, "error", "read bottom cube failed");
+      color_reader.clear_colors();
     }
   } else if (do_centers) {  //
     LOG_INFO(MOD_RUN, "info", "centers");
     // no clear colors, update in place
     ok = color_reader.read_cube_centers();
+    if (!ok) {
+      LOG_ERR(MOD_RUN, "error", "read cube centers failed");
+      color_reader.clear_colors();
+    }
   }
-  // restore ori
+  // restore ori based on moves history
   ori.clear_orientation_data();
   ori.clear_move_log();
   if (ok) {
@@ -1224,7 +1205,7 @@ bool cmd_read_cube_colors(const String &mode_in) {
     }
   }
   if (ok) {
-    if (!update_ori_from_color_54(color_reader.get_color_string_54())) {
+    if (!update_ori_from_color_54(color_reader.get_justread_color_string_54())) {
       LOG_ERR(MOD_RUN, "error", "could not update ori from colors");
       color_reader.clear_colors();
       ok = false;
@@ -1234,11 +1215,18 @@ bool cmd_read_cube_colors(const String &mode_in) {
     LOG_ERR(MOD_RUN, "error", "failed");
     return false;
   }
-  color_analyzer.set_colors(colors_just_read);
+  ok = color_analyzer.set_colors(colors_just_read);
+  color_reader.clear_colors();
+  if (!ok) {
+    LOG_ERR(MOD_RUN, "color analyzer set colors failed", colors_just_read);
+    color_analyzer.clear_colors();
+    return false;
+  }
 
   // After read
-  LOG_INFO(MOD_RUN, "color_reader_color_string_54", colors_just_read);
-  LOG_INFO(MOD_RUN, "color_reader_string_faces", color_reader.get_color_string_faces());
+  LOG_INFO(MOD_RUN, "color_reader_should_be_clear_string_54", color_reader.get_color_just_read_string_54());
+  LOG_INFO(MOD_RUN, "color_analyze_color_string_54", color_analyzer.get_color_string_54());
+  LOG_INFO(MOD_RUN, "color_analyze_string_faces", color_analyzer.get_color_string_faces());
   LOG_INFO(MOD_RUN, "color_analyzer_is_valid", color_analyzer.is_color_string_valid_bool());
   LOG_INFO(MOD_RUN, "color_analyzer_is_fixable", color_analyzer.is_string_fixable_bool());
   LOG_INFO(MOD_RUN, "ori_orientation", ori.get_orientation_string());
@@ -1246,8 +1234,8 @@ bool cmd_read_cube_colors(const String &mode_in) {
 }
 
 bool cmd_getcolor_data(int argc, double *argv) {
-  LOG_INFO(MOD_RUN, "cube_color_string_54", color_reader.get_color_string_54().c_str());
-  LOG_INFO(MOD_RUN, "cube_color_string_faces", color_reader.get_color_string_faces().c_str());
+  LOG_INFO(MOD_RUN, "cube_color_string_54", color_analyzer.get_justread_color_string_54().c_str());
+  LOG_INFO(MOD_RUN, "cube_color_string_faces", color_analyzer.get_color_string_faces().c_str());
   LOG_INFO(MOD_RUN, "orientation", ori.get_orientation_string());
   print_colors_analyzer_detail();
   return true;

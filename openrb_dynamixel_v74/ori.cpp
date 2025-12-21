@@ -590,7 +590,7 @@ bool CubeOri::cube_move(const String &moves_str) {
 
       return false;
     }
-    color_reader.apply_moves(t);
+    color_analyzer.apply_move(t);
   }
   return true;
 }
@@ -843,8 +843,8 @@ bool CubeOri::set_orientation_from_front_and_right_faces(char f_face, char r_fac
 bool update_ori_from_color_54(String color_54) {
   LOG_INFO(MOD_RUN, "infer all centers from", colors_just_read);
 
-  char front_color = get_color_from_color_string_54(colors_just_read, 'f', 5);
-  char right_color = get_color_from_color_string_54(colors_just_read, 'r', 5);
+  char front_color = get_stickercolor_from_color_string_54(colors_just_read, 'f', 5);
+  char right_color = get_stickercolor_from_color_string_54(colors_just_read, 'r', 5);
 
   if (!is_valid_color(front_color) || !is_valid_color(right_color)) {
     LOG_ERR(MOD_RUN, "front and right colors just read invalid front", front_color);
