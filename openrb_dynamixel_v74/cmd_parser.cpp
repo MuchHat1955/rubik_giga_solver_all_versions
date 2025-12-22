@@ -39,7 +39,6 @@ static CommandEntry command_table[] = {
   { "DETECTCUBE", "", cmd_detect_cube, "DETECTCUBE - detect if a cube is in the base" },
   { "DETECTORI", "", cmd_detect_ori, "DETECTORI - detect orientation from center colors" },
   { "CHECKORI", "", cmd_check_ori, "CHECKORI - reads front face and confirms orientation matches ori" },
-  { "RESTORECOLORORI", "", cmd_restore_ori_by_colors, "RESTORECOLORORI - restore cube to standard center colors orientation" },
   { "RESTOREORI", "", cmd_restore_ori, "RESTOREORI - restore cube to original orientation" },
   { "GETCOLORDATA", "", cmd_getcolor_data, "GETCOLORDATA - print raw color data" },
   { "GETORIDATA", "", cmd_getori_data, "GETORIDATA - print orientation move log" },

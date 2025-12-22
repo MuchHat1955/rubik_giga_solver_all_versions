@@ -1224,9 +1224,9 @@ bool cmd_read_cube_colors(const String &mode_in) {
   }
 
   // After read
-  LOG_INFO(MOD_RUN, "color_reader_should_be_clear_string_54", color_reader.get_color_just_read_string_54());
-  LOG_INFO(MOD_RUN, "color_analyze_color_string_54", color_analyzer.get_color_string_54());
-  LOG_INFO(MOD_RUN, "color_analyze_string_faces", color_analyzer.get_color_string_faces());
+  LOG_INFO(MOD_RUN, "color_reader_should_be_clear_string_54", color_reader.get_justread_color_string_54());
+  LOG_INFO(MOD_RUN, "color_analyze_color_string_54", color_analyzer.get_standard_color_string_54());
+  // LOG_INFO(MOD_RUN, "color_analyze_string_faces", color_analyzer.get_color_string_faces());
   LOG_INFO(MOD_RUN, "color_analyzer_is_valid", color_analyzer.is_color_string_valid_bool());
   LOG_INFO(MOD_RUN, "color_analyzer_is_fixable", color_analyzer.is_string_fixable_bool());
   LOG_INFO(MOD_RUN, "ori_orientation", ori.get_orientation_string());
@@ -1234,8 +1234,7 @@ bool cmd_read_cube_colors(const String &mode_in) {
 }
 
 bool cmd_getcolor_data(int argc, double *argv) {
-  LOG_INFO(MOD_RUN, "cube_color_string_54", color_analyzer.get_justread_color_string_54().c_str());
-  LOG_INFO(MOD_RUN, "cube_color_string_faces", color_analyzer.get_color_string_faces().c_str());
+  LOG_INFO(MOD_RUN, "cube_color_string_54", color_analyzer.get_standard_color_string_54().c_str());
   LOG_INFO(MOD_RUN, "orientation", ori.get_orientation_string());
   print_colors_analyzer_detail();
   return true;
@@ -1441,7 +1440,8 @@ bool cmd_check_ori_run() {
     LOG_ERR(MOD_RUN, "ori does not have orientation", robot_face_front);
     return false;
   }
-  char just_read_robot_color_front = char cmd_read_one_color_run(6);
+
+  char just_read_robot_color_front = cmd_read_one_color_run(6);
   if (!is_valid_color(just_read_robot_color_front)) {
     LOG_ERR(MOD_RUN, "invalid_robot_center_color", just_read_robot_color_front);
     return false;

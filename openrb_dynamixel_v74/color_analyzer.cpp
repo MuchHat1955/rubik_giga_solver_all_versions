@@ -161,6 +161,7 @@ char ColorAnalyzer::face_center_color_from(const String &s, char face) const {
 // Set colors
 // ============================================================
 void ColorAnalyzer::set_colors(const String &colors) {
+  //TODO need to adjust them to standard orientation
   if (colors.length() == 54) {
     colors_standard_orientation_54_ = colors;
     for (int i = 0; i < 54; i++)
@@ -1264,7 +1265,7 @@ void ColorAnalyzer::rotate_face(char face, char dir) {
   bool cw = (dir == '+');  // clockwise
   face = tolower(face);
 
-  int base = face_base_index_(face);
+  int base = face_base_index(face);
   if (base < 0) {
     LOG_ERR(MOD_COLORSCAN, "invalid face", face);
     return;
@@ -1438,95 +1439,18 @@ void ColorAnalyzer::apply_moves(const String &moves) {
   }
 }
 
-// Return base index in colors_justread_54[ ] for a face letter
-int face_base_index_(char face) const {
-  switch (face) {
-    case 'u': return 0;
-    case 'r': return 9;
-    case 'f': return 18;
-    case 'd': return 27;
-    case 'l': return 36;
-    case 'b': return 45;
-  }
-  return -1;
+
+String ColorAnalyzer::get_standard_color_string_54() {
+  //TODO
+  return "";
 }
 
-// Apply a read color for a single slot of a face:
-// slot = 1..6, band semantics:
-//   non-mirrored: 1,2,3 = top row (L,C,R), 4,5,6 = middle row (L,C,R)
-//   mirrored:     1,2,3 = bottom row (L,C,R)
-void ColorAnalyzer::apply_slot_to_face_(char face, int slot, char color, bool mirrored) {
-  int base = face_base_index_(face);
-  if (base < 0) return;
-
-  if (slot < 1 || slot > 6) {
-    LOG_ERR(MOD_COLORSCAN, "error", "invalid color reader slot");
-    LOG_VAR("slot", slot);
-    LOG_VAR("face", face);
-    return;
-  }
-
-  int offset = -1;
-
-  if (!mirrored) {
-    // Normal reading: top row + middle row
-    switch (slot) {
-      case 1: offset = 0; break;  // top-left
-      case 2: offset = 1; break;  // top-center
-      case 3: offset = 2; break;  // top-right
-      case 4: offset = 3; break;  // mid-left
-      case 5: offset = 4; break;  // mid-center
-      case 6: offset = 5; break;  // mid-right
-    }
-  } else {
-    // Mirrored bottom band:
-    // 1 → bottom-left, 2 → bottom-center, 3 → bottom-right
-    switch (slot) {
-      case 1: offset = 8; break;  // bottom-left
-      case 2: offset = 7; break;  // bottom-center
-      case 3: offset = 6; break;  // bottom-right
-      default:
-        // slots 4,5,6 shouldn't be used in mirrored mode
-        LOG_ERR(MOD_COLORSCAN, "skipping mirrored slot", slot);
-        LOG_VAR("face", face);
-        return;
-    }
-  }
-  update_color_string(face, offset, color);
-
-  if (offset >= 0) {
-    colors_justread_54[base + offset] = color;
-    LOG_INFO(MOD_COLORSCAN, "read face", face);
-    LOG_VAR("slot", offset + 1);
-    LOG_VAR("color", color);
-  }
+bool is_valid_color(char color){
+  //TODO
+  return falsel
 }
 
-// eg update_color_string('f', 0, 'r');
-void ColorAnalyzer::update_color_string(char face, int offset, char color) {
-  if (offset < 0 || offset >= 9) {
-    LOG_ERR(MOD_COLORSCAN, "error", "update_color_string_invalid_params");
-    LOG_VAR("face", face);
-    LOG_VAR("offset", offset);
-    LOG_VAR("color", color);
-    return;
-  }
 
-  int base = -1;
-  switch (tolower(face)) {
-    case 'u': base = 0; break;
-    case 'r': base = 9; break;
-    case 'f': base = 18; break;
-    case 'd': base = 27; break;
-    case 'l': base = 36; break;
-    case 'b': base = 45; break;
-    default:
-      LOG_ERR(MOD_COLORSCAN, "error", "update_color_string_invalid_face");
-      LOG_VAR("face", face);
-      return;
-  }
-  colors_justread_54[base + offset] = color;
-}
 
 // ============================================================
 // Global instance

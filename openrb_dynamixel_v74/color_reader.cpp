@@ -380,7 +380,7 @@ bool CubeColorReader::process_color_scan_step_(int step_index,
   if (!face || face[0] == '\0' || !order || order[0] == '\0')
     return true;
 
-  char F = tolower(face[0]);  // ensure lowercase for face_base_index_()
+  char F = tolower(face[0]);  // ensure lowercase for face_base_index()
 
   // Read all slots in this step
   for (int i = 0; order[i] != '\0'; i++) {
@@ -484,9 +484,100 @@ bool CubeColorReader::read_cube(int scan_mode) {
   return true;
 }
 
+
+// Return base index in colors_justread_54[ ] for a face letter
+int face_base_index(char face) {
+  switch (face) {
+    case 'u': return 0;
+    case 'r': return 9;
+    case 'f': return 18;
+    case 'd': return 27;
+    case 'l': return 36;
+    case 'b': return 45;
+  }
+  return -1;
+}
+
+// Apply a read color for a single slot of a face:
+// slot = 1..6, band semantics:
+//   non-mirrored: 1,2,3 = top row (L,C,R), 4,5,6 = middle row (L,C,R)
+//   mirrored:     1,2,3 = bottom row (L,C,R)
+void CubeColorReader::apply_slot_to_face_(char face, int slot, char color, bool mirrored) {
+  int base = face_base_index(face);
+  if (base < 0) return;
+
+  if (slot < 1 || slot > 6) {
+    LOG_ERR(MOD_COLORSCAN, "error", "invalid color reader slot");
+    LOG_VAR("slot", slot);
+    LOG_VAR("face", face);
+    return;
+  }
+
+  int offset = -1;
+
+  if (!mirrored) {
+    // Normal reading: top row + middle row
+    switch (slot) {
+      case 1: offset = 0; break;  // top-left
+      case 2: offset = 1; break;  // top-center
+      case 3: offset = 2; break;  // top-right
+      case 4: offset = 3; break;  // mid-left
+      case 5: offset = 4; break;  // mid-center
+      case 6: offset = 5; break;  // mid-right
+    }
+  } else {
+    // Mirrored bottom band:
+    // 1 → bottom-left, 2 → bottom-center, 3 → bottom-right
+    switch (slot) {
+      case 1: offset = 8; break;  // bottom-left
+      case 2: offset = 7; break;  // bottom-center
+      case 3: offset = 6; break;  // bottom-right
+      default:
+        // slots 4,5,6 shouldn't be used in mirrored mode
+        LOG_ERR(MOD_COLORSCAN, "skipping mirrored slot", slot);
+        LOG_VAR("face", face);
+        return;
+    }
+  }
+  update_color_string(face, offset, color);
+
+  if (offset >= 0) {
+    colors_justread_54[base + offset] = color;
+    LOG_INFO(MOD_COLORSCAN, "read face", face);
+    LOG_VAR("slot", offset + 1);
+    LOG_VAR("color", color);
+  }
+}
+
+// eg update_color_string('f', 0, 'r');
+void CubeColorReader::update_color_string(char face, int offset, char color) {
+  if (offset < 0 || offset >= 9) {
+    LOG_ERR(MOD_COLORSCAN, "error", "update_color_string_invalid_params");
+    LOG_VAR("face", face);
+    LOG_VAR("offset", offset);
+    LOG_VAR("color", color);
+    return;
+  }
+
+  int base = -1;
+  switch (tolower(face)) {
+    case 'u': base = 0; break;
+    case 'r': base = 9; break;
+    case 'f': base = 18; break;
+    case 'd': base = 27; break;
+    case 'l': base = 36; break;
+    case 'b': base = 45; break;
+    default:
+      LOG_ERR(MOD_COLORSCAN, "error", "update_color_string_invalid_face");
+      LOG_VAR("face", face);
+      return;
+  }
+  colors_justread_54[base + offset] = color;
+}
+
 // Print compact face state
 String CubeColorReader::get_justread_color_string_face(char face) const {
-  int base = face_base_index_(face);
+  int base = face_base_index(face);
   if (base < 0) return "";
   String return_str = String(face) + "=";
   for (int i = 0; i < 9; i++) {
@@ -566,5 +657,13 @@ void CubeColorReader::fill_solved_cube() {
 bool CubeColorReader::fill_solved_cube_top_2_layers_() {
   //TODO
   return
+}
+char color_to_face(char color){
+  //TODO
+    return '.';
+}
+char face_to_color(char face){
+  //TODO
+  return '.';
 }
 CubeColorReader color_reader(ori, read_one_color_cb);

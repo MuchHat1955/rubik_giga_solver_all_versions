@@ -36,9 +36,9 @@ private:
 
   void fill_unknown_();
   void fill_solved_cube_top_2_layers_();
+  void update_color_string(char face, int offset, char color);
   void apply_slot_to_face_(char face, int slot, char color, bool mirrored);
   bool read_cube(int scan_mode);
-  void update_color_string(char face, int offset, char color);
   bool process_color_scan_step_(int step_index,
                                 const char *robot_move,
                                 const char *face,
@@ -47,3 +47,7 @@ private:
 
   void rotate_face(char face, char dir);
 };
+
+int face_base_index(char face);
+char color_to_face(char color);
+char face_to_color(char face);
