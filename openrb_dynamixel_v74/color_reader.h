@@ -18,16 +18,16 @@ public:
 
   CubeColorReader(CubeOri &ori, read_color_cb_t cb);
 
-  void clear();
+  void clear_color_reader();
   bool read_cube_full();
   bool read_cube_bottom();
   bool read_cube_centers();
   void fill_solved_cube();
+  void fill_solved_cube_top_2_layers();
 
   String get_justread_color_string_face(char face) const;
   String get_justread_color_string_faces() const;
   String get_justread_color_string_54() const;
-  String get_justread_color_string_centers() const;
 
 private:
   CubeOri &ori_;
@@ -35,7 +35,7 @@ private:
   char colors_justread_54[54];  // u r f d l b, 9 stickers each
 
   void fill_unknown_();
-  void fill_solved_cube_top_2_layers_();
+
   void update_color_string(char face, int offset, char color);
   void apply_slot_to_face_(char face, int slot, char color, bool mirrored);
   bool read_cube(int scan_mode);

@@ -1160,15 +1160,15 @@ bool cmd_read_cube_colors(const String &mode_in) {
 
   if (do_full) {  //
     LOG_INFO(MOD_RUN, "info", "full");
-    color_reader.clear_colors();
+    color_reader.clear_color_reader();
     ok = color_reader.read_cube_full();
     if (!ok) {
       LOG_ERR(MOD_RUN, "error", "read full cube failed");
-      color_reader.clear_colors();
+      color_reader.clear_color_reader();
     }
   } else if (do_solved) {  //
     LOG_INFO(MOD_RUN, "info", "solved");
-    color_reader.clear_colors();
+    color_reader.clear_color_reader();
     color_reader.fill_solved_cube();
     ok = true;
   } else if (do_bottom) {  //
@@ -1176,14 +1176,14 @@ bool cmd_read_cube_colors(const String &mode_in) {
     // no clear colors, update in place
     ok = color_reader.read_cube_bottom();
     if (ok) {
-      if (!color_reader.fill_top_2_layers_as_solved()) {
+      if (!color_reader.fill_solved_cube_top_2_layers()) {
         LOG_ERR(MOD_RUN, "error", "update top 2 layers failed");
-        color_reader.clear_colors();
+        color_reader.clear_color_reader();
         ok = false;
       }
     } else {
       LOG_ERR(MOD_RUN, "error", "read bottom cube failed");
-      color_reader.clear_colors();
+      color_reader.clear_color_reader();
     }
   } else if (do_centers) {  //
     LOG_INFO(MOD_RUN, "info", "centers");
@@ -1191,7 +1191,7 @@ bool cmd_read_cube_colors(const String &mode_in) {
     ok = color_reader.read_cube_centers();
     if (!ok) {
       LOG_ERR(MOD_RUN, "error", "read cube centers failed");
-      color_reader.clear_colors();
+      color_reader.clear_color_reader();
     }
   }
   // restore ori based on moves history
@@ -1200,14 +1200,15 @@ bool cmd_read_cube_colors(const String &mode_in) {
   if (ok) {
     if (!ori.restore_cube_orientation()) {
       LOG_ERR(MOD_RUN, "error", "could not restore ori");
-      color_reader.clear_colors();
+      color_reader.clear_color_reader();
       ok = false;
     }
   }
+  String colors_just_read = color_reader.get_justread_color_string_54();
   if (ok) {
-    if (!update_ori_from_color_54(color_reader.get_justread_color_string_54())) {
+    if (!update_ori_from_color_54(color_reader.colors_just_read)) {
       LOG_ERR(MOD_RUN, "error", "could not update ori from colors");
-      color_reader.clear_colors();
+      color_reader.clear_color_reader();
       ok = false;
     }
   }
@@ -1215,16 +1216,16 @@ bool cmd_read_cube_colors(const String &mode_in) {
     LOG_ERR(MOD_RUN, "error", "failed");
     return false;
   }
-  ok = color_analyzer.set_colors(colors_just_read);
-  color_reader.clear_colors();
+  color_analyzer.set_colors(colors_just_read);
+  color_reader.clear_color_reader();
   if (!ok) {
     LOG_ERR(MOD_RUN, "color analyzer set colors failed", colors_just_read);
-    color_analyzer.clear_colors();
+    color_analyzer.clear_color_analyzer();
     return false;
   }
 
   // After read
-  LOG_INFO(MOD_RUN, "color_reader_should_be_clear_string_54", color_reader.get_justread_color_string_54());
+  LOG_INFO(MOD_RUN, "color_reader_should_be_clear_string_54", colors_just_read);
   LOG_INFO(MOD_RUN, "color_analyze_color_string_54", color_analyzer.get_standard_color_string_54());
   // LOG_INFO(MOD_RUN, "color_analyze_string_faces", color_analyzer.get_color_string_faces());
   LOG_INFO(MOD_RUN, "color_analyzer_is_valid", color_analyzer.is_color_string_valid_bool());
@@ -1457,7 +1458,7 @@ bool cmd_check_ori_run() {
 }
 
 bool cmd_detect_ori(int argc, double *argv) {
-  LOG_INFO(MOD_RUN, "info", "color read for centers will update ori")
+  LOG_INFO(MOD_RUN, "info", "color read for centers will update ori");
   if (!color_reader.read_cube_centers()) return false;
   return true;
 }

@@ -6,6 +6,7 @@
 
 extern CubeColorReader color_reader;
 extern ColorAnalyzer color_analyzer;
+extern CubeOri ori;
 
 int cube_move_index = 0;
 int cube_move_total = 0;
@@ -590,7 +591,7 @@ bool CubeOri::cube_move(const String &moves_str) {
 
       return false;
     }
-    color_analyzer.apply_move(t);
+    color_analyzer.apply_cube_move(t);
   }
   return true;
 }

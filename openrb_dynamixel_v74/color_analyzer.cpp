@@ -105,7 +105,7 @@ ColorAnalyzer::ColorAnalyzer() {
   last_error_ = "";
 }
 
-void ColorAnalyzer::clear_colors() {
+void ColorAnalyzer::clear_color_analyzer() {
   colors_standard_orientation_54_ = "......................................................";
 }
 
@@ -1253,131 +1253,9 @@ char get_stickercolor_from_color_string_54(String color_string_54, char face, in
     default: return '\0';
   }
 
-  char c = s.charAt(base + slot);
+  char c = color_string_54.charAt(base + slot);
   return (c == '.' ? '\0' : tolower(c));
 }
-
-// ============================================================
-// Rotations
-// ============================================================
-
-void ColorAnalyzer::rotate_face(char face, char dir) {
-  bool cw = (dir == '+');  // clockwise
-  face = tolower(face);
-
-  int base = face_base_index(face);
-  if (base < 0) {
-    LOG_ERR(MOD_COLORSCAN, "invalid face", face);
-    return;
-  }
-
-  // ------------------------------------------------------------
-  // 1. Rotate the face (3x3 matrix) - This part was correct.
-  // ------------------------------------------------------------
-  char t[9];
-  memcpy(t, &colors_justread_54[base], 9);
-
-  if (cw) {
-    // clockwise: 0->6, 1->3, 2->0, 3->7, 4->4, 5->1, 6->8, 7->5, 8->2
-    colors_justread_54[base + 0] = t[6];
-    colors_justread_54[base + 1] = t[3];
-    colors_justread_54[base + 2] = t[0];
-    colors_justread_54[base + 3] = t[7];
-    colors_justread_54[base + 4] = t[4];
-    colors_justread_54[base + 5] = t[1];
-    colors_justread_54[base + 6] = t[8];
-    colors_justread_54[base + 7] = t[5];
-    colors_justread_54[base + 8] = t[2];
-  } else {
-    // counter-clockwise: 0->2, 1->5, 2->8, 3->1, 4->4, 5->7, 6->0, 7->3, 8->6
-    colors_justread_54[base + 0] = t[2];
-    colors_justread_54[base + 1] = t[5];
-    colors_justread_54[base + 2] = t[8];
-    colors_justread_54[base + 3] = t[1];
-    colors_justread_54[base + 4] = t[4];
-    colors_justread_54[base + 5] = t[7];
-    colors_justread_54[base + 6] = t[0];
-    colors_justread_54[base + 7] = t[3];
-    colors_justread_54[base + 8] = t[6];
-  }
-
-  // ------------------------------------------------------------
-  // 2. Surrounding edges (the "ring")
-  // ------------------------------------------------------------
-  int idx[4][3];
-
-  auto set3 = [&](int i, int a, int b, int c) {
-    idx[i][0] = a;
-    idx[i][1] = b;
-    idx[i][2] = c;
-  };
-
-  // Assuming the standard U=0, R=9, F=18, D=27, L=36, B=45 index map.
-  // Neighbors are listed in clockwise order around the face.
-
-  if (face == 'u') {
-    // F top → R top → B top → L top
-    set3(0, 18, 19, 20);  // F0, F1, F2
-    set3(1, 9, 10, 11);   // R0, R1, R2
-    set3(2, 45, 46, 47);  // B0, B1, B2
-    set3(3, 36, 37, 38);  // L0, L1, L2
-  } else if (face == 'd') {
-    // F bottom → L bottom → B bottom → R bottom
-    set3(0, 24, 25, 26);  // F6, F7, F8
-    set3(1, 42, 43, 44);  // L6, L7, L8
-    set3(2, 51, 52, 53);  // B6, B7, B8
-    set3(3, 15, 16, 17);  // R6, R7, R8
-  } else if (face == 'f') {
-    // U bottom → R left column → D top (reversed) → L right column
-    set3(0, 6, 7, 8);     // U6, U7, U8
-    set3(1, 9, 12, 15);   // R0, R3, R6
-    set3(2, 29, 28, 27);  // D2, D1, D0 (Reversed)
-    set3(3, 38, 41, 44);  // L2, L5, L8
-  } else if (face == 'b') {
-    // U top (reversed) → L left column → D bottom → R right column (reversed)
-    set3(0, 2, 1, 0);     // U2, U1, U0 (Reversed)
-    set3(1, 36, 39, 42);  // L0, L3, L6
-    set3(2, 33, 34, 35);  // D6, D7, D8
-    set3(3, 17, 14, 11);  // R8, R5, R2 (Reversed)
-  } else if (face == 'l') {
-    // U left col → B right col (reversed) → D left col → F left col
-    set3(0, 0, 3, 6);     // U0, U3, U6
-    set3(1, 53, 50, 47);  // B8, B5, B2 (Reversed)
-    set3(2, 27, 30, 33);  // D0, D3, D6
-    set3(3, 18, 21, 24);  // F0, F3, F6
-  } else if (face == 'r') {
-    // U right col → F right col → D right col → B left col (reversed)
-    set3(0, 2, 5, 8);     // U2, U5, U8
-    set3(1, 20, 23, 26);  // F2, F5, F8
-    set3(2, 29, 32, 35);  // D2, D5, D8
-    set3(3, 51, 48, 45);  // B6, B3, B0 (Reversed)
-  } else {
-    return;
-  }
-
-  // ------------------------------------------------------------
-  // 3. Perform the 4x3 edge cycle - This part was correct.
-  // ------------------------------------------------------------
-  char buf[12];
-
-  // Store stickers *before* the cycle
-  for (int i = 0; i < 4; i++)
-    for (int j = 0; j < 3; j++)
-      buf[i * 3 + j] = colors_justread_54[idx[i][j]];
-
-  // Move stickers: source (src) to destination (i)
-  for (int i = 0; i < 4; i++)
-    for (int j = 0; j < 3; j++) {
-      // Source is (i - 1) mod 4 for CW, (i + 1) mod 4 for CCW
-      int src = cw ? (i + 3) % 4 : (i + 1) % 4;
-      colors_justread_54[idx[i][j]] = buf[src * 3 + j];
-    }
-}
-
-// ============================================================
-// adjust the color string for standard list of one or more moves f+ etc
-// ============================================================
-
 // List of all allowed robot moves.
 // Use whatever notation you actually use: f+, f', f2, etc.
 static const char *k_valid_moves[] = {
@@ -1399,44 +1277,8 @@ bool is_valid_move(const String &token) {
   return false;
 }
 
-void ColorAnalyzer::apply_moves(const String &moves) {
-  int len = moves.length();
-  int i = 0;
-
-  while (i < len) {
-    // Skip leading spaces
-    while (i < len && isspace(moves[i])) i++;
-
-    // Find end of token
-    int start = i;
-    while (i < len && !isspace(moves[i])) i++;
-    int end = i;
-
-    if (start == end) continue;  // empty segment
-
-    // Extract token (ex: "f+", "u2", "r'")
-    String token = moves.substring(start, end);
-    token.trim();
-
-    if (token.length() == 0) continue;
-
-    // Validate token using your single source of truth
-    if (!is_valid_move(token)) {
-
-      LOG_ERR(MOD_COLORSCAN, "invalid move", token.c_str());
-
-      continue;
-    }
-
-    // Token is valid → parse
-    // token = "<face><dir>" where dir is '+', '-', '\'', or '2'
-    char face = tolower(token[0]);
-    char dir = token[1];
-
-    rotate_face(tolower(face), dir);
-    //serial_printf_verbose("applied move: %c%c", tolower(face), dir);
-    // print_cube_colors_justread_54diagram();
-  }
+void ColorAnalyzer::apply_cube_move(const String &move) {
+  //TODO
 }
 
 
@@ -1445,9 +1287,9 @@ String ColorAnalyzer::get_standard_color_string_54() {
   return "";
 }
 
-bool is_valid_color(char color){
+bool is_valid_color(char color) {
   //TODO
-  return falsel
+  return false;
 }
 
 

@@ -20,7 +20,7 @@ void CubeColorReader::fill_unknown_() {
   for (int i = 0; i < 54; i++) colors_justread_54[i] = '.';
 }
 
-void CubeColorReader::clear() {
+void CubeColorReader::clear_color_reader() {
   fill_unknown_();
 }
 
@@ -453,7 +453,7 @@ bool CubeColorReader::read_cube(int scan_mode) {
   LOG_VAR("total_steps", total_steps);
 
   if (scan_mode == SCAN_MODE_FULL) fill_unknown_();
-  if (scan_mode == SCAN_MODE_BOTTOM) fill_solved_cube_top_2_layers_();
+  if (scan_mode == SCAN_MODE_BOTTOM) fill_solved_cube_top_2_layers();
 
   // LOG_INFO(MOD_COLORSCAN, "info","orientation cleared");
   // Ensure orientation is clear
@@ -654,7 +654,7 @@ static const char solved_54[55] =
 void CubeColorReader::fill_solved_cube() {
   memcpy(colors_justread_54, solved_54, 54);
 }
-bool CubeColorReader::fill_solved_cube_top_2_layers_() {
+bool CubeColorReader::fill_solved_cube_top_2_layers() {
   //TODO
   return
 }

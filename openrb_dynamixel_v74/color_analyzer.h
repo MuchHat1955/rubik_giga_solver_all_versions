@@ -11,8 +11,8 @@ public:
 
   // Public wrappers
   void set_colors(const String &colors);
-  void clear_colors();
-  bool apply_move(String m);
+  void clear_color_analyzer();
+  bool apply_cube_move(String m);
   bool is_color_string_valid_bool() const;
   String get_standard_color_string_54();
   bool is_string_fixable_bool() const;
@@ -51,7 +51,7 @@ public:
   // ---- General single-sticker try ----
   String fix_string_general_1() const;
 
-  void apply_moves(const String &moves);
+  void apply_cube_move(const String &moves);
   void rotate_face(char face, char dir);
 
 private:
@@ -104,7 +104,7 @@ private:
 };
 
 char oposite_color(char color);
-char get_stickercolor_from_color_string_54(char face, int slot);
+char get_stickercolor_from_color_string_54(String color_54, char face, int slot);
 int face_base_index(char face);
 bool is_valid_move(const String &token);
 bool is_valid_color(char color);
