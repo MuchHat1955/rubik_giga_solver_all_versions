@@ -23,7 +23,7 @@ public:
   bool read_cube_bottom();
   bool read_cube_centers();
   void fill_solved_cube();
-  void fill_solved_cube_top_2_layers();
+  bool fill_solved_top_2_layers();
 
   String get_justread_color_string_face(char face) const;
   String get_justread_color_string_faces() const;
@@ -35,7 +35,6 @@ private:
   char colors_justread_54[54];  // u r f d l b, 9 stickers each
 
   void fill_unknown_();
-
   void update_color_string(char face, int offset, char color);
   void apply_slot_to_face_(char face, int slot, char color, bool mirrored);
   bool read_cube(int scan_mode);
@@ -48,6 +47,5 @@ private:
   void rotate_face(char face, char dir);
 };
 
-int face_base_index(char face);
 char color_to_face(char color);
 char face_to_color(char face);

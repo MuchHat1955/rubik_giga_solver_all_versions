@@ -51,20 +51,12 @@ public:
   // ---- General single-sticker try ----
   String fix_string_general_1() const;
 
-  void apply_cube_move(const String &moves);
-  void rotate_face(char face, char dir);
-
 private:
   String colors_standard_orientation_54_;
   mutable String last_error_;
 
   // --- Index / helper methods ---
-  int base_index(char face) const;
-  void sort_pair(char &a, char &b) const;
-  void sort_triple(char &a, char &b, char &c) const;
-  char face_center_color_from(const String &s, char face) const;
   void compute_color_counts_from(const String &s, int out[256]) const;
-
 
   // --- Validation core ---
   bool is_color_string_valid_impl(const String &s) const;
@@ -83,31 +75,19 @@ private:
   bool bottom_cross_solved_bool() const;
   bool bottom_layer_solved_bool() const;
 
-  // ---- Scheme helpers ----
-  bool are_centers_valid_scheme_bool() const;
-
-  // ---- Rotation helpers ----
-  static int face_of_center_index(int idx);
-
-  static void apply_face_rotation(const String &, String &, const int[6]);
-  static bool extract_centers(const String &, char centers[6]);
-  static void apply_face_rotation_centers(const char[6], char[6], const int[6]);
-
   // ---- Count helpers ----
   static void count_colors_and_unknowns(const String &s, int counts[256], int &unknown_count);
   static void count_colors(const String &s, int counts[256]);
-
-  // ---- Geometry constants ----
-  static constexpr int center_idx[6] = { 4, 13, 22, 31, 40, 49 };
-  static constexpr int opp_face[3] = { 3, 4, 5 };
-  static const int face_rotations[24][6];
 };
 
 char oposite_color(char color);
 char get_stickercolor_from_color_string_54(String color_54, char face, int slot);
-int face_base_index(char face);
-bool is_valid_move(const String &token);
+bool is_valid_move(String &token);
 bool is_valid_color(char color);
+int face_base_index(char face);
+void sort_pair(char &a, char &b);
+void sort_triple(char &a, char &b, char &c);
+char face_center_color_from(const String &s, char face);
 
 // Global instance
 extern ColorAnalyzer color_analyzer;

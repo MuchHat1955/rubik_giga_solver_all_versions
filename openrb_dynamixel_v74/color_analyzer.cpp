@@ -1,6 +1,7 @@
 #include "color_analyzer.h"
 #include "utils.h"
 #include "log.h"
+#include "ori.h"
 
 // ============================================================
 // Static cubie index definitions (URFDLB, row-major per face)
@@ -93,9 +94,6 @@ static const char *k_corner_names[8] = {
   "URF", "UFL", "ULB", "UBR", "DRF", "DFL", "DLB", "DBR"
 };
 
-constexpr int ColorAnalyzer::center_idx[6];
-constexpr int ColorAnalyzer::opp_face[3];
-
 // ============================================================
 // Constructor
 // ============================================================
@@ -107,54 +105,6 @@ ColorAnalyzer::ColorAnalyzer() {
 
 void ColorAnalyzer::clear_color_analyzer() {
   colors_standard_orientation_54_ = "......................................................";
-}
-
-// ============================================================
-// Index helpers
-// ============================================================
-int ColorAnalyzer::base_index(char face) const {
-  switch (face) {
-    case 'u': return 0;
-    case 'r': return 9;
-    case 'f': return 18;
-    case 'd': return 27;
-    case 'l': return 36;
-    case 'b': return 45;
-  }
-  return -1;
-}
-
-void ColorAnalyzer::sort_pair(char &a, char &b) const {
-  if (a > b) {
-    char t = a;
-    a = b;
-    b = t;
-  }
-}
-
-void ColorAnalyzer::sort_triple(char &a, char &b, char &c) const {
-  if (a > b) {
-    char t = a;
-    a = b;
-    b = t;
-  }
-  if (b > c) {
-    char t = b;
-    b = c;
-    c = t;
-  }
-  if (a > b) {
-    char t = a;
-    a = b;
-    b = t;
-  }
-}
-
-// center color from an arbitrary color string
-char ColorAnalyzer::face_center_color_from(const String &s, char face) const {
-  int idx = base_index(face);
-  if (s.length() < idx + 5) return '.';
-  return s[idx + 4];  // center is always index base+4
 }
 
 // ============================================================
@@ -189,7 +139,7 @@ const char *ColorAnalyzer::get_stage_name(int id) const {
 // Face solved
 // ============================================================
 bool ColorAnalyzer::face_solved_bool(char face) const {
-  int idx = base_index(face);
+  int idx = face_base_index(face);
   char c = colors_standard_orientation_54_[idx + 4];
   for (int i = 0; i < 9; i++) {
     if (colors_standard_orientation_54_[idx + i] != c) return false;
@@ -210,10 +160,10 @@ bool ColorAnalyzer::top_layer_solved_bool() const {
   char cb = face_center_color_from(colors_standard_orientation_54_, 'b');
   char cl = face_center_color_from(colors_standard_orientation_54_, 'l');
 
-  int bf = base_index('f');
-  int br = base_index('r');
-  int bb = base_index('b');
-  int bl = base_index('l');
+  int bf = face_base_index('f');
+  int br = face_base_index('r');
+  int bb = face_base_index('b');
+  int bl = face_base_index('l');
 
   for (int i = 0; i < 3; i++) {
     if (colors_standard_orientation_54_[bf + i] != cf) return false;
@@ -232,10 +182,10 @@ bool ColorAnalyzer::middle_layer_solved_bool() const {
   char cb = face_center_color_from(colors_standard_orientation_54_, 'b');
   char cl = face_center_color_from(colors_standard_orientation_54_, 'l');
 
-  int bf = base_index('f');
-  int br = base_index('r');
-  int bb = base_index('b');
-  int bl = base_index('l');
+  int bf = face_base_index('f');
+  int br = face_base_index('r');
+  int bb = face_base_index('b');
+  int bl = face_base_index('l');
 
   // middle row left+right on each side
   if (colors_standard_orientation_54_[bf + 3] != cf || colors_standard_orientation_54_[bf + 5] != cf) return false;
@@ -249,7 +199,7 @@ bool ColorAnalyzer::middle_layer_solved_bool() const {
 bool ColorAnalyzer::bottom_cross_solved_bool() const {
   if (!middle_layer_solved_bool()) return false;
 
-  int bd = base_index('d');
+  int bd = face_base_index('d');
   char cd = face_center_color_from(colors_standard_orientation_54_, 'd');
 
   // cross on D face: positions 1,3,5,7
@@ -264,10 +214,10 @@ bool ColorAnalyzer::bottom_cross_solved_bool() const {
   char cb = face_center_color_from(colors_standard_orientation_54_, 'b');
   char cl = face_center_color_from(colors_standard_orientation_54_, 'l');
 
-  int bf = base_index('f');
-  int br = base_index('r');
-  int bb = base_index('b');
-  int bl = base_index('l');
+  int bf = face_base_index('f');
+  int br = face_base_index('r');
+  int bb = face_base_index('b');
+  int bl = face_base_index('l');
 
   if (colors_standard_orientation_54_[bf + 7] != cf) return false;
   if (colors_standard_orientation_54_[br + 7] != cr) return false;
@@ -280,7 +230,7 @@ bool ColorAnalyzer::bottom_cross_solved_bool() const {
 bool ColorAnalyzer::bottom_layer_solved_bool() const {
   if (!bottom_cross_solved_bool()) return false;
 
-  int bd = base_index('d');
+  int bd = face_base_index('d');
   char cd = face_center_color_from(colors_standard_orientation_54_, 'd');
 
   // D face solid
@@ -294,10 +244,10 @@ bool ColorAnalyzer::bottom_layer_solved_bool() const {
   char cb = face_center_color_from(colors_standard_orientation_54_, 'b');
   char cl = face_center_color_from(colors_standard_orientation_54_, 'l');
 
-  int bf = base_index('f');
-  int br = base_index('r');
-  int bb = base_index('b');
-  int bl = base_index('l');
+  int bf = face_base_index('f');
+  int br = face_base_index('r');
+  int bb = face_base_index('b');
+  int bl = face_base_index('l');
 
   for (int i = 6; i < 9; i++) {
     if (colors_standard_orientation_54_[bf + i] != cf) return false;
@@ -333,7 +283,7 @@ bool ColorAnalyzer::is_stage_partial_bool(int id) const {
 
   if (id == 0) {
     // top face partial: any U sticker matches center, but face not solved
-    int bu = base_index('u');
+    int bu = face_base_index('u');
     char cu = face_center_color_from(colors_standard_orientation_54_, 'u');
     for (int i = 0; i < 9; i++) {
       if (colors_standard_orientation_54_[bu + i] == cu) return true;
@@ -1170,65 +1120,8 @@ String ColorAnalyzer::fix_string_smart() const {
   return "";
 }
 
-bool ColorAnalyzer::apply_cube_move(String m) {
+bool ColorAnalyzer::apply_cube_move(String mv) {
   //TODO
-  return true;
-}
-bool ColorAnalyzer::are_centers_valid_scheme_bool() const {
-  // Expected opposite-face color pairs
-  struct Pair {
-    char a, b;
-  };
-  static const Pair scheme[3] = {
-    { 'w', 'y' },  // U-D
-    { 'r', 'o' },  // R-L
-    { 'g', 'b' }   // F-B
-  };
-
-  // Read centers in URFDLB order
-  char centers[6] = {
-    face_center_color_from(colors_standard_orientation_54_, 'u'),
-    face_center_color_from(colors_standard_orientation_54_, 'r'),
-    face_center_color_from(colors_standard_orientation_54_, 'f'),
-    face_center_color_from(colors_standard_orientation_54_, 'd'),
-    face_center_color_from(colors_standard_orientation_54_, 'l'),
-    face_center_color_from(colors_standard_orientation_54_, 'b')
-  };
-
-  // 1) All centers must be known
-  for (int i = 0; i < 6; i++) {
-    if (centers[i] == '.') {
-      last_error_ = "center color unknown";
-      return false;
-    }
-  }
-
-  // 2) Centers must be unique
-  for (int i = 0; i < 6; i++) {
-    for (int j = i + 1; j < 6; j++) {
-      if (centers[i] == centers[j]) {
-        last_error_ =
-          String("duplicate center color '") + centers[i] + "'";
-        return false;
-      }
-    }
-  }
-
-  // 3) Check opposite-face scheme
-  for (int p = 0; p < 3; p++) {
-    int f1 = p;
-    int f2 = opp_face[p];
-
-    char c1 = centers[f1];
-    char c2 = centers[f2];
-
-    if (!(
-          (c1 == scheme[p].a && c2 == scheme[p].b) || (c1 == scheme[p].b && c2 == scheme[p].a))) {
-      last_error_ =
-        String("invalid center scheme: faces ") + String(f1) + " and " + String(f2) + " have colors '" + c1 + "' and '" + c2 + "'";
-      return false;
-    }
-  }
   return true;
 }
 
@@ -1238,12 +1131,8 @@ char get_stickercolor_from_color_string_54(String color_string_54, char face, in
   if (!is_valid_face(lf)) return '.';
   if (color_string_54.length() != 54) return '.';
 
-  // Convert logical face to current physical face
-  char phys = cube_ori.cube_face_to_robot_face(lf);
-  if (!is_valid_face(phys)) return '.';
-
   int base = -1;
-  switch (phys) {
+  switch (lf) {
     case 'u': base = 0; break;
     case 'r': base = 9; break;
     case 'f': base = 18; break;
@@ -1254,7 +1143,7 @@ char get_stickercolor_from_color_string_54(String color_string_54, char face, in
   }
 
   char c = color_string_54.charAt(base + slot);
-  return (c == '.' ? '\0' : tolower(c));
+  return toupper(c);
 }
 // List of all allowed robot moves.
 // Use whatever notation you actually use: f+, f', f2, etc.
@@ -1277,11 +1166,6 @@ bool is_valid_move(const String &token) {
   return false;
 }
 
-void ColorAnalyzer::apply_cube_move(const String &move) {
-  //TODO
-}
-
-
 String ColorAnalyzer::get_standard_color_string_54() {
   //TODO
   return "";
@@ -1292,6 +1176,53 @@ bool is_valid_color(char color) {
   return false;
 }
 
+// ============================================================
+// Index helpers
+// ============================================================
+int face_base_index(char face) {
+  switch (tolower(face)) {
+    case 'u': return 0;
+    case 'r': return 9;
+    case 'f': return 18;
+    case 'd': return 27;
+    case 'l': return 36;
+    case 'b': return 45;
+  }
+  return -1;
+}
+
+void sort_pair(char &a, char &b) {
+  if (a > b) {
+    char t = a;
+    a = b;
+    b = t;
+  }
+}
+
+void sort_triple(char &a, char &b, char &c) {
+  if (a > b) {
+    char t = a;
+    a = b;
+    b = t;
+  }
+  if (b > c) {
+    char t = b;
+    b = c;
+    c = t;
+  }
+  if (a > b) {
+    char t = a;
+    a = b;
+    b = t;
+  }
+}
+
+// center color from an arbitrary color string
+char face_center_color_from(const String &s, char face) {
+  int idx = face_base_index(face);
+  if (s.length() < idx + 5) return '.';
+  return s[idx + 4];  // center is always index base+4
+}
 
 
 // ============================================================

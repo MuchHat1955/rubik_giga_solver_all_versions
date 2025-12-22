@@ -964,44 +964,6 @@ bool liftCube() {
 
 char crrColorChar = '.';
 
-// face index: u r f d l b
-static const char k_faces[] = { 'u', 'r', 'f', 'd', 'l', 'b' };
-
-// [face][slot] → char
-// slots indexed 1..6 (0 unused)
-static char last_color[6][7];
-
-static int face_to_index(char face) {
-  face = tolower(face);
-  for (int i = 0; i < 6; i++) {
-    if (k_faces[i] == face) return i;
-  }
-  return -1;
-}
-
-bool is_valid_face(char face) {
-  return face_to_index(face) >= 0;
-}
-
-bool is_valid_slot(int slot) {
-  return slot >= 1 && slot <= 6;
-}
-
-void clear_last_color_reads() {
-  for (int f = 0; f < 6; f++) {
-    for (int s = 1; s <= 6; s++) {
-      last_color[f][s] = '.';
-    }
-  }
-}
-
-char get_last_color_read(char face, int slot) {
-  int fi = face_to_index(face);
-  if (fi < 0 || !is_valid_slot(slot)) return '.';
-
-  return last_color[fi][slot];
-}
-
 bool cmd_read_one_color(int argc, double *argv) {
   if (argc < 1) return false;
 
@@ -1176,7 +1138,7 @@ bool cmd_read_cube_colors(const String &mode_in) {
     // no clear colors, update in place
     ok = color_reader.read_cube_bottom();
     if (ok) {
-      if (!color_reader.fill_solved_cube_top_2_layers()) {
+      if (!color_reader.fill_solved_top_2_layers()) {
         LOG_ERR(MOD_RUN, "error", "update top 2 layers failed");
         color_reader.clear_color_reader();
         ok = false;
@@ -1206,7 +1168,7 @@ bool cmd_read_cube_colors(const String &mode_in) {
   }
   String colors_just_read = color_reader.get_justread_color_string_54();
   if (ok) {
-    if (!update_ori_from_color_54(color_reader.colors_just_read)) {
+    if (!update_ori_from_color_54(color_reader.get_justread_color_string_54())) {
       LOG_ERR(MOD_RUN, "error", "could not update ori from colors");
       color_reader.clear_color_reader();
       ok = false;

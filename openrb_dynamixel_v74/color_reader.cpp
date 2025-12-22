@@ -1,4 +1,5 @@
 #include "color_reader.h"
+#include "color_analyzer.h"
 #include "utils.h"
 #include "cmd_parser.h"
 #include "ori.h"
@@ -453,7 +454,7 @@ bool CubeColorReader::read_cube(int scan_mode) {
   LOG_VAR("total_steps", total_steps);
 
   if (scan_mode == SCAN_MODE_FULL) fill_unknown_();
-  if (scan_mode == SCAN_MODE_BOTTOM) fill_solved_cube_top_2_layers();
+  if (scan_mode == SCAN_MODE_BOTTOM) fill_solved_top_2_layers();
 
   // LOG_INFO(MOD_COLORSCAN, "info","orientation cleared");
   // Ensure orientation is clear
@@ -482,20 +483,6 @@ bool CubeColorReader::read_cube(int scan_mode) {
   LOG_INFO(MOD_COLORSCAN, "orientation", ori.get_orientation_string().c_str());
 
   return true;
-}
-
-
-// Return base index in colors_justread_54[ ] for a face letter
-int face_base_index(char face) {
-  switch (face) {
-    case 'u': return 0;
-    case 'r': return 9;
-    case 'f': return 18;
-    case 'd': return 27;
-    case 'l': return 36;
-    case 'b': return 45;
-  }
-  return -1;
 }
 
 // Apply a read color for a single slot of a face:
@@ -654,15 +641,15 @@ static const char solved_54[55] =
 void CubeColorReader::fill_solved_cube() {
   memcpy(colors_justread_54, solved_54, 54);
 }
-bool CubeColorReader::fill_solved_cube_top_2_layers() {
+bool CubeColorReader::fill_solved_top_2_layers() {
   //TODO
-  return
+  return true;
 }
-char color_to_face(char color){
+char color_to_face(char color) {
   //TODO
-    return '.';
+  return '.';
 }
-char face_to_color(char face){
+char face_to_color(char face) {
   //TODO
   return '.';
 }
