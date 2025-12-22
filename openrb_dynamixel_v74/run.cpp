@@ -1234,7 +1234,7 @@ bool cmd_read_cube_colors(const String &mode_in) {
 }
 
 bool cmd_getcolor_data(int argc, double *argv) {
-  LOG_INFO(MOD_RUN, "cube_color_string_54", color_analyzer.get_standard_color_string_54().c_str());
+  LOG_INFO(MOD_RUN, "cube_color_string_54", color_analyzer.get_standard_color_string_54());
   LOG_INFO(MOD_RUN, "orientation", ori.get_orientation_string());
   print_colors_analyzer_detail();
   return true;
@@ -1430,7 +1430,7 @@ bool print_servo_info(uint8_t id) {
 }
 
 bool cmd_check_ori(int argc, double *argv) {
-  return bool cmd_check_ori_run();
+  return cmd_check_ori_run();
 }
 
 bool cmd_check_ori_run() {

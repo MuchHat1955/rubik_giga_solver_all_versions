@@ -14,6 +14,7 @@ public:
   void clear_colors();
   bool apply_move(String m);
   bool is_color_string_valid_bool() const;
+  String get_standard_color_string_54();
   bool is_string_fixable_bool() const;
   bool try_fix_color_string(String &fixed_out) const;
   String get_string_check_log() const;
@@ -63,7 +64,7 @@ private:
   void sort_triple(char &a, char &b, char &c) const;
   char face_center_color_from(const String &s, char face) const;
   void compute_color_counts_from(const String &s, int out[256]) const;
-  String get_standard_color_string_54();
+
 
   // --- Validation core ---
   bool is_color_string_valid_impl(const String &s) const;
@@ -104,7 +105,7 @@ private:
 
 char oposite_color(char color);
 char get_stickercolor_from_color_string_54(char face, int slot);
-int face_base_index(char face) const ;
+int face_base_index(char face);
 bool is_valid_move(const String &token);
 bool is_valid_color(char color);
 
