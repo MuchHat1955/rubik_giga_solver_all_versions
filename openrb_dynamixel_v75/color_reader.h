@@ -19,11 +19,11 @@ public:
   CubeColorReader(CubeOri &ori, read_color_cb_t cb);
 
   void clear_color_reader();
+  bool set_colors(String colors);
   bool read_cube_full();
   bool read_cube_bottom();
-  bool read_cube_centers();
-  void fill_solved_cube();
-  bool fill_solved_top_2_layers();
+  bool read_cube_f_and_r_centers();
+  bool read_cube_solved();
 
   String get_justread_color_string_face(char face) const;
   String get_justread_color_string_faces() const;
@@ -48,3 +48,5 @@ private:
 };
 
 char color_to_face(char color);
+String fill_colors_if_top_two_layers_solved(const String &in54);
+String fill_solved_cube();

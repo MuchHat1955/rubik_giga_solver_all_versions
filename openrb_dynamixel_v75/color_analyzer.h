@@ -10,10 +10,11 @@ public:
   ColorAnalyzer();
 
   // Public wrappers
-  void set_colors(const String &colors);
+  bool set_colors(const String &colors);
   void clear_color_analyzer();
   bool apply_cube_move(String m);
   bool is_color_string_valid_bool() const;
+  bool is_valid_color_string_54_impl(const String &s) const;
   String get_standard_color_string_54();
   bool is_string_fixable_bool() const;
   bool try_fix_color_string(String &fixed_out) const;
@@ -59,7 +60,6 @@ private:
   void compute_color_counts_from(const String &s, int out[256]) const;
 
   // --- Validation core ---
-  bool is_color_string_valid_impl(const String &s) const;
   bool centers_correct_from(const String &s) const;
   bool valid_color_counts_from(const String &s) const;
   bool edges_corners_color_consistent_from(const String &s) const;
@@ -94,6 +94,8 @@ char get_color_from_color_string_54(char face, int slot);
 bool is_valid_face(char face);
 char oposite_face(char face);
 char oposite_color(char color);
+String rubik_54_to_labeled_diagram(const String &s);
+bool is_valid_color_string_54(String color);
 
 // Global instance
 extern ColorAnalyzer color_analyzer;

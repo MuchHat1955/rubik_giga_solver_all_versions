@@ -122,4 +122,4 @@ private:
 };
 
 bool is_orientation_string_valid(String ori_string);
-bool update_ori_from_color_54(String color_54);
+bool update_ori_from_color_reader_54(String color_54);

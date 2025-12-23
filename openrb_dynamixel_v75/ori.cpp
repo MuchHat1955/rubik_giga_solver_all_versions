@@ -824,7 +824,7 @@ bool CubeOri::set_orientation_from_front_and_right_faces(char f_face, char r_fac
   return true;
 }
 
-bool update_ori_from_color_54(String color_54) {
+bool update_ori_from_color_reader_54(String color_54) {
   LOG_INFO(MOD_RUN, "infer all centers from", color_54);
 
   char front_color = get_stickercolor_from_color_string_54(color_54, 'f', 5);

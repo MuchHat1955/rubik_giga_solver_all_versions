@@ -1122,55 +1122,38 @@ bool cmd_read_cube_colors(const String &mode_in) {
 
   if (do_full) {  //
     LOG_INFO(MOD_RUN, "info", "full");
-    color_reader.clear_color_reader();
+    // the function below handles clearing etc
     ok = color_reader.read_cube_full();
     if (!ok) {
       LOG_ERR(MOD_RUN, "error", "read full cube failed");
-      color_reader.clear_color_reader();
     }
   } else if (do_solved) {  //
     LOG_INFO(MOD_RUN, "info", "solved");
-    color_reader.clear_color_reader();
-    color_reader.fill_solved_cube();
-    ok = true;
+    // the function below handles clearing etc
+    ok = color_reader.read_cube_solved();
+    if (!ok) {
+      LOG_ERR(MOD_RUN, "error", "read solved cube failed");
+    }
   } else if (do_bottom) {  //
     LOG_INFO(MOD_RUN, "info", "bottom");
-    // no clear colors, update in place
+    // the function below handles clearing etc
     ok = color_reader.read_cube_bottom();
-    if (ok) {
-      if (!color_reader.fill_solved_top_2_layers()) {
-        LOG_ERR(MOD_RUN, "error", "update top 2 layers failed");
-        color_reader.clear_color_reader();
-        ok = false;
-      }
-    } else {
+    if (!ok) {
       LOG_ERR(MOD_RUN, "error", "read bottom cube failed");
-      color_reader.clear_color_reader();
     }
   } else if (do_centers) {  //
-    LOG_INFO(MOD_RUN, "info", "centers");
-    // no clear colors, update in place
-    ok = color_reader.read_cube_centers();
+    LOG_INFO(MOD_RUN, "info", "f and r centers");
+    // the function below handles clearing etc
+    ok = color_reader.read_cube_f_and_r_centers();
     if (!ok) {
-      LOG_ERR(MOD_RUN, "error", "read cube centers failed");
-      color_reader.clear_color_reader();
-    }
-  }
-  // restore ori based on moves history
-  ori.clear_orientation_data();
-  ori.clear_move_log();
-  if (ok) {
-    if (!ori.restore_cube_orientation()) {
-      LOG_ERR(MOD_RUN, "error", "could not restore ori");
-      color_reader.clear_color_reader();
-      ok = false;
+      LOG_ERR(MOD_RUN, "error", "read cube f and r centers failed");
     }
   }
   String colors_just_read = color_reader.get_justread_color_string_54();
   if (ok) {
-    if (!update_ori_from_color_54(color_reader.get_justread_color_string_54())) {
+    if (!update_ori_from_color_reader_54(colors_just_read)) {
       LOG_ERR(MOD_RUN, "error", "could not update ori from colors");
-      color_reader.clear_color_reader();
+      // color_reader.clear_color_reader();
       ok = false;
     }
   }
@@ -1178,11 +1161,11 @@ bool cmd_read_cube_colors(const String &mode_in) {
     LOG_ERR(MOD_RUN, "error", "failed");
     return false;
   }
-  color_analyzer.set_colors(colors_just_read);
+  ok = color_analyzer.set_colors(colors_just_read);
+  // clear reader after done
   color_reader.clear_color_reader();
   if (!ok) {
     LOG_ERR(MOD_RUN, "color analyzer set colors failed", colors_just_read);
-    color_analyzer.clear_color_analyzer();
     return false;
   }
 
@@ -1421,6 +1404,6 @@ bool cmd_check_ori_run() {
 
 bool cmd_detect_ori(int argc, double *argv) {
   LOG_INFO(MOD_RUN, "info", "color read for centers will update ori");
-  if (!color_reader.read_cube_centers()) return false;
+  if (!color_reader.read_cube_f_and_r_centers()) return false;
   return true;
 }

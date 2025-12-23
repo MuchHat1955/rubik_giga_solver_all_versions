@@ -110,13 +110,15 @@ void ColorAnalyzer::clear_color_analyzer() {
 // ============================================================
 // Set colors
 // ============================================================
-void ColorAnalyzer::set_colors(const String &colors) {
-  String normalized_colors = normalize_cube_colors_to_standard_simple(colors);
-  if (colors.length() == 54) {
-    colors_standard_orientation_54_ = normalized_colors;
-    for (int i = 0; i < 54; i++)
-      colors_standard_orientation_54_[i] = toupper(colors_standard_orientation_54_[i]);
-  }
+bool ColorAnalyzer::set_colors(const String &colors) {
+  if (colors.length() != 54) return false;
+
+  String normalized = normalize_cube_colors_to_standard_simple(colors);
+  if (normalized.length() != 54) return false;
+
+  colors_standard_orientation_54_ = normalized;
+  colors_standard_orientation_54_.toUpperCase();
+  return true;
 }
 
 // ============================================================
@@ -300,7 +302,7 @@ bool ColorAnalyzer::is_stage_partial_bool(int id) const {
 // ============================================================
 bool ColorAnalyzer::is_color_string_valid_bool() const {
   last_error_ = "";
-  return is_color_string_valid_impl(colors_standard_orientation_54_);
+  return is_valid_color_string_54_impl(colors_standard_orientation_54_);
 }
 
 // Already valid OR 1-sticker-change fixable?
@@ -326,7 +328,7 @@ bool ColorAnalyzer::is_string_fixable_bool() const {
       if (c == orig) continue;
       tmp[i] = c;
       last_error_ = "";
-      if (is_color_string_valid_impl(tmp)) {
+      if (is_valid_color_string_54_impl(tmp)) {
         return true;
       }
     }
@@ -360,7 +362,7 @@ bool ColorAnalyzer::try_fix_color_string(String &fixed_out) const {
       if (c == orig) continue;
       tmp[i] = c;
       last_error_ = "";
-      if (is_color_string_valid_impl(tmp)) {
+      if (is_valid_color_string_54_impl(tmp)) {
         fixed_out = tmp;
         return true;
       }
@@ -412,7 +414,7 @@ String ColorAnalyzer::get_string_check_log() const {
 // ============================================================
 // Validation - core implementation
 // ============================================================
-bool ColorAnalyzer::is_color_string_valid_impl(const String &s) const {
+bool ColorAnalyzer::is_valid_color_string_54_impl(const String &s) const {
   if (s.length() != 54) {
     last_error_ = "invalid length";
     return false;
@@ -436,7 +438,7 @@ bool ColorAnalyzer::is_color_string_valid_impl(const String &s) const {
   if (!edges_corners_color_consistent_from(s)) {
     // last_error_ set there
     if (last_error_.length() == 0)
-      last_error_ = "edge/corner color combinations impossible (not a legal Rubik's Cube state)";
+      last_error_ = "edge/corner color combinations impossible (not a legal cube state)";
     return false;
   }
 
@@ -757,7 +759,7 @@ String ColorAnalyzer::fix_string_unknown_3() const {
   int m = 0;
 
   for (int i = 0; i < 256 && m < 3; i++) {
-    if (cnt[i] < 9) {
+    if (cnt[i] == 8) {
       missing[m++] = (char)i;
     }
   }
@@ -779,7 +781,7 @@ String ColorAnalyzer::fix_string_unknown_3() const {
         tmp[idx[1]] = missing[b];
         tmp[idx[2]] = missing[c];
 
-        if (is_color_string_valid_impl(tmp)) {
+        if (is_valid_color_string_54_impl(tmp)) {
           return tmp;
         }
       }
@@ -821,7 +823,7 @@ String ColorAnalyzer::fix_string_unknown_2() const {
     tmp[idx[0]] = missing[0];
     tmp[idx[1]] = missing[0];
 
-    if (is_color_string_valid_impl(tmp)) {
+    if (is_valid_color_string_54_impl(tmp)) {
       return tmp;
     }
   }
@@ -830,11 +832,11 @@ String ColorAnalyzer::fix_string_unknown_2() const {
   if (m == 2) {
     tmp[idx[0]] = missing[0];
     tmp[idx[1]] = missing[1];
-    if (is_color_string_valid_impl(tmp)) return tmp;
+    if (is_valid_color_string_54_impl(tmp)) return tmp;
 
     tmp[idx[0]] = missing[1];
     tmp[idx[1]] = missing[0];
-    if (is_color_string_valid_impl(tmp)) return tmp;
+    if (is_valid_color_string_54_impl(tmp)) return tmp;
   }
 
   return "";
@@ -867,7 +869,7 @@ String ColorAnalyzer::fix_string_unknown_1() const {
     }
   }
 
-  if (is_color_string_valid_impl(tmp)) {
+  if (is_valid_color_string_54_impl(tmp)) {
     return tmp;
   }
 
@@ -928,7 +930,7 @@ String ColorAnalyzer::fix_string_count_2() const {
       tmp[i] = too_few;
       tmp[j] = too_few;
 
-      if (is_color_string_valid_impl(tmp)) {
+      if (is_valid_color_string_54_impl(tmp)) {
         return tmp;
       }
 
@@ -970,7 +972,7 @@ String ColorAnalyzer::fix_string_count_1() const {
 
     tmp[i] = too_few;
 
-    if (is_color_string_valid_impl(tmp)) {
+    if (is_valid_color_string_54_impl(tmp)) {
       return tmp;
     }
 
@@ -1008,7 +1010,7 @@ String ColorAnalyzer::fix_string_general_1() const {
 
       tmp[i] = c;
 
-      if (is_color_string_valid_impl(tmp)) {
+      if (is_valid_color_string_54_impl(tmp)) {
         return tmp;
       }
     }
@@ -1040,7 +1042,7 @@ String ColorAnalyzer::fix_string_ro_2() const {
       tmp[i] = (orig_i == 'r') ? 'o' : 'r';
       tmp[j] = (orig_j == 'r') ? 'o' : 'r';
 
-      if (is_color_string_valid_impl(tmp)) {
+      if (is_valid_color_string_54_impl(tmp)) {
         return tmp;
       }
 
@@ -1073,7 +1075,7 @@ String ColorAnalyzer::fix_string_ro_1() const {
       continue;
     }
 
-    if (is_color_string_valid_impl(tmp)) {
+    if (is_valid_color_string_54_impl(tmp)) {
       return tmp;
     }
 
@@ -1085,10 +1087,16 @@ String ColorAnalyzer::fix_string_ro_1() const {
 
 void ColorAnalyzer::count_colors(const String &s, int counts[256]) {
   memset(counts, 0, 256 * sizeof(int));
-  for (int i = 0; i < s.length(); i++) {
-    counts[(uint8_t)s[i]]++;
+
+  int len = s.length();
+  for (int i = 0; i < len; i++) {
+    char c = s[i];
+    if (!is_valid_color(c)) continue;
+
+    counts[(uint8_t)tolower(c)]++;
   }
 }
+
 
 String ColorAnalyzer::fix_string_smart() const {
   String s;
@@ -1287,9 +1295,10 @@ String apply_cube_move_54(const String &in, const String &move) {
   in.toCharArray(s, 55);
 
   char face = toupper(move[0]);
-  int turns = 1;
+  int turns = 0;
 
   if (move.length() > 1) {
+    if (move[1] == '+') turns = 1;
     if (move[1] == '-') turns = 3;
     else if (move[1] == '2') turns = 2;
   }
@@ -1303,7 +1312,7 @@ String apply_cube_move_54(const String &in, const String &move) {
 // TODO add log here or where called
 bool ColorAnalyzer::apply_cube_move(String mv) {
   String after_move = apply_cube_move_54(colors_standard_orientation_54_, mv);
-  if (after_move = "") return false;
+  if (after_move == "") return false;
   colors_standard_orientation_54_ = after_move;
   return true;
 }
@@ -1355,12 +1364,12 @@ String ColorAnalyzer::get_standard_color_string_54() {
 
 bool is_valid_color(char color) {
   char lc = tolower(color);
-  if (color == 'w') return true;
-  if (color == 'r') return true;
-  if (color == 'g') return true;
-  if (color == 'y') return true;
-  if (color == 'o') return true;
-  if (color == 'b') return true;
+  if (lc == 'w') return true;
+  if (lc == 'r') return true;
+  if (lc == 'g') return true;
+  if (lc == 'y') return true;
+  if (lc == 'o') return true;
+  if (lc == 'b') return true;
   return false;
 }
 
@@ -1408,7 +1417,7 @@ void sort_triple(char &a, char &b, char &c) {
 // center color from an arbitrary color string
 char face_center_color_from(const String &s, char face) {
   int idx = face_base_index(face);
-  if (s.length() < idx + 5) return '.';
+  if (idx < 0 || s.length() < idx + 5) return '.';
   return s[idx + 4];  // center is always index base+4
 }
 
@@ -1570,6 +1579,10 @@ char get_color_from_color_string_54(String s, char face, int slot) {
   return (c == '.' ? '\0' : tolower(c));
 }
 
+bool is_valid_color_string_54(String color) {
+  if (color.length() != 54) return false;
+  return color_analyzer.is_valid_color_string_54_impl(color);
+}
 
 bool is_valid_face(char face) {
   char c = tolower(face);
@@ -1601,6 +1614,70 @@ char oposite_color(char color) {
     default: return '\0';
   }
 }
+
+String rubik_54_to_labeled_diagram(const String &s) {
+  if (s.length() != 54) return "";
+
+  auto norm = [](char c) -> char {
+    c = toupper((unsigned char)c);
+    switch (c) {
+      case 'W':
+      case 'Y':
+      case 'R':
+      case 'O':
+      case 'G':
+      case 'B':
+        return c;
+      default:
+        return '.';
+    }
+  };
+
+  auto row = [&](int base, int r) -> String {
+    String o;
+    for (int c = 0; c < 3; c++)
+      o += norm(s[base + r * 3 + c]);
+    return o;
+  };
+
+  String out;
+
+  // -------- U --------
+  out += "        [U]\n";
+  for (int r = 0; r < 3; r++) {
+    out += "        ";
+    out += row(0, r);
+    out += "\n";
+  }
+
+  out += "\n";
+
+  // -------- L F R B --------
+  out += "[L]     [F]     [R]     [B]\n";
+  for (int r = 0; r < 3; r++) {
+    out += row(36, r);
+    out += "     ";
+    out += row(18, r);
+    out += "     ";
+    out += row(9, r);
+    out += "     ";
+    out += row(45, r);
+    out += "\n";
+  }
+
+  out += "\n";
+
+  // -------- D --------
+  out += "        [D]\n";
+  for (int r = 0; r < 3; r++) {
+    out += "        ";
+    out += row(27, r);
+    out += "\n";
+  }
+
+  return out;
+}
+
 // ============================================================
 // Global instance
 // ============================================================
