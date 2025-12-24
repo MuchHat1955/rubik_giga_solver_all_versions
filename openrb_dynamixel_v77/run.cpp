@@ -1215,14 +1215,16 @@ bool cmd_read_cube_colors(const String &mode_in) {
     LOG_ERR(MOD_RUN, "error", "failed");
     return false;
   }
-  // set the colors and clear the reader
-  ok = color_analyzer.set_colors(colors_just_read);
-  // clear reader after done
-  color_reader.clear_color_reader();
-  if (!ok) {
-    LOG_ERR(MOD_RUN, "color analyzer set colors failed", colors_just_read);
-    ori.restore_cube_orientation();
-    return false;
+  if (!do_centers) {
+    // set the colors and clear the reader
+    ok = color_analyzer.set_colors(colors_just_read);
+    // clear reader after done
+    color_reader.clear_color_reader();
+    if (!ok) {
+      LOG_ERR(MOD_RUN, "color analyzer set colors failed", colors_just_read);
+      ori.restore_cube_orientation();
+      return false;
+    }
   }
 
   // restore ori

@@ -749,83 +749,85 @@ bool CubeOri::set_orientation_from_front_and_right_faces(char f_face, char r_fac
   char f = tolower(f_face);
   char r = tolower(r_face);
 
-  LOG_INFO(MOD_CUBEORI, "is_valid_face(f)", is_valid_face(f));
-  LOG_INFO(MOD_CUBEORI, "is_valid_face(r)", is_valid_face(r));
-  LOG_INFO(MOD_CUBEORI, "set_orientation_from_front_and_right_faces f_face", f_face);
-  LOG_VAR("r_face", r_face);
+  LOG_INFO(MOD_CUBEORI, "called ori set from f", f);
+  LOG_VAR("r", r);
 
   if (!is_valid_face(f) || !is_valid_face(r)) return false;
   if (f == r) return false;
   if (oposite_face(f) == r) return false;
 
-  // Table of all 24 valid orientations
-  // Each entry: { F, R, U }
-  static const struct {
-    char f, r, u;
-  } table[] = {
-    // F = f
-    { 'f', 'r', 'u' },
-    { 'f', 'u', 'l' },
-    { 'f', 'l', 'd' },
-    { 'f', 'd', 'r' },
-    // F = b
-    { 'b', 'r', 'd' },
-    { 'b', 'd', 'l' },
-    { 'b', 'l', 'u' },
-    { 'b', 'u', 'r' },
-    // F = u
-    { 'u', 'r', 'b' },
-    { 'u', 'b', 'l' },
-    { 'u', 'l', 'f' },
-    { 'u', 'f', 'r' },
-    // F = d
-    { 'd', 'r', 'f' },
-    { 'd', 'f', 'l' },
-    { 'd', 'l', 'b' },
-    { 'd', 'b', 'r' },
-    // F = l
-    { 'l', 'f', 'u' },
-    { 'l', 'u', 'b' },
-    { 'l', 'b', 'd' },
-    { 'l', 'd', 'f' },
-    // F = r
-    { 'r', 'b', 'u' },
-    { 'r', 'u', 'f' },
-    { 'r', 'f', 'd' },
-    { 'r', 'd', 'b' }
-  };
+  char u = '\0';
 
-  for (const auto &e : table) {
-    //   for (const auto &e : table) {
-    //     if (e.f == f) {
-    //       LOG_INFO(MOD_CUBEORI, "table f match", e.f);
-    //    }
-    //   }
-    if (e.f == f && e.r == r) {
-      Orientation o;
-      o.F = e.f;
-      o.R = e.r;
-      o.U = e.u;
-      o.B = oposite_face(o.F);
-      o.L = oposite_face(o.R);
-      o.D = oposite_face(o.U);
+  // ---------- HARD CODED 24 CASES ----------
+  switch (f) {
+    case 'f':
+      if (r == 'r') u = 'u';
+      else if (r == 'u') u = 'l';
+      else if (r == 'l') u = 'd';
+      else if (r == 'd') u = 'r';
+      break;
 
-      // Final sanity (paranoia-safe)
-      bool used[256] = { false };
-      char faces[6] = { o.U, o.R, o.F, o.D, o.L, o.B };
-      for (char c : faces) {
-        if (!is_valid_face(c) || used[(uint8_t)c]) return false;
-        used[(uint8_t)c] = true;
-      }
+    case 'b':
+      if (r == 'r') u = 'd';
+      else if (r == 'd') u = 'l';
+      else if (r == 'l') u = 'u';
+      else if (r == 'u') u = 'r';
+      break;
 
-      ori_ = o;
-      orientation_log_ = get_orientation_string();
-      return true;
-    }
+    case 'u':
+      if (r == 'r') u = 'b';
+      else if (r == 'b') u = 'l';
+      else if (r == 'l') u = 'f';
+      else if (r == 'f') u = 'r';
+      break;
+
+    case 'd':
+      if (r == 'r') u = 'f';
+      else if (r == 'f') u = 'l';
+      else if (r == 'l') u = 'b';
+      else if (r == 'b') u = 'r';
+      break;
+
+    case 'l':
+      if (r == 'f') u = 'u';
+      else if (r == 'u') u = 'b';
+      else if (r == 'b') u = 'd';
+      else if (r == 'd') u = 'f';
+      break;
+
+    case 'r':
+      if (r == 'b') u = 'u';
+      else if (r == 'u') u = 'f';
+      else if (r == 'f') u = 'd';
+      else if (r == 'd') u = 'b';
+      break;
   }
 
-  // Not one of the 24 valid combinations
-  return false;
+  if (!is_valid_face(u)) {
+    LOG_ERR(MOD_CUBEORI, "set ori return false u", u);
+    return false;
+  }
+
+  Orientation o;
+  o.F = f;
+  o.R = r;
+  o.U = u;
+  o.B = oposite_face(o.F);
+  o.L = oposite_face(o.R);
+  o.D = oposite_face(o.U);
+
+  // uniqueness sanity
+  bool used[256] = { false };
+  char faces[6] = { o.U, o.R, o.F, o.D, o.L, o.B };
+  for (char c : faces) {
+    if (!is_valid_face(c) || used[(uint8_t)c]) return false;
+    used[(uint8_t)c] = true;
+  }
+
+  ori_ = o;
+  orientation_log_ = get_orientation_string();
+  LOG_INFO(MOD_CUBEORI, "set ori return true with", get_orientation_string());
+  return true;
 }
 
 bool update_ori_from_color_reader_54(String color_54) {
@@ -843,8 +845,8 @@ bool update_ori_from_color_reader_54(String color_54) {
   char robot_right_face = color_to_face(right_color);
   //
   bool ok = ori.set_orientation_from_front_and_right_faces(robot_front_face, robot_right_face);
-  if (ok) {
-    LOG_ERR(MOD_RUN, "ori set orintation from front and right faces failed attempted front", robot_front_face);
+  if (!ok) {
+    LOG_ERR(MOD_RUN, "ori set orientatio from front and right faces failed attempted front", robot_front_face);
     LOG_VAR("right", robot_right_face);
     return false;
   }
