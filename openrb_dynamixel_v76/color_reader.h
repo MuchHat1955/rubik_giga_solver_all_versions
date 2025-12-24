@@ -5,6 +5,12 @@
 
 class CubeOri;
 
+
+#define SCAN_MODE_FULL 54    // 54 stickers
+#define SCAN_MODE_BOTTOM 15  // 15 stickers
+#define SCAN_MODE_CENTERS 1  // 4 stickers
+#define SCAN_MODE_SOLVED 55  // 54 stickers
+
 struct color_map_step_t {
   const char *robot_move;  // movement: "y_plus", "y_minus", "z_minus", "y_180", …
   const char *face;        // face to read: "f","r","u","", …
@@ -48,5 +54,6 @@ private:
 };
 
 char color_to_face(char color);
+char face_to_color(char face);
 String fill_colors_if_top_two_layers_solved(const String &in54);
 String fill_solved_cube();

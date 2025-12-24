@@ -1317,8 +1317,9 @@ bool ColorAnalyzer::apply_cube_move(String mv) {
   return true;
 }
 
+// slot is 1 to 9
 char get_stickercolor_from_color_string_54(String color_string_54, char face, int slot) {
-  if (slot < 0 || slot > 8) return '.';
+  if (slot < 1 || slot > 9) return '.';
   char lf = tolower(face);
   if (!is_valid_face(lf)) return '.';
   if (color_string_54.length() != 54) return '.';
@@ -1334,7 +1335,7 @@ char get_stickercolor_from_color_string_54(String color_string_54, char face, in
     default: return '\0';
   }
 
-  char c = color_string_54.charAt(base + slot);
+  char c = color_string_54.charAt(base + slot - 1);
   return toupper(c);
 }
 // List of all allowed robot moves.
@@ -1643,7 +1644,7 @@ String rubik_54_to_labeled_diagram(const String &s) {
   String out;
 
   // -------- U --------
-  out += "        [U]\n";
+  out += "\n        [U]\n";
   for (int r = 0; r < 3; r++) {
     out += "        ";
     out += row(0, r);

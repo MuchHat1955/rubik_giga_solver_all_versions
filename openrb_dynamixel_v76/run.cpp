@@ -250,8 +250,8 @@ bool cmd_run_zero() {
     if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
   }
   // 3 - fix the base
-  if (!prepBaseForRotation(B_LEFT)) return false;
-  if (!prepBaseForRotation(B_RIGHT)) return false;
+  if (!prepBaseForRotation(B_LEFT, false)) return false;
+  if (!prepBaseForRotation(B_RIGHT, false)) return false;
   if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
   // 3 - move down
   if (!cmdMoveYmm(Y_DOWN)) return false;
@@ -352,7 +352,7 @@ bool cmd_run_top_down() {
 // ------------------------------------------------------------
 bool cmd_run_back_down() {
   if (!cmdMoveGripperPer(G_OPEN)) return false;
-  if (!rotateBaseRelative(B_LEFT)) return false;
+  if (!rotateBaseRelative(B_LEFT, false)) return false;
 
   if (!prepArmsForWristRotationGripOpen()) return false;
   if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
@@ -381,9 +381,9 @@ bool cmd_run_back_down() {
 bool cmd_run_down_layer(int run_no) {
   if (!cmdMoveGripperPer(G_OPEN)) return false;
 
-  if (run_no == RUN_DOWN_RIGHT && !prepBaseForRotation(B_RIGHT)) return false;
-  if (run_no == RUN_DOWN_LEFT && !prepBaseForRotation(B_LEFT)) return false;
-  if (run_no == RUN_DOWN_BACK && !prepBaseForRotation(B_BACK)) return false;
+  if (run_no == RUN_DOWN_RIGHT && !prepBaseForRotation(B_RIGHT, false)) return false;
+  if (run_no == RUN_DOWN_LEFT && !prepBaseForRotation(B_LEFT, false)) return false;
+  if (run_no == RUN_DOWN_BACK && !prepBaseForRotation(B_BACK, false)) return false;
 
   if (!cmdMoveYmm(Y_MID)) return false;
   if (!cmdMoveXmm(X_CENTER)) return false;
@@ -407,26 +407,26 @@ bool cmd_run_down_layer(int run_no) {
 // RUN_CUBE_*
 // ------------------------------------------------------------
 bool cmd_run_cube_right() {
-  return rotateBaseRelative(B_RIGHT);
+  return rotateBaseRelative(B_RIGHT, false);
 }
 bool cmd_run_cube_left() {
-  return rotateBaseRelative(B_LEFT);
+  return rotateBaseRelative(B_LEFT, false);
 }
 bool cmd_run_cube_back() {
-  return rotateBaseRelative(B_BACK);
+  return rotateBaseRelative(B_BACK, false);
 }
 
 // ------------------------------------------------------------
 // RUN_RESET_*
 // ------------------------------------------------------------
 bool cmd_run_reset_right() {
-  return prepBaseForRotation(B_RIGHT);
+  return prepBaseForRotation(B_RIGHT, false);
 }
 bool cmd_run_reset_left() {
-  return prepBaseForRotation(B_LEFT);
+  return prepBaseForRotation(B_LEFT, false);
 }
 bool cmd_run_reset_back() {
-  return prepBaseForRotation(B_BACK);
+  return prepBaseForRotation(B_BACK, false);
 }
 
 // ------------------------------------------------------------
@@ -706,6 +706,12 @@ bool cmd_color(int argc, double *argv) {
 }
 
 bool prepArmsForWristRotationGripOpen() {
+  if (!cmdMoveGripperPer(G_OPEN)) {
+    LOG_ERR(MOD_RUN, "returning false on prep arms, gripper not open, grip1_per",  //
+            ticks2per(ID_GRIP1, dxl.getPresentPosition(ID_GRIP1)));
+    LOG_VAR("grip2_per", ticks2per(ID_GRIP2, dxl.getPresentPosition(ID_GRIP2)));
+    return false;
+  }
   if (!dxl_ping_cached(ID_ARM1) || !dxl_ping_cached(ID_ARM2)) return false;
 
   double a1_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
@@ -715,9 +721,9 @@ bool prepArmsForWristRotationGripOpen() {
   double y_mm = kin.getYmm();
   double x_mm = kin.getXmm();
 
-  double target = Y_UP;
+  double y_target = Y_UP;
 
-  bool y_ok = (y_mm > (target - 1)) && (y_mm < (target + 1));
+  bool y_ok = (y_mm > (y_target - 1)) && (y_mm < (y_target + 1));
   bool x_ok = (x_mm > (X_CENTER - 1)) && (x_mm < (X_CENTER + 1));
 
   //Serial.print("\nprepare arms y_mm=");
@@ -725,7 +731,7 @@ bool prepArmsForWristRotationGripOpen() {
 
   // ✅ Always fix Y first and RETURN
   if (!y_ok) {
-    return cmdMoveYmm(Y_CENTER) && cmdMoveXmm(X_CENTER);
+    return cmdMoveYmm(y_target) && cmdMoveXmm(X_CENTER);
   }
 
   // ✅ Only touch X once Y is correct
@@ -735,7 +741,14 @@ bool prepArmsForWristRotationGripOpen() {
   return true;
 }
 
+// TODO next is not used
 bool prepArmsForWristRotationGripClosed() {
+  if (cmdMoveGripperPer(G_SOFT_CLOSE)) {
+    LOG_ERR(MOD_RUN, "returning false on prep arms, gripper not closed, grip1_per",  //
+            ticks2per(ID_GRIP1, dxl.getPresentPosition(ID_GRIP1)));
+    LOG_VAR("grip2_per", ticks2per(ID_GRIP2, dxl.getPresentPosition(ID_GRIP2)));
+    return false;
+  }
   if (!dxl_ping_cached(ID_ARM1) || !dxl_ping_cached(ID_ARM2)) return false;
 
   double a1_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
@@ -745,9 +758,9 @@ bool prepArmsForWristRotationGripClosed() {
   double y_mm = kin.getYmm();
   double x_mm = kin.getXmm();
 
-  double target = Y_CENTER;
+  double y_target = Y_CENTER;
 
-  bool y_ok = (y_mm > (target - 1)) && (y_mm < (target + 1));
+  bool y_ok = (y_mm > (y_target - 1)) && (y_mm < (y_target + 1));
   bool x_ok = (x_mm > (X_CENTER - 1)) && (x_mm < (X_CENTER + 1));
 
   //Serial.print("\nprepare arms y_mm=");
@@ -755,7 +768,7 @@ bool prepArmsForWristRotationGripClosed() {
 
   // ✅ Always fix Y first and RETURN
   if (!y_ok) {
-    return cmdMoveYmm(Y_CENTER) && cmdMoveXmm(X_CENTER);
+    return cmdMoveYmm(y_target) && cmdMoveXmm(X_CENTER);
   }
 
   // ✅ Only touch X once Y is correct
@@ -802,21 +815,20 @@ bool isWristNearVert() {
   return diff < 3 * W_TOL;
 }
 
-bool prepBaseForRotation(double nextBaseMoveRelative) {
+// assumes there is a cube
+bool prepBaseForRotation(double nextBaseMoveRelative, bool withCube) {
   if (nextBaseMoveRelative == B_CENTER) return true;
-  // // serial_printf_verbose("***** start prep base for rotation %.2f", nextBaseMoveRelative);
-
-  if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
-  if (!cmdMoveXmm(X_CENTER)) return false;
 
   double b_pos = getPos_deg(ID_BASE);
-  // // serial_printf_verbose("***** before prep base at %.2f", b_pos);
 
   bool isBaseCenter = (b_pos > B_CENTER - B_TOL && b_pos < B_CENTER + B_TOL);
   bool isBaseRight = (b_pos > B_RIGHT - B_TOL && b_pos < B_RIGHT + B_TOL);
   bool isBaseLeft = (b_pos > B_LEFT - B_TOL && b_pos < B_LEFT + B_TOL);
   bool isBaseBack = (b_pos > B_BACK - B_TOL && b_pos < B_BACK + B_TOL);
-  // // serial_printf_verbose("***** base at center : %s", isBaseCenter ? "yes" : "no");  // // serial_printf_verbose("***** base at right : %s", isBaseRight ? "yes" : "no");  // // serial_printf_verbose("***** base at left : %s", isBaseLeft ? "yes" : "no");  // // serial_printf_verbose("***** base at back : %s", isBaseBack ? "yes" : "no");
+
+  // LOG_INFO(MOD_RUN, "base back", isBaseBack);
+  // LOG_INFO(MOD_RUN, "relative move", nextBaseMoveRelative);
+
   // move one pos to right
   if (nextBaseMoveRelative == B_RIGHT) {
     if (isBaseCenter) return true;
@@ -832,19 +844,46 @@ bool prepBaseForRotation(double nextBaseMoveRelative) {
     if (isBaseCenter) return true;
     if (isBaseRight) return true;
   }
-  // // serial_printf_verbose("***** prep base for rotation move to center");
 
+  if (!withCube) {
+    // LOG_INFO(MOD_RUN, "prep running with cub for", nextBaseMoveRelative);
+    if (!cmdMoveGripperPer(G_WIDE_OPEN)) {
+      LOG_ERR(MOD_CMD, "prep base for rotation, no grip", "at move gripper wide open");
+      return false;
+    }
+    if (!isYmmAbove(Y_ROTATE_BASE)) {
+      if (!cmdMoveYmm(Y_ROTATE_BASE)) {
+        LOG_ERR(MOD_CMD, "prep base for rotation, no grip", "at move ymm to rotate base");
+        return false;
+      }
+    }
+    if (!cmdMoveXmm(X_CENTER)) return false;
+    if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
+    // LOG_INFO(MOD_RUN, "prep ok running with cube", withCube);
+    return true;
+  }
+  // LOG_INFO(MOD_RUN, "prep running with no cube for", nextBaseMoveRelative);
+
+  // this is with cube in
+  bool needToRotateHoriz = false;
   if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
-  if (!prepArmsForWristRotationGripOpen()) return false;
-  if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
+  if (!isWristHoriz() || isWristNearHoriz()) needToRotateHoriz = true;
   if (!cmdMoveGripperClamp()) return false;
-  if (!isYmmAbove(Y_ROTATE_BASE))
-    if (!cmdMoveYmm(Y_ROTATE_BASE)) return false;
-  if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
-  if (!lowerCube()) return false;
-  // // serial_printf_verbose("***** move to center done");
-  // // serial_printf_verbose("***** after prep base at %.2f", getPos_deg(ID_BASE));
 
+  // LOG_INFO(MOD_RUN, "running with needToRotateHoriz", needToRotateHoriz);
+  if (needToRotateHoriz) {
+    if (!isYmmAbove(Y_UP))
+      if (!cmdMoveYmm(Y_UP)) return false;
+    if (!cmdMoveXmm(X_CENTER)) return false;
+    if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
+  } else {
+    if (!isYmmAbove(Y_ROTATE_BASE))
+      if (!cmdMoveYmm(Y_ROTATE_BASE)) return false;
+  }
+  if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
+  if (needToRotateHoriz)
+    if (!cmdMoveWristDegVertical(W_VERT)) return false;
+  if (!lowerCube()) return false;
   return true;
 }
 
@@ -857,24 +896,24 @@ bool prepBaseForRotation(double nextBaseMoveRelative) {
 // below are relative moves
 bool rotateBaseRelative(double baseMoveRelative, bool gripperOn) {
   if (!dxl_ping_cached(ID_BASE)) return false;
-  // // serial_printf_verbose("***** start rotate base relative with %.2f", baseMoveRelative);  // // serial_printf_verbose("***** base before prepared pos is %.2f", getPos_deg(ID_BASE));
 
   if (baseMoveRelative == B_CENTER) return true;  // no move
 
-  if (!gripperOn)
-    if (!prepBaseForRotation(baseMoveRelative)) return false;
+  if (!prepBaseForRotation(baseMoveRelative, gripperOn)) {
+    LOG_ERR(MOD_RUN, "prep base for rotation failed", baseMoveRelative);
+    LOG_VAR("gripper", gripperOn);
+    return false;
+  }
 
   double b_pos = getPos_deg(ID_BASE);
-  // // serial_printf_verbose("***** base after prep pos is %.2f", b_pos);
+  LOG_INFO(MOD_RUN, "base pos", b_pos);
 
   bool isBaseCenter = (b_pos > B_CENTER - B_TOL && b_pos < B_CENTER + B_TOL);
   bool isBaseRight = (b_pos > B_RIGHT - B_TOL && b_pos < B_RIGHT + B_TOL);
   bool isBaseLeft = (b_pos > B_LEFT - B_TOL && b_pos < B_LEFT + B_TOL);
   bool isBaseBack = (b_pos > B_BACK - B_TOL && b_pos < B_BACK + B_TOL);
-  // // serial_printf_verbose("***** base at center : %s", isBaseCenter ? "yes" : "no");  // // serial_printf_verbose("***** base at right : %s", isBaseRight ? "yes" : "no");  // // serial_printf_verbose("***** base at left : %s", isBaseLeft ? "yes" : "no");  // // serial_printf_verbose("***** base at back : %s", isBaseBack ? "yes" : "no");
 
   double baseNextMove = B_CENTER;
-  // // serial_printf_verbose("***** rotate base relative with %.2f", baseMoveRelative);
   // move from center
   if (isBaseCenter) {
     if (baseMoveRelative == B_RIGHT) baseNextMove = B_RIGHT;
@@ -882,20 +921,29 @@ bool rotateBaseRelative(double baseMoveRelative, bool gripperOn) {
     if (baseMoveRelative == B_BACK) baseNextMove = B_BACK;
   }  // move from right
   else if (isBaseRight) {
-    if (baseMoveRelative == B_RIGHT) return false;
+    if (baseMoveRelative == B_RIGHT) {
+      LOG_ERR(MOD_RUN, "impossible move from right to", baseMoveRelative);
+      return false;
+    }
     if (baseMoveRelative == B_LEFT) baseNextMove = B_CENTER;
     if (baseMoveRelative == B_BACK) baseNextMove = B_LEFT;
   }  // move from left
   else if (isBaseLeft) {
     if (baseMoveRelative == B_RIGHT) baseNextMove = B_CENTER;
     if (baseMoveRelative == B_LEFT) baseNextMove = B_BACK;
-    if (baseMoveRelative == B_BACK) return false;
+    if (baseMoveRelative == B_BACK) {
+      LOG_ERR(MOD_RUN, "impossible move from left to", baseMoveRelative);
+      return false;
+    }
   }  // move from back
   else if (isBaseBack) {
     if (baseMoveRelative == B_RIGHT) baseNextMove = B_LEFT;
-    if (baseMoveRelative == B_LEFT) return false;
+    if (baseMoveRelative == B_LEFT) {
+      LOG_ERR(MOD_RUN, "impossible move from back to", baseMoveRelative);
+      return false;
+    }
     if (baseMoveRelative == B_BACK) baseNextMove = B_CENTER;
-  }  // // serial_printf_verbose("***** rotate base to next move %.2f", baseNextMove);
+  }
 
   if (!gripperOn) {
     if (!cmdMoveXmm(X_CENTER)) return false;
@@ -1147,18 +1195,27 @@ bool cmd_read_cube_colors(const String &mode_in) {
       LOG_ERR(MOD_RUN, "error", "read cube f and r centers failed");
     }
   }
+
   String colors_just_read = color_reader.get_justread_color_string_54();
-  if (ok && !do_centers) {
+  LOG_INFO(MOD_RUN, "just_read_string_54", colors_just_read);
+  // use colors to set the orientation to match colors
+  // lfr... should be set in colors by the robot pos
+  if (ok) {
+    LOG_INFO(MOD_RUN, "updating ori from color_string_54", colors_just_read);
+    LOG_INFO(MOD_RUN, "before update", ori.get_orientation_string());
     if (!update_ori_from_color_reader_54(colors_just_read)) {
       LOG_ERR(MOD_RUN, "error", "could not update ori from colors");
       // color_reader.clear_color_reader();
       ok = false;
     }
+    LOG_INFO(MOD_RUN, "after update", ori.get_orientation_string());
   }
+  // do not set the final colors in the analyzer if it failed
   if (!ok) {
     LOG_ERR(MOD_RUN, "error", "failed");
     return false;
   }
+  // set the colors and clear the reader
   ok = color_analyzer.set_colors(colors_just_read);
   // clear reader after done
   color_reader.clear_color_reader();
@@ -1167,6 +1224,9 @@ bool cmd_read_cube_colors(const String &mode_in) {
     ori.restore_cube_orientation();
     return false;
   }
+
+  // restore ori
+  ori.restore_cube_orientation();
 
   // After read
   LOG_INFO(MOD_RUN, "color_reader_should_be_clear_string_54", color_analyzer.get_standard_color_string_54());
@@ -1380,29 +1440,35 @@ bool cmd_check_ori(int argc, double *argv) {
 
 bool cmd_check_ori_run() {
 
-  char robot_face_front = ori.cube_face_to_robot_face('f');
-  if (!is_valid_face(robot_face_front)) {
-    LOG_ERR(MOD_RUN, "ori does not have orientation", robot_face_front);
-    return false;
-  }
-
-  char just_read_robot_color_front = cmd_read_one_color_run(6);
+  char just_read_robot_color_front = cmd_read_one_color_run(5);  // 5 is the slot for the middle
+  LOG_INFO(MOD_CMD, "color showing in front", just_read_robot_color_front);
   if (!is_valid_color(just_read_robot_color_front)) {
     LOG_ERR(MOD_RUN, "invalid_robot_center_color", just_read_robot_color_front);
     return false;
   }
-  char just_read_robot_face_front = color_to_face(just_read_robot_color_front);
-  if (just_read_robot_face_front == robot_face_front) {
-    LOG_INFO(MOD_CMD, "ori data matched color read on front", just_read_robot_face_front);
-    return true;
+  // cube face showing in front
+  char robot_face_showing_in_front = color_to_face(just_read_robot_color_front);
+  LOG_INFO(MOD_CMD, "corresponding face showing in front", robot_face_showing_in_front);
+  if (!is_valid_face(robot_face_showing_in_front)) {
+    LOG_ERR(MOD_RUN, "invalid_robot_center_face", robot_face_showing_in_front);
+    return false;
   }
-  LOG_ERR(MOD_CMD, "ori data matched does not match color read on front", just_read_robot_face_front);
-  LOG_VAR("ori expects", robot_face_front);
-  return false;
+  // face ori says should be in front
+  char robot_face_that_should_be_showing_in_front = ori.robot_face_to_cube_face('f');
+  LOG_INFO(MOD_CMD, "face that should be showing per ori", robot_face_that_should_be_showing_in_front);
+
+  if (robot_face_that_should_be_showing_in_front != robot_face_showing_in_front) {
+    LOG_ERR(MOD_CMD, "ori face does not match robot face in front, robot", robot_face_showing_in_front);
+    LOG_VAR("ori", robot_face_that_should_be_showing_in_front);
+    return false;
+  }
+  LOG_INFO(MOD_CMD, "front face matches ori, robot", robot_face_showing_in_front);
+  LOG_VAR("ori", robot_face_that_should_be_showing_in_front);
+  return true;
 }
 
 bool cmd_detect_ori(int argc, double *argv) {
   LOG_INFO(MOD_RUN, "info", "color read for centers will update ori");
-  if (!color_reader.read_cube_f_and_r_centers()) return false;
+  if (!cmd_read_cube_colors("centers")) return false;
   return true;
 }

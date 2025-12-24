@@ -762,13 +762,13 @@ bool CubeOri::set_orientation_from_front_and_right_faces(char f_face, char r_fac
 
   auto face_to_vec = [](char c) -> V3 {
     switch (tolower(c)) {
-      case 'r': return { 1, 0, 0 };
-      case 'l': return { -1, 0, 0 };
-      case 'u': return { 0, 1, 0 };
-      case 'd': return { 0, -1, 0 };
-      case 'f': return { 0, 0, 1 };
-      case 'b': return { 0, 0, -1 };
-      default: return { 0, 0, 0 };
+      case 'r': return {  1,  0,  0 };
+      case 'l': return { -1,  0,  0 };
+      case 'u': return {  0,  1,  0 };
+      case 'd': return {  0, -1,  0 };
+      case 'f': return {  0,  0,  1 };
+      case 'b': return {  0,  0, -1 };
+      default:  return {  0,  0,  0 };
     }
   };
 
@@ -781,24 +781,29 @@ bool CubeOri::set_orientation_from_front_and_right_faces(char f_face, char r_fac
   };
 
   auto vec_to_face = [](V3 v) -> char {
-    if (v.x == 1 && v.y == 0 && v.z == 0) return 'r';
-    if (v.x == -1 && v.y == 0 && v.z == 0) return 'l';
-    if (v.x == 0 && v.y == 1 && v.z == 0) return 'u';
-    if (v.x == 0 && v.y == -1 && v.z == 0) return 'd';
-    if (v.x == 0 && v.y == 0 && v.z == 1) return 'f';
-    if (v.x == 0 && v.y == 0 && v.z == -1) return 'b';
+    if (v.x ==  1 && v.y ==  0 && v.z ==  0) return 'r';
+    if (v.x == -1 && v.y ==  0 && v.z ==  0) return 'l';
+    if (v.x ==  0 && v.y ==  1 && v.z ==  0) return 'u';
+    if (v.x ==  0 && v.y == -1 && v.z ==  0) return 'd';
+    if (v.x ==  0 && v.y ==  0 && v.z ==  1) return 'f';
+    if (v.x ==  0 && v.y ==  0 && v.z == -1) return 'b';
     return '\0';
   };
 
   V3 vf = face_to_vec(f);
   V3 vr = face_to_vec(r);
 
-  // Physical axes: X=R, Y=U, Z=F. For a right-handed frame: U = F x R
-  V3 vu = cross(vf, vr);
+  // Right-handed cube frame:
+  // X = R, Y = U, Z = F  →  U = R × F
+  V3 vu = cross(vr, vf);
+
+  // Cross product must be unit and axis-aligned
+  if ((abs(vu.x) + abs(vu.y) + abs(vu.z)) != 1) return false;
+
   char u = vec_to_face(vu);
   if (!is_valid_face(u)) return false;
 
-  // Build full consistent orientation (physical -> logical)
+  // Build full orientation
   Orientation o;
   o.F = f;
   o.R = r;
@@ -807,9 +812,10 @@ bool CubeOri::set_orientation_from_front_and_right_faces(char f_face, char r_fac
   o.L = oposite_face(o.R);
   o.D = oposite_face(o.U);
 
-  if (!is_valid_face(o.B) || !is_valid_face(o.L) || !is_valid_face(o.D)) return false;
+  if (!is_valid_face(o.B) || !is_valid_face(o.L) || !is_valid_face(o.D))
+    return false;
 
-  // Sanity: all 6 must be unique
+  // Sanity: all faces must be unique
   bool used[256] = { false };
   char faces[6] = { o.U, o.R, o.F, o.D, o.L, o.B };
   for (int i = 0; i < 6; i++) {
@@ -823,6 +829,7 @@ bool CubeOri::set_orientation_from_front_and_right_faces(char f_face, char r_fac
   orientation_log_ = get_orientation_string();
   return true;
 }
+
 
 bool update_ori_from_color_reader_54(String color_54) {
   LOG_INFO(MOD_RUN, "infer all centers from", color_54);
