@@ -124,8 +124,6 @@ bool cmd_run_zero() {
 
   double prev_speed = speed;
 
-TODO fix this when arm is low
-
   // ============================================================
   // case 3 - wrist is exactly horiz
   if (isWristHoriz()) {
@@ -252,8 +250,9 @@ TODO fix this when arm is low
     if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
   }
   // 3 - fix the base
-  if (!prepBaseForRotation(B_LEFT, false)) return false;
+  if (!prepBaseForRotation(B_BACK, false)) return false;
   if (!prepBaseForRotation(B_RIGHT, false)) return false;
+  if (!prepBaseForRotation(B_LEFT, false)) return false;
   if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
   // 3 - move down
   if (!cmdMoveYmm(Y_DOWN)) return false;
