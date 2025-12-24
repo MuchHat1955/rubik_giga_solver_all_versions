@@ -124,6 +124,8 @@ bool cmd_run_zero() {
 
   double prev_speed = speed;
 
+TODO fix this when arm is low
+
   // ============================================================
   // case 3 - wrist is exactly horiz
   if (isWristHoriz()) {
