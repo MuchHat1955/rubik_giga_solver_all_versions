@@ -320,31 +320,36 @@ bool cmd_run_left_down() {
 // ------------------------------------------------------------
 bool cmd_run_top_down() {
 
+  // open grip
   RUN_CMD(cmdMoveGripperPer(G_OPEN), "open gripper");
 
+  // move to center and rotate open grip to left
   RUN_CMD(cmdMoveXmm(X_CENTER), "move x to center");
   RUN_CMD(cmdMoveYmm(Y_CENTER + 3), "move y above center");
-  RUN_CMD(cmdMoveWristDegVertical(W_HORIZ_LEFT),
-          "rotate wrist horizontal left");
+  RUN_CMD(cmdMoveWristDegVertical(W_HORIZ_LEFT), "rotate wrist horizontal left");
+
+  // radjust to center and grip cube
   RUN_CMD(cmdMoveYmm(Y_CENTER), "move y to center");
   RUN_CMD(cmdMoveXmm(X_CENTER), "re-center x");
   RUN_CMD(cmdMoveGripperClamp(), "clamp gripper");
+
+  // move up and rotate 180
   RUN_CMD(liftCube(), "lift cube");
   RUN_CMD(cmdMoveYmm(Y_UP), "move y up");
-  RUN_CMD(cmdMoveServoDeg(ID_BASE, B_CENTER),
-          "rotate base to center");
+  RUN_CMD(cmdMoveServoDeg(ID_BASE, B_CENTER), "rotate base to center");
+
+  // radjust to center
   RUN_CMD(cmdMoveXmm(X_CENTER), "final x center");
+  RUN_CMD(cmdMoveWristDegVertical(W_HORIZ_RIGHT), "rotate wrist horizontal right");
 
-  RUN_CMD(cmdMoveWristDegVertical(W_HORIZ_RIGHT),
-          "rotate wrist horizontal right");
-
+  // lower cube and drop in place
   RUN_CMD(lowerCube(), "lower cube");
   RUN_CMD(cmdMoveGripperPer(G_OPEN), "open gripper");
 
+  // fix the gripper back to original horiz
   RUN_CMD(cmdMoveYmm(Y_CENTER + 3), "move y above center (post-release)");
   RUN_CMD(cmdMoveXmm(X_CENTER), "re-center x");
-  RUN_CMD(cmdMoveWristDegVertical(W_HORIZ_RIGHT),
-          "ensure wrist horizontal right");
+  RUN_CMD(cmdMoveWristDegVertical(W_HORIZ_RIGHT), "ensure wrist horizontal right");
 
   return true;
 }
