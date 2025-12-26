@@ -836,6 +836,9 @@ bool update_ori_from_color_reader_54(String color_54) {
   char front_color = get_stickercolor_from_color_string_54(color_54, 'f', 5);
   char right_color = get_stickercolor_from_color_string_54(color_54, 'r', 5);
 
+  LOG_INFO(MOD_RUN, "f color", front_color);
+  LOG_INFO(MOD_RUN, "r color", right_color);
+
   if (!is_valid_color(front_color) || !is_valid_color(right_color)) {
     LOG_ERR(MOD_RUN, "front and right colors just read invalid front", front_color);
     LOG_VAR("right", right_color);
@@ -843,7 +846,10 @@ bool update_ori_from_color_reader_54(String color_54) {
   }
   char robot_front_face = color_to_face(front_color);
   char robot_right_face = color_to_face(right_color);
-  //
+
+  LOG_INFO(MOD_RUN, "f face", robot_front_face);
+  LOG_INFO(MOD_RUN, "r face", robot_right_face);
+
   bool ok = ori.set_orientation_from_front_and_right_faces(robot_front_face, robot_right_face);
   if (!ok) {
     LOG_ERR(MOD_RUN, "ori set orientatio from front and right faces failed attempted front", robot_front_face);

@@ -417,36 +417,45 @@ String ColorAnalyzer::get_string_check_log() const {
 bool ColorAnalyzer::is_valid_color_string_54_impl(const String &s) const {
   if (s.length() != 54) {
     last_error_ = "invalid length";
+    LOG_ERR(MOD_COLORCHECK, "invalid color string", last_error_);
     return false;
   }
 
   // 1. Centers and counts
   if (!centers_correct_from(s)) {
-    if (last_error_.length() == 0)
+    if (last_error_.length() == 0) {
       last_error_ = "center colors invalid";
+      LOG_ERR(MOD_COLORCHECK, "invalid color string", last_error_);
+    }
     return false;
   }
 
   if (!valid_color_counts_from(s)) {
     // valid_color_counts_from sets last_error_
-    if (last_error_.length() == 0)
+    if (last_error_.length() == 0) {
       last_error_ = "color counts invalid";
+      LOG_ERR(MOD_COLORCHECK, "invalid color string", last_error_);
+    }
     return false;
   }
 
   // 2. Piece composition
   if (!edges_corners_color_consistent_from(s)) {
     // last_error_ set there
-    if (last_error_.length() == 0)
+    if (last_error_.length() == 0) {
       last_error_ = "edge/corner color combinations impossible (not a legal cube state)";
+      LOG_ERR(MOD_COLORCHECK, "invalid color string", last_error_);
+    }
     return false;
   }
 
   // 3. Edge flip parity
   if (!check_edge_flip_parity_simplified(s)) {
     // last_error_ set there
-    if (last_error_.length() == 0)
+    if (last_error_.length() == 0) {
       last_error_ = "edge flip parity invalid";
+      LOG_ERR(MOD_COLORCHECK, "invalid color string", last_error_);
+    }
     return false;
   }
 

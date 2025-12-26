@@ -89,7 +89,7 @@ extern const char runHelp[] PROGMEM;
 // -------------------------------------------------------------------
 
 // ---- core motion / helpers
-bool prepBaseForRotation(double nextBaseMoveRelative, bool gripperOn);
+// bool prepBaseForRotation(double nextBaseMoveRelative, bool gripperOn);
 bool rotateBaseRelative(double baseMoveRelative, bool gripperOn);
 bool alignCube();
 bool liftCube();

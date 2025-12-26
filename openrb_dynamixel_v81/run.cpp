@@ -278,9 +278,9 @@ bool cmd_run_zero() {
   }
 
   // 3 - fix base orientation (all sides)
-  RUN_CMD(prepBaseForRotation(B_BACK, false), "prep base back");
-  RUN_CMD(prepBaseForRotation(B_RIGHT, false), "prep base right");
-  RUN_CMD(prepBaseForRotation(B_LEFT, false), "prep base left");
+  // RUN_CMD(prepBaseForRotation(B_BACK, false), "prep base back");
+  // RUN_CMD(prepBaseForRotation(B_RIGHT, false), "prep base right");
+  // RUN_CMD(prepBaseForRotation(B_LEFT, false), "prep base left");
 
   // 4 - move down
   RUN_CMD(cmdMoveYmm(Y_DOWN), "move y down");
@@ -468,14 +468,14 @@ bool cmd_run_down_layer(int run_no) {
   RUN_CMD(cmdMoveGripperPer(G_OPEN), "open gripper");
 
   // prepare base orientation depending on target side
-  if (run_no == RUN_DOWN_RIGHT)
-    RUN_CMD(prepBaseForRotation(B_RIGHT, false), "prep base for right down rotation");
+  // if (run_no == RUN_DOWN_RIGHT)
+  //   RUN_CMD(prepBaseForRotation(B_RIGHT, false), "prep base for right down rotation");
 
-  if (run_no == RUN_DOWN_LEFT)
-    RUN_CMD(prepBaseForRotation(B_LEFT, false), "prep base for left down rotation");
+  // if (run_no == RUN_DOWN_LEFT)
+  //   RUN_CMD(prepBaseForRotation(B_LEFT, false), "prep base for left down rotation");
 
-  if (run_no == RUN_DOWN_BACK)
-    RUN_CMD(prepBaseForRotation(B_BACK, false), "prep base for back down rotation");
+  // if (run_no == RUN_DOWN_BACK)
+  //  RUN_CMD(prepBaseForRotation(B_BACK, false), "prep base for back down rotation");
 
   // move to mid height and align gripper
   RUN_CMD(cmdMoveYmm(Y_MID), "move y to mid");
@@ -723,8 +723,9 @@ bool cmd_move_x(int argc, double *argv) {
 }
 
 bool cmd_move_clamp(int argc, double *argv) {
-  if (!dxl_ping_cached(ID_GRIP1) || !dxl_ping_cached(ID_GRIP2)) return false;
-  // serial_printf_verbose("cmd_move_clamp");  // turn off torque off base before clamp
+  RUN_CMD(dxl_ping_cached(ID_GRIP1), "ping grip1");
+  RUN_CMD(dxl_ping_cached(ID_GRIP2), "ping grip2");
+
   dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_BASE, 0);
   bool ok = cmdMoveGripperClamp();  // turn off torque on base after clamp
   dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_BASE, 1);
@@ -753,7 +754,9 @@ bool cmd_move_gripper(int argc, double *argv) {
 }
 
 bool cmd_move_wrist_vert(int argc, double *argv) {
-  if (!dxl_ping_cached(ID_WRIST) || !dxl_ping_cached(ID_ARM1) || !dxl_ping_cached(ID_ARM2)) return false;
+  RUN_CMD(dxl_ping_cached(ID_WRIST), "ping wrist");
+  RUN_CMD(dxl_ping_cached(ID_ARM1), "ping arm1");
+  RUN_CMD(dxl_ping_cached(ID_ARM2), "ping arm2");
 
   double goal_deg = argv[0];
 
@@ -834,8 +837,9 @@ bool isWristNearVert() {
 }
 
 // assumes there is a cube
-bool prepBaseForRotation(double nextBaseMoveRelative, bool withCube) {
-  if (nextBaseMoveRelative == B_CENTER) return true;
+/*
+bool prepBaseForRotation(double endBasePositionAfterPrep, bool withCube) {
+
 
   double b_pos = getPos_deg(ID_BASE);
 
@@ -844,23 +848,18 @@ bool prepBaseForRotation(double nextBaseMoveRelative, bool withCube) {
   bool isBaseLeft = (b_pos > B_LEFT - B_TOL && b_pos < B_LEFT + B_TOL);
   bool isBaseBack = (b_pos > B_BACK - B_TOL && b_pos < B_BACK + B_TOL);
 
-  // LOG_INFO(MOD_RUN, "base back", isBaseBack);
-  // LOG_INFO(MOD_RUN, "relative move", nextBaseMoveRelative);
-
   // move one pos to right
-  if (nextBaseMoveRelative == B_RIGHT) {
+  if (endBasePositionAfterPrep == B_CENTER) {
     if (isBaseCenter) return true;
-    if (isBaseLeft) return true;
-    if (isBaseBack) return true;
-  }  // move one pos to left
-  if (nextBaseMoveRelative == B_LEFT) {
-    if (isBaseCenter) return true;
+  }
+  if (endBasePositionAfterPrep == B_RIGHT) {
     if (isBaseRight) return true;
+  }  // move one pos to left
+  if (endBasePositionAfterPrep == B_LEFT) {
     if (isBaseLeft) return true;
   }
-  if (nextBaseMoveRelative == B_BACK) {
-    if (isBaseCenter) return true;
-    if (isBaseRight) return true;
+  if (endBasePositionAfterPrep == B_BACK) {
+    if (isBaseBack) return true;
   }
 
   if (!withCube) {
@@ -876,7 +875,8 @@ bool prepBaseForRotation(double nextBaseMoveRelative, bool withCube) {
       }
     }
     if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
+
+    if (!cmdMoveServoDeg(ID_BASE, endBasePositionAfterPrep)) return false;
     // LOG_INFO(MOD_RUN, "prep ok running with cube", withCube);
     return true;
   }
@@ -898,12 +898,12 @@ bool prepBaseForRotation(double nextBaseMoveRelative, bool withCube) {
     if (!isYmmAbove(Y_ROTATE_BASE))
       if (!cmdMoveYmm(Y_ROTATE_BASE)) return false;
   }
-  if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
-  if (needToRotateHoriz)
-    if (!cmdMoveWristDegVertical(W_VERT)) return false;
+  if (!cmdMoveServoDeg(ID_BASE, endBasePositionAfterPrep)) return false;
+  if (!cmdMoveWristDegVertical(W_VERT)) return false;
   if (!lowerCube()) return false;
   return true;
 }
+*/
 
 /*
 #define B_RIGHT 90
@@ -911,86 +911,68 @@ bool prepBaseForRotation(double nextBaseMoveRelative, bool withCube) {
 #define B_BACK -180
 */
 
+#define I_CENTER 0
+#define I_RIGHT 1
+#define I_LEFT -1
+#define I_BACK -2
+
+int basePos_deg2i(double d_pose) {
+  double d_i_pose = d_pose / 90.0;
+  if (d_i_pose > 0) d_i_pose += 0.5;
+  else d_i_pose -= 0.5;
+  return (int)d_i_pose;
+}
+String basePos_i2name(int iPose) {
+  if (iPose == I_CENTER) return "center";
+  if (iPose == I_RIGHT) return "right";
+  if (iPose == I_LEFT) return "left";
+  if (iPose == I_BACK) return "back";
+  return "err";
+}
+double basePos_i2deg(int i_pose) {
+  double d_i_pose = (double)i_pose * 90.0;
+  return d_i_pose;
+}
+
 // below are relative moves
-bool rotateBaseRelative(double baseMoveRelative, bool gripperOn) {
-  // LOG_INFO(MOD_RUN, "rotate_base_relative", baseMoveRelative);
-  // LOG_VAR("gripper", gripperOn);
+bool rotateBaseRelative(double base_rel_deg, bool gripperOn) {
+  RUN_CMD(dxl_ping_cached(ID_BASE), "ping base");
 
-  if (!dxl_ping_cached(ID_BASE)) {
-    LOG_ERR(MOD_RUN, "ping for base failed", ID_BASE);
-    return false;
+  double base_crr_deg = getPos_deg(ID_BASE);
+  int base_crr_i = basePos_deg2i(base_crr_deg);
+  int base_rel_i = basePos_deg2i(base_rel_deg);
+  LOG_INFO(MOD_RUN, "base pos before rotate", basePos_i2name(base_crr_i));
+  LOG_VAR("base move", basePos_i2name(base_rel_i));
+
+  int base_goal_i = base_crr_i + base_rel_i;
+  if (base_goal_i < I_BACK) base_goal_i = I_LEFT;
+  if (base_goal_i > I_RIGHT) base_goal_i = I_BACK;
+  double base_goal_deg = basePos_i2deg(base_goal_i);
+
+  LOG_VAR("base goal", basePos_i2name(base_goal_i));
+
+  double d_err = fabs(base_crr_deg - base_goal_deg);
+  if (d_err < B_TOL) {
+    LOG_INFO(MOD_RUN, "base err", d_err);
+    return true;
   }
 
-  if (baseMoveRelative == B_CENTER) return true;  // no move
-
-  if (!prepBaseForRotation(baseMoveRelative, gripperOn)) {
-    LOG_ERR(MOD_RUN, "prep base for rotation failed", baseMoveRelative);
-    LOG_VAR("gripper", gripperOn);
-    return false;
-  }
-
-  double b_pos = getPos_deg(ID_BASE);
-  //LOG_INFO(MOD_RUN, "base_pos", b_pos);
-
-  bool isBaseCenter = (b_pos > B_CENTER - B_TOL && b_pos < B_CENTER + B_TOL);
-  bool isBaseRight = (b_pos > B_RIGHT - B_TOL && b_pos < B_RIGHT + B_TOL);
-  bool isBaseLeft = (b_pos > B_LEFT - B_TOL && b_pos < B_LEFT + B_TOL);
-  bool isBaseBack = (b_pos > B_BACK - B_TOL && b_pos < B_BACK + B_TOL);
-
-  double baseNextMove = B_CENTER;
-  // move from center
-  if (isBaseCenter) {
-    if (baseMoveRelative == B_RIGHT) baseNextMove = B_RIGHT;
-    if (baseMoveRelative == B_LEFT) baseNextMove = B_LEFT;
-    if (baseMoveRelative == B_BACK) baseNextMove = B_BACK;
-  }  // move from right
-  else if (isBaseRight) {
-    if (baseMoveRelative == B_RIGHT) {
-      LOG_ERR(MOD_RUN, "impossible move from right to", baseMoveRelative);
-      return false;
-    }
-    if (baseMoveRelative == B_LEFT) baseNextMove = B_CENTER;
-    if (baseMoveRelative == B_BACK) baseNextMove = B_LEFT;
-  }  // move from left
-  else if (isBaseLeft) {
-    if (baseMoveRelative == B_RIGHT) baseNextMove = B_CENTER;
-    if (baseMoveRelative == B_LEFT) baseNextMove = B_BACK;
-    if (baseMoveRelative == B_BACK) {
-      LOG_ERR(MOD_RUN, "impossible move from left to", baseMoveRelative);
-      return false;
-    }
-  }  // move from back
-  else if (isBaseBack) {
-    if (baseMoveRelative == B_RIGHT) baseNextMove = B_LEFT;
-    if (baseMoveRelative == B_LEFT) {
-      LOG_ERR(MOD_RUN, "impossible move from back to", baseMoveRelative);
-      return false;
-    }
-    if (baseMoveRelative == B_BACK) baseNextMove = B_CENTER;
-  }
-
-  if (!gripperOn) {
-    if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!isYmmAbove(Y_ROTATE_BASE))
-      if (!cmdMoveYmm(Y_ROTATE_BASE)) return false;
-    if (!cmdMoveXmm(X_CENTER)) return false;
-  }
   if (gripperOn) {
     double adjFw = 0;
     double adjBk = 0;
-    if (baseNextMove > b_pos) {
+    if (base_goal_deg > base_crr_deg) {
       adjFw = B_ERR + 1;
       adjBk = B_ERR;
     } else {
       adjFw = -B_ERR - 1;
       adjBk = -B_ERR;
     }
-
     // move past the target and the final move after will reset it
-    if (!cmdMoveServoDeg(ID_BASE, baseNextMove + adjFw)) return false;
-    if (!cmdMoveServoDeg(ID_BASE, baseNextMove - adjBk)) return false;
+    RUN_CMD(cmdMoveServoDeg(ID_BASE, base_goal_deg + adjFw), "base to goal + adj fw");
+    RUN_CMD(cmdMoveServoDeg(ID_BASE, base_goal_deg - adjBk), "base to goal - adj bk");
   }
-  return cmdMoveServoDeg(ID_BASE, baseNextMove);
+  RUN_CMD(cmdMoveServoDeg(ID_BASE, base_goal_deg), "base to goal");
+  return true;
 }
 
 bool alignCube() {
@@ -1245,12 +1227,16 @@ bool cmd_read_cube_colors(const String &mode_in) {
     // set the colors and clear the reader
     ok = color_analyzer.set_colors(colors_just_read);
     // clear reader after done
-    color_reader.clear_color_reader();
+
     if (!ok) {
-      LOG_ERR(MOD_RUN, "color analyzer set colors failed", colors_just_read);
+      LOG_ERR(MOD_RUN, "color_analyzer_set_colors_failed", colors_just_read);
+      String diagram_str = rubik_54_to_labeled_diagram(colors_just_read);
+      Serial.print(diagram_str);
+      color_reader.clear_color_reader();
       ori.restore_cube_orientation();
       return false;
     }
+    color_reader.clear_color_reader();
   }
 
   // restore ori
@@ -1294,8 +1280,8 @@ bool cmd_ledoff(int argc, double *argv) {
 }
 
 bool cmd_detect_cube(int argc, double *argv) {
-  if (!dxl_ping_cached(ID_GRIP1) || !dxl_ping_cached(ID_GRIP2))
-    return false;
+  RUN_CMD(dxl_ping_cached(ID_GRIP1), "ping grip1");
+  RUN_CMD(dxl_ping_cached(ID_GRIP2), "ping grip2");
 
   // bring the grip in position
   LOG_INFO(MOD_SERVO_MOVE, "bring grip in position", Y_CENTER);
