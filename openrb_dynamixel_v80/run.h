@@ -159,8 +159,6 @@ bool cmd_run_align_cube();
 char cmd_read_one_color_run(int slot);
 
 // needed for run 0
-bool prepArmsForWristRotationGripOpen();
-bool prepArmsForWristRotationGripClosed();
 bool isWristHoriz();
 bool isWristVert();
 bool isWristNearHoriz();

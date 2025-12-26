@@ -249,7 +249,6 @@ bool cmd_run_zero() {
   if (!prepBaseForRotation(B_BACK, false)) return false;
   if (!prepBaseForRotation(B_RIGHT, false)) return false;
   if (!prepBaseForRotation(B_LEFT, false)) return false;
-  if (!cmdMoveServoDeg(ID_BASE, B_CENTER)) return false;
   // 3 - move down
   if (!cmdMoveYmm(Y_DOWN)) return false;
   // 4 - soft close
@@ -697,79 +696,7 @@ bool cmd_color(int argc, double *argv) {
   return true;
 }
 
-// TODO to remove should not be used
-bool prepArmsForWristRotationGripOpen() {
-  if (!cmdMoveGripperPer(G_OPEN)) {
-    LOG_ERR(MOD_RUN, "returning false on prep arms, gripper not open, grip1_per",  //
-            ticks2per(ID_GRIP1, dxl.getPresentPosition(ID_GRIP1)));
-    LOG_VAR("grip2_per", ticks2per(ID_GRIP2, dxl.getPresentPosition(ID_GRIP2)));
-    return false;
-  }
-  if (!dxl_ping_cached(ID_ARM1) || !dxl_ping_cached(ID_ARM2)) return false;
-
-  double a1_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
-  double a2_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
-  kin.solve_x_y_from_a1_a2(a1_deg, a2_deg);
-
-  double y_mm = kin.getYmm();
-  double x_mm = kin.getXmm();
-
-  double y_target = Y_UP;
-
-  bool y_ok = (y_mm > (y_target - 1)) && (y_mm < (y_target + 1));
-  bool x_ok = (x_mm > (X_CENTER - 1)) && (x_mm < (X_CENTER + 1));
-
-  //Serial.print("\nprepare arms y_mm=");
-  //Serial.println(y_mm);
-
-  // ✅ Always fix Y first and RETURN
-  if (!y_ok) {
-    return cmdMoveYmm(y_target) && cmdMoveXmm(X_CENTER);
-  }
-
-  // ✅ Only touch X once Y is correct
-  if (!x_ok) {
-    return cmdMoveXmm(X_CENTER);
-  }
-  return true;
-}
-
-// TODO to remove should not be used
-bool prepArmsForWristRotationGripClosed() {
-  if (cmdMoveGripperPer(G_SOFT_CLOSE)) {
-    LOG_ERR(MOD_RUN, "returning false on prep arms, gripper not closed, grip1_per",  //
-            ticks2per(ID_GRIP1, dxl.getPresentPosition(ID_GRIP1)));
-    LOG_VAR("grip2_per", ticks2per(ID_GRIP2, dxl.getPresentPosition(ID_GRIP2)));
-    return false;
-  }
-  if (!dxl_ping_cached(ID_ARM1) || !dxl_ping_cached(ID_ARM2)) return false;
-
-  double a1_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
-  double a2_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
-  kin.solve_x_y_from_a1_a2(a1_deg, a2_deg);
-
-  double y_mm = kin.getYmm();
-  double x_mm = kin.getXmm();
-
-  double y_target = Y_CENTER;
-
-  bool y_ok = (y_mm > (y_target - 1)) && (y_mm < (y_target + 1));
-  bool x_ok = (x_mm > (X_CENTER - 1)) && (x_mm < (X_CENTER + 1));
-
-  //Serial.print("\nprepare arms y_mm=");
-  //Serial.println(y_mm);
-
-  // ✅ Always fix Y first and RETURN
-  if (!y_ok) {
-    return cmdMoveYmm(y_target) && cmdMoveXmm(X_CENTER);
-  }
-
-  // ✅ Only touch X once Y is correct
-  if (!x_ok) {
-    return cmdMoveXmm(X_CENTER);
-  }
-  return true;
-}
+//TODO run 0 messes the ori
 
 bool isWristHoriz() {
   double goal_deg = kin.getWdeg_for_horizontal_right();
