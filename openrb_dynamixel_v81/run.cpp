@@ -113,8 +113,8 @@ bool robot_move_callback(const String &mv) {
 bool cmd_run_zero() {
 
   // sanity check: both arm servos must respond
-  RUN_CMD(dxl_ping_cached(ID_ARM1), "ping arm1");
-  RUN_CMD(dxl_ping_cached(ID_ARM2), "ping arm2");
+  RUN_PING(ID_ARM1);
+  RUN_PING(ID_ARM2);
 
   // compute current XY from joint angles
   double a1_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
@@ -619,7 +619,7 @@ bool cmd_move_xy(int argc, double *argv) {
 
 bool cmd_move_deg(int argc, double *argv) {
   int id = (int)argv[0];
-  if (!dxl_ping_cached(id)) return false;
+  RUN_PING(id);
 
   double goal_deg = (double)argv[1];
 
@@ -637,7 +637,7 @@ bool cmd_move_deg(int argc, double *argv) {
 
 bool cmd_move_ticks(int argc, double *argv) {
   int id = (int)argv[0];
-  if (!dxl_ping_cached(id)) return false;
+  RUN_PING(id);
 
   int goal_ticks = (int)argv[1];  // serial_printf_verbose("cmd_move_ticks: id=%d ticks=%d", id, goal_ticks);
 
@@ -648,7 +648,7 @@ bool cmd_move_ticks(int argc, double *argv) {
 
 bool cmd_move_per(int argc, double *argv) {
   int id = (int)argv[0];
-  if (!dxl_ping_cached(id)) return false;
+  RUN_PING(id);
 
   double goal_per = argv[1];
   if (goal_per < -15.0 || goal_per > 115.0) {
@@ -668,7 +668,7 @@ bool cmd_move_per(int argc, double *argv) {
 
 bool cmd_set_servo_min(int argc, double *argv) {
   int id = (int)argv[0];
-  if (!dxl_ping_cached(id)) return false;
+  RUN_PING(id);
 
   int t = (int)argv[1];
 
@@ -682,7 +682,7 @@ bool cmd_set_servo_min(int argc, double *argv) {
 
 bool cmd_set_servo_max(int argc, double *argv) {
   int id = (int)argv[0];
-  if (!dxl_ping_cached(id)) return false;
+  RUN_PING(id);
 
   int t = (int)argv[1];
 
@@ -723,8 +723,8 @@ bool cmd_move_x(int argc, double *argv) {
 }
 
 bool cmd_move_clamp(int argc, double *argv) {
-  RUN_CMD(dxl_ping_cached(ID_GRIP1), "ping grip1");
-  RUN_CMD(dxl_ping_cached(ID_GRIP2), "ping grip2");
+  RUN_PING(ID_GRIP1);
+  RUN_PING(ID_GRIP2);
 
   dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_BASE, 0);
   bool ok = cmdMoveGripperClamp();  // turn off torque on base after clamp
@@ -735,7 +735,8 @@ bool cmd_move_clamp(int argc, double *argv) {
 }
 
 bool cmd_move_gripper(int argc, double *argv) {
-  if (!dxl_ping_cached(ID_GRIP1) || !dxl_ping_cached(ID_GRIP2)) return false;
+  RUN_PING(ID_GRIP1);
+  RUN_PING(ID_GRIP2);
 
   double goal_deg = argv[0];
 
@@ -754,9 +755,9 @@ bool cmd_move_gripper(int argc, double *argv) {
 }
 
 bool cmd_move_wrist_vert(int argc, double *argv) {
-  RUN_CMD(dxl_ping_cached(ID_WRIST), "ping wrist");
-  RUN_CMD(dxl_ping_cached(ID_ARM1), "ping arm1");
-  RUN_CMD(dxl_ping_cached(ID_ARM2), "ping arm2");
+  RUN_PING(ID_WRIST);
+  RUN_PING(ID_ARM1);
+  RUN_PING(ID_ARM2);
 
   double goal_deg = argv[0];
 
@@ -936,7 +937,7 @@ double basePos_i2deg(int i_pose) {
 
 // below are relative moves
 bool rotateBaseRelative(double base_rel_deg, bool gripperOn) {
-  RUN_CMD(dxl_ping_cached(ID_BASE), "ping base");
+  RUN_PING(ID_BASE);
 
   double base_crr_deg = getPos_deg(ID_BASE);
   int base_crr_i = basePos_deg2i(base_crr_deg);
@@ -976,46 +977,63 @@ bool rotateBaseRelative(double base_rel_deg, bool gripperOn) {
 }
 
 bool alignCube() {
-  if (!cmdMoveGripperPer(G_OPEN)) return false;
-  if (!cmdMoveYmm(Y_CENTER)) return false;
-  if (!cmdMoveXmm(X_CENTER)) return false;
-  if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
 
-  if (!cmdMoveServoPer(ID_GRIP2, G_ALIGN_LEFT)) return false;
-  if (!cmdMoveServoDeg(ID_GRIP2, G_OPEN)) return false;
-  if (!cmdMoveServoDeg(ID_GRIP1, G_ALIGN_RIGHT)) return false;
-  if (!cmdMoveServoDeg(ID_GRIP1, G_OPEN)) return false;
-  if (!cmdMoveGripperPer(G_OPEN)) return false;
+  // open gripper and move to center
+  RUN_CMD(cmdMoveGripperPer(G_OPEN), "open gripper");
+  RUN_CMD(cmdMoveYmm(Y_CENTER), "move y to center");
+  RUN_CMD(cmdMoveXmm(X_CENTER), "move x to center");
+  RUN_CMD(cmdMoveWristDegVertical(W_HORIZ_RIGHT), "set wrist horizontal right");
 
-  if (!cmdMoveYmm(Y_ALIGN)) return false;
-  if (!cmdMoveGripperClamp()) return false;
-  if (!cmdMoveGripperPer(G_OPEN)) return false;
-  if (!cmdMoveXmm(X_CENTER)) return false;
-  if (!cmdMoveYmm(Y_CENTER)) return false;
-  if (!cmdMoveXmm(X_CENTER)) return false;
+  // align individual gripper fingers
+  RUN_CMD(cmdMoveServoPer(ID_GRIP2, G_ALIGN_LEFT), "align left gripper finger");
+  RUN_CMD(cmdMoveServoDeg(ID_GRIP2, G_OPEN), "open left gripper finger");
+  RUN_CMD(cmdMoveServoDeg(ID_GRIP1, G_ALIGN_RIGHT), "align right gripper finger");
+  RUN_CMD(cmdMoveServoDeg(ID_GRIP1, G_OPEN), "open right gripper finger");
+
+  // ensure both grippers are fully open
+  RUN_CMD(cmdMoveGripperPer(G_OPEN), "open gripper");
+
+  // move to alignment height and clamp
+  RUN_CMD(cmdMoveYmm(Y_ALIGN), "move y to align height");
+  RUN_CMD(cmdMoveGripperClamp(), "clamp gripper for alignment");
+
+  // release and restore center position
+  RUN_CMD(cmdMoveGripperPer(G_OPEN), "release gripper");
+  RUN_CMD(cmdMoveXmm(X_CENTER), "re-center x");
+  RUN_CMD(cmdMoveYmm(Y_CENTER), "move y to center");
+  RUN_CMD(cmdMoveXmm(X_CENTER), "final re-center x");
 
   return true;
 }
 
 bool lowerCube() {
-  if (!cmdMoveXmm(X_CENTER)) return false;
+
+  // ensure x is centered before descent
+  RUN_CMD(cmdMoveXmm(X_CENTER), "center x before lowering");
+  // slow approach to above-drop height
   max_speed = 0.35;
-  if (!cmdMoveYmm(Y_ABOVE_DROP)) return false;
-  if (!cmdMoveXmm(X_CENTER)) return false;
-  if (!cmdMoveXmm(X_CENTER)) return false;
+  RUN_CMD(cmdMoveYmm(Y_ABOVE_DROP), "move y to above drop");
+  // re-center x to correct any deflection
+  RUN_CMD(cmdMoveXmm(X_CENTER), "re-center x before final drop");
+  RUN_CMD(cmdMoveXmm(X_CENTER), "final x re-center before drop");
+  // very slow final descent
   max_speed = 0.20;
-  if (!cmdMoveYmm(Y_DROP)) return false;
-  if (!cmdMoveGripperPer(G_OPEN)) return false;
+  RUN_CMD(cmdMoveYmm(Y_DROP), "move y to drop height");
+  RUN_CMD(cmdMoveGripperPer(G_OPEN), "open gripper to release cube");
+  // restore speed
   max_speed = 1.0;
   return true;
 }
 
 bool liftCube() {
-  if (!cmdMoveXmm(X_CENTER)) return false;
-  if (!cmdMoveYmm(Y_ABOVE_DROP)) return false;
-  if (!cmdMoveXmm(X_CENTER)) return false;
+
+  RUN_CMD(cmdMoveXmm(X_CENTER), "center x before lift");
+  RUN_CMD(cmdMoveYmm(Y_ABOVE_DROP), "move y to above drop");
+  RUN_CMD(cmdMoveXmm(X_CENTER), "re-center x after lift");
+
   return true;
 }
+
 
 char crrColorChar = '.';
 
@@ -1280,18 +1298,25 @@ bool cmd_ledoff(int argc, double *argv) {
 }
 
 bool cmd_detect_cube(int argc, double *argv) {
-  RUN_CMD(dxl_ping_cached(ID_GRIP1), "ping grip1");
-  RUN_CMD(dxl_ping_cached(ID_GRIP2), "ping grip2");
+  RUN_PING(ID_GRIP1);
+  RUN_PING(ID_GRIP2);
 
   // bring the grip in position
   LOG_INFO(MOD_SERVO_MOVE, "bring grip in position", Y_CENTER);
-  if (!cmdMoveGripperPer(G_OPEN)) return false;
-  if (!cmdMoveXmm(X_CENTER)) return false;
-  if (!cmdMoveYmm(Y_CENTER)) return false;
-  if (!cmdMoveXmm(X_CENTER)) return false;
-  if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
-  if (!cmdMoveXmm(X_CENTER)) return false;
-  if (!cmdMoveYmm(Y_CENTER)) return false;
+  // open gripper before positioning
+  RUN_CMD(cmdMoveGripperPer(G_OPEN), "open gripper");
+
+  // move to center and correct any deflection
+  RUN_CMD(cmdMoveXmm(X_CENTER), "move x to center");
+  RUN_CMD(cmdMoveYmm(Y_CENTER), "move y to center");
+  RUN_CMD(cmdMoveXmm(X_CENTER), "re-center x");
+
+  // ensure wrist is in known horizontal orientation
+  RUN_CMD(cmdMoveWristDegVertical(W_HORIZ_RIGHT), "set wrist horizontal right");
+
+  // final re-center after wrist motion
+  RUN_CMD(cmdMoveXmm(X_CENTER), "final re-center x");
+  RUN_CMD(cmdMoveYmm(Y_CENTER), "final re-center y");
 
   const uint16_t PWM_REG = 124;
   const double STEP = 0.8;
@@ -1345,9 +1370,9 @@ bool cmd_detect_cube(int argc, double *argv) {
 
     // If either side touches early → cube IS present
     if (touched1 || touched2) {
-      if (!cmdMoveGripperPer(G_OPEN)) return false;
-      if (!cmdMoveXmm(X_CENTER)) return false;
-      if (!cmdMoveYmm(Y_DOWN)) return false;
+      RUN_CMD(cmdMoveGripperPer(G_OPEN), "open gripper");
+      RUN_CMD(cmdMoveXmm(X_CENTER), "move x to center");
+      RUN_CMD(cmdMoveYmm(Y_DOWN), "move y down");
 
       if (touched1) LOG_INFO(MOD_SERVO_MOVE, "cube_detection_info", "(touch grip1)");
       if (touched2) LOG_INFO(MOD_SERVO_MOVE, "cube_detection_info", "(touch grip2)");
@@ -1364,9 +1389,9 @@ bool cmd_detect_cube(int argc, double *argv) {
 
     // Fully closed without load → no cube
     if (per1 >= MAX_PER_CLAMP_GRIP && per2 >= MAX_PER_CLAMP_GRIP) {
-      if (!cmdMoveGripperPer(G_OPEN)) return false;
-      if (!cmdMoveXmm(X_CENTER)) return false;
-      if (!cmdMoveYmm(Y_DOWN)) return false;
+      RUN_CMD(cmdMoveGripperPer(G_OPEN), "open gripper");
+      RUN_CMD(cmdMoveXmm(X_CENTER), "move x to center");
+      RUN_CMD(cmdMoveYmm(Y_DOWN), "move y down");
       LOG_INFO(MOD_SERVO_MOVE, "cube_detection_info", "(free close)");
       LOG_INFO(MOD_SERVO_MOVE, "cube_detected", "no");
       return false;
@@ -1374,9 +1399,9 @@ bool cmd_detect_cube(int argc, double *argv) {
   }
 
   // Safety fallback: no touch detected
-  if (!cmdMoveGripperPer(G_OPEN)) return false;
-  if (!cmdMoveXmm(X_CENTER)) return false;
-  if (!cmdMoveYmm(Y_DOWN)) return false;
+  RUN_CMD(cmdMoveGripperPer(G_OPEN), "open gripper");
+  RUN_CMD(cmdMoveXmm(X_CENTER), "move x to center");
+  RUN_CMD(cmdMoveYmm(Y_DOWN), "move y down");
   LOG_INFO(MOD_SERVO_MOVE, "cube_detection_info", "(timeout)");
   LOG_INFO(MOD_SERVO_MOVE, "cube_detected", "no");
   return false;
@@ -1386,12 +1411,8 @@ bool cmd_detect_cube(int argc, double *argv) {
 // INFOSERVO <id> : print key control-table data for one servo
 // -------------------------------------------------------------------
 bool print_servo_info(uint8_t id) {
-  if (!dxl_ping_cached(id)) {
-    //
-    LOG_ERR(MOD_RUN, "error", "servo not found");
-    LOG_VAR("id", id);
-    return false;
-  }
+  RUN_PING(id);
+
   LOG_INFO(MOD_RUN, "info", "checking_if_servo_is_ok");
   bool _ok = servo_ok(id);  //
   LOG_INFO(MOD_RUN, "info", "servo ok");

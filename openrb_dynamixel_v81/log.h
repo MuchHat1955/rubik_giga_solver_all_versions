@@ -147,3 +147,14 @@ void log_ln_();
       return false; \
     } \
   } while (0)
+
+String servo_id2name(uint8_t id);
+
+#define RUN_PING(id) \
+  do { \
+    if (!dxl_ping_cached(id)) { \
+      LOG_ERR(MOD_RUN, "ping_failed", servo_id2name(id)); \
+      LOG_VAR("func", __FUNCTION__); \
+      return false; \
+    } \
+  } while (0)

@@ -952,7 +952,7 @@ void print_kinematics_state(char* descr) {
 }
 
 bool cmdMoveServoDeg(uint8_t id, double goal_deg) {
-  if (!dxl_ping_cached(id)) return false;
+  RUN_PING(id);
 
   axes.setMode(AxisGroupController::AxisRunMode::SINGLE_SERVO);
   axes.setServoId(id);
@@ -966,7 +966,7 @@ bool cmdMoveServoDeg(uint8_t id, double goal_deg) {
 }
 
 bool cmdMoveServoPer(int id, double goal_per) {
-  if (!dxl_ping_cached(id)) return false;
+  RUN_PING(id);
 
   if (goal_per < -15.0 || goal_per > 115.0) {
     LOG_ERR(MOD_SERVO_MOVE, "error", "invalid_servo_percentage");
@@ -1084,7 +1084,9 @@ bool cmdMoveGripperClamp() {
 }
 
 bool isGripperOpen(double min_open) {
-  if (!dxl_ping_cached(ID_GRIP1) || !dxl_ping_cached(ID_GRIP2)) return false;
+  RUN_PING(ID_GRIP1);
+  RUN_PING(ID_GRIP2);
+
   double g1_pos = getPos_per(ID_GRIP1);
   double g2_pos = getPos_per(ID_GRIP2);
   if (g1_pos < min_open + 3 && g2_pos < min_open + 3) return true;

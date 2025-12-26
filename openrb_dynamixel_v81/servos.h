@@ -39,7 +39,7 @@ public:
               uint16_t limit_min,
               uint16_t limit_max);
 
-  void init();
+  bool init();
   uint8_t get_id() const;
   const char *get_key() const;
   uint16_t zero_ticks() const;
@@ -92,8 +92,10 @@ double per2deg(uint8_t id, double per);
 uint8_t name2id(const char *name);
 const char *id2name(uint8_t id);
 
-void lOn(uint8_t id);
-void lOff(uint8_t id);
+String servo_id2name(uint8_t id);
+
+bool lOn(uint8_t id);
+bool lOff(uint8_t id);
 
 extern const float PROTOCOL;
 

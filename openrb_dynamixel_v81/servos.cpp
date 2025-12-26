@@ -177,7 +177,7 @@ void set_torque_all_servos(bool _on) {
 
 bool reboot_servo(uint8_t id) {
 
-  LOG_INFO(MOD_SERVOS, "info","rebooting_servo");
+  LOG_INFO(MOD_SERVOS, "info", "rebooting_servo");
   LOG_VAR("servo_name", id2name(id));
 
   // Disable torque before reboot
@@ -193,7 +193,7 @@ bool reboot_servo(uint8_t id) {
 
   bool ok_now = servo_ok(id);
   if (ok_now) {
-    LOG_INFO(MOD_SERVOS, "info","servo_ok_after_servo_reboot");
+    LOG_INFO(MOD_SERVOS, "info", "servo_ok_after_servo_reboot");
     LOG_VAR("servo_name", id2name(id));
     LOG_VAR("torque", "on");
     return true;
@@ -210,7 +210,7 @@ bool servo_ok(uint8_t id) {
 
   // -1 means read failed
   if (hw_err < 0) {
-    LOG_INFO(MOD_SERVOS, "info","failed to read_hw_error_status");
+    LOG_INFO(MOD_SERVOS, "info", "failed to read_hw_error_status");
     LOG_VAR("servo_name", id2name(id));
     return false;
   }
@@ -297,22 +297,16 @@ ServoConfig::ServoConfig(const char *key,
     limit_min_(limit_min),
     limit_max_(limit_max) {}
 
-void ServoConfig::init() {
+bool ServoConfig::init() {
 
   if (limit_max_ > 4095) limit_max_ = 4095;
-
-  if (!dxl_ping_cached(id_)) {
-    // DEBUG_ERR(MOD_SERVOS, " [servo init ping failed] | %s id=%u zero=%u min=%u max=%u dir=%d\n",
-    //          key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
-    //      return;
-  }
+  RUN_PING(id_);
 
   // read min and max from the servo
   limit_min_ = dxl.readControlTableItem(ControlTableItem::MIN_POSITION_LIMIT, id_);
   limit_max_ = dxl.readControlTableItem(ControlTableItem::MAX_POSITION_LIMIT, id_);
 
-  // DEBUG_INFO(MOD_SERVOS, "[servo init] | %s id=%u zero=%u min=%u max=%u dir=%d\n",
-  //       key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
+  return true;
 }
 
 uint8_t ServoConfig::get_id() const {
@@ -497,18 +491,26 @@ uint8_t name2id(const char *name) {
 
 const char *id2name(uint8_t id) {
   ServoConfig *s = find_servo(id);
-  return s ? s->get_key() : "";
+  return s ? s->get_key() : "err";
+}
+
+String servo_id2name(uint8_t id) {
+  return String(id2name(id));
 }
 
 // -------------------------------------------------------------------
 //                           LED HELPERS
 // -------------------------------------------------------------------
 
-void lOn(uint8_t id) {
-  if (dxl_ping_cached(id)) dxl.ledOn(id);
+bool lOn(uint8_t id) {
+  RUN_PING(id);
+  dxl.ledOn(id);
+  return true;
 }
-void lOff(uint8_t id) {
-  if (dxl_ping_cached(id)) dxl.ledOff(id);
+bool lOff(uint8_t id) {
+  RUN_PING(id);
+  dxl.ledOff(id);
+  return true;
 }
 
 // -------------------------------------------------------------------
@@ -609,7 +611,7 @@ void print_servo_status(uint8_t id) {
       double pos_deg = ticks2deg(sid, pos_ticks);
       double pos_per = ticks2per(sid, pos_ticks);  // percentage of configured range
 
-      LOG_INFO(MOD_SERVOS, "info","servo_status");
+      LOG_INFO(MOD_SERVOS, "info", "servo_status");
       LOG_VAR("servo_id", sid);
       LOG_VAR("servo_name", id2name(sid));
       LOG_VAR("pos_ticks", pos_ticks);
@@ -653,7 +655,6 @@ static ping_cache_entry_t ping_cache[SERVO_COUNT];
 // -------------------------------------------------------------------
 
 bool dxl_ping_cached(uint8_t id, bool invalidate_cache) {
-
   uint32_t now = millis();
 
   // Find servo index
