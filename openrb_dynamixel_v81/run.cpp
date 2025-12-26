@@ -127,6 +127,7 @@ bool cmd_run_zero() {
   // case 3 - wrist is exactly horiz
   if (isWristHoriz()) {
     // do nothing
+    RUN_CMD(cmdMoveXmm(X_CENTER), "center x");
     LOG_INFO(MOD_RUN, "run_zero_start", "wrist is horiz");
   }
 
@@ -134,6 +135,7 @@ bool cmd_run_zero() {
   // case 4 - wrist is exactly vert
   else if (isWristVert()) {
     // do nothing
+    RUN_CMD(cmdMoveXmm(X_CENTER), "center x");
     LOG_INFO(MOD_RUN, "run_zero_start", "wrist is vert");
   }
 
@@ -276,11 +278,6 @@ bool cmd_run_zero() {
     RUN_CMD(cmdMoveXmm(X_CENTER), "center x");
     RUN_CMD(cmdMoveWristDegVertical(W_HORIZ_RIGHT), "set wrist horizontal");
   }
-
-  // 3 - fix base orientation (all sides)
-  // RUN_CMD(prepBaseForRotation(B_BACK, false), "prep base back");
-  // RUN_CMD(prepBaseForRotation(B_RIGHT, false), "prep base right");
-  // RUN_CMD(prepBaseForRotation(B_LEFT, false), "prep base left");
 
   // 4 - move down
   RUN_CMD(cmdMoveYmm(Y_DOWN), "move y down");
@@ -466,16 +463,6 @@ bool cmd_run_down_layer(int run_no) {
 
   // open grip before positioning
   RUN_CMD(cmdMoveGripperPer(G_OPEN), "open gripper");
-
-  // prepare base orientation depending on target side
-  // if (run_no == RUN_DOWN_RIGHT)
-  //   RUN_CMD(prepBaseForRotation(B_RIGHT, false), "prep base for right down rotation");
-
-  // if (run_no == RUN_DOWN_LEFT)
-  //   RUN_CMD(prepBaseForRotation(B_LEFT, false), "prep base for left down rotation");
-
-  // if (run_no == RUN_DOWN_BACK)
-  //  RUN_CMD(prepBaseForRotation(B_BACK, false), "prep base for back down rotation");
 
   // move to mid height and align gripper
   RUN_CMD(cmdMoveYmm(Y_MID), "move y to mid");
@@ -836,75 +823,18 @@ bool isWristNearVert() {
   double diff = fabs(goal_deg - w_deg);
   return diff < 3 * W_TOL;
 }
-
-// assumes there is a cube
-/*
-bool prepBaseForRotation(double endBasePositionAfterPrep, bool withCube) {
-
-
-  double b_pos = getPos_deg(ID_BASE);
-
-  bool isBaseCenter = (b_pos > B_CENTER - B_TOL && b_pos < B_CENTER + B_TOL);
-  bool isBaseRight = (b_pos > B_RIGHT - B_TOL && b_pos < B_RIGHT + B_TOL);
-  bool isBaseLeft = (b_pos > B_LEFT - B_TOL && b_pos < B_LEFT + B_TOL);
-  bool isBaseBack = (b_pos > B_BACK - B_TOL && b_pos < B_BACK + B_TOL);
-
-  // move one pos to right
-  if (endBasePositionAfterPrep == B_CENTER) {
-    if (isBaseCenter) return true;
-  }
-  if (endBasePositionAfterPrep == B_RIGHT) {
-    if (isBaseRight) return true;
-  }  // move one pos to left
-  if (endBasePositionAfterPrep == B_LEFT) {
-    if (isBaseLeft) return true;
-  }
-  if (endBasePositionAfterPrep == B_BACK) {
-    if (isBaseBack) return true;
-  }
-
-  if (!withCube) {
-    // LOG_INFO(MOD_RUN, "prep running with cub for", nextBaseMoveRelative);
-    if (!cmdMoveGripperPer(G_WIDE_OPEN)) {
-      LOG_ERR(MOD_CMD, "prep base for rotation, no grip", "at move gripper wide open");
-      return false;
-    }
-    if (!isYmmAbove(Y_ROTATE_BASE)) {
-      if (!cmdMoveYmm(Y_ROTATE_BASE)) {
-        LOG_ERR(MOD_CMD, "prep base for rotation, no grip", "at move ymm to rotate base");
-        return false;
-      }
-    }
-    if (!cmdMoveXmm(X_CENTER)) return false;
-
-    if (!cmdMoveServoDeg(ID_BASE, endBasePositionAfterPrep)) return false;
-    // LOG_INFO(MOD_RUN, "prep ok running with cube", withCube);
+bool prepBaseForRotation(bool withCube) {
+  if (withCube) {
+    RUN_CMD(cmdMoveXmm(X_CENTER), "center");
     return true;
   }
-  // LOG_INFO(MOD_RUN, "prep running with no cube for", nextBaseMoveRelative);
-
-  // this is with cube in
-  bool needToRotateHoriz = false;
-  if (!cmdMoveGripperPer(G_WIDE_OPEN)) return false;
-  if (!isWristHoriz() || isWristNearHoriz()) needToRotateHoriz = true;
-  if (!cmdMoveGripperClamp()) return false;
-
-  // LOG_INFO(MOD_RUN, "running with needToRotateHoriz", needToRotateHoriz);
-  if (needToRotateHoriz) {
-    if (!isYmmAbove(Y_UP))
-      if (!cmdMoveYmm(Y_UP)) return false;
-    if (!cmdMoveXmm(X_CENTER)) return false;
-    if (!cmdMoveWristDegVertical(W_HORIZ_RIGHT)) return false;
-  } else {
-    if (!isYmmAbove(Y_ROTATE_BASE))
-      if (!cmdMoveYmm(Y_ROTATE_BASE)) return false;
+  RUN_CMD(cmdMoveGripperPer(G_WIDE_OPEN), "grip wide open");
+  if (!isYmmAbove(Y_ROTATE_BASE)) {
+    RUN_CMD(cmdMoveYmm(Y_ROTATE_BASE), "y up");
   }
-  if (!cmdMoveServoDeg(ID_BASE, endBasePositionAfterPrep)) return false;
-  if (!cmdMoveWristDegVertical(W_VERT)) return false;
-  if (!lowerCube()) return false;
+  RUN_CMD(cmdMoveXmm(X_CENTER), "center");
   return true;
 }
-*/
 
 /*
 #define B_RIGHT 90
@@ -938,19 +868,34 @@ double basePos_i2deg(int i_pose) {
 // below are relative moves
 bool rotateBaseRelative(double base_rel_deg, bool gripperOn) {
   RUN_PING(ID_BASE);
+  RUN_CMD(cmdMoveWristDegVertical(W_HORIZ_RIGHT), "wrist horiz");
+  RUN_CMD(prepBaseForRotation(gripperOn), "prep base");
+  RUN_CMD(cmdMoveWristDegVertical(W_HORIZ_RIGHT), "wrist horiz");
 
   double base_crr_deg = getPos_deg(ID_BASE);
   int base_crr_i = basePos_deg2i(base_crr_deg);
   int base_rel_i = basePos_deg2i(base_rel_deg);
-  LOG_INFO(MOD_RUN, "base pos before rotate", basePos_i2name(base_crr_i));
-  LOG_VAR("base move", basePos_i2name(base_rel_i));
+  LOG_INFO(MOD_RUN, "base ->start", basePos_i2name(base_crr_i));
+  LOG_VAR("->rel move", basePos_i2name(base_rel_i));
 
-  int base_goal_i = base_crr_i + base_rel_i;
-  if (base_goal_i < I_BACK) base_goal_i = I_LEFT;
-  if (base_goal_i > I_RIGHT) base_goal_i = I_BACK;
+  /*
+  #define I_CENTER 0
+  #define I_RIGHT 1
+  #define I_LEFT -1
+  #define I_BACK -2
+*/
+
+  int base_goal_i = base_crr_i + base_rel_i;  // between -4 and 3
+
+  if (base_goal_i == I_BACK - 1) base_goal_i = I_RIGHT;
+  if (base_goal_i <= I_BACK - 2) base_goal_i = I_CENTER;
+
+  if (base_goal_i == I_RIGHT + 1) base_goal_i = I_BACK;
+  if (base_goal_i >= I_RIGHT + 2) base_goal_i = I_LEFT;
+
   double base_goal_deg = basePos_i2deg(base_goal_i);
 
-  LOG_VAR("base goal", basePos_i2name(base_goal_i));
+  LOG_VAR("->goal", basePos_i2name(base_goal_i));
 
   double d_err = fabs(base_crr_deg - base_goal_deg);
   if (d_err < B_TOL) {

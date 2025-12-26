@@ -10,9 +10,9 @@
 #define Y_CENTER 76
 #define Y_ALIGN 68
 #define Y_MID 97
-#define Y_UP 114
+#define Y_UP 115
 #define Y_DOWN 33
-#define Y_ROTATE_BASE 95
+#define Y_ROTATE_BASE 115
 #define Y_ABOVE_DROP 93
 #define Y_DROP 80
 

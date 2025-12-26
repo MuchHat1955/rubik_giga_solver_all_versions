@@ -11,9 +11,9 @@ double min_xmm = -30;
 double max_xmm = 30;
 
 double min_a1 = -180;
-double max_a1 = 105;
+double max_a1 = 115;
 double min_a2 = -180;
-double max_a2 = 105;
+double max_a2 = 115;
 
 double _90_rad = M_PI / 2.0;
 double _45_rad = M_PI / 4.0;
