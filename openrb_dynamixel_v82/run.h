@@ -12,7 +12,7 @@
 #define Y_MID 97
 #define Y_UP 115
 #define Y_DOWN 33
-#define Y_ROTATE_BASE 85
+#define Y_ROTATE_BASE 95
 #define Y_ABOVE_DROP 93
 #define Y_DROP 80
 
@@ -171,3 +171,4 @@ bool cmd_detect_ori(int argc, double *argv);
 bool cmd_check_ori(int argc, double *argv);
 bool cmd_check_ori_run();
 bool cmd_restore_ori_run();
+bool cmdSquareBase();

@@ -123,6 +123,9 @@ bool cmd_run_zero() {
 
   double prev_speed = speed;
 
+  //   flash_led_servo(id, 8);
+  //   set_flag_servos_stop_all();
+
   // ============================================================
   // case 3 - wrist is exactly horiz
   if (isWristHoriz()) {
@@ -130,15 +133,6 @@ bool cmd_run_zero() {
     RUN_CMD(cmdMoveXmm(X_CENTER), "center x");
     LOG_INFO(MOD_RUN, "run_zero_start", "wrist is horiz");
   }
-
-  // ============================================================
-  // case 4 - wrist is exactly vert
-  else if (isWristVert()) {
-    // do nothing
-    RUN_CMD(cmdMoveXmm(X_CENTER), "center x");
-    LOG_INFO(MOD_RUN, "run_zero_start", "wrist is vert");
-  }
-
   // ============================================================
   // case 1 - wrist is near horiz
   else if (isWristNearHoriz()) {
@@ -161,14 +155,6 @@ bool cmd_run_zero() {
       RUN_CMD(cmdMoveGripperPer(G_WIDE_OPEN), "open gripper wide");
     }
 
-    // 4 - soften the gripper again
-    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP1, 0);
-    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP2, 0);
-
-    // 5 - move high
-    max_speed = 0.35;
-    RUN_CMD(cmdMoveYmm(Y_UP), "move y up");
-
     // 6 - re-enable gripper torque and re-open
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP1, 1);
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP2, 1);
@@ -189,62 +175,7 @@ bool cmd_run_zero() {
     // 9 - fix the base
     max_speed = 0.65;
     dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_BASE, 1);
-    RUN_CMD(cmdMoveServoDeg(ID_BASE, B_CENTER), "center base");
-
-    // restore speed limits
-    speed = prev_speed;
-    max_speed = 1.0;
-
-    // 10 - normal torque from now on
-    set_torque_all_servos(true);
-  }
-
-  // ============================================================
-  // case 2 - wrist is near vert
-  else if (isWristNearVert()) {
-    LOG_INFO(MOD_RUN, "run_zero_start", "wrist is near vert");
-
-    RUN_CMD(cmdMoveXmm(X_CENTER), "center x");
-
-    // 1 - soften the base
-    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_BASE, 0);
-
-    // 2 - soften the gripper
-    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP1, 0);
-    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP2, 0);
-
-    // 3 - open the gripper wide
-    max_speed = 0.15;
-    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP1, 1);
-    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP2, 1);
-    if (!isGripperOpen(G_WIDE_OPEN)) {
-      RUN_CMD(cmdMoveGripperPer(G_WIDE_OPEN), "open gripper wide");
-    }
-
-    // 4 - soften the gripper again
-    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP1, 0);
-    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP2, 0);
-
-    // 5 - move to center
-    max_speed = 0.35;
-    RUN_CMD(cmdMoveYmm(Y_CENTER), "move y to center");
-
-    // 6 - re-enable gripper torque and re-open
-    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP1, 1);
-    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_GRIP2, 1);
-    if (!isGripperOpen(G_WIDE_OPEN)) {
-      RUN_CMD(cmdMoveGripperPer(G_WIDE_OPEN), "re-open gripper wide");
-    }
-
-    // 7 - soften the wrist
-    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_WRIST, 0);
-    RUN_CMD(cmdMoveYmm(Y_UP), "move y up");
-    RUN_CMD(cmdMoveXmm(X_CENTER), "center x");
-
-    // 8 - fix the wrist
-    max_speed = 0.35;
-    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, ID_WRIST, 1);
-    RUN_CMD(cmdMoveWristDegVertical(W_HORIZ_RIGHT), "set wrist horizontal");
+    RUN_CMD(cmdSquareBase(), "square base");
 
     // restore speed limits
     speed = prev_speed;
@@ -258,9 +189,15 @@ bool cmd_run_zero() {
   // case 5 - wrist is in between (manual intervention required)
   else {
     LOG_ERR(MOD_RUN, "run_zero_failed", "wrist is not horiz or vert");
-    set_torque_all_servos(true);
+    set_torque_all_servos(false);
     flash_led_all_servos(6);
-    return false;
+    while (!isWristNearHoriz()) {
+      flash_led_all_servos(3);
+      delay(222);
+    }
+    flash_led_all_servos(1);
+    set_torque_all_servos(true);
+    RUN_CMD(cmdMoveXmm(X_CENTER), "center x");
   }
 
   // ============================================================
@@ -273,7 +210,6 @@ bool cmd_run_zero() {
 
   // 2 - ensure wrist horizontal
   if (!isWristHoriz()) {
-    RUN_CMD(cmdMoveYmm(Y_CENTER), "move y to center");
     RUN_CMD(cmdMoveXmm(X_CENTER), "center x");
     RUN_CMD(cmdMoveWristDegVertical(W_HORIZ_RIGHT), "set wrist horizontal");
   }
@@ -864,6 +800,19 @@ double basePos_i2deg(int i_pose) {
   double d_i_pose = (double)i_pose * 90.0;
   return d_i_pose;
 }
+bool cmdSquareBase() {
+  RUN_PING(ID_BASE);
+
+  double base_crr_deg = getPos_deg(ID_BASE);
+  int base_crr_i = basePos_deg2i(base_crr_deg);
+  double base_goal_deg = basePos_i2deg(base_crr_i);
+
+  double d_err = fabs(base_crr_deg - base_goal_deg);
+  if (d_err < B_TOL) return true;
+
+  RUN_CMD(cmdMoveServoDeg(ID_BASE, base_goal_deg), "base to goal");
+  return true;
+}
 
 // below are relative moves
 bool rotateBaseRelative(double base_rel_deg, bool gripperOn) {
@@ -1109,6 +1058,28 @@ char read_one_color_cb(int slot) {
   char c = cmd_read_one_color_run(slot);
   return c;
 }
+
+//TODO detect ori not working
+/*
+ RUN (3) just_read_string_54=.............B........R...............................
+        RUN (3) updating_ori_from_color_string_54=.............B........R...............................
+        RUN (3) before_update=u->u_r->r_f->f_d->d_l->l_b->b
+        RUN (3) infer_all_centers_from=.............B........R...............................
+        RUN (3) f_color=R
+        RUN (3) r_color=B
+        RUN (3) f_face=r
+        RUN (3) r_face=b
+        CUBEORI (3) called_ori_set_from_f=r r=b
+        CUBEORI (3) set_ori_return_true_with=u->u_r->f_f->l_d->d_l->b_b->r
+        RUN (3) after_update=u->u_r->f_f->l_d->d_l->b_b->r
+        CUBEORI (3) info=orientation_restore_start
+        CUBEORI (3) oerientation_restore_solution_found_with_moves_count=1
+        ROBOTMOVE (3) info=robot_move_start move=y_minus
+        RUN (3) base_->start=center ->rel move=right ->goal=right
+        RUN (3) color_reader_should_be_clear_string_54=......................................................
+        RUN (3) color_analyze_color_string_54=......................................................
+        RUN (3) color_analyzer_is_valid=0
+*/
 
 bool cmd_read_cube_colors(const String &mode_in) {
   String mode = mode_in;

@@ -1004,6 +1004,8 @@ bool isGripAtTouch(int pwm) {
 }
 
 bool cmdMoveGripperClamp() {
+  RUN_CMD(cmdSquareBase(),"square base before clamp");
+
   if (getPos_per(ID_GRIP1) < 85.0 || getPos_per(ID_GRIP2) < 85.0) {
     if (!cmdMoveGripperPer(85.0)) return false;
 
