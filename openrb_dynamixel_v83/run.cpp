@@ -270,7 +270,7 @@ bool cmd_run_right_down() {
 bool cmd_run_left_down() {
 
   // open grip before positioning
-  RUN_CMD(cmdMoveGripperPer(G_OPEN), "open gripper");
+  RUN_CMD(cmdMoveGripperPer(G_WIDE_OPEN), "open gripper");
 
   // move to center and align vertically for pickup
   RUN_CMD(cmdMoveXmm(X_CENTER), "move x to center");
@@ -312,7 +312,7 @@ bool cmd_run_left_down() {
 bool cmd_run_top_down() {
 
   // open grip
-  RUN_CMD(cmdMoveGripperPer(G_OPEN), "open gripper");
+  RUN_CMD(cmdMoveGripperPer(G_WIDE_OPEN), "open gripper");
 
   // move to center and reset the wrist horiz
   RUN_CMD(cmdMoveXmm(X_CENTER), "move x to center");
@@ -321,8 +321,8 @@ bool cmd_run_top_down() {
   RUN_CMD(cmdMoveWristDegVertical(W_HORIZ_LEFT), "move wrist 180 ahead of grip");
 
   // radjust to center and grip cube
-  RUN_CMD(cmdMoveYmm(Y_CENTER), "re-set y");
   RUN_CMD(cmdMoveXmm(X_CENTER), "re-center x");
+  RUN_CMD(cmdMoveYmm(Y_CENTER), "re-set y");
   RUN_CMD(cmdMoveGripperClamp(), "clamp gripper");
 
   // move up ahead of rotate
@@ -331,6 +331,7 @@ bool cmd_run_top_down() {
   RUN_CMD(cmdMoveServoDeg(ID_BASE, B_CENTER), "reset base for future moves");  // reset the base just in case
 
   // re-adjust to center than do the final rotate
+  RUN_CMD(cmdMoveXmm(X_CENTER), "re-center x");
   RUN_CMD(cmdMoveYmm(Y_UP), "move to y up");
   RUN_CMD(cmdMoveXmm(X_CENTER), "re-center x for rotate");
   RUN_CMD(cmdMoveWristDegVertical(W_HORIZ_RIGHT), "rotate wrist back 180 to rotate the cube down");
@@ -354,12 +355,13 @@ bool cmd_run_top_down() {
 bool cmd_run_back_down() {
 
   // open grip before reposition
-  RUN_CMD(cmdMoveGripperPer(G_OPEN), "open gripper");
+  RUN_CMD(cmdMoveGripperPer(G_WIDE_OPEN), "open gripper");
 
   // rotate base to the left to prepare back-down move
   RUN_CMD(rotateBaseRelative(B_LEFT, false), "rotate base left");
 
   // move to center and set wrist horizontal
+  RUN_CMD(cmdMoveXmm(X_CENTER), "re-center x");
   RUN_CMD(cmdMoveYmm(Y_CENTER), "move y to center");
   RUN_CMD(cmdMoveXmm(X_CENTER), "move x to center");
   RUN_CMD(cmdMoveWristDegVertical(W_HORIZ_RIGHT), "set wrist horizontal right");
@@ -867,6 +869,7 @@ bool rotateBaseRelative(double base_rel_deg, bool gripperOn) {
     RUN_CMD(cmdMoveServoDeg(ID_BASE, base_goal_deg - adjBk), "base to goal - adj bk");
   }
   RUN_CMD(cmdMoveServoDeg(ID_BASE, base_goal_deg), "base to goal");
+  RUN_CMD(cmdMoveXmm(X_CENTER), "re-center x");
   return true;
 }
 
