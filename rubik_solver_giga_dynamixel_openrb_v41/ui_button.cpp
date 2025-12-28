@@ -62,78 +62,71 @@ void UIButton::set_is_busy(bool val) {
 
 // All interactive/menu buttons extracted from your JSON (no num/text types)
 UIButton ui_buttons[] = {
-  // Main menu
-  { 1, "solve cube", nullptr, true },
-  { 2, "read cube", nullptr, true },
-  { 3, "scramble cube", nullptr, true },
-  { 4, "tests", nullptr, true },
-  { 5, "system", nullptr, true },
-  { 61, "main", nullptr, true },
+  { "k_solve_cube", nullptr, false },
+  { "k_read_cube", nullptr, false },
+  { "k_tests", nullptr, false },
+  { "k_system", nullptr, true },
 
-  // Solve/read/random/system menus
-  { 6, "start", nullptr, false },
-  { 7, "start read", nullptr, false },
-  { 8, "scramble (12)", nullptr, false },
-  { 9, "scramble (20)", nullptr, false },
+  { "k_find_solution", nullptr, false },
+  { "k_main", nullptr, false },
 
-  // Tests
-  { 11, "poses", nullptr, true },
-  { 12, "sequences", nullptr, true },
-  { 13, "cube moves", nullptr, true },
+  { "k_robot_moves", nullptr, false },
+  { "k_cube_moves", nullptr, false },
+  { "k_colors_and_orientation", nullptr, false },
 
-  // Sequences
-  { 14, "bottom+", nullptr, false },
-  { 15, "bottom-", nullptr, false },
-  { 16, "front to base", nullptr, false },
-  { 17, "back to base", nullptr, false },
-  { 18, "left to base", nullptr, false },
-  { 19, "right to base", nullptr, false },
-  { 20, "top to base", nullptr, false },
-  { 21, "rotate down face+", nullptr, false },
-  { 22, "rotate down face-", nullptr, false },
+  { "k_d_plus", nullptr, true },
+  { "k_d_minus", nullptr, true },
+  { "k_d2", nullptr, true },
 
-  // Cube moves
-  { 23, "f+", nullptr, false },
-  { 24, "f-", nullptr, false },
-  { 25, "b+", nullptr, false },
-  { 26, "b-", nullptr, false },
-  { 27, "u+", nullptr, false },
-  { 28, "u-", nullptr, false },
-  { 29, "d+", nullptr, false },
-  { 30, "d-", nullptr, false },
-  { 31, "l+", nullptr, false },
-  { 32, "l-", nullptr, false },
-  { 33, "r+", nullptr, false },
-  { 34, "r-", nullptr, false },
-  { 35, "f++", nullptr, false },
-  { 36, "b++", nullptr, false },
-  { 37, "u++", nullptr, false },
-  { 38, "d++", nullptr, false },
-  { 39, "l++", nullptr, false },
-  { 40, "r++", nullptr, false },
+  { "k_z_plus", nullptr, true },
+  { "k_z_minus", nullptr, true },
+  { "k_z2", nullptr, true },
 
-  // Poses menu (only action-type)
-  { 41, "y zero", nullptr, false },
-  { 42, "y 1st", nullptr, false },
-  { 43, "y 2nd", nullptr, false },
-  { 44, "y 3rd", nullptr, false },
-  { 45, "x center", nullptr, false },
-  { 46, "x right", nullptr, false },
-  { 47, "x left", nullptr, false },
-  { 48, "y c2", nullptr, false },
-  { 49, "y c3", nullptr, false },
-  { 50, "wrist vert", nullptr, false },
-  { 51, "wrist horiz right", nullptr, false },
-  { 52, "wrist horiz left", nullptr, false },
-  { 53, "grippers open", nullptr, false },
-  { 61, "grippers close", nullptr, false },
-  { 54, "gripper 1 open", nullptr, false },
-  { 55, "gripper 1 close", nullptr, false },
-  { 56, "gripper 2 open", nullptr, false },
-  { 57, "gripper 2 close", nullptr, false },
-  { 58, "base front", nullptr, false },
-  { 59, "base right", nullptr, false },
-  { 60, "base left", nullptr, false }
+  { "k_y_plus", nullptr, true },
+  { "k_y_minus", nullptr, true },
+  { "k_y2", nullptr, true },
+
+  { "k_f_plus", nullptr, true },
+  { "k_f_minus", nullptr, true },
+  { "k_b_plus", nullptr, true },
+  { "k_b_minus", nullptr, true },
+
+  { "k_u_plus", nullptr, true },
+  { "k_u_minus", nullptr, true },
+
+  { "k_l_plus", nullptr, true },
+  { "k_l_minus", nullptr, true },
+  { "k_r_plus", nullptr, true },
+  { "k_r_minus", nullptr, true },
+
+  { "k_f_plus_plus", nullptr, true },
+  { "k_b_plus_plus", nullptr, true },
+  { "k_u_plus_plus", nullptr, true },
+  { "k_d_plus_plus", nullptr, true },
+  { "k_l_plus_plus", nullptr, true },
+  { "k_r_plus_plus", nullptr, true },
+
+  { "k_orientation", nullptr, true },
+  { "k_detect", nullptr, true },
+  { "k_check", nullptr, true },
+  { "k_clear", nullptr, true },
+
+  { "k_color_read", nullptr, true },
+
+  { "k_all", nullptr, true },
+  { "k_bottom", nullptr, true },
+  { "k_sensor", nullptr, true },
+
+  { "k_color_stickers", nullptr, true },
+
+  { "k_c1", nullptr, true },
+  { "k_c2", nullptr, true },
+  { "k_c3", nullptr, true },
+  { "k_c4", nullptr, true },
+  { "k_c5", nullptr, true },
+  { "k_c6", nullptr, true },
+
+  { "k_rotate", nullptr, false }
 };
 
 const int UI_BUTTON_COUNT = sizeof(ui_buttons) / sizeof(ui_buttons[0]);
