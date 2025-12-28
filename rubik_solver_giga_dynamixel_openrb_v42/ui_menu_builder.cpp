@@ -452,10 +452,12 @@ const char jsonBuffer[] = R"json(
     "footer": "press to start solving",
     "columns": 4,
     "rows": [
+      [
         { "text": "read", "type": "action", "key": "k_solve_cube__read_cube_all", "status": "yes" },
         { "text": "solve", "type": "action", "key": "k_solve_cube_solve", "status": "yes" },
         { "text": "run", "type": "action", "key": "k_solve_cube_run", "status": "yes" },
         { "text": "back", "type": "menu", "key": "k_main" }
+      ]
     ]
   },
   "k_read_cube": {
@@ -500,8 +502,8 @@ const char jsonBuffer[] = R"json(
     "equal_columns": "all",
     "rows": [
       [
-        { "text": "front color", "type": "action", "key": "k_robot_move_front_color_text"  },
-        { "text": "na", "type": "action", "key": "k_robot_move_front_color_value","status": "yes"  },
+        { "text": "front color is", "type": "text", "key": ""  },
+        { "text": "color na", "type": "action", "key": "k_robot_move_front_color_value","status": "yes"  },
         { "text": "", "type": "text" }
       ],
       [
@@ -525,44 +527,43 @@ const char jsonBuffer[] = R"json(
   "k_cube_moves": {
     "title": "cube moves",
     "footer": "tap to run a cube move",
-    "columns": 4,
+    "columns": 3,
     "equal_columns": "all",
     "rows": [
       [
-        { "text": "front color", "type": "action", "key": "k_cube_moves_front_color_text"  },
-        { "text": "na", "type": "action", "key": "k_cube_moves_front_color_value","status": "yes"  },
-        { "text": "", "type": "text" },
+        { "text": "front color is:", "type": "text", "key": ""  },
+        { "text": "color na", "type": "text", "key": "k_cube_moves_front_color_value","status": "yes"  },
         { "text": "", "type": "text" }
       ],
       [
         { "text": "f+", "type": "action", "key": "k_cube_moves_f_plus","status": "yes"  },
         { "text": "f-", "type": "action", "key": "k_cube_moves_f_minus","status": "yes"  },
-        { "text": "b+", "type": "action", "key": "k_cube_moves_b_plus","status": "yes"  },
-        { "text": "b-", "type": "action", "key": "k_cube_moves_b_minus","status": "yes"  }
+        { "text": "f2", "type": "action", "key": "k_cube_moves_f2","status": "yes"  }
+      ],
+      [
+        { "text": "r+", "type": "action", "key": "k_cube_moves_r_plus","status": "yes"  },
+        { "text": "r-", "type": "action", "key": "k_cube_moves_r_minus","status": "yes"  },
+        { "text": "r2", "type": "action", "key": "k_cube_moves_r2","status": "yes"  }
       ],
       [
         { "text": "u+", "type": "action", "key": "k_cube_moves_u_plus","status": "yes"  },
         { "text": "u-", "type": "action", "key": "k_cube_moves_u_minus","status": "yes"  },
-        { "text": "d+", "type": "action", "key": "k_cube_moves_d_plus","status": "yes"  },
-        { "text": "d-", "type": "action", "key": "k_cube_moves_d_minus","status": "yes"  }
+        { "text": "u2", "type": "action", "key": "k_cube_moves_u2" ,"status": "yes" }
+      ],
+      [
+        { "text": "b+", "type": "action", "key": "k_cube_moves_b_plus","status": "yes"  },
+        { "text": "b-", "type": "action", "key": "k_cube_moves_b_minus","status": "yes"  },
+        { "text": "b2", "type": "action", "key": "k_cube_moves_b2","status": "yes"  }
       ],
       [
         { "text": "l+", "type": "action", "key": "k_cube_moves_l_plus","status": "yes"  },
         { "text": "l-", "type": "action", "key": "k_cube_moves_l_minus","status": "yes"  },
-        { "text": "r+", "type": "action", "key": "k_cube_moves_r_plus","status": "yes"  },
-        { "text": "r-", "type": "action", "key": "k_cube_moves_r_minus","status": "yes"  }
+        { "text": "l2", "type": "action", "key": "k_cube_moves_l2","status": "yes"  }
       ],
       [
-        { "text": "f++", "type": "action", "key": "k_cube_moves_f_plus_plus","status": "yes"  },
-        { "text": "b++", "type": "action", "key": "k_cube_moves_b_plus_plus","status": "yes"  },
-        { "text": "u++", "type": "action", "key": "k_cube_moves_u_plus_plus" ,"status": "yes" },
-        { "text": "d++", "type": "action", "key": "k_cube_moves_d_plus_plus","status": "yes"  }
-      ],
-      [
-        { "text": "l++", "type": "action", "key": "k_cube_moves_l_plus_plus","status": "yes"  },
-        { "text": "r++", "type": "action", "key": "k_cube_moves_r_plus_plus","status": "yes"  },
-        { "text": "", "type": "text" },
-        { "text": "", "type": "text" }
+        { "text": "d+", "type": "action", "key": "k_cube_moves_d_plus","status": "yes"  },
+        { "text": "d-", "type": "action", "key": "k_cube_moves_d_minus","status": "yes"  },
+        { "text": "d2", "type": "action", "key": "k_cube_moves_d2","status": "yes"  }
       ],
       [{ "text": "back", "type": "menu", "key": "k_main" }]
     ]
@@ -574,8 +575,8 @@ const char jsonBuffer[] = R"json(
     "equal_columns": "all",
     "rows": [
       [
-        { "text": "orientation", "type": "text", "key": "k_orientation_text","status": "yes"  },
-        { "text": "", "type": "text", "key": "" },
+        { "text": "orientation", "type": "text", "key": ""  },
+        { "text": "orientation na", "type": "text", "key": "k_orientation_val","status": "yes" },
         { "text": "", "type": "text", "key": "" }
       ],
       [
@@ -584,8 +585,8 @@ const char jsonBuffer[] = R"json(
         { "text": "clear", "type": "action", "key": "k_orientation_clear","status": "yes"  }
       ],
       [
-        { "text": "color read", "type": "text", "key": "k_orientation_color_read","status": "yes"  },
-        { "text": "", "type": "text", "key": "" },
+        { "text": "color read", "type": "text", "key": ""  },
+        { "text": "front is", "type": "text", "key": "color_read_front_color_val","status": "yes" },
         { "text": "", "type": "text", "key": "" }
       ],
       [
@@ -594,8 +595,8 @@ const char jsonBuffer[] = R"json(
         { "text": "sensor", "type": "action", "key": "k_orientation_color_read_sensor","status": "yes"  }
       ],
       [
-        { "text": "color stickers", "type": "text", "key": "k_orientation_color_stickers","status": "yes"  },
-        { "text": "", "type": "text", "key": "" },
+        { "text": "color stickers", "type": "text", "key": "" },
+        { "text": "", "type": "text", "key": ""  },
         { "text": "", "type": "text", "key": "" }
       ],
       [

@@ -74,6 +74,7 @@ void UIButton::set_is_busy(bool val) {
 
 // All interactive/menu buttons extracted from your JSON (no num/text types)
 UIButton ui_buttons[] = {
+
   { 1, "solve cube", "k_solve_cube", nullptr, false, true },
   { 2, "read cube", "k_read_cube", nullptr, false, true },
   { 3, "tests", "k_tests", nullptr, false, true },
@@ -92,8 +93,8 @@ UIButton ui_buttons[] = {
   { 13, "cube moves", "k_cube_moves", nullptr, false, true },
   { 14, "colors and orientation", "k_colors_and_orientation", nullptr, false, true },
 
-  { 15, "front color", "k_robot_move_front_color_text", nullptr, false, false },
-  { 16, "na", "k_robot_move_front_color_value", nullptr, true, false },
+  { 15, "front color is", "", nullptr, false, false },
+  { 16, "color na", "k_robot_move_front_color_value", nullptr, true, false },
 
   { 17, "d+", "k_robot_moves_d_plus", nullptr, true, false },
   { 18, "d-", "k_robot_moves_d_minus", nullptr, true, false },
@@ -107,55 +108,63 @@ UIButton ui_buttons[] = {
   { 24, "y-", "k_robot_moves_y_minus", nullptr, true, false },
   { 25, "y-", "k_robot_moves_y2", nullptr, true, false },
 
-  { 26, "front color", "k_cube_moves_front_color_text", nullptr, false, false },
-  { 27, "na", "k_cube_moves_front_color_value", nullptr, true, false },
+  { 26, "front color is:", "", nullptr, false, false },
+  { 27, "color na", "k_cube_moves_front_color_value", nullptr, true, false },
 
   { 28, "f+", "k_cube_moves_f_plus", nullptr, true, false },
   { 29, "f-", "k_cube_moves_f_minus", nullptr, true, false },
-  { 30, "b+", "k_cube_moves_b_plus", nullptr, true, false },
-  { 31, "b-", "k_cube_moves_b_minus", nullptr, true, false },
+  { 30, "f2", "k_cube_moves_f2", nullptr, true, false },
 
-  { 32, "u+", "k_cube_moves_u_plus", nullptr, true, false },
-  { 33, "u-", "k_cube_moves_u_minus", nullptr, true, false },
-  { 34, "d+", "k_cube_moves_d_plus", nullptr, true, false },
-  { 35, "d-", "k_cube_moves_d_minus", nullptr, true, false },
+  { 31, "r+", "k_cube_moves_r_plus", nullptr, true, false },
+  { 32, "r-", "k_cube_moves_r_minus", nullptr, true, false },
+  { 33, "r2", "k_cube_moves_r2", nullptr, true, false },
 
-  { 36, "l+", "k_cube_moves_l_plus", nullptr, true, false },
-  { 37, "l-", "k_cube_moves_l_minus", nullptr, true, false },
-  { 38, "r+", "k_cube_moves_r_plus", nullptr, true, false },
-  { 39, "r-", "k_cube_moves_r_minus", nullptr, true, false },
+  { 34, "u+", "k_cube_moves_u_plus", nullptr, true, false },
+  { 35, "u-", "k_cube_moves_u_minus", nullptr, true, false },
+  { 36, "u2", "k_cube_moves_u2", nullptr, true, false },
 
-  { 40, "f++", "k_cube_moves_f_plus_plus", nullptr, true, false },
-  { 41, "b++", "k_cube_moves_b_plus_plus", nullptr, true, false },
-  { 42, "u++", "k_cube_moves_u_plus_plus", nullptr, true, false },
-  { 43, "d++", "k_cube_moves_d_plus_plus", nullptr, true, false },
+  { 37, "b+", "k_cube_moves_b_plus", nullptr, true, false },
+  { 38, "b-", "k_cube_moves_b_minus", nullptr, true, false },
+  { 39, "b2", "k_cube_moves_b2", nullptr, true, false },
 
-  { 44, "l++", "k_cube_moves_l_plus_plus", nullptr, true, false },
-  { 45, "r++", "k_cube_moves_r_plus_plus", nullptr, true, false },
+  { 40, "l+", "k_cube_moves_l_plus", nullptr, true, false },
+  { 41, "l-", "k_cube_moves_l_minus", nullptr, true, false },
+  { 42, "l2", "k_cube_moves_l2", nullptr, true, false },
 
-  { 46, "orientation", "k_orientation_text", nullptr, true, false },
-  { 47, "detect", "k_orientation_detect", nullptr, true, false },
-  { 48, "check", "k_orientation_check", nullptr, true, false },
-  { 49, "clear", "k_orientation_clear", nullptr, true, false },
+  { 43, "d+", "k_cube_moves_d_plus", nullptr, true, false },
+  { 44, "d-", "k_cube_moves_d_minus", nullptr, true, false },
+  { 45, "d2", "k_cube_moves_d2", nullptr, true, false },
 
-  { 50, "color read", "k_orientation_color_read", nullptr, true, false },
-  { 51, "all", "k_orientation_color_read_all", nullptr, true, false },
-  { 52, "bottom", "k_orientation_color_read_bottom", nullptr, true, false },
-  { 53, "sensor", "k_orientation_color_read_sensor", nullptr, true, false },
+  { 46, "orientation", "", nullptr, false, false },
+  { 47, "orientation na", "k_orientation_val", nullptr, true, false },
 
-  { 54, "color stickers", "k_orientation_color_stickers", nullptr, true, false },
+  { 48, "detect", "k_orientation_detect", nullptr, true, false },
+  { 49, "check", "k_orientation_check", nullptr, true, false },
+  { 50, "clear", "k_orientation_clear", nullptr, true, false },
 
-  { 55, "c1", "k_color_c1", nullptr, true, false },
-  { 56, "c2", "k_color_c2", nullptr, true, false },
-  { 57, "c3", "k_color_c3", nullptr, true, false },
-  { 58, "c4", "k_color_c4", nullptr, true, false },
-  { 59, "c5", "k_color_c5", nullptr, true, false },
-  { 60, "c6", "k_color_c6", nullptr, true, false },
+  { 51, "color read", "", nullptr, false, false },
+  { 52, "front is", "color_read_front_color_val", nullptr, true, false },
 
-  { 61, "rotate", "k_color_rotate", nullptr, false, false },
-  { 62, "y+", "k_color_y_plus", nullptr, true, false },
-  { 63, "z+", "k_color_z_plus", nullptr, true, false }
+  { 53, "all", "k_orientation_color_read_all", nullptr, true, false },
+  { 54, "bottom", "k_orientation_color_read_bottom", nullptr, true, false },
+  { 55, "sensor", "k_orientation_color_read_sensor", nullptr, true, false },
+
+  { 56, "color stickers", "", nullptr, false, false },
+
+  { 57, "c1", "k_color_c1", nullptr, true, false },
+  { 58, "c2", "k_color_c2", nullptr, true, false },
+  { 59, "c3", "k_color_c3", nullptr, true, false },
+  { 60, "c4", "k_color_c4", nullptr, true, false },
+  { 61, "c5", "k_color_c5", nullptr, true, false },
+  { 62, "c6", "k_color_c6", nullptr, true, false },
+
+  { 63, "rotate", "k_color_rotate", nullptr, false, false },
+  { 64, "y+", "k_color_y_plus", nullptr, true, false },
+  { 65, "z+", "k_color_z_plus", nullptr, true, false },
+
+  { 66, "back", "k_tests", nullptr, false, true }
 };
+
 
 
 const int UI_BUTTON_COUNT = sizeof(ui_buttons) / sizeof(ui_buttons[0]);
@@ -222,7 +231,7 @@ void log_button_by_key(const char* txt) {
     return;
   }
 
-  LOG_PRINTF_MENU("button log by TEXT {%s} | id {%d} | menu {%s} | active {%s} | issue {%s} | busy {%s} | ptr {%s}\n",
+  LOG_PRINTF_MENU("button log by KEY {%s} | id {%d} | menu {%s} | active {%s} | issue {%s} | busy {%s} | ptr {%s}\n",
                   b->get_key(),
                   b->get_id(),
                   b->get_is_status() ? "yes" : "no",

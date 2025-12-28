@@ -83,6 +83,26 @@ void setFooter(const char *msg) {
   }
 }
 
+void buttonAction_executeAction_run(const char *btn_key) {
+
+  // TODO actual action goes here
+  String footer_txt = String("start ") + String(btn_key);
+  setFooter(footer_txt.c_str());
+  delay(666);
+  footer_txt = String("end ") + String(btn_key);
+  setFooter(footer_txt.c_str());
+
+  // example below
+  /*
+  if (pose_store.is_pose(txt)) {
+    LOG_SECTION_START_MENU("run pose {%s}", txt);
+    setFooter(txt);
+    pose_store.run_pose(txt);
+    LOG_SECTION_END_MENU();
+  }
+  */
+}
+
 // ---- below is for actions to be done when a menu is displayed ---
 void buttonAction_executeAction(int btn_id) {
   LOG_SECTION_START_MENU("update buttons on click for menu {%d}", btn_id);
@@ -101,11 +121,9 @@ void buttonAction_executeAction(int btn_id) {
     b->set_is_busy(true);
     drawButtonOverlayById(btn_id);
     setFooter("updating system...");
-    delay(666);
-    //if (rb.updateInfo()) {
-    // also get the detailed info if above worked
-    //rb.requestAllServoInfo();
-    //}
+    //.................
+    buttonAction_executeAction_run(btn_key);
+    //.................
     b->set_is_busy(false);
     drawButtonOverlayById(btn_id);
     LOG_SECTION_END_MENU();
@@ -123,26 +141,15 @@ void buttonAction_executeAction(int btn_id) {
                     String("} key{") + String(btn_key) +               //
                     String("} text{") + String(btn_txt) + "}";
       setFooter(text.c_str());
-      // delay
-      delay(666); //TODO action goes here
+      //.................
+      buttonAction_executeAction_run(btn_key);
+      //.................
       // reset busy
       b->set_is_busy(false);
       drawButtonOverlayById(btn_id);
       LOG_SECTION_END_MENU();
     }
   }
-  /*
-  else if (pose_store.is_pose(txt)) {
-    LOG_SECTION_START_MENU("run pose {%s}", txt);
-    b->set_is_busy(true);
-    drawButtonOverlayById(btn_id);
-    setFooter(txt);
-    pose_store.run_pose(txt);
-    b->set_is_busy(false);
-    drawButtonOverlayById(btn_id);
-    LOG_SECTION_END_MENU();
-  }
-  */
   LOG_SECTION_END_MENU();
 }
 
@@ -163,7 +170,7 @@ void buttonAction(int btn_id) {
   static unsigned long millisButtonBusy = 0;
   static String lastBusyKey = "";
 
-  const char *key = b->get_text();
+  const char *key = b->get_key();
   unsigned long now = millis();
 
   // --- Prevent rapid re-clicks (debounce 500 ms)
@@ -178,7 +185,7 @@ void buttonAction(int btn_id) {
   // --- Guard against null or empty key
   if (!key || !*key) {
     LOG_PRINTF_MENU("[!] button action empty or null key ignored\n");
-    LOG_SECTION_END_MENU();
+
     return;
   }
 
@@ -196,13 +203,17 @@ void buttonAction(int btn_id) {
   // --- Mark this button as busy before running the long op
   millisButtonBusy = now;
   lastBusyKey = key;
+
+  LOG_PRINTF_MENU("start action for button id {%d} key {%s}\n", btn_id, key);
   buttonAction_executeAction(btn_id);  // blocking call
+  LOG_SECTION_END_MENU();
+
   millisButtonBusy = 0;
 
   // --- Navigate to submenu only after operation finished
-  if (menuDoc.containsKey(key)) {
+  if (b->get_is_menu()) {
     currentMenu = key;
-    setFooter((String("switch menu ") + key).c_str());
+    setFooter((String("switch menu to ") + key).c_str());
     buildMenu(currentMenu.c_str());
     LOG_SECTION_END_MENU();
     return;
@@ -309,9 +320,11 @@ void ui_refresh() {
   lastRefresh = now;
 
   LOG_SECTION_START_MENU("refresh ui");
-  // TODO
+
+  // TODO update this with various actions
   // pose_store.reflect_poses_last_run();
   // log_all_buttons(true);
+
   LOG_SECTION_END_MENU();
 }
 

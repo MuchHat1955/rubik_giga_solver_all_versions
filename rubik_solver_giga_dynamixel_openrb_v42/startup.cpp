@@ -28,7 +28,7 @@ bool runStartupTests() {
   int failCount = 0;
   int total = 0;
 
-  // TODO
+  // TODO run startup tests
   // startupOK = rb.updateInfo();
   startupOK = true;
 
