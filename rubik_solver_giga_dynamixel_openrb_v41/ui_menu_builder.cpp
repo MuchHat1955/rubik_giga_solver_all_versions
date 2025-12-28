@@ -283,7 +283,7 @@ void buildMenu(const char *menuName) {
         }
 
         // get the button id from the map
-        UIButton *btn_ptr = find_button_by_text(key);
+        UIButton *btn_ptr = find_button_by_key(key);
         int btn_id = 0;
         if (btn_ptr) btn_id = btn_ptr->get_id();
 

@@ -88,15 +88,15 @@ void buttonAction_executeAction(int btn_id) {
   LOG_SECTION_START_MENU("update buttons on click for menu {%d}", btn_id);
   UIButton *b = find_button_by_id(btn_id);
   if (!b) {
-    // LOG_PRINTF_MENU("[!] buttonAction_executeAction: no button found for id {%d}\n", btn_id);
+    LOG_PRINTF_MENU("[!] buttonAction_executeAction: no button found for id {%d}\n", btn_id);
     return;
   }
 
-  const char *txt = b->get_text();
-  const char *key = b->get_key();
+  const char *btn_key = b->get_key();
+  const char *btn_txt = b->get_text();
 
-  if (strcmp(txt, "system") == 0) {
-    LOG_SECTION_START_MENU("update servos for btn {%s}", txt);
+  if (strcmp(btn_key, "k_system") == 0) {
+    LOG_SECTION_START_MENU("update servos for btn {%s}", btn_key);
     b->set_is_busy(true);
     drawButtonOverlayById(btn_id);
     setFooter("reading servos...");
@@ -108,10 +108,10 @@ void buttonAction_executeAction(int btn_id) {
     drawButtonOverlayById(btn_id);
     LOG_SECTION_END_MENU();
   } else {
-    LOG_SECTION_START_MENU("update servos for btn {%s}", txt);
+    LOG_SECTION_START_MENU("update servos for btn {%s}", btn_key);
     b->set_is_busy(true);
     drawButtonOverlayById(btn_id);
-    setFooter("button pressed->" + String(key));
+    setFooter("button pressed->" + String(btn_key) + " (" + String(btn_txt)+")");
     delay(666);
     b->set_is_busy(false);
     drawButtonOverlayById(btn_id);

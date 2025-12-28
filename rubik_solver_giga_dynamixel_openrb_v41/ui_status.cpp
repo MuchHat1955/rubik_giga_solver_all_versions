@@ -65,7 +65,7 @@ void drawButtonOverlayById(int btn_id) {
 
   lv_obj_t *btn = btn_ptr->get_ptr();
   if (!btn) {
-    // LOG_ERROR("[!] drawButtonOverlay: button object is null for id {%d}\n", btn_id);
+    LOG_ERROR("[!] drawButtonOverlay: button object is null for id {%d}\n", btn_id);
     return;
   }
 
@@ -180,10 +180,10 @@ void drawButtonOverlayById(int btn_id) {
   delay(15);
 }
 
-void drawButtonOverlayByText(const char *btn_txt) {
-  UIButton *btn_ptr = find_button_by_text(btn_txt);
+void drawButtonOverlayByText(const char *btn_key) {
+  UIButton *btn_ptr = find_button_by_key(btn_key);
   if (!btn_ptr) {
-    LOG_ERROR("[!] drawButtonOverlay: invalid button text {%s}", btn_txt);
+    LOG_ERROR("[!] drawButtonOverlay: invalid button text {%s}", btn_key);
     return;
   }
   drawButtonOverlayById(btn_ptr->get_id());
