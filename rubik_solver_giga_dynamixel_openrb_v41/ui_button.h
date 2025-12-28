@@ -8,11 +8,11 @@
 class UIButton {
 public:
   UIButton();
-  UIButton(int id, const char* text, lv_obj_t* ptr = nullptr, bool is_menu = false);
+  UIButton(int id, const char* key, lv_obj_t* ptr = nullptr, bool is_menu = false);
 
   // --- Getters ---
   int get_id() const;
-  const char* get_text() const;
+  const char* get_key() const;
   lv_obj_t* get_ptr() const;
   bool get_is_menu() const;
   bool get_is_active() const;
@@ -21,7 +21,7 @@ public:
 
   // --- Setters ---
   void set_id(int id);
-  void set_text(const char* txt);
+  void set_key(const char* txt);
   void set_ptr(lv_obj_t* obj);
   void set_is_menu(bool val);
   void set_is_active(bool val);
@@ -34,7 +34,7 @@ public:
 
 private:
   int id_ = -1;
-  String text_;
+  String key_;
   lv_obj_t* ptr_ = nullptr;
 
   bool is_menu_ = false;
@@ -49,9 +49,9 @@ private:
 extern UIButton ui_buttons[];
 extern const int UI_BUTTON_COUNT;
 
-UIButton* find_button_by_text(const char* txt);
+UIButton* find_button_by_key(const char* key);
 UIButton* find_button_by_id(int id);
 void clear_all_button_ptrs();
 void log_button_by_id(int id);
-void log_button_by_text(const char* txt);
+void log_button_by_key(const char* key);
 void log_all_buttons(bool only_if_not_on_default = false);

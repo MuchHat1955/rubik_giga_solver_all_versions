@@ -450,20 +450,25 @@ const char jsonBuffer[] = R"json(
   "solve cube": {
     "title": "solve cube",
     "footer": "press to start solving",
-    "columns": 1,
+    "columns": 4,
     "rows": [
-      [{ "text": "find solution", "type": "action", "key": "k_find_solution", "status": "yes" }],
-      [{ "text": "read cube", "type": "action", "key": "k_read_cube" }],
-      [{ "text": "back", "type": "menu", "key": "k_main" }]
+        { "text": "read", "type": "action", "key": "k_solve_cube__read_cube_all", "status": "yes" },
+        { "text": "solve", "type": "action", "key": "k_solve_cube_solve", "status": "yes" },
+        { "text": "run", "type": "action", "key": "k_solve_cube_run", "status": "yes" },
+        { "text": "back", "type": "menu", "key": "k_main" }
     ]
   },
   "read cube": {
     "title": "read cube",
     "footer": "read cube colors",
-    "columns": 1,
+    "columns": 4,
     "rows": [
-      [{ "text": "read cube", "type": "action", "key": "k_read_cube" }],
-      [{ "text": "back", "type": "menu", "key": "k_main" }]
+      [
+        { "text": "all", "type": "action", "key": "k_read_cube_all","status": "yes" },
+        { "text": "bottom", "type": "action", "key": "k_read_cube_bottom","status": "yes" },
+        { "text": "centers", "type": "action", "key": "k_read_cube_centers","status": "yes" },
+        { "text": "back", "type": "menu", "key": "k_main" }
+      ]
     ]
   },
   "system": {
@@ -495,19 +500,24 @@ const char jsonBuffer[] = R"json(
     "equal_columns": "all",
     "rows": [
       [
-        { "text": "d+", "type": "action", "key": "k_d_plus","status": "yes" },
-        { "text": "d-", "type": "action", "key": "k_d_minus","status": "yes"  },
-        { "text": "d-", "type": "action", "key": "k_d2","status": "yes"  }
+        { "text": "front color", "type": "action", "key": "k_robot_move_front_color_text"  },
+        { "text": "na", "type": "action", "key": "k_robot_move_front_color_value","status": "yes"  },
+        { "text": "", "type": "text" }
       ],
       [
-        { "text": "z+", "type": "action", "key": "k_z_plus","status": "yes"  },
-        { "text": "z-", "type": "action", "key": "k_z_minus","status": "yes"  },
-        { "text": "z-", "type": "action", "key": "k_z2","status": "yes"  }
+        { "text": "d+", "type": "action", "key": "k_robot_moves_d_plus","status": "yes" },
+        { "text": "d-", "type": "action", "key": "k_robot_moves_d_minus","status": "yes"  },
+        { "text": "d-", "type": "action", "key": "k_robot_moves_d2","status": "yes"  }
       ],
       [
-        { "text": "y+", "type": "action", "key": "k_y_plus","status": "yes"  },
-        { "text": "y-", "type": "action", "key": "k_y_minus","status": "yes"  },
-        { "text": "y-", "type": "action", "key": "k_y2","status": "yes"  }
+        { "text": "z+", "type": "action", "key": "k_robot_moves_z_plus","status": "yes"  },
+        { "text": "z-", "type": "action", "key": "k_robot_moves_z_minus","status": "yes"  },
+        { "text": "z-", "type": "action", "key": "k_robot_moves_z2","status": "yes"  }
+      ],
+      [
+        { "text": "y+", "type": "action", "key": "k_robot_moves_y_plus","status": "yes"  },
+        { "text": "y-", "type": "action", "key": "k_robot_moves_y_minus","status": "yes"  },
+        { "text": "y-", "type": "action", "key": "k_robot_moves_y2","status": "yes"  }
       ],
       [{ "text": "back", "type": "menu", "key": "k_tests" }]
     ]
@@ -519,32 +529,38 @@ const char jsonBuffer[] = R"json(
     "equal_columns": "all",
     "rows": [
       [
-        { "text": "f+", "type": "action", "key": "k_f_plus","status": "yes"  },
-        { "text": "f-", "type": "action", "key": "k_f_minus","status": "yes"  },
-        { "text": "b+", "type": "action", "key": "k_b_plus","status": "yes"  },
-        { "text": "b-", "type": "action", "key": "k_b_minus","status": "yes"  }
+        { "text": "front color", "type": "action", "key": "k_cube_moves_front_color_text"  },
+        { "text": "na", "type": "action", "key": "k_cube_moves_front_color_value","status": "yes"  },
+        { "text": "", "type": "text" },
+        { "text": "", "type": "text" }
       ],
       [
-        { "text": "u+", "type": "action", "key": "k_u_plus","status": "yes"  },
-        { "text": "u-", "type": "action", "key": "k_u_minus","status": "yes"  },
-        { "text": "d+", "type": "action", "key": "k_d_plus","status": "yes"  },
-        { "text": "d-", "type": "action", "key": "k_d_minus","status": "yes"  }
+        { "text": "f+", "type": "action", "key": "k_cube_moves_f_plus","status": "yes"  },
+        { "text": "f-", "type": "action", "key": "k_cube_moves_f_minus","status": "yes"  },
+        { "text": "b+", "type": "action", "key": "k_cube_moves_b_plus","status": "yes"  },
+        { "text": "b-", "type": "action", "key": "k_cube_moves_b_minus","status": "yes"  }
       ],
       [
-        { "text": "l+", "type": "action", "key": "k_l_plus","status": "yes"  },
-        { "text": "l-", "type": "action", "key": "k_l_minus","status": "yes"  },
-        { "text": "r+", "type": "action", "key": "k_r_plus","status": "yes"  },
-        { "text": "r-", "type": "action", "key": "k_r_minus","status": "yes"  }
+        { "text": "u+", "type": "action", "key": "k_cube_moves_u_plus","status": "yes"  },
+        { "text": "u-", "type": "action", "key": "k_cube_moves_u_minus","status": "yes"  },
+        { "text": "d+", "type": "action", "key": "k_cube_moves_d_plus","status": "yes"  },
+        { "text": "d-", "type": "action", "key": "k_cube_moves_d_minus","status": "yes"  }
       ],
       [
-        { "text": "f++", "type": "action", "key": "k_f_plus_plus","status": "yes"  },
-        { "text": "b++", "type": "action", "key": "k_b_plus_plus","status": "yes"  },
-        { "text": "u++", "type": "action", "key": "k_u_plus_plus" ,"status": "yes" },
-        { "text": "d++", "type": "action", "key": "k_d_plus_plus","status": "yes"  }
+        { "text": "l+", "type": "action", "key": "k_cube_moves_l_plus","status": "yes"  },
+        { "text": "l-", "type": "action", "key": "k_cube_moves_l_minus","status": "yes"  },
+        { "text": "r+", "type": "action", "key": "k_cube_moves_r_plus","status": "yes"  },
+        { "text": "r-", "type": "action", "key": "k_cube_moves_r_minus","status": "yes"  }
       ],
       [
-        { "text": "l++", "type": "action", "key": "k_l_plus_plus","status": "yes"  },
-        { "text": "r++", "type": "action", "key": "k_r_plus_plus","status": "yes"  },
+        { "text": "f++", "type": "action", "key": "k_cube_moves_f_plus_plus","status": "yes"  },
+        { "text": "b++", "type": "action", "key": "k_cube_moves_b_plus_plus","status": "yes"  },
+        { "text": "u++", "type": "action", "key": "k_cube_moves_u_plus_plus" ,"status": "yes" },
+        { "text": "d++", "type": "action", "key": "k_cube_moves_d_plus_plus","status": "yes"  }
+      ],
+      [
+        { "text": "l++", "type": "action", "key": "k_cube_moves_l_plus_plus","status": "yes"  },
+        { "text": "r++", "type": "action", "key": "k_cube_moves_r_plus_plus","status": "yes"  },
         { "text": "", "type": "text" },
         { "text": "", "type": "text" }
       ],
@@ -558,48 +574,48 @@ const char jsonBuffer[] = R"json(
     "equal_columns": "all",
     "rows": [
       [
-        { "text": "orientation", "type": "text", "key": "k_orientation","status": "yes"  },
+        { "text": "orientation", "type": "text", "key": "k_orientation_text","status": "yes"  },
         { "text": "", "type": "text", "key": "" },
         { "text": "", "type": "text", "key": "" }
       ],
       [
-        { "text": "detect", "type": "action", "key": "k_detect","status": "yes"  },
-        { "text": "check", "type": "action", "key": "k_check","status": "yes"  },
-        { "text": "clear", "type": "action", "key": "k_clear","status": "yes"  }
+        { "text": "detect", "type": "action", "key": "k_orientation_detect","status": "yes"  },
+        { "text": "check", "type": "action", "key": "k_orientation_check","status": "yes"  },
+        { "text": "clear", "type": "action", "key": "k_orientation_clear","status": "yes"  }
       ],
       [
-        { "text": "color read", "type": "text", "key": "k_color_read","status": "yes"  },
+        { "text": "color read", "type": "text", "key": "k_orientation_color_read","status": "yes"  },
         { "text": "", "type": "text", "key": "" },
         { "text": "", "type": "text", "key": "" }
       ],
       [
-        { "text": "all", "type": "action", "key": "k_all","status": "yes"  },
-        { "text": "bottom", "type": "action", "key": "k_bottom","status": "yes"  },
-        { "text": "sensor", "type": "action", "key": "k_sensor","status": "yes"  }
+        { "text": "all", "type": "action", "key": "k_orientation_color_read_all","status": "yes"  },
+        { "text": "bottom", "type": "action", "key": "k_orientation_color_read_bottom","status": "yes"  },
+        { "text": "sensor", "type": "action", "key": "k_orientation_color_read_sensor","status": "yes"  }
       ],
       [
-        { "text": "color stickers", "type": "text", "key": "k_color_stickers","status": "yes"  },
+        { "text": "color stickers", "type": "text", "key": "k_orientation_color_stickers","status": "yes"  },
         { "text": "", "type": "text", "key": "" },
         { "text": "", "type": "text", "key": "" }
       ],
       [
-        { "text": "c1", "type": "action", "key": "k_c1","status": "yes"  },
-        { "text": "c2", "type": "action", "key": "k_c2","status": "yes"  },
-        { "text": "c3", "type": "action", "key": "k_c3","status": "yes"  }
+        { "text": "c1", "type": "action", "key": "k_color_c1","status": "yes"  },
+        { "text": "c2", "type": "action", "key": "k_color_c2","status": "yes"  },
+        { "text": "c3", "type": "action", "key": "k_color_c3","status": "yes"  }
       ],
       [
-        { "text": "c4", "type": "action", "key": "k_c4","status": "yes"  },
-        { "text": "c5", "type": "action", "key": "k_c5","status": "yes"  },
-        { "text": "c6", "type": "action", "key": "k_c6","status": "yes"  }
+        { "text": "c4", "type": "action", "key": "k_color_c4","status": "yes"  },
+        { "text": "c5", "type": "action", "key": "k_color_c5","status": "yes"  },
+        { "text": "c6", "type": "action", "key": "k_color_c6","status": "yes"  }
       ],
       [
-        { "text": "rotate", "type": "text", "key": "k_rotate" },
+        { "text": "rotate", "type": "text", "key": "k_color_rotate" },
         { "text": "", "type": "text", "key": "" },
         { "text": "", "type": "text", "key": "" }
       ],
       [
-        { "text": "y+", "type": "action", "key": "k_y_plus","status": "yes"  },
-        { "text": "z+", "type": "action", "key": "k_z_plus","status": "yes"  },
+        { "text": "y+", "type": "action", "key": "k_color_y_plus","status": "yes"  },
+        { "text": "z+", "type": "action", "key": "k_color_z_plus","status": "yes"  },
         { "text": "", "type": "text", "key": "" }
       ],
       [{ "text": "back", "type": "menu", "key": "k_tests" }]

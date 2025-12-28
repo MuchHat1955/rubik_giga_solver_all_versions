@@ -93,26 +93,26 @@ void buttonAction_executeAction(int btn_id) {
   }
 
   const char *txt = b->get_text();
+  const char *key = b->get_key();
 
-  if (strcmp(txt, "poses") == 0) {
-    LOG_SECTION_START_MENU("update servos for btn {%s}", txt);
-    b->set_is_busy(true);
-    drawButtonOverlayById(btn_id);
-    setFooter("reading servos...");
-    // rb.updateInfo();
-    b->set_is_busy(false);
-    drawButtonOverlayById(btn_id);
-    LOG_SECTION_END_MENU();
-
-  } else if (strcmp(txt, "system") == 0) {
+  if (strcmp(txt, "system") == 0) {
     LOG_SECTION_START_MENU("update servos for btn {%s}", txt);
     b->set_is_busy(true);
     drawButtonOverlayById(btn_id);
     setFooter("reading servos...");
     //if (rb.updateInfo()) {
-      // also get the detailed info if above worked
-      //rb.requestAllServoInfo();
+    // also get the detailed info if above worked
+    //rb.requestAllServoInfo();
     //}
+    b->set_is_busy(false);
+    drawButtonOverlayById(btn_id);
+    LOG_SECTION_END_MENU();
+  } else {
+    LOG_SECTION_START_MENU("update servos for btn {%s}", txt);
+    b->set_is_busy(true);
+    drawButtonOverlayById(btn_id);
+    setFooter("button pressed->" + String(key));
+    delay(666);
     b->set_is_busy(false);
     drawButtonOverlayById(btn_id);
     LOG_SECTION_END_MENU();
