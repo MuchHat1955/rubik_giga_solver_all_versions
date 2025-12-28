@@ -62,71 +62,71 @@ void UIButton::set_is_busy(bool val) {
 
 // All interactive/menu buttons extracted from your JSON (no num/text types)
 UIButton ui_buttons[] = {
-  { "k_solve_cube", nullptr, false },
-  { "k_read_cube", nullptr, false },
-  { "k_tests", nullptr, false },
-  { "k_system", nullptr, true },
+  { 1, "k_solve_cube", nullptr, false },
+  { 2, "k_read_cube", nullptr, false },
+  { 3, "k_tests", nullptr, false },
+  { 4, "k_system", nullptr, true },
 
-  { "k_find_solution", nullptr, false },
-  { "k_main", nullptr, false },
+  { 5, "k_find_solution", nullptr, true },
+  { 6, "k_main", nullptr, false },
 
-  { "k_robot_moves", nullptr, false },
-  { "k_cube_moves", nullptr, false },
-  { "k_colors_and_orientation", nullptr, false },
+  { 7, "k_robot_moves", nullptr, false },
+  { 8, "k_cube_moves", nullptr, false },
+  { 9, "k_colors_and_orientation", nullptr, false },
 
-  { "k_d_plus", nullptr, true },
-  { "k_d_minus", nullptr, true },
-  { "k_d2", nullptr, true },
+  { 10, "k_d_plus", nullptr, true },
+  { 11, "k_d_minus", nullptr, true },
+  { 12, "k_d2", nullptr, true },
 
-  { "k_z_plus", nullptr, true },
-  { "k_z_minus", nullptr, true },
-  { "k_z2", nullptr, true },
+  { 13, "k_z_plus", nullptr, true },
+  { 14, "k_z_minus", nullptr, true },
+  { 15, "k_z2", nullptr, true },
 
-  { "k_y_plus", nullptr, true },
-  { "k_y_minus", nullptr, true },
-  { "k_y2", nullptr, true },
+  { 16, "k_y_plus", nullptr, true },
+  { 17, "k_y_minus", nullptr, true },
+  { 18, "k_y2", nullptr, true },
 
-  { "k_f_plus", nullptr, true },
-  { "k_f_minus", nullptr, true },
-  { "k_b_plus", nullptr, true },
-  { "k_b_minus", nullptr, true },
+  { 19, "k_f_plus", nullptr, true },
+  { 20, "k_f_minus", nullptr, true },
+  { 21, "k_b_plus", nullptr, true },
+  { 22, "k_b_minus", nullptr, true },
 
-  { "k_u_plus", nullptr, true },
-  { "k_u_minus", nullptr, true },
+  { 23, "k_u_plus", nullptr, true },
+  { 24, "k_u_minus", nullptr, true },
 
-  { "k_l_plus", nullptr, true },
-  { "k_l_minus", nullptr, true },
-  { "k_r_plus", nullptr, true },
-  { "k_r_minus", nullptr, true },
+  { 25, "k_l_plus", nullptr, true },
+  { 26, "k_l_minus", nullptr, true },
+  { 27, "k_r_plus", nullptr, true },
+  { 28, "k_r_minus", nullptr, true },
 
-  { "k_f_plus_plus", nullptr, true },
-  { "k_b_plus_plus", nullptr, true },
-  { "k_u_plus_plus", nullptr, true },
-  { "k_d_plus_plus", nullptr, true },
-  { "k_l_plus_plus", nullptr, true },
-  { "k_r_plus_plus", nullptr, true },
+  { 29, "k_f_plus_plus", nullptr, true },
+  { 30, "k_b_plus_plus", nullptr, true },
+  { 31, "k_u_plus_plus", nullptr, true },
+  { 32, "k_d_plus_plus", nullptr, true },
+  { 33, "k_l_plus_plus", nullptr, true },
+  { 34, "k_r_plus_plus", nullptr, true },
 
-  { "k_orientation", nullptr, true },
-  { "k_detect", nullptr, true },
-  { "k_check", nullptr, true },
-  { "k_clear", nullptr, true },
+  { 35, "k_orientation", nullptr, true },
+  { 36, "k_detect", nullptr, true },
+  { 37, "k_check", nullptr, true },
+  { 38, "k_clear", nullptr, true },
 
-  { "k_color_read", nullptr, true },
+  { 39, "k_color_read", nullptr, true },
 
-  { "k_all", nullptr, true },
-  { "k_bottom", nullptr, true },
-  { "k_sensor", nullptr, true },
+  { 40, "k_all", nullptr, true },
+  { 41, "k_bottom", nullptr, true },
+  { 42, "k_sensor", nullptr, true },
 
-  { "k_color_stickers", nullptr, true },
+  { 43, "k_color_stickers", nullptr, true },
 
-  { "k_c1", nullptr, true },
-  { "k_c2", nullptr, true },
-  { "k_c3", nullptr, true },
-  { "k_c4", nullptr, true },
-  { "k_c5", nullptr, true },
-  { "k_c6", nullptr, true },
+  { 44, "k_c1", nullptr, true },
+  { 45, "k_c2", nullptr, true },
+  { 46, "k_c3", nullptr, true },
+  { 47, "k_c4", nullptr, true },
+  { 48, "k_c5", nullptr, true },
+  { 49, "k_c6", nullptr, true },
 
-  { "k_rotate", nullptr, false }
+  { 50, "k_rotate", nullptr, false }
 };
 
 const int UI_BUTTON_COUNT = sizeof(ui_buttons) / sizeof(ui_buttons[0]);

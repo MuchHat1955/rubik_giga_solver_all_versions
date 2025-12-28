@@ -452,7 +452,7 @@ const char jsonBuffer[] = R"json(
     "footer": "press to start solving",
     "columns": 1,
     "rows": [
-      [{ "text": "find solution", "type": "action", "key": "k_find_solution" }],
+      [{ "text": "find solution", "type": "action", "key": "k_find_solution", "status": "yes" }],
       [{ "text": "read cube", "type": "action", "key": "k_read_cube" }],
       [{ "text": "back", "type": "menu", "key": "k_main" }]
     ]
