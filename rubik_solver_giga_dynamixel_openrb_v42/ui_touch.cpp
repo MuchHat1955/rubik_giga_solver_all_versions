@@ -95,6 +95,7 @@ void buttonAction_executeAction(int btn_id) {
   const char *btn_key = b->get_key();
   const char *btn_txt = b->get_text();
 
+  // handle the system
   if (strcmp(btn_key, "k_system") == 0) {
     LOG_SECTION_START_MENU("update servos for btn {%s}", btn_key);
     b->set_is_busy(true);
@@ -108,9 +109,11 @@ void buttonAction_executeAction(int btn_id) {
     b->set_is_busy(false);
     drawButtonOverlayById(btn_id);
     LOG_SECTION_END_MENU();
-  } else {
+  }
 
-    f(b->get_is_status() && !b->get_is_menu()) {
+  // haddle all status buttons
+  else {
+    if (b->get_is_status() && !b->get_is_menu()) {
       LOG_SECTION_START_MENU("update overlay for btn {%s}", btn_key);
       // show busy
       b->set_is_busy(true);
@@ -121,7 +124,7 @@ void buttonAction_executeAction(int btn_id) {
                     String("} text{") + String(btn_txt) + "}";
       setFooter(text.c_str());
       // delay
-      delay(666);
+      delay(666); //TODO action goes here
       // reset busy
       b->set_is_busy(false);
       drawButtonOverlayById(btn_id);
