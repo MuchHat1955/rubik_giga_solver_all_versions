@@ -29,13 +29,13 @@ void uiStatusClear() {
 // ----------------------------------------------------------
 // Add a button ptr when created in buildMenu()
 // ----------------------------------------------------------
-void updateButtonPtrByText(const char *btn_txt, lv_obj_t *btn) {
+void updateButtonPtrByKey(const char *btn_key, lv_obj_t *btn) {
   if (!btn) return;
 
-  UIButton *btn_ptr = find_button_by_text(btn_txt);
+  UIButton *btn_ptr = find_button_by_key(btn_key);
 
   if (!btn_ptr) {
-    LOG_ERROR("invalid button text in updateButtonPtrByText {%s}", btn_txt);
+    LOG_ERROR("invalid button key in updateButtonPtrByKey {%s}", btn_key);
     return;  // nothing to update
   }
   btn_ptr->set_ptr(btn);
@@ -180,10 +180,10 @@ void drawButtonOverlayById(int btn_id) {
   delay(15);
 }
 
-void drawButtonOverlayByText(const char *btn_key) {
+void drawButtonOverlayByKey(const char *btn_key) {
   UIButton *btn_ptr = find_button_by_key(btn_key);
   if (!btn_ptr) {
-    LOG_ERROR("[!] drawButtonOverlay: invalid button text {%s}", btn_key);
+    LOG_ERROR("[!] drawButtonOverlay: invalid button key {%s}", btn_key);
     return;
   }
   drawButtonOverlayById(btn_ptr->get_id());

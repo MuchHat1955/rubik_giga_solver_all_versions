@@ -109,10 +109,17 @@ void buttonAction_executeAction(int btn_id) {
     LOG_SECTION_END_MENU();
   } else {
     LOG_SECTION_START_MENU("update servos for btn {%s}", btn_key);
+    // show busy
     b->set_is_busy(true);
     drawButtonOverlayById(btn_id);
-    setFooter("button pressed->" + String(btn_key) + " (" + String(btn_txt)+")");
+    // updated footer
+    String text = String("button pressed-> id{") + String(btn_id) +  //
+                  String("} key{") + String(btn_key) +               //
+                  String("} text{") + String(btn_txt) + "}";
+    setFooter(text.c_str());
+    // delay
     delay(666);
+    // reset busy
     b->set_is_busy(false);
     drawButtonOverlayById(btn_id);
     LOG_SECTION_END_MENU();

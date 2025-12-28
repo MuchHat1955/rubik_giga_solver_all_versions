@@ -271,9 +271,9 @@ void buildMenu(const char *menuName) {
         lv_obj_set_style_text_color(lbl, COLOR_BTN_TEXT, 0);
 
         if (strcmp(it["status"] | "", "yes") == 0 && strlen(key)) {
-          updateButtonPtrByText(key, btn);
+          updateButtonPtrByKey(key, btn);
           // update overlay if it changed vs default build
-          drawButtonOverlayByText(key);
+          drawButtonOverlayByKey(key);
         }
 
         // setup the click
