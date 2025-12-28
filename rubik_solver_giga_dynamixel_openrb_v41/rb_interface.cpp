@@ -1,9 +1,11 @@
 #include "rb_interface.h"
 #include "logging.h"
 #include "ui_touch.h"
-#include "pose_store.h"
 
-extern PoseStore pose_store;
+/*
+  uint32_t id = rb.send_command("READSERVO", "0");
+  Serial.printf("Started command id %lu\n", id);
+*/
 
 // ============================================================
 // Constructor
@@ -11,613 +13,236 @@ extern PoseStore pose_store;
 RBInterface::RBInterface() {}
 
 // ============================================================
-// BEGIN - initialize link and disable verbose
+// Begin communication
 // ============================================================
 bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
-  LOG_SECTION_START_RB("begin | baud {%lu} | timeout {%lu}", baud, timeout_ms);
+  serial_->begin(baud);
+  serial_->setTimeout(timeout_ms);
 
-  Serial2.begin(baud);
-  Serial2.setTimeout(timeout_ms);
-  clearErrorBuffer();
-
-  LOG_PRINTF_RB("Initializing communication...\n");
+  // Flush startup noise
   delay(300);
+  while (serial_->available()) serial_->read();
 
-  // Turn verbose OFF to get clean command responses
-  Serial2.println("VERBOSEOFF");
+  // Disable verbose output
+  serial_->println("VERBOSEOFF");
   delay(100);
+  while (serial_->available()) serial_->read();
 
-  // Flush any startup noise
-  while (Serial2.available()) Serial2.read();
-
-  // Confirm RB responds
-  Serial2.println("READ 0");
-  unsigned long t0 = millis();
-  bool got = false;
-  while (millis() - t0 < 2000) {
-    if (!Serial2.available()) continue;
-    String line = Serial2.readStringUntil('\n');
-    if (line.startsWith("STATUS")) {
-      got = true;
-      break;
-    }
-  }
-
-  if (!got) {
-    pose_store.set_all_poses_last_run(false);
-    LOG_ERROR("no response from rb\n");
-    LOG_SECTION_END_RB();
-    return false;
-  }
-
-  LOG_PRINTF_RB("Communication OK, reading servo INFO...\n");
-
-  // Query INFO for all servos (11–16)
-  uint8_t ids[] = { ID_ARM1, ID_ARM2, ID_WRIST, ID_GRIPPER1, ID_GRIPPER2, ID_BASE };
-  for (size_t i = 0; i < sizeof(ids) / sizeof(ids[0]); ++i) {
-    requestServoInfo(ids[i]);
-    delay(40);
-  }
-
-  LOG_PRINTF_RB("Initialization complete, verbose OFF.\n");
-  LOG_SECTION_END_RB();
   return true;
 }
 
 // ============================================================
-// Generic command
+// Send command (blocking until command_start)
 // ============================================================
-bool RBInterface::runCommand(const char* name, const float* args, int argCount) {
-  LOG_SECTION_START_RB("runCommand | cmd {%s} | argc {%d}", name, argCount);
+uint32_t RBInterface::send_command(const String& command,
+                                   const String& params) {
+  waiting_for_start_ = true;
+  current_cmd_id_ = 0;
 
-  String cmd(name);
-  for (int i = 0; i < argCount; i++) {
-    cmd += " ";
-    if (strcmp(name, "MOVEPER") == 0 && i == 0)
-      cmd += String((int)args[i]);  // integer formatting for servo ID
-    else
-      cmd += String(args[i], 2);  // 2-decimal float
+  String line = command;
+  if (!params.isEmpty()) {
+    line += " ";
+    line += params;
   }
 
-  LOG_PRINTF_RB("[GIGA → RB] | command {%s}\n", cmd.c_str());
-  setFooter(cmd.c_str());
-  delay(100);
-  Serial2.println(cmd);
-  bool ok = waitForCompletion(name);
-
-  LOG_PRINTF_RB("[RB → GIGA] | command {%s} result {%s}\n", name, ok ? "OK" : "FAIL");
-  String txt = cmd + " " + (ok ? "OK" : "FAIL");
-  setFooter(txt.c_str());
-  delay(100);
-  LOG_SECTION_END_RB();
-  return ok;
-}
-
-// ============================================================
-// INFO fetch helper
-// ============================================================
-bool RBInterface::requestServoInfo(uint8_t id) {
-  LOG_SECTION_START_RB("requestServoInfo | id {%d}", id);
-
-  String cmd = "INFO " + String(id);
-  LOG_PRINTF_RB("[GIGA → RB] | command {%s}\n", cmd.c_str());
-  setFooter(cmd.c_str());
-  delay(100);
-  Serial2.println(cmd);
+  serial_->println(line);
 
   unsigned long t0 = millis();
-  while (millis() - t0 < 1000) {
-    if (!Serial2.available()) continue;
-    String line = Serial2.readStringUntil('\n');
+  while (waiting_for_start_ && millis() - t0 < 3000) {
+    poll();
+  }
+
+  return current_cmd_id_;
+}
+
+// ============================================================
+// Poll serial (call from loop)
+// ============================================================
+void RBInterface::poll() {
+  while (serial_->available()) {
+    String line = serial_->readStringUntil('\n');
     line.trim();
-    if (!line.startsWith("INFO id=")) continue;
-
-    LOG_PRINTF_RB("{%s}", line.c_str());
-
-    ServoInfo info;
-    info.id = id;
-    sscanf(line.c_str(),
-           "INFO id=%hhu op_mode=%hhu drive_mode=%hhu profile_vel=%d rpm=%lf tps=%lf profile_accel=%d pos_min=%d pos_max=%d span_deg=%lf pos_present=%d",
-           &info.id, &info.op_mode, &info.drive_mode,
-           &info.profile_vel, &info.rpm, &info.ticks_per_sec,
-           &info.profile_accel, &info.pos_min, &info.pos_max,
-           &info.span_deg, &info.pos_present);
-    info.time_based = (info.drive_mode & 0x01);
-
-    if (id < MAX_SERVOS) servo_infos[id] = info;
-    info.log();
-
-    LOG_SECTION_END_RB();
-    return true;
+    if (!line.isEmpty())
+      handle_line(line);
   }
-
-  LOG_ERROR("no INFO for servo ID {%d}\n", id);
-  LOG_SECTION_END_RB();
-  return false;
 }
 
 // ============================================================
-// Request all servos and cache in array
+// Handle one protocol line
 // ============================================================
-bool RBInterface::requestAllServoInfo() {
-  LOG_SECTION_START_RB("requestAllServoInfo");
+void RBInterface::handle_line(const String& line) {
 
-  bool all_ok = true;
+  // ---------------- ERROR ----------------
+  if (line.startsWith("[!] ERR")) {
+    // [!] ERR MODULE (id) rest...
+    int m_start = 7;
+    int m_end = line.indexOf(' ', m_start);
+    String module = line.substring(m_start, m_end);
 
-  for (auto id : { ID_ARM1, ID_ARM2, ID_WRIST, ID_GRIPPER1, ID_GRIPPER2, ID_BASE }) {
-    String cmd = "INFO " + String(id);
+    uint32_t id = parse_id(line);
+    String payload = line.substring(line.indexOf(')', m_end) + 1);
+    payload.trim();
 
-    LOG_PRINTF_RB("[GIGA → RB] | command {%s}\n", cmd.c_str());
-    setFooter(cmd.c_str());
-    delay(100);
-    Serial2.println(cmd);
-
-    unsigned long t0 = millis();
-    bool got = false;
-
-    while (millis() - t0 < 1000) {
-      if (!Serial2.available()) continue;
-      String line = Serial2.readStringUntil('\n');
-      line.trim();
-      if (!line.startsWith("INFO id=")) continue;
-
-      got = true;
-      LOG_PRINTF_RB("{%s}", line.c_str());
-
-      ServoInfo info;
-      info.id = id;
-
-      sscanf(line.c_str(),
-             "INFO id=%hhu op_mode=%hhu drive_mode=%hhu profile_vel=%d rpm=%lf tps=%lf profile_accel=%d pos_min=%d pos_max=%d span_deg=%lf pos_present=%d",
-             &info.id, &info.op_mode, &info.drive_mode,
-             &info.profile_vel, &info.rpm, &info.ticks_per_sec,
-             &info.profile_accel, &info.pos_min, &info.pos_max,
-             &info.span_deg, &info.pos_present);
-
-      info.time_based = (info.drive_mode & 0x01);
-
-      if (id < MAX_SERVOS) servo_infos[id] = info;
-      break;
-    }
-
-    if (!got) {
-      all_ok = false;
-      LOG_ERROR("no INFO for servo ID {%d}\n", id);
-      if (id < MAX_SERVOS) servo_infos[id].clear();
-    }
-  }
-
-  LOG_SECTION_END_RB();
-  return all_ok;
-}
-
-// ============================================================
-// Return all cached servo info as text lines
-// ============================================================
-String RBInterface::getAllServoInfoLines() const {
-  String out;
-  out.reserve(1024);
-
-  for (auto id : { ID_ARM1, ID_ARM2, ID_WRIST, ID_GRIPPER1, ID_GRIPPER2, ID_BASE }) {
-    if (id >= MAX_SERVOS) continue;
-    const ServoInfo& s = servo_infos[id];
-    if (s.id == 0) continue;  // skip empty slots
-
-    out += String(s.id) + ". info" +                                    //
-           " | op_mode " + String(s.op_mode) +                          //
-           " | drive_mode " + String(s.drive_mode) +                    //
-           " | time_based " + String(s.time_based ? "time" : "velo") +  //
-           " | profile_vel " + String(s.profile_vel) +                  //
-           " | rpm " + String(s.rpm, 3) +                               //
-           " | tps " + String(s.ticks_per_sec, 1) +                     //
-           " | profile_accel " + String(s.profile_accel) +              //
-           " | pos_min " + String(s.pos_min) +                          //
-           " | pos_max " + String(s.pos_max) +                          //
-           " | span_deg " + String(s.span_deg, 1) +                     //
-           " | pos_present " + String(s.pos_present) + "\n";            //
-  }
-
-  if (out.length() == 0) out = "[!] no servos info";
-
-  return out;
-}
-
-// ============================================================
-// Parsing and verification (rest of your existing code)
-// ============================================================
-void RBInterface::parseStatusLine(const String& line) {
-  if (line.startsWith("STATUS SERVO")) {
-    if (verboseOn) LOG_PRINTF_RB("{%s}", line.c_str());
+    if (error_cb_) error_cb_(module, id, payload);
     return;
   }
 
-  int idx = line.indexOf(' ');
-  if (idx < 0) return;
-  String rest = line.substring(idx + 1);
+  // ---------------- CMD ----------------
+  if (line.startsWith("CMD (")) {
+    uint32_t id = parse_id(line);
 
-  double val;
-  for (int p = 0; p < rest.length();) {
-    int eq = rest.indexOf('=', p);
-    if (eq < 0) break;
-    int sp = rest.indexOf(' ', eq);
-    if (sp < 0) sp = rest.length();
-    String k = rest.substring(p, eq);
-    String v = rest.substring(eq + 1, sp);
-    val = v.toDouble();
+    if (line.indexOf("command_start=") >= 0) {
+      current_cmd_id_ = id;
+      waiting_for_start_ = false;
+      return;
+    }
 
-    if (k == "x_mm") last.x_mm = val;
-    else if (k == "y_mm") last.y_mm = val;
-    else if (k == "a1_deg") last.a1_deg = val;
-    else if (k == "a2_deg") last.a2_deg = val;
-    else if (k == "g_vert_deg") last.g_vert_deg = val;
-    else if (k == "g1_per") last.g1_per = val;
-    else if (k == "g2_per") last.g2_per = val;
-    else if (k == "base_deg") last.base_deg = val;
-    else if (k == "completed") last.completed = (int)val;
+    if (line.indexOf("command_end=") >= 0) {
+      String result, duration;
 
-    p = sp + 1;
+      int r = line.indexOf("result=");
+      if (r >= 0) {
+        int e = line.indexOf(' ', r);
+        result = line.substring(r + 7, e < 0 ? line.length() : e);
+      }
+
+      int d = line.indexOf("duration=");
+      if (d >= 0)
+        duration = line.substring(d + 9);
+
+      if (command_end_cb_)
+        command_end_cb_(result, duration);
+      return;
+    }
+  }
+
+  // ---------------- INFO ----------------
+  // MODULE (id) info=...
+  int p = line.indexOf('(');
+  int q = line.indexOf(')', p);
+  if (p > 0 && q > p) {
+    String module = line.substring(0, p);
+    module.trim();
+
+    uint32_t id = line.substring(p + 1, q).toInt();
+    String payload = line.substring(q + 1);
+    payload.trim();
+
+    if (info_cb_) info_cb_(module, id, payload);
   }
 }
 
 // ============================================================
-// Wait for START/END/ERR sequence
+// Parse "(id)" token
 // ============================================================
-bool RBInterface::waitForCompletion(const char* commandName) {
-  LOG_SECTION_START_RB("waitForCompletion | cmd {%s}", commandName);
-
-  String startMarker = String(commandName) + " START";
-  String endMarker = String(commandName) + " END";
-  unsigned long t0 = millis();
-  bool success = false;
-
-  while (millis() - t0 < 8000) {
-    if (!Serial2.available()) continue;
-    String line = Serial2.readStringUntil('\n');
-    line.trim();
-    if (line.isEmpty()) continue;
-
-    // --- Handle ERR lines ---
-    if (line.startsWith("ERR")) {
-      setFooter(line.c_str());
-      addErrorLine(line);
-      LOG_PRINTF_RB("{%s}", line.c_str());
-      continue;
-    }
-
-    // --- Handle progress lines ---
-    // Any line starting with "MOVING" is considered progress feedback
-    if (line.startsWith("MOVING")) {
-      if (verboseOn) LOG_PRINTF_RB("{%s}", line.c_str());
-      setFooter(line.c_str());  // NEW HOOK
-      continue;
-    }
-
-    // --- Handle START marker ---
-    if (line.startsWith(startMarker)) {
-      parseStatusLine(line);
-      LOG_PRINTF_RB("{%s} started", commandName);
-      setFooter(line.c_str());
-      continue;
-    }
-
-    // --- Handle END marker ---
-    if (line.startsWith(endMarker)) {
-      parseStatusLine(line);
-      setFooter(line.c_str());
-      LOG_PRINTF_RB("{%s} ended completed{%d}", commandName, last.completed);
-      success = (last.completed == 1);
-
-      break;
-    }
-  }
-
-  if (!success) {
-    setFooter("[!] timeout or incomplete command");
-    LOG_ERROR("timeout or incomplete command {%s}\n", commandName);
-  }
-
-  LOG_SECTION_END_RB();
-  return success;
+uint32_t RBInterface::parse_id(const String& line) {
+  int p = line.indexOf('(');
+  int q = line.indexOf(')', p);
+  if (p < 0 || q < 0) return 0;
+  return line.substring(p + 1, q).toInt();
 }
 
 // ============================================================
-// Verify expected final status for MOVE commands
+// Callback setters
 // ============================================================
-bool RBInterface::verifyExpected(const char* cmd_name, double val, int servo_id, double tol) {
-  LOG_SECTION_START_RB("verifyExpected | cmd {%s}", cmd_name);
-
-  double actual = 0.0, err = 0.0;
-  char buf[200];
-
-  // Handle MOVEGRIPPER separately (two servos)
-  if (strcmp(cmd_name, "MOVEGRIPPER") == 0) {
-    double err1 = fabs(last.g1_per - val);
-    double err2 = fabs(last.g2_per - val);
-
-    LOG_PRINTF_RB("verify expected | move {%s} g1_per | expected {%.2f} actual {%.2f} err {%.2f}\n", cmd_name, val, last.g1_per, err1);
-    LOG_PRINTF_RB("verify expected | move {%s} g2_per | expected {%.2f} actual {%.2f} err {%.2f}\n", cmd_name, val, last.g2_per, err2);
-
-    if (err1 <= tol && err2 <= tol) {
-      LOG_SECTION_END_RB();
-      return true;
-    }
-
-    if (err1 > tol) {
-      snprintf(buf, sizeof(buf), "verify expected | move {%s} g1_per | expected {%.2f} actual {%.2f} err {%.2f}\n", cmd_name, val, last.g1_per, err1);
-      addErrorLine(buf);
-    }
-    if (err2 > tol) {
-      snprintf(buf, sizeof(buf), "verify expected | move {%s} g2_per | expected {%.2f} actual {%.2f} err {%.2f}\n", cmd_name, val, last.g2_per, err2);
-      addErrorLine(buf);
-    }
-    LOG_SECTION_END_RB();
-    return false;
-  }
-
-  // For all other commands: pick the actual value
-  if (strcmp(cmd_name, "MOVEYMM") == 0) actual = last.y_mm;
-  else if (strcmp(cmd_name, "MOVEXMM") == 0) actual = last.x_mm;
-  else if (strcmp(cmd_name, "MOVEWRISTVERT") == 0) actual = last.g_vert_deg;
-  else if (strcmp(cmd_name, "MOVEPER") == 0) {
-    if (servo_id == ID_BASE) actual = last.base_deg;
-    else if (servo_id == ID_GRIPPER1) actual = last.g1_per;
-    else if (servo_id == ID_GRIPPER2) actual = last.g2_per;
-    else actual = 0;
-  } else {
-    LOG_PRINTF_RB("[!] unknown cmd_name: %s", cmd_name);
-    LOG_SECTION_END_RB();
-    return true;
-  }
-
-  // Common computation and logging
-  err = fabs(actual - val);
-  LOG_PRINTF_RB("verify expected move{%s} servo{%d} expected{%.2f} actual{%.2f} err{%.2f}\n", cmd_name, servo_id, val, actual, err);
-
-  if (err <= tol) {
-    LOG_SECTION_END_RB();
-    return true;
-  }
-
-  LOG_ERROR("verify expected move{%s} servo{%d} expected{%.2f} actual{%.2f} err{%.2f}\n",
-            cmd_name, servo_id, val, actual, err);
-
-  LOG_SECTION_END_RB();
-  return false;
+void RBInterface::on_command_end(command_end_cb_t cb) {
+  command_end_cb_ = cb;
 }
 
-// ============================================================
-// UpdateInfo - force RB to send current status (READ 0)
-// ============================================================
-bool RBInterface::updateInfo() {
-  LOG_SECTION_START_RB("updateInfo");
-
-  setFooter("read 0");
-  Serial2.println("READ 0");
-  LOG_PRINTF_RB("requesting READ 0...\n");
-
-  unsigned long t0 = millis();
-  bool gotAny = false;
-
-  while (millis() - t0 < 2000) {
-    if (!Serial2.available()) continue;
-
-    String line = Serial2.readStringUntil('\n');
-    line.trim();
-    if (line.isEmpty()) continue;
-
-    if (line.startsWith("ERR")) {
-      addErrorLine(line);
-      LOG_PRINTF_RB("{%s}", line.c_str());
-      continue;
-    }
-
-    if (line.startsWith("STATUS SERVO")) {
-      gotAny = true;
-      parseStatusLine(line);
-      continue;
-    }
-
-    if (line.startsWith("READ END") || line.indexOf("x_mm=") >= 0) {
-      parseStatusLine(line);
-      gotAny = true;
-    }
-  }
-
-  if (!gotAny) {
-    addErrorLine("no read 0 received");
-    LOG_PRINTF_RB("[!] no response for read 0\n");
-    pose_store.set_all_poses_last_run(false);
-    LOG_SECTION_END_RB();
-    return false;
-  }
-
-  LOG_PRINTF_RB("READ 0 done | X{%.2f} Y{%.2f} A1{%.2f} A2{%.2f} G{%.2f}\n",
-                last.x_mm, last.y_mm, last.a1_deg, last.a2_deg, last.g_vert_deg);
-
-  LOG_SECTION_END_RB();
-  return true;
+void RBInterface::on_info(info_cb_t cb) {
+  info_cb_ = cb;
 }
 
-// ============================================================
-// Simple wrappers
-// ============================================================
-bool RBInterface::xyInfoMm(double* x, double* y) {
-  *x = last.x_mm;
-  *y = last.y_mm;
-  return true;
-}
-bool RBInterface::grippersInfoPer(double* g) {
-  *g = (last.g1_per + last.g2_per) / 2.0;
-  return true;
-}
-bool RBInterface::gripper1InfoPer(double* g) {
-  *g = last.g1_per;
-  return true;
-}
-bool RBInterface::gripper2InfoPer(double* g) {
-  *g = last.g2_per;
-  return true;
-}
-bool RBInterface::baseInfoDeg(double* b) {
-  *b = last.base_deg;
-  return true;
-}
-bool RBInterface::wristVertInfoDeg(double* v) {
-  *v = last.g_vert_deg;
-  return true;
-}
-
-bool RBInterface::moveYmm(double y) {
-  LOG_SECTION_START_RB("moveYmm | y {%.2f}", y);
-  float a[] = { (float)y };
-  char cmd[] = "MOVEYMM";
-  bool ok = runCommand(cmd, a, 1);
-  if (ok) ok = verifyExpected(cmd, y, -1, 1.0);
-  LOG_SECTION_END_RB();
-  return ok;
-}
-bool RBInterface::moveXmm(double x) {
-  LOG_SECTION_START_RB("moveXmm | x {%.2f}", x);
-  float a[] = { (float)x };
-  char cmd[] = "MOVEXMM";
-  bool ok = runCommand(cmd, a, 1);
-  if (ok) ok = verifyExpected(cmd, x, -1, 1.0);
-  LOG_SECTION_END_RB();
-  return ok;
-}
-bool RBInterface::moveBaseDeg(double d) {
-  LOG_SECTION_START_RB("moveBaseDeg | deg {%.2f}", d);
-  float a[] = { (float)ID_BASE, (float)d };
-  char cmd[] = "MOVEPER";
-  bool ok = runCommand(cmd, a, 2);
-  if (ok) ok = verifyExpected(cmd, d, ID_BASE, 1.0);
-  LOG_SECTION_END_RB();
-  return ok;
-}
-bool RBInterface::moveWristVertDeg(double d) {
-  LOG_SECTION_START_RB("moveWristVertDeg | deg {%.2f}", d);
-  float a[] = { (float)d };
-  char cmd[] = "MOVEWRISTVERTDEG";
-  bool ok = runCommand(cmd, a, 1);
-  if (ok) ok = verifyExpected(cmd, d, -1, 1.0);
-  LOG_SECTION_END_RB();
-  return ok;
-}
-bool RBInterface::moveGrippersPer(double p) {
-  LOG_SECTION_START_RB("moveGrippersPer | per {%.2f}", p);
-  float a[] = { (float)p };
-  char cmd[] = "MOVEGRIPPERPER";
-  bool ok = runCommand(cmd, a, 1);
-  if (ok) ok = verifyExpected(cmd, p, -1, 1.0);
-  LOG_SECTION_END_RB();
-  return ok;
-}
-bool RBInterface::moveGripper1Per(double p) {
-  LOG_SECTION_START_RB("moveGripper1Per | per {%.2f}", p);
-  float a[] = { (float)ID_GRIPPER1, (float)p };
-  char cmd[] = "MOVEPER";
-  bool ok = runCommand(cmd, a, 2);
-  if (ok) ok = verifyExpected(cmd, p, ID_GRIPPER1, 1.0);
-  LOG_SECTION_END_RB();
-  return ok;
-}
-bool RBInterface::moveGripper2Per(double p) {
-  LOG_SECTION_START_RB("moveGripper2Per | per {%.2f}", p);
-  float a[] = { (float)ID_GRIPPER2, (float)p };
-  char cmd[] = "MOVEPER";
-  bool ok = runCommand(cmd, a, 2);
-  if (ok) ok = verifyExpected(cmd, p, ID_GRIPPER2, 1.0);
-  LOG_SECTION_END_RB();
-  return ok;
-}
-
-bool RBInterface::readUntilEnd(const char* keyword) {
-  LOG_SECTION_START_RB("readUntilEnd | key {%s}", keyword);
-  unsigned long t0 = millis();
-  while (millis() - t0 < 2000) {
-    if (!Serial2.available()) continue;
-    String line = Serial2.readStringUntil('\n');
-    line.trim();
-    if (line.startsWith("ERR")) addErrorLine(line);
-    if (line.endsWith("END")) {
-      parseStatusLine(line);
-      LOG_SECTION_END_RB();
-      return true;
-    }
-  }
-  LOG_SECTION_END_RB();
-  return false;
-}
-
-RBStatus RBInterface::getLastStatus() const {
-  return last;
+void RBInterface::on_error(error_cb_t cb) {
+  error_cb_ = cb;
 }
 
 RBInterface rb;
 
 /* --------------------------------------------------------------------------------------------------------------------------------------------------
-struct CommandEntry {
-  const char* name;
-  const char* fmt;
-  bool (*handler)(int argc, double* argv);
-  const char* desc;
-};
+  DETECTORI - detect orientation from center colors
+  CHECKORI - reads front face and confirms orientation matches ori
+  RESTOREORI - restore cube to original orientation
+  GETCOLORDATA - print raw color data
+  GETORIDATA - print orientation move log
+  CLEARORIDATA - clear orientation data
+  
+---------------- DEBUG COMMANDS  ----------------
+  RUN <no>
+      0 pos zero |     11 right down   | 12 left down    | 13 back down   | 14 top down
+     21 bottom right | 22 bottom right | 23 bottom back
+     31 cube right   | 32 cube left    | 33 cube back
+     60 align
+  READSERVO <id> - show servo summary status
+  INFOSERVO <id> - show full servo status
+  SETMIN <id> <ticks> - set servo minimum ticks
+  SETMAX <id> <ticks> - set servo maximum ticks
+  LEDON <id> - turn servo LED on
+  LEDOFF <id> - turn servo LED off
+  REBOOTALL - reboot all servos
+  SETSTOPALL - set global servo error flag
+  CLEARSTOPALL - clear global servo error flag
+  MOVETICKS <id> <ticks> - move servo to ticks (no smoothing)
+  MOVEDEG <id> <deg> - move servo to degrees (smooth)
+  MOVEPER <id> <percent> - move servo to percentage (smooth)
+  MOVEYMM <mm> - vertical move (42 to 102)
+  MOVEXMM <mm> - lateral move (-30 to 30)
+  MOVEXYMM <x_mm> <y_mm> - lateral then vertical move (-25..25, 42..102)
+  MOVEGRIPPER <percent> - move both grippers (0 to 100)
+  MOVEWRISTVERTDEG <deg> - move wrist relative to vertical (-5 to 185)
+  CLAMP - clamp gripper
+  COLORSENSOR <count> - read color <count> times
+  ONECOLOR - read one slot (1..6)
+  ONEFACECOLOR - read colors of the front face
 
-static CommandEntry command_table[] = {
-  { "VERBOSEON", "", cmd_verbose_on, "VERBOSEON - enable verbose output" },
-  { "VERBOSEOFF", "", cmd_verbose_off, "VERBOSEOFF - disable verbose output" },
+----------------------------------------------------------------------------
 
-  { "SETMIN", "{%d}", cmd_set_min, "SETMIN <id> - set current pos as min" },
-  { "SETMAX", "{%d}", cmd_set_max, "SETMAX <id> - set current pos as max" },
-  { "SETZERO", "{%d}", cmd_set_zero, "SETLIMITMAX <id> - set current pos as zero" },
-  { "SETDIRPLUS", "{%d}", cmd_set_dir_plus, "SETDIRPLUS <id> - set dir using the current pos > zero" },
-  { "SETDIRMINUS", "{%d}", cmd_set_dir_minus, "SETDIRMINUS <id> - set dir using the current pos < zero" },
+[!] ERR CMD (0) error=unknown_command
 
-  { "POSZERO", "", cmd_pos_zero, "POSZERO - move to pos zero" },
-  { "MOVETICKS", "{%d} {%d}", cmd_move_ticks, "MOVEDEG <id> <ticks goal> - move one servo to ticks (not smooth)" },
-  { "MOVEDEG", "{%d} %f", cmd_move_deg, "MOVEDEG <id> <deg goal> - move one servo to degree (smooth)" },
-  { "MOVEPER", "{%d} %f", cmd_move_per, "MOVEPER <id> <per goal> - move one servo to percent (smooth)" },
-  { "MOVEYMM", "%f", cmd_move_y, "MOVEYMM <float mm> - vertical move" },
-  { "MOVEXMM", "%f", cmd_move_x, "MOVEXMM <float mm> - lateral move" },
-  { "MOVEXYMM", "%f %f", cmd_move_xy, "MOVEXYMM <float mm> <float mm> - lateral then vertical move" },
-  { "MOVEgripperPER", "%f", cmd_move_gripper, "MOVEgripperPER <percentage> - move both grippers to percentage" },
-  { "MOVEWRISTVERTDEG", "%f", cmd_move_wrist_vert, "MOVEWRISTVERTDEG <deg> - move wrist relative to vertical" },
+CMD (1) command_start=GETCOLORDATA arg=0.00
+        RUN (1) cube_color_string_54=......................................................
+        RUN (1) orientation=u->u_r->r_f->f_d->d_l->l_b->b
+        COLORCHECK (1) info=color_analyzer_data
+[!] ERR COLORCHECK (1) error=color_string_not_valid log=center color not detected for face U
+[!] ERR COLORCHECK (1) error=color_string_not_fixable
+CMD (1) command_end=GETCOLORDATA result=ok duration=25ms
 
-  { "READ", "{%d}", cmd_read, "READ <id> - show servo summary status" },
-  { "INFO", "{%d}", cmd_info, "INFO <id> - show servo full status" },
+CMD (2) command_start=READSERVO arg=0.00
+        SERVOS (2) info=servo_status servo_id=11 servo_name=arm1 pos_ticks=1189 pos_deg=75.50 pos_per=82.00 current_ma=0 temp_c=25 min_ticks=1000 zero_ticks=2048 max_ticks=2050
+        SERVOS (2) info=servo_status servo_id=12 servo_name=arm2 pos_ticks=1371 pos_deg=-59.50 pos_per=19.03 current_ma=0 temp_c=25 min_ticks=1000 zero_ticks=2048 max_ticks=2950
+        SERVOS (2) info=servo_status servo_id=13 servo_name=wrist pos_ticks=1345 pos_deg=76.46 pos_per=32.84 current_ma=0 temp_c=25 min_ticks=0 zero_ticks=475 max_ticks=4095
+        SERVOS (2) info=servo_status servo_id=14 servo_name=grip1 pos_ticks=2495 pos_deg=39.29 pos_per=65.39 current_ma=0 temp_c=25 min_ticks=2170 zero_ticks=2048 max_ticks=2667
+        SERVOS (2) info=servo_status servo_id=15 servo_name=grip2 pos_ticks=529 pos_deg=133.51 pos_per=65.74 current_ma=0 temp_c=25 min_ticks=345 zero_ticks=2048 max_ticks=882
+        SERVOS (2) info=servo_status servo_id=17 servo_name=base pos_ticks=2735 pos_deg=0.00 pos_per=66.79 current_ma=0 temp_c=23 min_ticks=0 zero_ticks=2735 max_ticks=4095
+        SERVOMOVE (2) info=kinematics_state
+        SERVOMOVE (2) info=xy_arms x_mm=0.46 y_mm=31.56 a1_deg=75.59 a2_deg=-59.50
+        SERVOMOVE (2) info=wrist w_deg=76.46 w_horiz_r_deg=77.92 w_horiz_l_deg=257.92 w_vert_deg=165.92
+        SERVOMOVE (2) info=grip_and_base g1_per=65.39 g2_per=65.74 base_deg=0.00
+CMD (2) command_end=READSERVO result=ok duration=198ms
 
-  { "LEDON", "{%d}", cmd_ledon, "LEDON <id> - turn servo LED on" },
-  { "LEDOFF", "{%d}", cmd_ledoff, "LEDOFF <id> - turn servo LED off" },
-};
+CMD (3) command_start=ONECOLOR arg=1.00
+         (3) info=read_one_color color=G
+CMD (3) command_end=ONECOLOR result=ok duration=5s179ms
 
---------------------------------------------------------------------------------------------------------------------------------------------------
+CMD (4) command_start=RUN arg=0.00
+        RUN (4) run_zero_start=wrist_is_horiz
+CMD (4) command_end=RUN result=ok duration=4s844ms
 
-VERBOSEOFF START x_mm=3.10 y_mm=45.29 a1_deg=68.55 a2_deg=-39.29 g_vert_deg=0.79 g1_per=30.12 g2_per=30.12 base_deg=-39.29
-Verbose OFF
-VERBOSEOFF END completed=1 x_mm=3.10 y_mm=45.29 a1_deg=68.55 a2_deg=-39.29 g_vert_deg=0.79 g1_per=30.12 g2_per=30.12 base_deg=-39.29
+CMD (5) command_start=INFOSERVO arg=0.00
+[!] ERR RUN (5) ping_failed=err func=print_servo_info
+CMD (5) command_end=INFOSERVO result=ok duration=8ms
 
-INFO
-  serial_printf("INFO id{%d}", id);
-  serial_printf(" op_mode{%d}", op);
-  serial_printf(" drive_mode{%d} bit0{%s} profil=", drv, (drv & 0x01) ? "TIME" : "VELOCITY");
-  serial_printf(" profile_vel{%d}  rpm=%.3frpm, tps=%.1f ticks_s)", pv, rpm, tps);
-  serial_printf(" prifile_accel{%d}", pa);
-  serial_printf(" pos_min{%d}", minL);
-  serial_printf(" pos_max{%d}", maxL);
-  serial_printf(" span_deg=%.1f", spanDeg);
-  serial_printf(" pos_present{%d}\n", pos);
+CMD (6) command_start=INFOSERVO arg=17.00
+        RUN (6) info=checking_if_servo_is_ok
+        RUN (6) info=servo_ok servo_id=17 servo_name=base ok=1
+        RUN (6) info=infoservo id=17
+        RUN (6) info=operating_mode op_mode=3
+        RUN (6) info=drive_mode drive_mode=0 profile_type=VELOCITY
+        RUN (6) info=profile_velocity profile_vel=0 rpm=0.00 ticks_per_sec=1.00
+        RUN (6) info=profile_acceleration profile_accel=0
+        RUN (6) info=position_limits min_ticks=0 max_ticks=4095
+        RUN (6) info=position_span span_deg=359.91
+        RUN (6) info=present_position pos_ticks=2734
+CMD (6) command_end=INFOSERVO result=ok duration=80ms
 
-READ
-      serial_printf_verbose("STATUS SERVO name{%s} id{%d} pos{%d} deg{%.2f} per{%.2f} current_ma{%d} temp_deg{%d}\n",
-                            s->get_key(), sid, pos_ticks, pos_deg, pos_per, curr_mA, temp_C);
-*/
-
-/*
-USAGE EXAMPLE
-  // Example: move to Y = 65 mm
-  if (rb.moveYmm(65.0))
-    serial_printf("Move done, y{%.2f}\n", rb.getLastStatus().y_mm);
-  else
-    Serial.println(rb.getAllErrorLines());
-}
 -------------------------------------------------------------------------------------------------------------------------------------------------*/

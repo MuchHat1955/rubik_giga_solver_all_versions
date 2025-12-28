@@ -5,8 +5,6 @@
 #include "ui_touch.h"
 #include "logging.h"
 #include "ui_theme.h"
-#include "param_store.h"
-#include "pose_store.h"
 #include "ui_status.h"
 #include "rb_interface.h"
 #include "ui_button.h"
@@ -16,7 +14,6 @@ String getSketchVersionWithDate();
 void buildMenu(const char *menuName);
 
 extern RBInterface rb;
-extern PoseStore pose_store;
 
 // ===========================================================
 //  Static LVGL-compatible callbacks for numeric widgets
@@ -34,6 +31,7 @@ static void on_num_value_clicked(lv_event_t *e) {
 static void on_num_minus_clicked(lv_event_t *e) {
   const char *key = static_cast<const char *>(lv_event_get_user_data(e));
   if (!key || !*key) return;
+  /*
 
   lv_obj_t *target = (lv_obj_t *)lv_event_get_target(e);
   lv_obj_t *parent = lv_obj_get_parent((const lv_obj_t *)target);
@@ -50,12 +48,14 @@ static void on_num_minus_clicked(lv_event_t *e) {
 
   lv_obj_t *lbl = lv_obj_get_child(parent, 1);
   lv_label_set_text(lbl, buf);
+  */
 }
 
 static void on_num_plus_clicked(lv_event_t *e) {
   const char *key = static_cast<const char *>(lv_event_get_user_data(e));
   if (!key || !*key) return;
 
+  /*
   lv_obj_t *target = (lv_obj_t *)lv_event_get_target(e);
   lv_obj_t *parent = lv_obj_get_parent((const lv_obj_t *)target);
 
@@ -71,6 +71,7 @@ static void on_num_plus_clicked(lv_event_t *e) {
 
   lv_obj_t *lbl = lv_obj_get_child(parent, 1);
   lv_label_set_text(lbl, buf);
+  */
 }
 
 // ===========================================================
@@ -344,9 +345,10 @@ void buildMenu(const char *menuName) {
         lv_obj_t *lblVal = lv_label_create(numBox);
         char buf[8];
         double val = PARAM_VAL_NA;
-        pose_store.get_pose_params(key, &val);
-        if (val >= 0) snprintf(buf, sizeof(buf), "+%.1f", val);
-        else snprintf(buf, sizeof(buf), "-%.1f", -val);
+
+        //pose_store.get_pose_params(key, &val);
+        //if (val >= 0) snprintf(buf, sizeof(buf), "+%.1f", val);
+        //else snprintf(buf, sizeof(buf), "-%.1f", -val);
 
         lv_label_set_text(lblVal, buf);
         lv_obj_set_style_text_font(lblVal, FONT_BTN_SMALL_PTR, 0);
@@ -439,7 +441,6 @@ const char jsonBuffer[] = R"json(
     "rows": [
       [{ "text": "solve cube", "type": "menu", "key": "solve cube" }],
       [{ "text": "read cube", "type": "menu", "key": "read cube" }],
-      [{ "text": "scramble cube", "type": "menu", "key": "scramble cube" }],
       [{ "text": "tests", "type": "menu", "key": "tests" }],
       [{ "text": "system", "type": "menu", "key": "system", "status": "yes" }]
     ]
@@ -449,7 +450,8 @@ const char jsonBuffer[] = R"json(
     "footer": "press to start solving",
     "columns": 1,
     "rows": [
-      [{ "text": "start", "type": "action", "key": "start" }],
+      [{ "text": "find solution", "type": "action", "key": "solve" }],
+      [{ "text": "read cube", "type": "action", "key": "read cube" }],
       [{ "text": "back", "type": "menu", "key": "main" }]
     ]
   },
@@ -458,17 +460,7 @@ const char jsonBuffer[] = R"json(
     "footer": "read cube colors",
     "columns": 1,
     "rows": [
-      [{ "text": "start read", "type": "action", "key": "start read" }],
-      [{ "text": "back", "type": "menu", "key": "main" }]
-    ]
-  },
-  "scramble cube": {
-    "title": "scramble cube",
-    "footer": "scramble cube randomly",
-    "columns": 1,
-    "rows": [
-      [{ "text": "scramble (12)", "type": "action", "key": "scramble (12)" }],
-      [{ "text": "scramble (20)", "type": "action", "key": "scramble (20)" }],
+      [{ "text": "read cube", "type": "action", "key": "read cube" }],
       [{ "text": "back", "type": "menu", "key": "main" }]
     ]
   },
@@ -488,44 +480,39 @@ const char jsonBuffer[] = R"json(
     "columns": 2,
     "equal_columns": "all",
     "rows": [
-      [{ "text": "poses", "type": "menu", "key": "poses", "status": "yes" }],
-      [{ "text": "sequences", "type": "menu", "key": "sequences" }],
+      [{ "text": "robot moves", "type": "menu", "key": "robot moves" }],
       [{ "text": "cube moves", "type": "menu", "key": "cube moves" }],
+      [{ "text": "colors and orientation", "type": "menu", "key": "colors and orientation" }],
       [{ "text": "back", "type": "menu", "key": "main" }]
     ]
   },
-  "sequences": {
-    "title": "sequences",
-    "footer": "tap to execute motion sequence",
-    "columns": 2,
+  "robot moves": {
+    "title": "robot moves",
+    "footer": "tap to execute robot moves",
+    "columns": 3,
     "equal_columns": "all",
     "rows": [
       [
-        { "text": "bottom+", "type": "action", "key": "bottom+" },
-        { "text": "bottom-", "type": "action", "key": "bottom-" }
+        { "text": "d+", "type": "action", "key": "d+" },
+        { "text": "d-", "type": "action", "key": "d-" },
+        { "text": "d-", "type": "action", "key": "d2" }
       ],
       [
-        { "text": "front to base", "type": "action", "key": "front to base" },
-        { "text": "back to base", "type": "action", "key": "back to base" }
+        { "text": "z+", "type": "action", "key": "z+" },
+        { "text": "z-", "type": "action", "key": "z-" },
+        { "text": "z-", "type": "action", "key": "z2" }
       ],
       [
-        { "text": "left to base", "type": "action", "key": "left to base" },
-        { "text": "right to base", "type": "action", "key": "right to base" }
-      ],
-      [
-        { "text": "top to base", "type": "action", "key": "top to base" },
-        { "text": "", "type": "text" }
-      ],
-      [
-        { "text": "rotate down face+", "type": "action", "key": "rotate down face+" },
-        { "text": "rotate down face-", "type": "action", "key": "rotate down face-" }
+        { "text": "y+", "type": "action", "key": "y+" },
+        { "text": "y-", "type": "action", "key": "y-" },
+        { "text": "y-", "type": "action", "key": "y2" }
       ],
       [{ "text": "back", "type": "menu", "key": "tests" }]
     ]
   },
   "cube moves": {
     "title": "cube moves",
-    "footer": "tap to run a move",
+    "footer": "tap to run a cube move",
     "columns": 4,
     "equal_columns": "all",
     "rows": [
@@ -562,72 +549,27 @@ const char jsonBuffer[] = R"json(
       [{ "text": "back", "type": "menu", "key": "main" }]
     ]
   },
-  "poses": {
-    "title": "poses",
-    "footer": "tap to edit pose values",
+    "colors and orientation": {
+    "title": "colors and orientation",
+    "footer": "tap to execute colors and orientation commands",
     "columns": 3,
     "equal_columns": "all",
     "rows": [
-      [{ "text": "y zero", "type": "action", "key": "y zero", "status": "yes" },
-       { "text": "+0000-", "type": "num", "key": "y zero" },
-       { "text": "mm", "type": "text", "key": "mm" }],
-      [{ "text": "y 1st", "type": "action", "key": "y 1st", "status": "yes" },
-       { "text": "+0000-", "type": "num", "key": "y 1st" },
-       { "text": "mm", "type": "text", "key": "mm" }],
-      [{ "text": "y 2nd", "type": "action", "key": "y 2nd", "status": "yes" },
-       { "text": "+0000-", "type": "num", "key": "y 2nd" },
-       { "text": "mm", "type": "text", "key": "mm" }],
-      [{ "text": "y 3rd", "type": "action", "key": "y 3rd", "status": "yes" },
-       { "text": "+0000-", "type": "num", "key": "y 3rd" },
-       { "text": "mm", "type": "text", "key": "mm" }],
-      [{ "text": "x center", "type": "action", "key": "x center", "status": "yes" },
-       { "text": "+0000-", "type": "num", "key": "x center" },
-       { "text": "mm", "type": "text", "key": "mm" }],
-      [{ "text": "x right", "type": "action", "key": "x right", "status": "yes" },
-       { "text": "+0000-", "type": "num", "key": "x right" },
-       { "text": "mm", "type": "text", "key": "mm" }],
-      [{ "text": "x left", "type": "action", "key": "x left", "status": "yes" },
-       { "text": "+0000-", "type": "num", "key": "x left" },
-       { "text": "mm", "type": "text", "key": "mm" }],
-      [{ "text": "y c2", "type": "action", "key": "y c2", "status": "yes" },
-       { "text": "+0000-", "type": "num", "key": "y c2" },
-       { "text": "mm", "type": "text", "key": "mm" }],
-      [{ "text": "y c3", "type": "action", "key": "y c3", "status": "yes" },
-       { "text": "+0000-", "type": "num", "key": "y c3" },
-       { "text": "mm", "type": "text", "key": "mm" }],
-      [{ "text": "wrist vert", "type": "action", "key": "wrist vert", "status": "yes" },
-       { "text": "+0000-", "type": "num", "key": "wrist vert" },
-       { "text": "deg", "type": "text", "key": "deg" }],
-      [{ "text": "wrist horiz right", "type": "action", "key": "wrist horiz right", "status": "yes" },
-       { "text": "+0000-", "type": "num", "key": "wrist horiz right" },
-       { "text": "deg", "type": "text", "key": "deg" }],
-      [{ "text": "wrist horiz left", "type": "action", "key": "wrist horiz left", "status": "yes" },
-       { "text": "+0000-", "type": "num", "key": "wrist horiz left" },
-       { "text": "deg", "type": "text", "key": "deg" }],
-      [{ "text": "grippers open", "type": "action", "key": "grippers open", "status": "yes" },
-       { "text": "+0000-", "type": "num", "key": "grippers open" },
-       { "text": "per", "type": "text", "key": "per" }],
-      [{ "text": "gripper 1 open", "type": "action", "key": "gripper 1 open", "status": "yes" },
-       { "text": "+0000-", "type": "num", "key": "gripper 1 open" },
-       { "text": "per", "type": "text", "key": "per" }],
-      [{ "text": "gripper 1 close", "type": "action", "key": "gripper 1 close", "status": "yes" },
-       { "text": "+0000-", "type": "num", "key": "gripper 1 close" },
-       { "text": "per", "type": "text", "key": "per" }],
-      [{ "text": "gripper 2 open", "type": "action", "key": "gripper 2 open", "status": "yes" },
-       { "text": "+0000-", "type": "num", "key": "gripper 2 open" },
-       { "text": "per", "type": "text", "key": "per" }],
-      [{ "text": "gripper 2 close", "type": "action", "key": "gripper 2 close", "status": "yes" },
-       { "text": "+0000-", "type": "num", "key": "gripper 2 close" },
-       { "text": "per", "type": "text", "key": "per" }],
-      [{ "text": "base front", "type": "action", "key": "base front", "status": "yes" },
-       { "text": "+0000-", "type": "num", "key": "base front" },
-       { "text": "deg", "type": "text", "key": "deg" }],
-      [{ "text": "base right", "type": "action", "key": "base right", "status": "yes" },
-       { "text": "+0000-", "type": "num", "key": "base right" },
-       { "text": "deg", "type": "text", "key": "deg" }],
-      [{ "text": "base left", "type": "action", "key": "base left", "status": "yes" },
-       { "text": "+0000-", "type": "num", "key": "base left" },
-       { "text": "deg", "type": "text", "key": "deg" }],
+      [
+        { "text": "d+", "type": "action", "key": "d+" },
+        { "text": "d-", "type": "action", "key": "d-" },
+        { "text": "d-", "type": "action", "key": "d2" }
+      ],
+      [
+        { "text": "z+", "type": "action", "key": "z+" },
+        { "text": "z-", "type": "action", "key": "z-" },
+        { "text": "z-", "type": "action", "key": "z2" }
+      ],
+      [
+        { "text": "y+", "type": "action", "key": "y+" },
+        { "text": "y-", "type": "action", "key": "y-" },
+        { "text": "y-", "type": "action", "key": "y2" }
+      ],
       [{ "text": "back", "type": "menu", "key": "tests" }]
     ]
   }

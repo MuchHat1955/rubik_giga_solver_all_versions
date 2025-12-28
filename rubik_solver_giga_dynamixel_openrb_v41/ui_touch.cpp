@@ -5,19 +5,16 @@
 
 #include "ui_touch.h"
 #include "logging.h"
-#include "param_store.h"
 #include "Arduino_H7_Video.h"
 #include "ui_theme.h"
 #include "ui_status.h"
 #include "rb_interface.h"
-#include "pose_store.h"
 #include "ui_button.h"
 
 // Forward declarations
 void drawButtonOverlay(int btn_id);
 
 extern RBInterface rb;
-extern PoseStore pose_store;
 
 // ----------------------------------------------------------
 //                   LVGL GLOBALS
@@ -102,7 +99,7 @@ void buttonAction_executeAction(int btn_id) {
     b->set_is_busy(true);
     drawButtonOverlayById(btn_id);
     setFooter("reading servos...");
-    rb.updateInfo();
+    // rb.updateInfo();
     b->set_is_busy(false);
     drawButtonOverlayById(btn_id);
     LOG_SECTION_END_MENU();
@@ -112,15 +109,16 @@ void buttonAction_executeAction(int btn_id) {
     b->set_is_busy(true);
     drawButtonOverlayById(btn_id);
     setFooter("reading servos...");
-    if (rb.updateInfo()) {
+    //if (rb.updateInfo()) {
       // also get the detailed info if above worked
-      rb.requestAllServoInfo();
-    }
+      //rb.requestAllServoInfo();
+    //}
     b->set_is_busy(false);
     drawButtonOverlayById(btn_id);
     LOG_SECTION_END_MENU();
-
-  } else if (pose_store.is_pose(txt)) {
+  }
+  /*
+  else if (pose_store.is_pose(txt)) {
     LOG_SECTION_START_MENU("run pose {%s}", txt);
     b->set_is_busy(true);
     drawButtonOverlayById(btn_id);
@@ -130,6 +128,7 @@ void buttonAction_executeAction(int btn_id) {
     drawButtonOverlayById(btn_id);
     LOG_SECTION_END_MENU();
   }
+  */
   LOG_SECTION_END_MENU();
 }
 
@@ -296,7 +295,8 @@ void ui_refresh() {
   lastRefresh = now;
 
   LOG_SECTION_START_MENU("refresh ui");
-  pose_store.reflect_poses_last_run();
+  // TODO
+  // pose_store.reflect_poses_last_run();
   // log_all_buttons(true);
   LOG_SECTION_END_MENU();
 }

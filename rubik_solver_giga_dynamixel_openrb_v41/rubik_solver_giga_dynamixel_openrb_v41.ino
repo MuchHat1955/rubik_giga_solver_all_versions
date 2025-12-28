@@ -38,7 +38,6 @@
 
 #include "utils.h"
 #include "logging.h"
-#include "param_store.h"
 #include "ui_theme.h"
 #include "ui_touch.h"
 #include "ui_status.h"
@@ -72,16 +71,15 @@ String currentMenu = "main";
 const int SCREEN_W = 800;
 const int SCREEN_H = 480;
 
-lv_obj_t *footLbl = nullptr;
+lv_obj_t* footLbl = nullptr;
 
-lv_obj_t *selected_num_box = nullptr;
+lv_obj_t* selected_num_box = nullptr;
 lv_style_t style_num_selected;     // orange border + light background
 lv_style_t style_num_btn_active;   // filled yellow (selected)
 lv_style_t style_num_btn_pressed;  // bright flash on press
 
-void buttonAction(const char *key, const char *name);
-int incrementValue(const char *key, int delta);
-void initPoseStore();
+void buttonAction(const char* key, const char* name);
+int incrementValue(const char* key, int delta);
 bool runStartupTests();
 
 // ----------------------------------------------------------
@@ -151,14 +149,11 @@ void setup() {
     lv_timer_handler();
     delay(20);
   }
-  initPoseStore();   // pose store must be init first such next can be overwritten with the stored in flash params
-  initParamStore();  // load or create parameter storage
-
 
   // ----------------------------------------------------------
   // STARTUP SELF TEST
   // ----------------------------------------------------------
-  bool rb_ok = !rb.begin();
+  bool rb_ok = !rb.begin(115200, 200);
   if (!rb_ok) {
     setFooter("rb interface issues detected");
   } else {
@@ -168,6 +163,23 @@ void setup() {
       setFooter("startup test ok");
     }
   }
+
+  rb.on_info([](const String& mod, uint32_t id, const String& msg) {
+    Serial.printf("[INFO] %s (%lu) %s\n",
+                  mod.c_str(), id, msg.c_str());
+  });
+
+  rb.on_error([](const String& mod, uint32_t id, const String& msg) {
+    Serial.printf("[ERR] %s (%lu) %s\n",
+                  mod.c_str(), id, msg.c_str());
+  });
+
+  rb.on_command_end([](const String& result,
+                       const String& duration) {
+    Serial.printf("CMD done: %s (%s)\n",
+                  result.c_str(), duration.c_str());
+  });
+
   LOG_PRINTF("---- [SETUP] end ----\n");
 }
 
@@ -176,6 +188,9 @@ void setup() {
 // ----------------------------------------------------------
 void loop() {
   LOG_RESET();
+  
+  rb.poll();
+
   update_bee_logging();
 
   // Run LVGL event handler
