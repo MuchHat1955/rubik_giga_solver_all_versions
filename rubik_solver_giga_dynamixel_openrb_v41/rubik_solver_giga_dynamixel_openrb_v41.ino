@@ -165,19 +165,19 @@ void setup() {
   }
 
   rb.on_info([](const String& mod, uint32_t id, const String& msg) {
-    Serial.printf("[INFO] %s (%lu) %s\n",
-                  mod.c_str(), id, msg.c_str());
+    LOG_PRINTF("[INFO] %s (%lu) %s\n",
+               mod.c_str(), id, msg.c_str());
   });
 
   rb.on_error([](const String& mod, uint32_t id, const String& msg) {
-    Serial.printf("[ERR] %s (%lu) %s\n",
-                  mod.c_str(), id, msg.c_str());
+    LOG_PRINTF("[ERR] %s (%lu) %s\n",
+               mod.c_str(), id, msg.c_str());
   });
 
   rb.on_command_end([](const String& result,
                        const String& duration) {
-    Serial.printf("CMD done: %s (%s)\n",
-                  result.c_str(), duration.c_str());
+    LOG_PRINTF("CMD done: %s (%s)\n",
+               result.c_str(), duration.c_str());
   });
 
   LOG_PRINTF("---- [SETUP] end ----\n");
@@ -188,7 +188,7 @@ void setup() {
 // ----------------------------------------------------------
 void loop() {
   LOG_RESET();
-  
+
   rb.poll();
 
   update_bee_logging();

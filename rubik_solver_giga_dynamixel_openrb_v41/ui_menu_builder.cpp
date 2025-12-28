@@ -396,11 +396,11 @@ void buildMenu(const char *menuName) {
         lv_obj_set_scrollbar_mode(ta, LV_SCROLLBAR_MODE_AUTO);
 
         String servoText = "";
-        servoText = String("#FFA500 servos info#\n") + rb.getAllServoInfoLines() + "\n\n";
+        servoText = String("#FFA500 servos info#\n") + "" + "\n\n";
 
         String systemText =
           String("#FFA500 build#\n") + getSketchVersionWithDate() + "\n\n" +  //
-          String("#FFA500 log lines#\n") + getAllErrorLines() + "\n\n" + servoText;
+          String("#FFA500 log lines#\n") + getAllErrorLines() + "\n\n" + naservoText;
 
         lv_textarea_set_text(ta, systemText.c_str());
         lv_textarea_set_cursor_click_pos(ta, false);
@@ -556,19 +556,49 @@ const char jsonBuffer[] = R"json(
     "equal_columns": "all",
     "rows": [
       [
-        { "text": "d+", "type": "action", "key": "d+" },
-        { "text": "d-", "type": "action", "key": "d-" },
-        { "text": "d-", "type": "action", "key": "d2" }
+        { "text": "orientation", "type": "text", "key": "orientation" },
+        { "text": "", "type": "text", "key": "" },
+        { "text": "", "type": "text", "key": "" }
       ],
       [
-        { "text": "z+", "type": "action", "key": "z+" },
-        { "text": "z-", "type": "action", "key": "z-" },
-        { "text": "z-", "type": "action", "key": "z2" }
+        { "text": "detect", "type": "action", "key": "detect_ori" },
+        { "text": "check", "type": "action", "key": "check_ori" },
+        { "text": "clear", "type": "action", "key": "clear_ori" }
       ],
       [
-        { "text": "y+", "type": "action", "key": "y+" },
-        { "text": "y-", "type": "action", "key": "y-" },
-        { "text": "y-", "type": "action", "key": "y2" }
+        { "text": "color read", "type": "text", "key": "color_read" },
+        { "text": "", "type": "text", "key": "" },
+        { "text": "", "type": "text", "key": "" }
+      ],
+      [
+        { "text": "all", "type": "action", "key": "clr_all" },
+        { "text": "bottom", "type": "action", "key": "clr_bottom" },
+        { "text": "sensor", "type": "action", "key": "clr_sensor" }
+      ],
+      [
+        { "text": "color stickers", "type": "text", "key": "color_stickers" },
+        { "text": "", "type": "text", "key": "" },
+        { "text": "", "type": "text", "key": "" }
+      ],
+      [
+        { "text": "c1", "type": "action", "key": "c1" },
+        { "text": "c2", "type": "action", "key": "c2" },
+        { "text": "c3", "type": "action", "key": "c3" }
+      ],
+            [
+        { "text": "c4", "type": "action", "key": "c4" },
+        { "text": "c5", "type": "action", "key": "c5" },
+        { "text": "c6", "type": "action", "key": "c6" }
+      ],
+      [
+        { "text": "rotate", "type": "text", "key": "color_rotate" },
+        { "text": "", "type": "text", "key": "" },
+        { "text": "", "type": "text", "key": "" }
+      ],
+      [
+        { "text": "y+", "type": "action", "key": "clr_y_plus" },
+        { "text": "z+", "type": "action", "key": "clr_z_plus" },
+        { "text": "", "type": "text", "key": "" }
       ],
       [{ "text": "back", "type": "menu", "key": "tests" }]
     ]
