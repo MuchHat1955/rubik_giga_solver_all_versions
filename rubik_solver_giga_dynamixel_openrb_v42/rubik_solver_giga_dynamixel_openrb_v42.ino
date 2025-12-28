@@ -66,7 +66,7 @@ extern RBInterface rb;
 // ----------------------------------------------------------
 //                   GLOBAL STATE / FORWARD DECLS
 // ----------------------------------------------------------
-String currentMenu = "main";
+String currentMenu = "k_main";
 
 const int SCREEN_W = 800;
 const int SCREEN_H = 480;

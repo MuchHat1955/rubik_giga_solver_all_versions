@@ -11,7 +11,7 @@ extern const int SCREEN_H;
 void ui_init();
 void ui_loop();
 void ui_refresh();
-void buildMenu(const char *menuName);
+void buildMenu(const char *menuKey);
 void buttonAction(int btn_id);
 
 // to change UI status

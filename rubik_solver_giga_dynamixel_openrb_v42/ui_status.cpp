@@ -62,7 +62,6 @@ void drawButtonOverlayById(int btn_id) {
     LOG_ERROR("[!] drawButtonOverlay: invalid button id {%d}\n", btn_id);
     return;
   }
-
   lv_obj_t *btn = btn_ptr->get_ptr();
   if (!btn) {
     LOG_ERROR("[!] drawButtonOverlay: button object is null for id {%d}\n", btn_id);
@@ -76,9 +75,13 @@ void drawButtonOverlayById(int btn_id) {
   bool issue = btn_ptr->get_has_issue();
   bool active = btn_ptr->get_is_active();
   bool is_menu = btn_ptr->get_is_menu();
+  bool is_status = btn_ptr->get_is_status();
 
   // Logic normalization
   if (busy || is_menu) {
+    issue = false;
+    active = false;
+  } else if (!is_status) {
     issue = false;
     active = false;
   } else if (issue) {

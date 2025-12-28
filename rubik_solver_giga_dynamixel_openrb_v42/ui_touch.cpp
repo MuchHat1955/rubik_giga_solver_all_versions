@@ -99,7 +99,8 @@ void buttonAction_executeAction(int btn_id) {
     LOG_SECTION_START_MENU("update servos for btn {%s}", btn_key);
     b->set_is_busy(true);
     drawButtonOverlayById(btn_id);
-    setFooter("reading servos...");
+    setFooter("updating system...");
+    delay(666);
     //if (rb.updateInfo()) {
     // also get the detailed info if above worked
     //rb.requestAllServoInfo();
@@ -108,21 +109,24 @@ void buttonAction_executeAction(int btn_id) {
     drawButtonOverlayById(btn_id);
     LOG_SECTION_END_MENU();
   } else {
-    LOG_SECTION_START_MENU("update servos for btn {%s}", btn_key);
-    // show busy
-    b->set_is_busy(true);
-    drawButtonOverlayById(btn_id);
-    // updated footer
-    String text = String("button pressed-> id{") + String(btn_id) +  //
-                  String("} key{") + String(btn_key) +               //
-                  String("} text{") + String(btn_txt) + "}";
-    setFooter(text.c_str());
-    // delay
-    delay(666);
-    // reset busy
-    b->set_is_busy(false);
-    drawButtonOverlayById(btn_id);
-    LOG_SECTION_END_MENU();
+
+    f(b->get_is_status() && !b->get_is_menu()) {
+      LOG_SECTION_START_MENU("update overlay for btn {%s}", btn_key);
+      // show busy
+      b->set_is_busy(true);
+      drawButtonOverlayById(btn_id);
+      // updated footer
+      String text = String("button pressed-> id{") + String(btn_id) +  //
+                    String("} key{") + String(btn_key) +               //
+                    String("} text{") + String(btn_txt) + "}";
+      setFooter(text.c_str());
+      // delay
+      delay(666);
+      // reset busy
+      b->set_is_busy(false);
+      drawButtonOverlayById(btn_id);
+      LOG_SECTION_END_MENU();
+    }
   }
   /*
   else if (pose_store.is_pose(txt)) {
@@ -202,8 +206,8 @@ void buttonAction(int btn_id) {
   }
 
   // --- Explicit back to main menu
-  if (strcmp(key, "main") == 0) {
-    currentMenu = "main";
+  if (strcmp(key, "k_main") == 0) {
+    currentMenu = "k_main";
     setFooter("back to main menu");
     buildMenu(currentMenu.c_str());
     LOG_SECTION_END_MENU();
@@ -246,15 +250,15 @@ void select_num_pair(lv_obj_t *numBox, bool toggle) {
 // ----------------------------------------------------------
 void validateMenuKeys() {
   for (JsonPair kv : menuDoc.as<JsonObject>()) {
-    const char *menuName = kv.key().c_str();
+    const char *menuKey = kv.key().c_str();
     JsonObject menu = kv.value().as<JsonObject>();
     JsonArray rows = menu["rows"].as<JsonArray>();
     for (JsonArray row : rows) {
       for (JsonObject it : row) {
         const char *type = it["type"] | "";
         const char *key = it["key"] | "";
-        if ((strcmp(type, "action") == 0 || strcmp(type, "menu") == 0) && (!key || !*key)) {
-          LOG_PRINTF_MENU("menu missing key {%s} type {%s}\n", menuName, type);
+        if ((strcmp(type, "action") == 0 || strcmp(type, "k_menu") == 0) && (!key || !*key)) {
+          LOG_PRINTF_MENU("menu missing key {%s} type {%s}\n", menuKey, type);
         }
       }
     }
@@ -286,7 +290,7 @@ void ui_init() {
   validateMenuKeys();
 
   // 4. Build the initial main menu screen
-  buildMenu("main");
+  buildMenu("k_main");
 
   LOG_SECTION_END_MENU();
 }

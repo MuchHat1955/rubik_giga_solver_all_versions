@@ -8,13 +8,14 @@
 class UIButton {
 public:
   UIButton();
-  UIButton(int id, const char* text, const char* key, lv_obj_t* ptr = nullptr, bool is_menu = false);
+  UIButton(int id, const char* text, const char* key, lv_obj_t* ptr = nullptr, bool is_status = false, bool is_menu = false);
 
   // --- Getters ---
   int get_id() const;
   const char* get_key() const;
   const char* get_text() const;
   lv_obj_t* get_ptr() const;
+  bool get_is_status() const;
   bool get_is_menu() const;
   bool get_is_active() const;
   bool get_has_issue() const;
@@ -25,6 +26,7 @@ public:
   void set_key(const char* key);
   void set_text(const char* txt);
   void set_ptr(lv_obj_t* obj);
+  void set_is_status(bool val);
   void set_is_menu(bool val);
   void set_is_active(bool val);
   void set_has_issue(bool val);
@@ -40,6 +42,7 @@ private:
   String text_ = "err";
   lv_obj_t* ptr_ = nullptr;
 
+  bool is_status_ = false;
   bool is_menu_ = false;
   bool is_active_ = false;
   bool has_issue_ = false;

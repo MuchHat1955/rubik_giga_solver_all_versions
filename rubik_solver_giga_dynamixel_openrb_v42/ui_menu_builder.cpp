@@ -13,7 +13,7 @@
 
 String getSketchVersion();
 String getSketchVersionWithDate();
-void buildMenu(const char *menuName);
+void buildMenu(const char *menuKey);
 
 extern RBInterface rb;
 
@@ -79,13 +79,13 @@ static void on_num_plus_clicked(lv_event_t *e) {
 // ===========================================================
 //  MAIN BUILD MENU FUNCTION
 // ===========================================================
-void buildMenu(const char *menuName) {
+void buildMenu(const char *menuKey) {
 
   LOG_PRINTF_MENU("---------------- build menu\n");
-  LOG_SECTION_START_MENU("build menu {%s}", menuName);
+  LOG_SECTION_START_MENU("build menu {%s}", menuKey);
 
   lv_obj_t *scr = lv_scr_act();
-  if (!scr || !menuDoc.containsKey(menuName)) {
+  if (!scr || !menuDoc.containsKey(menuKey)) {
     LOG_SECTION_END_MENU();
     return;
   }
@@ -97,14 +97,14 @@ void buildMenu(const char *menuName) {
   numLabels.clear();
   uiStatusClear();  // clear persistent button map on rebuild
 
-  JsonObject root = menuDoc[menuName];
+  JsonObject root = menuDoc[menuKey];
   if (root.isNull()) {
     LOG_SECTION_END_MENU();
     return;
   }
 
   String fullTitle = String(root["title"] | "");
-  if (strcmp(menuName, "main") == 0) {
+  if (strcmp(menuKey, "k_main") == 0) {
     String sketchVer = getSketchVersion();
     if (sketchVer.length()) fullTitle += " " + sketchVer;
   }
@@ -436,7 +436,7 @@ void buildMenu(const char *menuName) {
 // ----------------------------------------------------------
 const char jsonBuffer[] = R"json(
 {
-  "main": {
+  "k_main": {
     "title": "rubik cube solver",
     "footer": "ready",
     "columns": 1,
@@ -447,7 +447,7 @@ const char jsonBuffer[] = R"json(
       [{ "text": "system", "type": "menu", "key": "k_system", "status": "yes" }]
     ]
   },
-  "solve cube": {
+  "k_solve_cube": {
     "title": "solve cube",
     "footer": "press to start solving",
     "columns": 4,
@@ -458,7 +458,7 @@ const char jsonBuffer[] = R"json(
         { "text": "back", "type": "menu", "key": "k_main" }
     ]
   },
-  "read cube": {
+  "k_read_cube": {
     "title": "read cube",
     "footer": "read cube colors",
     "columns": 4,
@@ -471,7 +471,7 @@ const char jsonBuffer[] = R"json(
       ]
     ]
   },
-  "system": {
+  "k_system": {
     "title": "system status",
     "footer": "scroll for details",
     "columns": 1,
@@ -481,7 +481,7 @@ const char jsonBuffer[] = R"json(
       [{ "text": "back", "type": "menu", "key": "k_main" }]
     ]
   },
-  "tests": {
+  "k_tests": {
     "title": "tests",
     "footer": "perform hardware tests",
     "columns": 2,
@@ -493,7 +493,7 @@ const char jsonBuffer[] = R"json(
       [{ "text": "back", "type": "menu", "key": "k_main" }]
     ]
   },
-  "robot moves": {
+  "k_robot_moves": {
     "title": "robot moves",
     "footer": "tap to execute robot moves",
     "columns": 3,
@@ -522,7 +522,7 @@ const char jsonBuffer[] = R"json(
       [{ "text": "back", "type": "menu", "key": "k_tests" }]
     ]
   },
-  "cube moves": {
+  "k_cube_moves": {
     "title": "cube moves",
     "footer": "tap to run a cube move",
     "columns": 4,
@@ -567,7 +567,7 @@ const char jsonBuffer[] = R"json(
       [{ "text": "back", "type": "menu", "key": "k_main" }]
     ]
   },
-  "colors and orientation": {
+  "k_colors_and_orientation": {
     "title": "colors and orientation",
     "footer": "tap to execute colors and orientation commands",
     "columns": 3,
