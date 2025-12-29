@@ -1,5 +1,6 @@
 #pragma once
 #include <lvgl.h>
+Arduino.h
 
 // Create cube widget inside parent
 lv_obj_t* ui_cube_view_create(lv_obj_t* parent);
