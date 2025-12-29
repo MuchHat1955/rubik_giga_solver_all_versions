@@ -63,3 +63,9 @@ String getLastError(int cmdId);
 bool getLastResult(int cmdId);
 String getLastCommandName(int cmdId);
 String getLastCommandParams(int cmdId);
+
+String getLastColorString();
+String getLastOrientation();
+String getColorStringForCmd(uint32_t cmd_id);
+String getOrientationForCmd(uint32_t cmd_id);
+

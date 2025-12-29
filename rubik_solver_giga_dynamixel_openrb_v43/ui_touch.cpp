@@ -104,7 +104,7 @@ void buttonAction_executeAction_run(const char *btn_key) {
   if (!handled) handled |= runSolveCubeFindSolutionByKey(btn_key, ok);
   if (!handled) handled |= runSolveCubeRunSolutionByKey(btn_key, ok);
   if (!handled) handled |= runColorStickerByKey(btn_key, ok);
-  if (!handled) handled |= runSystemByKey(btn_key, ok); // TODO is this needed?
+  // if (!handled) handled |= runSystemByKey(btn_key, ok); // TODO is this needed?
 
   //TODO more actions go here
 }

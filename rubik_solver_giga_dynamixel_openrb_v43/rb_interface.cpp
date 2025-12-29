@@ -1,6 +1,7 @@
 #include "rb_interface.h"
 #include "logging.h"
 #include "ui_touch.h"
+#include "ui_cube_view.h"
 
 /*
   uint32_t id = rb.send_command("READSERVO", "0");
@@ -168,11 +169,16 @@ struct rb_cmd_state_t {
   String command_name;
   String command_params;
   String last_error;
+
+  // NEW: parsed info payloads
+  String color_string_54;
+  String orientation;
 };
 
 static std::map<uint32_t, rb_cmd_state_t> cmd_states;
 static uint32_t last_finished_cmd_id = 0;
-
+static String last_color_string_54;
+static String last_orientation;
 
 static void rb_command_end_cb(const String& result, const String& duration) {
   LOG_PRINTF("[CMD] done %s (%s)\n", result.c_str(), duration.c_str());
@@ -201,8 +207,62 @@ static void rb_info_cb(const String& mod,
              mod.c_str(),
              (unsigned long)id,
              msg.c_str());
+
+  // We only care about RUN module for these payloads
+  //   if (mod != "RUN") TODO is this needed
+  //    return;
+
+  auto& st = cmd_states[id];
+
+  // ------------------------------------------------------------
+  // cube_color_string_54=......................................
+  // ------------------------------------------------------------
+  const char* k_color_prefix = "cube_color_string_54=";
+  if (msg.startsWith(k_color_prefix)) {
+    String value = msg.substring(strlen(k_color_prefix));
+    value.trim();
+
+    st.color_string_54 = value;
+    last_color_string_54 = value;
+    ui_cube_view_set_colors(value);
+    return;
+  }
+
+  // ------------------------------------------------------------
+  // orientation=u->u_r->r_f->f_d->d_l->l_b->b
+  // ------------------------------------------------------------
+  const char* k_ori_prefix = "orientation=";
+  if (msg.startsWith(k_ori_prefix)) {
+    String value = msg.substring(strlen(k_ori_prefix));
+    value.trim();
+
+    st.orientation = value;
+    last_orientation = value;
+    return;
+  }
 }
 
+String getLastColorString() {
+  return last_color_string_54;
+}
+
+String getLastOrientation() {
+  return last_orientation;
+}
+
+String getColorStringForCmd(uint32_t cmd_id) {
+  auto it = cmd_states.find(cmd_id);
+  if (it == cmd_states.end())
+    return "";
+  return it->second.color_string_54;
+}
+
+String getOrientationForCmd(uint32_t cmd_id) {
+  auto it = cmd_states.find(cmd_id);
+  if (it == cmd_states.end())
+    return "";
+  return it->second.orientation;
+}
 
 // ------------------------------------------------------------------------------------------------------------------------------------------------
 

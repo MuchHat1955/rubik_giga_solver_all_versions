@@ -9,6 +9,8 @@
 #include "rb_interface.h"
 #include "ui_button.h"
 
+#include "ui_cube_view.h"
+
 #define PARAM_VAL_NA 999.9
 
 String getSketchVersion();
@@ -420,6 +422,22 @@ void buildMenu(const char *menuKey) {
         lv_obj_set_style_text_font(ta, FONT_BTN_SMALL_PTR, 0);
 
         adjustedRowH = textH + 20;
+      }
+      // ----------------------------------------------------------
+      //  READ CUBE → show cube visualization
+      // ----------------------------------------------------------
+      if (strcmp(menuKey, "k_read_cube") == 0) {
+        extern String getLastColorString();
+
+        lv_obj_t *cube = ui_cube_view_create(cont);
+
+        // center it under buttons
+        lv_obj_align(cube, LV_ALIGN_TOP_MID, 0, y + 10);
+
+        String colors = getLastColorString();
+        if (colors.length() == 54) {
+          ui_cube_view_set_colors(colors);
+        }
       }
 
       x += colW + 8;
