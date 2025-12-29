@@ -35,7 +35,7 @@ void updateButtonPtrByKey(const char *btn_key, lv_obj_t *btn) {
   UIButton *btn_ptr = find_button_by_key(btn_key);
 
   if (!btn_ptr) {
-    LOG_ERROR("invalid button key in updateButtonPtrByKey {%s}", btn_key);
+    LOG_ERR("invalid button key in updateButtonPtrByKey {%s}", btn_key);
     return;  // nothing to update
   }
   btn_ptr->set_ptr(btn);
@@ -47,7 +47,7 @@ void updateButtonPtrById(int btn_id, lv_obj_t *btn) {
   UIButton *btn_ptr = find_button_by_id(btn_id);
 
   if (!btn_ptr) {
-    LOG_ERROR("invalid button id in updateButtonPtrById {%d}", btn_id);
+    LOG_ERR("invalid button id in updateButtonPtrById {%d}", btn_id);
     return;  // nothing to update
   }
   btn_ptr->set_ptr(btn);
@@ -59,12 +59,12 @@ void updateButtonPtrById(int btn_id, lv_obj_t *btn) {
 void drawButtonOverlayById(int btn_id) {
   UIButton *btn_ptr = find_button_by_id(btn_id);
   if (!btn_ptr) {
-    LOG_ERROR("[!] drawButtonOverlay: invalid button id {%d}\n", btn_id);
+    LOG_ERR("[!] drawButtonOverlay: invalid button id {%d}\n", btn_id);
     return;
   }
   lv_obj_t *btn = btn_ptr->get_ptr();
   if (!btn) {
-    LOG_ERROR("[!] drawButtonOverlay: button object is null for id {%d}\n", btn_id);
+    LOG_ERR("[!] drawButtonOverlay: button object is null for id {%d}\n", btn_id);
     return;
   }
 
@@ -186,7 +186,7 @@ void drawButtonOverlayById(int btn_id) {
 void drawButtonOverlayByKey(const char *btn_key) {
   UIButton *btn_ptr = find_button_by_key(btn_key);
   if (!btn_ptr) {
-    LOG_ERROR("[!] drawButtonOverlay: invalid button key {%s}", btn_key);
+    LOG_ERR("[!] drawButtonOverlay: invalid button key {%s}", btn_key);
     return;
   }
   drawButtonOverlayById(btn_ptr->get_id());

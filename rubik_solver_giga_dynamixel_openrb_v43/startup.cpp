@@ -28,15 +28,15 @@ bool runStartupTests() {
   int failCount = 0;
   int total = 0;
 
-  // TODO run startup tests
-  // startupOK = rb.updateInfo();
+  int cmd_id=0;
+  startupOK = runCommand("READSERVO", "0", &cmd_id);
   startupOK = true;
 
   if (startupOK) {
     setFooter("startup test ok");
     LOG_PRINTF("startup status ok\n");
   } else {
-    setFooter(getLastErrorLine());
+    setFooter(getLastError(cmd_id).c_str());
   }
 
   startupDone = true;

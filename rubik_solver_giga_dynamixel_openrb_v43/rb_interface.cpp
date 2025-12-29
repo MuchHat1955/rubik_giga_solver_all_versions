@@ -159,41 +159,188 @@ void RBInterface::on_error(error_cb_t cb) {
 
 RBInterface rb;
 
+// ------------------------------------------------------------------------------------------------------------------------------------------------
+// RB wrappers
+
+struct rb_cmd_state_t {
+  bool finished_bool = false;
+  bool ok_bool = false;
+  String command_name;
+  String command_params;
+  String last_error;
+};
+
+static std::map<uint32_t, rb_cmd_state_t> cmd_states;
+static uint32_t last_finished_cmd_id = 0;
+
+
+static void rb_command_end_cb(const String& result, const String& duration) {
+  LOG_PRINTF("[CMD] done %s (%s)\n", result.c_str(), duration.c_str());
+
+  uint32_t id = rb.get_current_cmd_id();  // see note below
+
+  auto& st = cmd_states[id];
+  st.finished_bool = true;
+  st.ok_bool = (result == "ok");
+  last_finished_cmd_id = id;
+}
+
+static void rb_error_cb(const String& module, uint32_t id, const String& payload) {
+  LOG_PRINTF("[ERR] %s (%lu) %s\n", module.c_str(), id, payload.c_str());
+
+  auto& st = cmd_states[id];
+  if (!st.last_error.isEmpty())
+    st.last_error += " | ";
+  st.last_error += module + ": " + payload;
+}
+
+static void rb_info_cb(const String& mod,
+                       uint32_t id,
+                       const String& msg) {
+  LOG_PRINTF("[INFO] %s (%lu) %s\n",
+             mod.c_str(),
+             (unsigned long)id,
+             msg.c_str());
+}
+
+
+// ------------------------------------------------------------------------------------------------------------------------------------------------
+
+void init_rb_wrappers() {
+  rb.on_command_end(rb_command_end_cb);
+  rb.on_error(rb_error_cb);
+  rb.on_info(rb_info_cb);
+}
+
+bool runCommand(const String& command,
+                const String& params,
+                int* cmdId) {
+
+  uint32_t id = rb.send_command(command, params);
+
+  if (cmdId)
+    *cmdId = (int)id;
+
+  rb_cmd_state_t st;
+  st.command_name = command;
+  st.command_params = params;
+  cmd_states[id] = st;
+
+  unsigned long t0 = millis();
+  const unsigned long timeout_ms = 10000;
+
+  while (!cmd_states[id].finished_bool) {
+    rb.poll();
+    if (millis() - t0 > timeout_ms) {
+      cmd_states[id].last_error = "timeout waiting for command_end";
+      return false;
+    }
+    delay(1);
+  }
+
+  return cmd_states[id].ok_bool;
+}
+
+bool checkServosStatus() {
+  int cmd_id = 0;
+  return runCommand("READSERVO", "0", &cmd_id);
+}
+
+String getLastError(int cmdId) {
+  auto it = cmd_states.find(cmdId);
+  if (it == cmd_states.end())
+    return "";
+  return it->second.last_error;
+}
+
+bool getLastResult(int cmdId) {
+  auto it = cmd_states.find(cmdId);
+  if (it == cmd_states.end())
+    return false;
+  return it->second.ok_bool;
+}
+
+String getLastCommandName(int cmdId) {
+  auto it = cmd_states.find(cmdId);
+  if (it == cmd_states.end())
+    return "";
+  return it->second.command_name;
+}
+
+String getLastCommandParams(int cmdId) {
+  auto it = cmd_states.find(cmdId);
+  if (it == cmd_states.end())
+    return "";
+  return it->second.command_params;
+}
+
+
+
 /* --------------------------------------------------------------------------------------------------------------------------------------------------
-  DETECTORI - detect orientation from center colors
-  CHECKORI - reads front face and confirms orientation matches ori
-  RESTOREORI - restore cube to original orientation
-  GETCOLORDATA - print raw color data
-  GETORIDATA - print orientation move log
-  CLEARORIDATA - clear orientation data
-  
----------------- DEBUG COMMANDS  ----------------
-  RUN <no>
-      0 pos zero |     11 right down   | 12 left down    | 13 back down   | 14 top down
-     21 bottom right | 22 bottom right | 23 bottom back
-     31 cube right   | 32 cube left    | 33 cube back
-     60 align
-  READSERVO <id> - show servo summary status
-  INFOSERVO <id> - show full servo status
-  SETMIN <id> <ticks> - set servo minimum ticks
-  SETMAX <id> <ticks> - set servo maximum ticks
-  LEDON <id> - turn servo LED on
-  LEDOFF <id> - turn servo LED off
-  REBOOTALL - reboot all servos
-  SETSTOPALL - set global servo error flag
-  CLEARSTOPALL - clear global servo error flag
-  MOVETICKS <id> <ticks> - move servo to ticks (no smoothing)
-  MOVEDEG <id> <deg> - move servo to degrees (smooth)
-  MOVEPER <id> <percent> - move servo to percentage (smooth)
-  MOVEYMM <mm> - vertical move (42 to 102)
-  MOVEXMM <mm> - lateral move (-30 to 30)
-  MOVEXYMM <x_mm> <y_mm> - lateral then vertical move (-25..25, 42..102)
-  MOVEGRIPPER <percent> - move both grippers (0 to 100)
-  MOVEWRISTVERTDEG <deg> - move wrist relative to vertical (-5 to 185)
-  CLAMP - clamp gripper
-  COLORSENSOR <count> - read color <count> times
-  ONECOLOR - read one slot (1..6)
-  ONEFACECOLOR - read colors of the front face
+static CommandEntry command_table[] = {
+
+  // version
+  { "", "", nullptr, "------------- MAIN CUBE SOLVING COMMANDS ----------" },
+  { "HELP", "", cmd_help, "HELP - list all available commands" },
+  { "VERSION", "", cmd_get_version, "VERSION - show firmware version info" },
+  { "MOVEROBOT", "<moves>", nullptr, "MOVEROBOT <moves> - robot moves (z_plus z_minus z_180 y_plus y_minus y_180 d_plus d_minus d_180)" },
+  { "MOVECUBE", "<moves>", nullptr, "MOVECUBE <moves> - cube moves (f+ f- f2 b+ b- b2 r+ r- r2 l+ l- l2 u+ u- u2 d+ d- d2)" },
+  { "READCOLORS", "<mode>", nullptr, "READCOLORS <all|bottom|solved|centers> - read cube colors (u=white f=green r=red)" },
+  { "DETECTCUBE", "", cmd_detect_cube, "DETECTCUBE - detect if a cube is in the base" },
+  { "DETECTORI", "", cmd_detect_ori, "DETECTORI - detect orientation from center colors" },
+  { "CHECKORI", "", cmd_check_ori, "CHECKORI - reads front face and confirms orientation matches ori" },
+  { "RESTOREORI", "", cmd_restore_ori, "RESTOREORI - restore cube to original orientation" },
+  { "GETCOLORDATA", "", cmd_getcolor_data, "GETCOLORDATA - print raw color data" },
+  { "GETORIDATA", "", cmd_getori_data, "GETORIDATA - print orientation move log" },
+  { "CLEARORIDATA", "", cmd_clear_ori_data, "CLEARORIDATA - clear orientation data" },
+  { "", "", nullptr, "---------------- DEBUG COMMANDS  ----------------" },
+  // debug for robot moves
+  // { "", "", nullptr, "---------------- DEBUG : ROBOT MOVES ----------------" },
+  { "RUN", "%d", cmd_run, runHelp },
+
+  // servos data
+  // { "", "", nullptr, "------------------ SERVOS : DATA --------------------" },
+  { "READSERVO", "%d", cmd_read_servo, "READSERVO <id> - show servo summary status" },
+  { "INFOSERVO", "%d", cmd_servo_info, "INFOSERVO <id> - show full servo status" },
+  { "SETMIN", "%d %d", cmd_set_servo_min, "SETMIN <id> <ticks> - set servo minimum ticks" },
+  { "SETMAX", "%d %d", cmd_set_servo_max, "SETMAX <id> <ticks> - set servo maximum ticks" },
+
+  // servo leds
+  // { "", "", nullptr, "------------------ SERVOS : LEDS --------------------" },
+  { "LEDON", "%d", cmd_ledon, "LEDON <id> - turn servo LED on" },
+  { "LEDOFF", "%d", cmd_ledoff, "LEDOFF <id> - turn servo LED off" },
+
+  // global servo error clearing
+  // { "", "", nullptr, "---------------- SERVOS : ERRORS --------------------" },
+  { "REBOOTALL", "", cmd_reboot_servos, "REBOOTALL - reboot all servos" },
+  { "SETSTOPALL", "", cmd_set_servo_flag_servos_stop_all, "SETSTOPALL - set global servo error flag" },
+  { "CLEARSTOPALL", "", cmd_clear_flag_servos_stop_all, "CLEARSTOPALL - clear global servo error flag" },
+
+  // move servos
+  // { "", "", nullptr, "------------------ SERVOS : MOTION ------------------" },
+  { "MOVETICKS", "%d %d", cmd_move_ticks, "MOVETICKS <id> <ticks> - move servo to ticks (no smoothing)" },
+  { "MOVEDEG", "%d %f", cmd_move_deg, "MOVEDEG <id> <deg> - move servo to degrees (smooth)" },
+  { "MOVEPER", "%d %f", cmd_move_per, "MOVEPER <id> <percent> - move servo to percentage (smooth)" },
+
+  // xy arms
+  // { "", "", nullptr, "------------------ XY ARMS ---------------------------" },
+  { "MOVEYMM", "%f", cmd_move_y, "MOVEYMM <mm> - vertical move (42 to 102)" },
+  { "MOVEXMM", "%f", cmd_move_x, "MOVEXMM <mm> - lateral move (-30 to 30)" },
+  { "MOVEXYMM", "%f %f", cmd_move_xy, "MOVEXYMM <x_mm> <y_mm> - lateral then vertical move (-25..25, 42..102)" },
+
+  // gripper
+  // { "", "", nullptr, "------------------ GRIPPER ---------------------------" },
+  { "MOVEGRIPPER", "%f", cmd_move_gripper, "MOVEGRIPPER <percent> - move both grippers (0 to 100)" },
+  { "MOVEWRISTVERTDEG", "%f", cmd_move_wrist_vert, "MOVEWRISTVERTDEG <deg> - move wrist relative to vertical (-5 to 185)" },
+  { "CLAMP", "", cmd_move_clamp, "CLAMP - clamp gripper" },
+
+  // color sensor
+  // { "", "", nullptr, "------------------ COLOR SENSOR ----------------------" },
+  { "COLORSENSOR", "%d", cmd_color, "COLORSENSOR <count> - read color <count> times" },
+  { "ONECOLOR", "", cmd_read_one_color, "ONECOLOR - read one slot (1..6)" },
+  { "ONEFACECOLOR", "", cmd_read_one_face_colors, "ONEFACECOLOR - read colors of the front face" },
+  // { "", "", nullptr, "-------------------------------------------------------------------" },
+};
 
 ----------------------------------------------------------------------------
 

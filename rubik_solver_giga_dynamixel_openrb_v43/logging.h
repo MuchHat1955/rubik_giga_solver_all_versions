@@ -95,7 +95,7 @@ inline void serial_printf(const char* fmt, Args... args) {
     } \
   } while (0)
 
-#define LOG_ERROR(fmt, ...) \
+#define LOG_ERR(fmt, ...) \
   do { \
     char _buf[200]; \
     snprintf(_buf, sizeof(_buf), fmt, ##__VA_ARGS__); \

@@ -80,9 +80,9 @@ UIButton ui_buttons[] = {
   { 3, "tests", "k_tests", nullptr, false, true },
   { 4, "system", "k_system", nullptr, true, true },
 
-  { 5, "read", "k_solve_cube__read_cube_all", nullptr, true, false },
-  { 6, "solve", "k_solve_cube_solve", nullptr, true, false },
-  { 7, "run", "k_solve_cube_run", nullptr, true, false },
+  { 5, "read", "k_solve_cube_read_cube_all", nullptr, true, false },
+  { 6, "solve", "k_solve_cube_find_solution", nullptr, true, false },
+  { 7, "run", "k_solve_cube_run_solution", nullptr, true, false },
   { 8, "back", "k_main", nullptr, false, true },
 
   { 9, "all", "k_read_cube_all", nullptr, true, false },
@@ -140,7 +140,7 @@ UIButton ui_buttons[] = {
 
   { 48, "detect", "k_orientation_detect", nullptr, true, false },
   { 49, "check", "k_orientation_check", nullptr, true, false },
-  { 50, "clear", "k_orientation_clear", nullptr, true, false },
+  { 50, "restore", "k_orientation_restore", nullptr, true, false },
 
   { 51, "color read", "", nullptr, false, false },
   { 52, "front is", "color_read_front_color_val", nullptr, true, false },

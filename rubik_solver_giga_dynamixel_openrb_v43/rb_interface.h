@@ -25,8 +25,7 @@ public:
   bool begin(unsigned long baud, uint32_t timeout_ms);
 
   // Sends command and waits until command_start is received
-  uint32_t send_command(const String& command,
-                        const String& params);
+  uint32_t send_command(const String& command, const String& params);
 
   // User callbacks
   void on_command_end(command_end_cb_t cb);
@@ -35,6 +34,10 @@ public:
 
   // Must be called from loop()
   void poll();
+
+  uint32_t get_current_cmd_id() const {
+    return current_cmd_id_;
+  }
 
 private:
   HardwareSerial* serial_ = &Serial2;
@@ -50,3 +53,13 @@ private:
 
   static uint32_t parse_id(const String& line);
 };
+
+void init_rb_wrappers();
+bool runCommand(const String& command,
+                const String& params,
+                int* cmdId);
+bool checkServosStatus();
+String getLastError(int cmdId);
+bool getLastResult(int cmdId);
+String getLastCommandName(int cmdId);
+String getLastCommandParams(int cmdId);

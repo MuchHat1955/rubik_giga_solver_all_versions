@@ -153,6 +153,7 @@ void setup() {
   // ----------------------------------------------------------
   // STARTUP SELF TEST
   // ----------------------------------------------------------
+  init_rb_wrappers();
   bool rb_ok = !rb.begin(115200, 200);
   if (!rb_ok) {
     setFooter("rb interface issues detected");
@@ -163,23 +164,6 @@ void setup() {
       setFooter("startup test ok");
     }
   }
-
-  rb.on_info([](const String& mod, uint32_t id, const String& msg) {
-    LOG_PRINTF("[INFO] %s (%lu) %s\n",
-               mod.c_str(), id, msg.c_str());
-  });
-
-  rb.on_error([](const String& mod, uint32_t id, const String& msg) {
-    LOG_PRINTF("[ERR] %s (%lu) %s\n",
-               mod.c_str(), id, msg.c_str());
-  });
-
-  rb.on_command_end([](const String& result,
-                       const String& duration) {
-    LOG_PRINTF("CMD done: %s (%s)\n",
-               result.c_str(), duration.c_str());
-  });
-
   LOG_PRINTF("---- [SETUP] end ----\n");
 }
 

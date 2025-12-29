@@ -10,6 +10,7 @@
 #include "ui_status.h"
 #include "rb_interface.h"
 #include "ui_button.h"
+#include "run.h"
 
 // Forward declarations
 void drawButtonOverlay(int btn_id);
@@ -85,22 +86,27 @@ void setFooter(const char *msg) {
 
 void buttonAction_executeAction_run(const char *btn_key) {
 
-  // TODO actual action goes here
   String footer_txt = String("start ") + String(btn_key);
   setFooter(footer_txt.c_str());
   delay(666);
   footer_txt = String("end ") + String(btn_key);
   setFooter(footer_txt.c_str());
 
-  // example below
-  /*
-  if (pose_store.is_pose(txt)) {
-    LOG_SECTION_START_MENU("run pose {%s}", txt);
-    setFooter(txt);
-    pose_store.run_pose(txt);
-    LOG_SECTION_END_MENU();
-  }
-  */
+  bool handled = false;
+  bool ok = false;
+
+  handled |= runRobotMovesByKey(btn_key, ok);
+  if (!handled) handled |= runCubeMoveByKey(btn_key, ok);
+  if (!handled) handled |= runRunOrientationByKey(btn_key, ok);
+  if (!handled) handled |= runSolveReadByKey(btn_key, ok);
+  if (!handled) handled |= runColorReadByKey(btn_key, ok);
+  if (!handled) handled |= runColorOrientationByKey(btn_key, ok);
+  if (!handled) handled |= runSolveCubeFindSolutionByKey(btn_key, ok);
+  if (!handled) handled |= runSolveCubeRunSolutionByKey(btn_key, ok);
+  if (!handled) handled |= runColorStickerByKey(btn_key, ok);
+  if (!handled) handled |= runSystemByKey(btn_key, ok); // TODO is this needed?
+
+  //TODO more actions go here
 }
 
 // ---- below is for actions to be done when a menu is displayed ---
@@ -136,11 +142,6 @@ void buttonAction_executeAction(int btn_id) {
       // show busy
       b->set_is_busy(true);
       drawButtonOverlayById(btn_id);
-      // updated footer
-      String text = String("button pressed-> id{") + String(btn_id) +  //
-                    String("} key{") + String(btn_key) +               //
-                    String("} text{") + String(btn_txt) + "}";
-      setFooter(text.c_str());
       //.................
       buttonAction_executeAction_run(btn_key);
       //.................

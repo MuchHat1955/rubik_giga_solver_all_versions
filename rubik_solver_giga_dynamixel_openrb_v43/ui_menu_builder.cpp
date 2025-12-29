@@ -453,9 +453,9 @@ const char jsonBuffer[] = R"json(
     "columns": 4,
     "rows": [
       [
-        { "text": "read", "type": "action", "key": "k_solve_cube__read_cube_all", "status": "yes" },
-        { "text": "solve", "type": "action", "key": "k_solve_cube_solve", "status": "yes" },
-        { "text": "run", "type": "action", "key": "k_solve_cube_run", "status": "yes" },
+        { "text": "read", "type": "action", "key": "k_solve_cube_read_cube_all", "status": "yes" },
+        { "text": "solve", "type": "action", "key": "k_solve_cube_find_solution", "status": "yes" },
+        { "text": "run", "type": "action", "key": "k_solve_cube_run_solution", "status": "yes" },
         { "text": "back", "type": "menu", "key": "k_main" }
       ]
     ]
@@ -582,7 +582,7 @@ const char jsonBuffer[] = R"json(
       [
         { "text": "detect", "type": "action", "key": "k_orientation_detect","status": "yes"  },
         { "text": "check", "type": "action", "key": "k_orientation_check","status": "yes"  },
-        { "text": "clear", "type": "action", "key": "k_orientation_clear","status": "yes"  }
+        { "text": "restore", "type": "action", "key": "k_orientation_restore","status": "yes"  }
       ],
       [
         { "text": "color read", "type": "text", "key": ""  },
