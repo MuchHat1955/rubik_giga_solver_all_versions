@@ -8,7 +8,6 @@
 #include "ui_status.h"
 #include "rb_interface.h"
 #include "ui_button.h"
-
 #include "ui_cube_view.h"
 
 #define PARAM_VAL_NA 999.9
