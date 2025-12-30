@@ -170,15 +170,65 @@ struct rb_cmd_state_t {
   String command_params;
   String last_error;
 
-  // NEW: parsed info payloads
   String color_string_54;
   String orientation;
+
+  // NEW
+  String version_string;
+
+  // COLORSCAN
+  String color_string_curr;  // full 54 when available, or partial
+  int color_read_step = -1;
+  String color_read_map;  // f6_r6_b6_...
+
+  // MOVES
+  int cube_move_step = -1;
+  int robot_move_step = -1;
 };
+
+struct rb_servo_status_t {
+  int servo_id = -1;
+  String servo_name;
+
+  int pos_ticks = 0;
+  float pos_deg = 0.0f;
+  float pos_per = 0.0f;
+
+  int current_ma = 0;
+  int temp_c = 0;
+
+  int min_ticks = 0;
+  int zero_ticks = 0;
+  int max_ticks = 0;
+
+  uint32_t cmd_id = 0;  // command that produced this snapshot
+};
+
+static std::map<int, rb_servo_status_t> last_servo_status_by_id;
+static uint32_t last_servo_status_cmd = 0;
 
 static std::map<uint32_t, rb_cmd_state_t> cmd_states;
 static uint32_t last_finished_cmd_id = 0;
 static String last_color_string_54 = "WWWWWWWWWRRRRRRRRRGGGGGGGGGYYYYYYYYYOOOOOOOOOBBBBBBBBB";
-static String last_orientation="u->u_r->r_f->f_d->d_l->l_b->b";
+static String last_orientation = "u->u_r->r_f->f_d->d_l->l_b->b";
+
+// ================= GLOBAL LAST-SEEN STATE =================
+
+static String last_color_string_curr;
+static uint32_t last_color_string_curr_cmd = 0;
+
+static int last_color_read_step = -1;
+static uint32_t last_color_read_step_cmd = 0;
+
+static int last_cube_move_step = -1;
+static uint32_t last_cube_move_step_cmd = 0;
+
+static int last_robot_move_step = -1;
+static uint32_t last_robot_move_step_cmd = 0;
+
+static String last_color_read_map;
+static uint32_t last_color_read_map_cmd = 0;
+
 
 static void rb_command_end_cb(const String& result, const String& duration) {
   LOG_PRINTF("[CMD] done %s (%s)\n", result.c_str(), duration.c_str());
@@ -213,6 +263,142 @@ static void rb_info_cb(const String& mod,
   //    return;
 
   auto& st = cmd_states[id];
+
+  // ------------------------------------------------------------
+  // SERVOS info=servo_status
+  // ------------------------------------------------------------
+  if (mod == "SERVOS" && msg.startsWith("info=servo_status")) {
+
+    rb_servo_status_t st_servo;
+    st_servo.cmd_id = id;
+
+    auto extract_int = [&](const char* key, int& out) {
+      int p = msg.indexOf(key);
+      if (p < 0) return;
+      p += strlen(key);
+      int e = msg.indexOf(' ', p);
+      out = msg.substring(p, e < 0 ? msg.length() : e).toInt();
+    };
+
+    auto extract_float = [&](const char* key, float& out) {
+      int p = msg.indexOf(key);
+      if (p < 0) return;
+      p += strlen(key);
+      int e = msg.indexOf(' ', p);
+      out = msg.substring(p, e < 0 ? msg.length() : e).toFloat();
+    };
+
+    auto extract_string = [&](const char* key, String& out) {
+      int p = msg.indexOf(key);
+      if (p < 0) return;
+      p += strlen(key);
+      int e = msg.indexOf(' ', p);
+      out = msg.substring(p, e < 0 ? msg.length() : e);
+    };
+
+    extract_int("servo_id=", st_servo.servo_id);
+    extract_string("servo_name=", st_servo.servo_name);
+
+    extract_int("pos_ticks=", st_servo.pos_ticks);
+    extract_float("pos_deg=", st_servo.pos_deg);
+    extract_float("pos_per=", st_servo.pos_per);
+
+    extract_int("current_ma=", st_servo.current_ma);
+    extract_int("temp_c=", st_servo.temp_c);
+
+    extract_int("min_ticks=", st_servo.min_ticks);
+    extract_int("zero_ticks=", st_servo.zero_ticks);
+    extract_int("max_ticks=", st_servo.max_ticks);
+
+    if (st_servo.servo_id >= 0) {
+      last_servo_status_by_id[st_servo.servo_id] = st_servo;
+      last_servo_status_cmd = id;
+    }
+
+    return;
+  }
+
+  // ------------------------------------------------------------
+  // COLORSCAN color_string_curr / color_string_curr_face
+  // ------------------------------------------------------------
+  if (msg.indexOf("color_string_curr") >= 0) {
+    int eq = msg.indexOf('=');
+    if (eq > 0) {
+      String value = msg.substring(eq + 1);
+      value.trim();
+
+      st.color_string_curr = value;
+      last_color_string_curr = value;
+      last_color_string_curr_cmd = id;
+    }
+    return;
+  }
+
+  // ------------------------------------------------------------
+  // COLORSCAN color_read_step
+  // ------------------------------------------------------------
+  const char* k_color_step = "color_read_step=";
+  if (msg.startsWith(k_color_step)) {
+    int step = msg.substring(strlen(k_color_step)).toInt();
+
+    st.color_read_step = step;
+    last_color_read_step = step;
+    last_color_read_step_cmd = id;
+    return;
+  }
+
+  // ------------------------------------------------------------
+  // COLORSCAN color_read_start_with_map
+  // ------------------------------------------------------------
+  const char* k_color_map = "color_read_start_with_map=";
+  if (msg.startsWith(k_color_map)) {
+    String map = msg.substring(strlen(k_color_map));
+    map.trim();
+
+    st.color_read_map = map;
+    last_color_read_map = map;
+    last_color_read_map_cmd = id;
+    return;
+  }
+
+  // ------------------------------------------------------------
+  // robot_move_step
+  // ------------------------------------------------------------
+  const char* k_robot_step = "robot_move_step=";
+  if (msg.startsWith(k_robot_step)) {
+    int step = msg.substring(strlen(k_robot_step)).toInt();
+
+    st.robot_move_step = step;
+    last_robot_move_step = step;
+    last_robot_move_step_cmd = id;
+    return;
+  }
+
+  // ------------------------------------------------------------
+  // CUBEMOVE cube_move_step
+  // ------------------------------------------------------------
+  int cms = msg.indexOf("cube_move_step=");
+  if (cms >= 0) {
+    int start = cms + strlen("cube_move_step=");
+    int end = msg.indexOf(' ', start);
+    int step = msg.substring(start, end < 0 ? msg.length() : end).toInt();
+
+    st.cube_move_step = step;
+    last_cube_move_step = step;
+    last_cube_move_step_cmd = id;
+    return;
+  }
+
+  // ------------------------------------------------------------
+  // version=v83_|_built_dec_30_2025_14_10_39_|_protocol_v1
+  // ------------------------------------------------------------
+  const char* k_version_prefix = "version=";
+  if (msg.startsWith(k_version_prefix)) {
+    String value = msg.substring(strlen(k_version_prefix));
+    value.trim();
+    st.version_string = value;
+    return;
+  }
 
   // ------------------------------------------------------------
   // cube_color_string_54=......................................
@@ -334,6 +520,147 @@ String getLastCommandParams(int cmdId) {
   return it->second.command_params;
 }
 
+String getRbInterfaceVersion() {
+  int cmd_id = 0;
+
+  uint32_t id = rb.send_command("VERSION", "");
+  cmd_id = (int)id;
+
+  rb_cmd_state_t st;
+  st.command_name = "VERSION";
+  cmd_states[id] = st;
+
+  unsigned long t0 = millis();
+  const unsigned long timeout_ms = 3000;
+
+  while (!cmd_states[id].finished_bool) {
+    rb.poll();
+    if (millis() - t0 > timeout_ms) {
+      return "err";
+    }
+    delay(1);
+  }
+
+  if (!cmd_states[id].ok_bool) {
+    return "err";
+  }
+
+  String v = cmd_states[id].version_string;
+  v.replace("_", " ");
+
+  if (v.isEmpty()) {
+    return "rb interface version unknown";
+  }
+
+  return "rb interface version " + v;
+}
+
+String getLastColorStringCurr(uint32_t* cmd_id) {
+  if (cmd_id) *cmd_id = last_color_string_curr_cmd;
+  return last_color_string_curr;
+}
+
+int getLastColorReadStep(uint32_t* cmd_id) {
+  if (cmd_id) *cmd_id = last_color_read_step_cmd;
+  return last_color_read_step;
+}
+
+int getLastCubeMoveStep(uint32_t* cmd_id) {
+  if (cmd_id) *cmd_id = last_cube_move_step_cmd;
+  return last_cube_move_step;
+}
+
+int getLastRobotMoveStep(uint32_t* cmd_id) {
+  if (cmd_id) *cmd_id = last_robot_move_step_cmd;
+  return last_robot_move_step;
+}
+
+String getLastColorReadMap(uint32_t* cmd_id) {
+  if (cmd_id) *cmd_id = last_color_read_map_cmd;
+  return last_color_read_map;
+}
+
+bool getLastServoStatus(int servo_id, rb_servo_status_t& out) {
+  auto it = last_servo_status_by_id.find(servo_id);
+  if (it == last_servo_status_by_id.end())
+    return false;
+
+  out = it->second;
+  return true;
+}
+
+std::map<int, rb_servo_status_t> getAllLastServoStatus(uint32_t* cmd_id) {
+  if (cmd_id) *cmd_id = last_servo_status_cmd;
+  return last_servo_status_by_id;
+}
+
+String getLastServoStatusStr(int servo_id) {
+
+  // ------------------------------------------------------------
+  // ALL SERVOS
+  // ------------------------------------------------------------
+  if (servo_id == 0) {
+    if (last_servo_status_by_id.empty()) {
+      return "no servo info";
+    }
+
+    String out;
+    out.reserve(128);
+
+    bool first = true;
+    for (const auto& it : last_servo_status_by_id) {
+      const rb_servo_status_t& s = it.second;
+
+      if (!first) out += "\n";
+      first = false;
+
+      out += "Servo ";
+      out += String(s.servo_id);
+      out += " (";
+      out += s.servo_name;
+      out += "): ";
+
+      out += String(s.pos_deg, 2);
+      out += " deg, ";
+
+      out += String(s.current_ma);
+      out += " mA, ";
+
+      out += String(s.temp_c);
+      out += " C";
+    }
+
+    return out;
+  }
+
+  // ------------------------------------------------------------
+  // SINGLE SERVO
+  // ------------------------------------------------------------
+  rb_servo_status_t s;
+  if (!getLastServoStatus(servo_id, s)) {
+    return "no servo info";
+  }
+
+  String out;
+  out.reserve(64);
+
+  out += "Servo ";
+  out += String(s.servo_id);
+  out += " (";
+  out += s.servo_name;
+  out += "): ";
+
+  out += String(s.pos_deg, 2);
+  out += " deg, ";
+
+  out += String(s.current_ma);
+  out += " mA, ";
+
+  out += String(s.temp_c);
+  out += " C";
+
+  return out;
+}
 
 
 /* --------------------------------------------------------------------------------------------------------------------------------------------------
@@ -457,5 +784,58 @@ CMD (1) command_start=version
 CMD (1) version=v83_|_built_dec_30_2025_14_10_39_|_protocol_v1
 CMD (1) command_end=version
 CMD (1) command_end=VERSION result=ok duration=13ms
+
+CMD (0) command_start=READCOLORS params="all"
+CMD (0) readcolors_start_mode="all"
+        RUN (0) info=full
+        COLORSCAN (0) info=orientation_cleared
+        COLORSCAN (0) color_scan_start=full total_steps=14
+        COLORSCAN (0) color_read_start_with_map=f6_r6_b6_l6_l3_b3_r3_f3_d6_u3_u6_d3
+        COLORSCAN (0) color_read_start_with_step_count=14
+        COLORSCAN (0) color_read_step=0
+        COLORSCAN (0) read_face=f slot=1 color=R
+        COLORSCAN (0) color_string_curr_face=f color=f=R........
+        COLORSCAN (0) read_face=f slot=4 color=R
+        COLORSCAN (0) color_string_curr_face=f color=f=R..R.....
+        COLORSCAN (0) read_face=f slot=5 color=R
+        COLORSCAN (0) color_string_curr_face=f color=f=R..RR....
+        COLORSCAN (0) read_face=f slot=6 color=R
+        COLORSCAN (0) color_string_curr_face=f color=f=R..RRR...
+        COLORSCAN (0) read_face=f slot=3 color=R
+        COLORSCAN (0) color_string_curr_face=f color=f=R.RRRR...
+
+
+        CMD (6) robot_move_step=2 for_cube_move_face=f for_cube_move_face_qt=1
+        ROBOTMOVE (6) info=robot_move_start move=d_plus
+        RUN (6) base_->start=center ->rel move=right ->goal=right
+        CUBEMOVE (6) info=cube_move_progress cube_move_step=2 total=2 face=f suffix=-
+CMD (6) robot_move_step=0 for_cube_move_face=f for_cube_move_face_qt=-1
+        ROBOTMOVE (6) info=robot_move_start move=d_minus
+        RUN (6) base_->start=right ->rel move=left ->goal=center
+CMD (6) command_end=MOVECUBE result=ok duration=41s656ms
+
+CMD (7) command_start=RESTOREORI arg=0.00
+        RUN (7) restore_ori_based_on_moves_history=u->l_r->f_f->d_d->r_l->b_b->u
+        CUBEORI (7) info=orientation_restore_start
+        CUBEORI (7) oerientation_restore_solution_found_with_moves_count=2
+        ROBOTMOVE (7) info=robot_move_start move=z_plus
+        ROBOTMOVE (7) info=robot_move_start move=y_minus
+        RUN (7) base_->start=center ->rel move=right ->goal=right
+        RUN (7) info=return_to_pos_zero
+        RUN (7) info=ori_restored_to_identity
+        RUN (7) info=ori_orientation orientation=u->u r->r f->f d->d l->l b->b
+        RUN (7) info=ori_move_log move_log=
+CMD (7) command_end=RESTOREORI result=ok duration=26s421ms
+
+CMD (8) command_start=CHECKORI arg=0.00
+CMD (8) color_showing_in_front=G
+CMD (8) corresponding_face_showing_in_front=f
+CMD (8) face_that_should_be_showing_per_ori=f
+CMD (8) front_face_matches_ori__robot=f ori=f
+CMD (8) command_end=CHECKORI result=ok duration=3s638ms
+
+CMD (9) command_start=RUN arg=0.00
+        RUN (9) run_zero_start=wrist_is_horiz
+CMD (9) command_end=RUN result=ok duration=3s190ms
 
 -------------------------------------------------------------------------------------------------------------------------------------------------*/

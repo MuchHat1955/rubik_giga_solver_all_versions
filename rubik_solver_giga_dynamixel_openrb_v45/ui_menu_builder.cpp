@@ -401,10 +401,11 @@ void buildMenu(const char *menuKey) {
         lv_obj_set_scrollbar_mode(ta, LV_SCROLLBAR_MODE_AUTO);
 
         String servoText = "";
-        servoText = String("#FFA500 servos info#\n") + "" + "\n\n";
+        servoText = String("#FFA500 servos info#\n") + getLastServoStatusStr(0) + "\n\n";
 
         String systemText =
-          String("#FFA500 build#\n") + getSketchVersionWithDate() + "\n\n" +  //
+          String("#FFA500 main build#\n") + getSketchVersionWithDate() + "\n\n" +  //
+          String("#FFA500 rb build#\n") + getRbVersion() + "\n\n" +                //
           String("#FFA500 log lines#\n") + getAllErrorLines() + "\n\n" + servoText;
 
         lv_textarea_set_text(ta, systemText.c_str());

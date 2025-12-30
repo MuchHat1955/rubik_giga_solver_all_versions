@@ -64,8 +64,17 @@ bool getLastResult(int cmdId);
 String getLastCommandName(int cmdId);
 String getLastCommandParams(int cmdId);
 
+// TODO use all of below
 String getLastColorString();
 String getLastOrientation();
 String getColorStringForCmd(uint32_t cmd_id);
 String getOrientationForCmd(uint32_t cmd_id);
+String getRbInterfaceVersion();
 
+String getLastColorStringCurr(uint32_t* cmd_id = nullptr);
+int getLastColorReadStep(uint32_t* cmd_id = nullptr);
+int getLastCubeMoveStep(uint32_t* cmd_id = nullptr);
+int getLastRobotMoveStep(uint32_t* cmd_id = nullptr);
+String getLastColorReadMap(uint32_t* cmd_id = nullptr);
+bool getLastServoStatus(int servo_id, rb_servo_status_t& out);
+String getLastServoStatusStr(int servo_id);
