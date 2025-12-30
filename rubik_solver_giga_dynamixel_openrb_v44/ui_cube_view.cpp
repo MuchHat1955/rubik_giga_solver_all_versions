@@ -1,5 +1,6 @@
 #include <arduino.h>
 #include <vector>
+#include <ctype.h>
 #include "ui_cube_view.h"
 #include "logging.h"
 #include "ui_theme.h"  // for fonts
@@ -44,18 +45,18 @@ lv_obj_t* ui_cube_view_create(lv_obj_t* parent) {
 
   // ------------------------------------------------------------------
   // Cube container
-  lv_obj_t* cont = lv_obj_create(parent);
-  lv_obj_remove_style_all(cont);
+  lv_obj_t* cube_cont = lv_obj_create(parent);
+  lv_obj_remove_style_all(cube_cont);
 
-  lv_obj_set_size(cont, net_w + padding * 2, net_h + padding * 2);
-  lv_obj_set_style_bg_opa(cont, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_width(cont, 0, 0);
+  lv_obj_set_size(cube_cont, net_w + padding * 2, net_h + padding * 2);
+  lv_obj_set_style_bg_opa(cube_cont, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(cube_cont, 0, 0);
 
-  lv_obj_set_style_outline_width(cont, 0, 0);
-  lv_obj_set_style_outline_opa(cont, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_outline_pad(cont, 0, 0);
+  lv_obj_set_style_outline_width(cube_cont, 0, 0);
+  lv_obj_set_style_outline_opa(cube_cont, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_outline_pad(cube_cont, 0, 0);
 
-  lv_obj_clear_flag(cont, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_clear_flag(cube_cont, LV_OBJ_FLAG_SCROLLABLE);
 
   // Origin (top-left of net inside container)
   const int ox = padding;
@@ -64,7 +65,7 @@ lv_obj_t* ui_cube_view_create(lv_obj_t* parent) {
   // ------------------------------------------------------------------
   // Helper to create one sticker
   auto make_cell = [&](int idx, int x, int y) {
-    lv_obj_t* c = lv_obj_create(cont);
+    lv_obj_t* c = lv_obj_create(cube_cont);
     lv_obj_remove_style_all(c);
 
     lv_obj_set_size(c, cell, cell);
@@ -129,7 +130,7 @@ lv_obj_t* ui_cube_view_create(lv_obj_t* parent) {
     }
   }
 
-  return cont;
+  return cube_cont;
 }
 
 void ui_cube_view_set_colors(const String s) {
@@ -149,8 +150,8 @@ void ui_cube_view_set_colors(const String s) {
 // PROGRESS BAR
 // ------------------------------------------------------------------
 
-static lv_obj_t* root = nullptr;
-static lv_obj_t* cont = nullptr;
+static lv_obj_t* moves_root = nullptr;
+static lv_obj_t* moves_cont = nullptr;
 
 struct move_item_t {
   String move;
@@ -174,28 +175,38 @@ static lv_color_t face_color(char c) {
 
 // ------------------------------------------------------------------
 // PROGRESS BAR PUBLIC
-
 lv_obj_t* ui_moves_progress_create(lv_obj_t* parent, int w, int h) {
-  root = lv_obj_create(parent);
-  lv_obj_remove_style_all(root);
-  lv_obj_set_size(root, w, h);
+  moves_root = lv_obj_create(parent);
+  lv_obj_remove_style_all(moves_root);
+  lv_obj_set_size(moves_root, w, h);
 
-  lv_obj_set_style_border_width(root, 1, 0);
-  lv_obj_set_style_border_color(root, lv_color_hex(0x404040), 0);
-  lv_obj_set_style_bg_color(root, lv_color_hex(0x101010), 0);
-  lv_obj_set_style_bg_opa(root, LV_OPA_COVER, 0);
+  lv_obj_set_style_border_width(moves_root, 1, 0);
+  lv_obj_set_style_border_color(moves_root, lv_color_hex(0x404040), 0);
+  lv_obj_set_style_bg_color(moves_root, lv_color_hex(0x101010), 0);
+  lv_obj_set_style_bg_opa(moves_root, LV_OPA_COVER, 0);
 
-  cont = lv_obj_create(root);
-  lv_obj_remove_style_all(cont);
-  lv_obj_set_size(cont, w - 8, h - 8);
-  lv_obj_align(cont, LV_ALIGN_CENTER, 0, 0);
+  moves_cont = lv_obj_create(moves_root);
+  lv_obj_remove_style_all(moves_cont);
+  lv_obj_set_size(moves_cont, w - 8, h - 8);
+  lv_obj_align(moves_cont, LV_ALIGN_CENTER, 0, 0);
 
-  lv_obj_set_scroll_dir(cont, LV_DIR_VER);
-  lv_obj_set_style_pad_gap(cont, 6, 0);
-  lv_obj_set_style_pad_all(cont, 6, 0);
-  lv_obj_set_flex_flow(cont, LV_FLEX_FLOW_ROW_WRAP);
+  // FLEX
+  lv_obj_set_flex_flow(moves_cont, LV_FLEX_FLOW_ROW_WRAP);
+  lv_obj_set_flex_align(
+    moves_cont,
+    LV_FLEX_ALIGN_CENTER,
+    LV_FLEX_ALIGN_CENTER,
+    LV_FLEX_ALIGN_CENTER
+  );
 
-  return root;
+  // SCROLL (hidden bars)
+  lv_obj_set_scroll_dir(moves_cont, LV_DIR_VER);
+  lv_obj_set_scrollbar_mode(moves_cont, LV_SCROLLBAR_MODE_OFF);
+
+  lv_obj_set_style_pad_all(moves_cont, 6, 0);
+  lv_obj_set_style_pad_gap(moves_cont, 6, 0);
+
+  return moves_root;
 }
 
 void ui_moves_progress_set(String moves_str,
@@ -235,23 +246,23 @@ void ui_moves_progress_set(String moves_str,
   ui_moves_progress_set_index(0);
 }
 
-
 void ui_moves_progress_set_index(int idx) {
-  if (!cont) return;
+  if (!moves_cont) return;
+
   progress_idx = idx;
 
-  lv_obj_clean(cont);
+  lv_obj_clean(moves_cont);
+  move_labels.clear();
 
-  const int start =
-    std::max(0, progress_idx - 2);
+  const int start = max(0, progress_idx - 2);
+  const int end = min((int)moves.size(), progress_idx + 21);
 
-  for (int i = start; i < (int)moves.size(); i++) {
+  // ---- render visible moves ----
+  for (int i = start; i < end; i++) {
 
-    // stop if too many future moves
-    if (i > progress_idx + 20) break;
-
-    lv_obj_t* lbl = lv_label_create(cont);
+    lv_obj_t* lbl = lv_label_create(moves_cont);
     lv_label_set_text(lbl, moves[i].move.c_str());
+    lv_obj_set_style_text_font(lbl, FONT_BTN_SMALL_PTR, 0);
 
     lv_color_t col;
 
@@ -269,6 +280,22 @@ void ui_moves_progress_set_index(int idx) {
     }
 
     lv_obj_set_style_text_color(lbl, col, 0);
-    lv_obj_set_style_text_font(lbl, FONT_BTN_SMALL_PTR, 0);
+    move_labels.push_back(lbl);
+  }
+
+  // ---- scroll so current + previous visible ----
+  if (!move_labels.empty()) {
+
+    int local_idx = progress_idx - start - 1;
+    if (local_idx < 0) local_idx = 0;
+    if (local_idx >= (int)move_labels.size())
+      local_idx = move_labels.size() - 1;
+
+    lv_obj_scroll_to_view(move_labels[local_idx], LV_ANIM_OFF);
+
+    // settle at end
+    if (progress_idx >= (int)moves.size() - 1) {
+      lv_obj_scroll_to_view(move_labels.back(), LV_ANIM_OFF);
+    }
   }
 }

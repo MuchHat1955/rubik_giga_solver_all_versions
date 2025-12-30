@@ -445,6 +445,7 @@ void buildMenu(const char *menuKey) {
     // 2️⃣ Geometry
     lv_obj_set_size(cube_panel, 340, 225);
     lv_obj_align(cube_panel, LV_ALIGN_TOP_MID, 0, y + 2);
+    int cube_h = 225;
 
     // 3️⃣ Visuals (intentionally minimal)
     lv_obj_set_style_bg_opa(cube_panel, LV_OPA_TRANSP, 0);
@@ -462,6 +463,8 @@ void buildMenu(const char *menuKey) {
     lv_obj_t *cube = ui_cube_view_create(cube_panel);
     lv_obj_align(cube, LV_ALIGN_TOP_MID, 0, 0);
 
+    y += cube_h;
+
     // TODO below are for test
     String colors54 = getLastColorString();
     if (colors54.length() == 54) {
@@ -473,17 +476,32 @@ void buildMenu(const char *menuKey) {
     // ----------------------------------------------------------
     //  MOVE PROGRESS BAND (between cube and footer)
     // ----------------------------------------------------------
-    const int moves_h = 90;
+    const int moves_h = 60;
 
     // reserve space
     lv_obj_set_height(cont, lv_obj_get_height(cont) + moves_h);
 
     // create band
-    lv_obj_t *moves_ui =
-      ui_moves_progress_create(cont, SCREEN_W - 20, moves_h);
+    lv_obj_t *moves_ui = ui_moves_progress_create(cont, SCREEN_W - 20, moves_h);
+    lv_obj_remove_style_all(moves_ui);
+    lv_obj_set_size(moves_ui, w - 8, h - 8);
+    lv_obj_align(moves_ui, LV_ALIGN_CENTER, 0, 0);
 
-    // position it
-    lv_obj_align(moves_ui, LV_ALIGN_TOP_MID, 0, y + 6);
+    // FLEX layout
+    lv_obj_set_flex_flow(moves_ui, LV_FLEX_FLOW_ROW_WRAP);
+    lv_obj_set_flex_align(
+      moves_cont,
+      LV_FLEX_ALIGN_CENTER,
+      LV_FLEX_ALIGN_CENTER,
+      LV_FLEX_ALIGN_CENTER);
+
+    // SCROLL behavior
+    lv_obj_set_scroll_dir(moves_ui, LV_DIR_VER);
+    lv_obj_set_scrollbar_mode(moves_ui, LV_SCROLLBAR_MODE_OFF);  // <<< KEY LINE
+
+    // Padding
+    lv_obj_set_style_pad_all(moves_ui, 6, 0);
+    lv_obj_set_style_pad_gap(moves_ui, 6, 0);
 
     // TODO below are for test
     String moves = "f+ f-";
