@@ -43,13 +43,14 @@ lv_obj_t* ui_cube_view_create(lv_obj_t* parent) {
   lv_obj_remove_style_all(cont);
 
   lv_obj_set_size(cont, net_w + padding * 2, net_h + padding * 2);
-  lv_obj_set_style_bg_opa(cont, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_width(cont, 0, 0);
+  // below is for debugging
+  // lv_obj_set_style_bg_opa(cont, LV_OPA_TRANSP, 0);
+  // lv_obj_set_style_border_width(cont, 0, 0);
   lv_obj_clear_flag(cont, LV_OBJ_FLAG_SCROLLABLE);
 
   // Origin (top-left of net inside container)
   const int ox = padding;
-  const int oy = padding - 8;
+  const int oy = padding;
 
   // ------------------------------------------------------------------
   // Helper to create one sticker
