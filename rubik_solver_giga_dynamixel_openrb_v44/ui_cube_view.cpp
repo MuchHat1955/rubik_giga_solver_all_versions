@@ -132,7 +132,7 @@ lv_obj_t* ui_cube_view_create(lv_obj_t* parent) {
   return cont;
 }
 
-void ui_cube_view_set_colors(const String& s) {
+void ui_cube_view_set_colors(const String s) {
   if (s.length() != 54) return;
 
   for (int i = 0; i < 54; i++) {
