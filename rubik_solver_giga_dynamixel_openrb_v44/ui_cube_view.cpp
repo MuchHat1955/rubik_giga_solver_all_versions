@@ -133,7 +133,7 @@ lv_obj_t* ui_cube_view_create(lv_obj_t* parent) {
   return cube_cont;
 }
 
-void ui_cube_view_set_colors(const String s) {
+void ui_cube_view_set_colors(const String& s) {
   if (s.length() != 54) return;
 
   for (int i = 0; i < 54; i++) {
@@ -142,7 +142,7 @@ void ui_cube_view_set_colors(const String s) {
                               color_from_char(s[i]),
                               0);
 
-    LOG_PRINTF("setting cell %d color %d\n", i, color_from_char(s[i]));
+    // LOG_PRINTF("setting cell %d color %c\n", i, s[i]);
   }
 }
 
@@ -153,12 +153,12 @@ void ui_cube_view_set_colors(const String s) {
 static lv_obj_t* moves_root = nullptr;
 static lv_obj_t* moves_cont = nullptr;
 
-struct move_item_t {
+struct progress_item_t {
   String move;
   char color;
 };
 
-static std::vector<move_item_t> moves;
+static std::vector<progress_item_t> progress_items;
 static int progress_idx = 0;
 
 static lv_color_t face_color(char c) {
@@ -196,8 +196,7 @@ lv_obj_t* ui_moves_progress_create(lv_obj_t* parent, int w, int h) {
     moves_cont,
     LV_FLEX_ALIGN_CENTER,
     LV_FLEX_ALIGN_CENTER,
-    LV_FLEX_ALIGN_CENTER
-  );
+    LV_FLEX_ALIGN_CENTER);
 
   // SCROLL (hidden bars)
   lv_obj_set_scroll_dir(moves_cont, LV_DIR_VER);
@@ -219,15 +218,22 @@ void ui_moves_progress_set(String moves_str,
   std::vector<String> tokens;
   String tmp;
 
-  for (char c : moves_str) {
-    if (c == ' ') {
-      if (tmp.length()) tokens.push_back(tmp);
-      tmp = "";
+  for (int i = 0; i < moves_str.length(); i++) {
+    char c = moves_str[i];
+
+    if (isspace((unsigned char)c)) {
+      if (tmp.length()) {
+        tokens.push_back(tmp);
+        tmp = "";
+      }
     } else {
       tmp += c;
     }
   }
-  if (tmp.length()) tokens.push_back(tmp);
+
+  if (tmp.length()) {
+    tokens.push_back(tmp);
+  }
 
   // normalize colors length
   while (colors_str.length() < tokens.size()) {
@@ -238,13 +244,15 @@ void ui_moves_progress_set(String moves_str,
   }
 
   // build internal list
-  moves.clear();
+  progress_items.clear();
   for (int i = 0; i < (int)tokens.size(); i++) {
-    moves.push_back({ tokens[i], colors_str[i] });
+    progress_items.push_back({ tokens[i], colors_str[i] });
   }
 
   ui_moves_progress_set_index(0);
 }
+
+static std::vector<lv_obj_t*> move_labels;
 
 void ui_moves_progress_set_index(int idx) {
   if (!moves_cont) return;
@@ -255,28 +263,25 @@ void ui_moves_progress_set_index(int idx) {
   move_labels.clear();
 
   const int start = max(0, progress_idx - 2);
-  const int end = min((int)moves.size(), progress_idx + 21);
+  const int end = min((int)progress_items.size(), progress_idx + 21);
 
   // ---- render visible moves ----
   for (int i = start; i < end; i++) {
 
     lv_obj_t* lbl = lv_label_create(moves_cont);
-    lv_label_set_text(lbl, moves[i].move.c_str());
-    lv_obj_set_style_text_font(lbl, FONT_BTN_SMALL_PTR, 0);
+    lv_label_set_text(lbl, progress_items[i].move.c_str());
+    lv_obj_set_style_text_font(lbl, FONT_BTN_LARGE_PTR, 0);  // TODO was FONT_BTN_SMALL_PTR
 
     lv_color_t col;
 
     if (i < progress_idx) {
-      // past
-      col = lv_color_hex(0x808080);
+      col = lv_color_hex(0x808080);  // past
     } else if (i == progress_idx) {
-      // current
-      col = face_color(moves[i].color);
+      col = face_color(progress_items[i].color);  // current
       lv_obj_set_style_border_width(lbl, 1, 0);
       lv_obj_set_style_border_color(lbl, col, 0);
     } else {
-      // future
-      col = face_color(moves[i].color);
+      col = face_color(progress_items[i].color);  // future
     }
 
     lv_obj_set_style_text_color(lbl, col, 0);
@@ -294,7 +299,7 @@ void ui_moves_progress_set_index(int idx) {
     lv_obj_scroll_to_view(move_labels[local_idx], LV_ANIM_OFF);
 
     // settle at end
-    if (progress_idx >= (int)moves.size() - 1) {
+    if (progress_idx >= (int)progress_items.size() - 1) {
       lv_obj_scroll_to_view(move_labels.back(), LV_ANIM_OFF);
     }
   }
