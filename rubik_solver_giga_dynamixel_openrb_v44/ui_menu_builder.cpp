@@ -490,7 +490,7 @@ void buildMenu(const char *menuKey) {
     // FLEX layout
     lv_obj_set_flex_flow(moves_ui, LV_FLEX_FLOW_ROW_WRAP);
     lv_obj_set_flex_align(
-      moves_cont,
+      moves_ui,
       LV_FLEX_ALIGN_CENTER,
       LV_FLEX_ALIGN_CENTER,
       LV_FLEX_ALIGN_CENTER);
