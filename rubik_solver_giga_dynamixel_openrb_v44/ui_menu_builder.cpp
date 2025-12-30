@@ -463,11 +463,11 @@ void buildMenu(const char *menuKey) {
     lv_obj_align(cube, LV_ALIGN_TOP_MID, 0, 0);
 
     // TODO below are for test
-    String colors = getLastColorString();
-    if (colors.length() == 54) {
-      ui_cube_view_set_colors(colors);
+    String colors54 = getLastColorString();
+    if (colors54.length() == 54) {
+      ui_cube_view_set_colors(colors54);
     }
-    LOG_PRINTF("cube view created with {%s}\n", colors.c_str());
+    LOG_PRINTF("cube view created with {%s}\n", colors54.c_str());
     // END TEST
 
     // ----------------------------------------------------------

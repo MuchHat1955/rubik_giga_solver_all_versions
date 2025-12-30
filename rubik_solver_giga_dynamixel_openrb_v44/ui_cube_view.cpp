@@ -1,8 +1,12 @@
 #include <vector>
 #include "ui_cube_view.h"
 #include "logging.h"
-#include "ui_theme.h" // for fonts
+#include "ui_theme.h"  // for fonts
 
+
+// ------------------------------------------------------------------
+// CUBE VIEW
+// ------------------------------------------------------------------
 static lv_obj_t* cube_cells[54] = { nullptr };
 
 // map cube colors → LVGL colors
@@ -22,7 +26,6 @@ static lv_color_t color_from_char(char c) {
 lv_obj_t* ui_cube_view_create(lv_obj_t* parent) {
   // ------------------------------------------------------------------
   // Layout constants (single source of truth)
-  // ------------------------------------------------------------------
   const int cell = 18;
   const int gap = 2;
 
@@ -40,7 +43,6 @@ lv_obj_t* ui_cube_view_create(lv_obj_t* parent) {
 
   // ------------------------------------------------------------------
   // Cube container
-  // ------------------------------------------------------------------
   lv_obj_t* cont = lv_obj_create(parent);
   lv_obj_remove_style_all(cont);
 
@@ -52,7 +54,7 @@ lv_obj_t* ui_cube_view_create(lv_obj_t* parent) {
   lv_obj_set_style_outline_opa(cont, LV_OPA_TRANSP, 0);
   lv_obj_set_style_outline_pad(cont, 0, 0);
 
-    lv_obj_clear_flag(cont, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_clear_flag(cont, LV_OBJ_FLAG_SCROLLABLE);
 
   // Origin (top-left of net inside container)
   const int ox = padding;
@@ -60,7 +62,6 @@ lv_obj_t* ui_cube_view_create(lv_obj_t* parent) {
 
   // ------------------------------------------------------------------
   // Helper to create one sticker
-  // ------------------------------------------------------------------
   auto make_cell = [&](int idx, int x, int y) {
     lv_obj_t* c = lv_obj_create(cont);
     lv_obj_remove_style_all(c);
@@ -78,11 +79,8 @@ lv_obj_t* ui_cube_view_create(lv_obj_t* parent) {
 
     cube_cells[idx] = c;
   };
-
-
   // ------------------------------------------------------------------
   // L F R B faces
-  // ------------------------------------------------------------------
   int baseY = oy + face + v_gap;
 
   int baseX[] = {
@@ -95,11 +93,8 @@ lv_obj_t* ui_cube_view_create(lv_obj_t* parent) {
   int fx = baseX[1];  // Front face X
 
   int faces[] = { 36, 18, 9, 45 };  // L F R B
-
   // ------------------------------------------------------------------
   // U face (0..8)
-  // ------------------------------------------------------------------
-  // --- U face (0..8), aligned above F
   for (int r = 0; r < 3; r++) {
     for (int c = 0; c < 3; c++) {
       make_cell(
@@ -122,8 +117,6 @@ lv_obj_t* ui_cube_view_create(lv_obj_t* parent) {
 
   // ------------------------------------------------------------------
   // D face (27..35)
-  // ------------------------------------------------------------------
-  // --- D face (27..35), aligned below F
   int dY = baseY + face + v_gap;
 
   for (int r = 0; r < 3; r++) {
@@ -151,8 +144,9 @@ void ui_cube_view_set_colors(const String& s) {
   }
 }
 
-//-----------------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------
 // PROGRESS BAR
+// ------------------------------------------------------------------
 
 static lv_obj_t* root = nullptr;
 static lv_obj_t* cont = nullptr;
@@ -173,9 +167,12 @@ static lv_color_t face_color(char c) {
     case 'y': return lv_color_hex(0xFFD700);
     case 'o': return lv_color_hex(0xFF8000);
     case 'w': return lv_color_white();
-    default:  return lv_color_hex(0x808080);
+    default: return lv_color_hex(0x808080);
   }
 }
+
+// ------------------------------------------------------------------
+// PROGRESS BAR PUBLIC
 
 lv_obj_t* ui_moves_progress_create(lv_obj_t* parent, int w, int h) {
   root = lv_obj_create(parent);
@@ -202,6 +199,9 @@ lv_obj_t* ui_moves_progress_create(lv_obj_t* parent, int w, int h) {
 
 void ui_moves_progress_set(const String& moves_str,
                            const String& colors_str) {
+  moves_str.toLower();
+  colors_str.toLower();
+
   moves.clear();
   progress_idx = 0;
   lv_obj_clean(cont);
@@ -263,6 +263,3 @@ void ui_moves_progress_set_index(int idx) {
     lv_obj_set_style_text_font(lbl, FONT_BTN_SMALL_PTR, 0);
   }
 }
-
-
-
