@@ -436,17 +436,29 @@ void buildMenu(const char *menuKey) {
       strcmp(menuKey, "k_solve_cube") == 0) {
 
     lv_obj_clear_flag(cont, LV_OBJ_FLAG_SCROLLABLE);
+
     lv_obj_t *cube_panel = lv_obj_create(cont);
-    lv_obj_clear_flag(cube_panel, LV_OBJ_FLAG_SCROLLABLE);
+
+    // 1️⃣ First: nuke theme & defaults
+    lv_obj_remove_style_all(cube_panel);
+
+    // 2️⃣ Geometry
     lv_obj_set_size(cube_panel, 340, 225);
-    lv_obj_set_style_bg_opa(cube_panel, LV_OPA_TRANSP, 0);
-
-    // below is for debugging
-    // lv_obj_set_style_border_width(cube_panel, 1, 0);
-    // lv_obj_set_style_border_color(cube_panel, lv_color_hex(0x404040), 0);
-
     lv_obj_align(cube_panel, LV_ALIGN_TOP_MID, 0, y + 2);
 
+    // 3️⃣ Visuals (intentionally minimal)
+    lv_obj_set_style_bg_opa(cube_panel, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(cube_panel, 0, 0);
+    lv_obj_set_style_outline_width(cube_panel, 0, 0);
+    lv_obj_set_style_outline_opa(cube_panel, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_outline_pad(cube_panel, 0, 0);
+
+    // 4️⃣ Behavior
+    lv_obj_clear_flag(cube_panel, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_clear_flag(cube_panel, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_state(cube_panel, LV_STATE_FOCUSED);
+
+    // 5️⃣ Cube itself
     lv_obj_t *cube = ui_cube_view_create(cube_panel);
     lv_obj_align(cube, LV_ALIGN_TOP_MID, 0, 0);
 
@@ -454,6 +466,7 @@ void buildMenu(const char *menuKey) {
     if (colors.length() == 54) {
       ui_cube_view_set_colors(colors);
     }
+
     LOG_PRINTF("cube view created with {%s}\n", colors.c_str());
   }
 
