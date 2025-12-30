@@ -462,12 +462,36 @@ void buildMenu(const char *menuKey) {
     lv_obj_t *cube = ui_cube_view_create(cube_panel);
     lv_obj_align(cube, LV_ALIGN_TOP_MID, 0, 0);
 
+    // TODO below are for test
     String colors = getLastColorString();
     if (colors.length() == 54) {
       ui_cube_view_set_colors(colors);
     }
-
     LOG_PRINTF("cube view created with {%s}\n", colors.c_str());
+    // END TEST
+
+    // ----------------------------------------------------------
+    //  MOVE PROGRESS BAND (between cube and footer)
+    // ----------------------------------------------------------
+    const int moves_h = 90;
+
+    // reserve space
+    lv_obj_set_height(cont, lv_obj_get_height(cont) + moves_h);
+
+    // create band
+    lv_obj_t *moves_ui =
+      ui_moves_progress_create(cont, SCREEN_W - 20, moves_h);
+
+    // position it
+    lv_obj_align(moves_ui, LV_ALIGN_TOP_MID, 0, y + 6);
+
+    // TODO below are for test
+    String moves = "f+ f-";
+    String colors = "RG";
+    ui_moves_progress_set(moves, colors);
+    ui_moves_progress_set_index(0);
+    LOG_PRINTF("progress bar created with {%s}\n", colors.c_str());
+    // END TEST
   }
 
   lv_obj_invalidate(lv_scr_act());

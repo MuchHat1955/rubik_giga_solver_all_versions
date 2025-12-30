@@ -1,5 +1,7 @@
+#include <vector>
 #include "ui_cube_view.h"
 #include "logging.h"
+#include "ui_theme.h" // for fonts
 
 static lv_obj_t* cube_cells[54] = { nullptr };
 
@@ -148,3 +150,119 @@ void ui_cube_view_set_colors(const String& s) {
     LOG_PRINTF("setting cell %d color %d\n", i, color_from_char(s[i]));
   }
 }
+
+//-----------------------------------------------------------------------------------------------------
+// PROGRESS BAR
+
+static lv_obj_t* root = nullptr;
+static lv_obj_t* cont = nullptr;
+
+struct move_item_t {
+  String move;
+  char color;
+};
+
+static std::vector<move_item_t> moves;
+static int progress_idx = 0;
+
+static lv_color_t face_color(char c) {
+  switch (tolower(c)) {
+    case 'r': return lv_color_hex(0xFF0000);
+    case 'g': return lv_color_hex(0x00A000);
+    case 'b': return lv_color_hex(0x0040FF);
+    case 'y': return lv_color_hex(0xFFD700);
+    case 'o': return lv_color_hex(0xFF8000);
+    case 'w': return lv_color_white();
+    default:  return lv_color_hex(0x808080);
+  }
+}
+
+lv_obj_t* ui_moves_progress_create(lv_obj_t* parent, int w, int h) {
+  root = lv_obj_create(parent);
+  lv_obj_remove_style_all(root);
+  lv_obj_set_size(root, w, h);
+
+  lv_obj_set_style_border_width(root, 1, 0);
+  lv_obj_set_style_border_color(root, lv_color_hex(0x404040), 0);
+  lv_obj_set_style_bg_color(root, lv_color_hex(0x101010), 0);
+  lv_obj_set_style_bg_opa(root, LV_OPA_COVER, 0);
+
+  cont = lv_obj_create(root);
+  lv_obj_remove_style_all(cont);
+  lv_obj_set_size(cont, w - 8, h - 8);
+  lv_obj_align(cont, LV_ALIGN_CENTER, 0, 0);
+
+  lv_obj_set_scroll_dir(cont, LV_DIR_VER);
+  lv_obj_set_style_pad_gap(cont, 6, 0);
+  lv_obj_set_style_pad_all(cont, 6, 0);
+  lv_obj_set_flex_flow(cont, LV_FLEX_FLOW_ROW_WRAP);
+
+  return root;
+}
+
+void ui_moves_progress_set(const String& moves_str,
+                           const String& colors_str) {
+  moves.clear();
+  progress_idx = 0;
+  lv_obj_clean(cont);
+
+  std::vector<String> tokens;
+  String tmp;
+
+  // split by space
+  for (char c : moves_str) {
+    if (c == ' ') {
+      if (tmp.length()) tokens.push_back(tmp);
+      tmp = "";
+    } else tmp += c;
+  }
+  if (tmp.length()) tokens.push_back(tmp);
+
+  if ((int)tokens.size() != colors_str.length()) return;
+
+  for (int i = 0; i < (int)tokens.size(); i++) {
+    moves.push_back({ tokens[i], colors_str[i] });
+  }
+
+  ui_moves_progress_set_index(0);
+}
+
+void ui_moves_progress_set_index(int idx) {
+  if (!cont) return;
+  progress_idx = idx;
+
+  lv_obj_clean(cont);
+
+  const int start =
+    std::max(0, progress_idx - 2);
+
+  for (int i = start; i < (int)moves.size(); i++) {
+
+    // stop if too many future moves
+    if (i > progress_idx + 20) break;
+
+    lv_obj_t* lbl = lv_label_create(cont);
+    lv_label_set_text(lbl, moves[i].move.c_str());
+
+    lv_color_t col;
+
+    if (i < progress_idx) {
+      // past
+      col = lv_color_hex(0x808080);
+    } else if (i == progress_idx) {
+      // current
+      col = face_color(moves[i].color);
+      lv_obj_set_style_border_width(lbl, 1, 0);
+      lv_obj_set_style_border_color(lbl, col, 0);
+    } else {
+      // future
+      col = face_color(moves[i].color);
+    }
+
+    lv_obj_set_style_text_color(lbl, col, 0);
+    lv_obj_set_style_text_font(lbl, FONT_BTN_SMALL_PTR, 0);
+  }
+}
+
+
+
