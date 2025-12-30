@@ -16,6 +16,8 @@ String getSketchVersion();
 String getSketchVersionWithDate();
 void buildMenu(const char *menuKey);
 
+extern String getLastColorString();
+
 extern RBInterface rb;
 
 // ===========================================================
@@ -422,26 +424,37 @@ void buildMenu(const char *menuKey) {
 
         adjustedRowH = textH + 20;
       }
-      // ----------------------------------------------------------
-      //  READ CUBE → show cube visualization
-      // ----------------------------------------------------------
-      if (strcmp(menuKey, "k_read_cube") == 0) {
-        extern String getLastColorString();
-
-        lv_obj_t *cube = ui_cube_view_create(cont);
-
-        // center it under buttons
-        lv_obj_align(cube, LV_ALIGN_TOP_MID, 0, y + 10);
-
-        String colors = getLastColorString();
-        if (colors.length() == 54) {
-          ui_cube_view_set_colors(colors);
-        }
-      }
-
       x += colW + 8;
     }
     y += adjustedRowH;
+  }
+
+  // ----------------------------------------------------------
+  //  READ CUBE → show cube visualization
+  // ----------------------------------------------------------
+  if (strcmp(menuKey, "k_read_cube") == 0 ||  //
+      strcmp(menuKey, "k_solve_cube") == 0) {
+
+    lv_obj_clear_flag(cont, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_t *cube_panel = lv_obj_create(cont);
+    lv_obj_clear_flag(cube_panel, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(cube_panel, 340, 225);
+    lv_obj_set_style_bg_opa(cube_panel, LV_OPA_TRANSP, 0);
+
+    // below is for debugging
+    // lv_obj_set_style_border_width(cube_panel, 1, 0);
+    // lv_obj_set_style_border_color(cube_panel, lv_color_hex(0x404040), 0);
+
+    lv_obj_align(cube_panel, LV_ALIGN_TOP_MID, 0, y + 2);
+
+    lv_obj_t *cube = ui_cube_view_create(cube_panel);
+    lv_obj_align(cube, LV_ALIGN_TOP_MID, 0, 0);
+
+    String colors = getLastColorString();
+    if (colors.length() == 54) {
+      ui_cube_view_set_colors(colors);
+    }
+    LOG_PRINTF("cube view created with {%s}\n", colors.c_str());
   }
 
   lv_obj_invalidate(lv_scr_act());

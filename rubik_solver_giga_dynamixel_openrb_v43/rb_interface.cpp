@@ -177,8 +177,8 @@ struct rb_cmd_state_t {
 
 static std::map<uint32_t, rb_cmd_state_t> cmd_states;
 static uint32_t last_finished_cmd_id = 0;
-static String last_color_string_54;
-static String last_orientation;
+static String last_color_string_54 = "WWWWWWWWWRRRRRRRRRGGGGGGGGGYYYYYYYYYOOOOOOOOOBBBBBBBBB";
+static String last_orientation="u->u_r->r_f->f_d->d_l->l_b->b";
 
 static void rb_command_end_cb(const String& result, const String& duration) {
   LOG_PRINTF("[CMD] done %s (%s)\n", result.c_str(), duration.c_str());
