@@ -1,3 +1,4 @@
+#include <arduino.h>
 #include <vector>
 #include "ui_cube_view.h"
 #include "logging.h"
@@ -197,35 +198,43 @@ lv_obj_t* ui_moves_progress_create(lv_obj_t* parent, int w, int h) {
   return root;
 }
 
-void ui_moves_progress_set(const String& moves_str,
-                           const String& colors_str) {
-  moves_str.toLower();
-  colors_str.toLower();
+void ui_moves_progress_set(String moves_str,
+                           String colors_str) {
+  // normalize case
+  moves_str.toLowerCase();
+  colors_str.toLowerCase();
 
-  moves.clear();
-  progress_idx = 0;
-  lv_obj_clean(cont);
-
+  // split moves
   std::vector<String> tokens;
   String tmp;
 
-  // split by space
   for (char c : moves_str) {
     if (c == ' ') {
       if (tmp.length()) tokens.push_back(tmp);
       tmp = "";
-    } else tmp += c;
+    } else {
+      tmp += c;
+    }
   }
   if (tmp.length()) tokens.push_back(tmp);
 
-  if ((int)tokens.size() != colors_str.length()) return;
+  // normalize colors length
+  while (colors_str.length() < tokens.size()) {
+    colors_str += '.';
+  }
+  if (colors_str.length() > tokens.size()) {
+    colors_str.remove(tokens.size());
+  }
 
+  // build internal list
+  moves.clear();
   for (int i = 0; i < (int)tokens.size(); i++) {
     moves.push_back({ tokens[i], colors_str[i] });
   }
 
   ui_moves_progress_set_index(0);
 }
+
 
 void ui_moves_progress_set_index(int idx) {
   if (!cont) return;
