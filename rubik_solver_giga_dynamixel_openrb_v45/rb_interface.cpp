@@ -213,6 +213,8 @@ static String last_color_string_54 = "WWWWWWWWWRRRRRRRRRGGGGGGGGGYYYYYYYYYOOOOOO
 static String last_orientation = "u->u_r->r_f->f_d->d_l->l_b->b";
 
 // ================= GLOBAL LAST-SEEN STATE =================
+static String last_color_one_color =".";
+static uint32_t last_color_one_color_cmd = 0;
 
 static String last_color_string_curr;
 static uint32_t last_color_string_curr_cmd = 0;
@@ -332,6 +334,23 @@ static void rb_info_cb(const String& mod,
       st.color_string_curr = value;
       last_color_string_curr = value;
       last_color_string_curr_cmd = id;
+    }
+    return;
+  }
+
+  // ------------------------------------------------------------
+  // COLORSCAN color_string_curr / color_string_curr_face
+  // info=read_one_color color=G
+  // ------------------------------------------------------------
+  if (msg.indexOf("read_one_color") >= 0) {
+    int eq = msg.indexOf('color=');
+    if (eq > 0) {
+      String value = msg.substring(eq + 1);
+      value.trim();
+
+      st.color_one_color = value;
+      last_color_one_color = value;
+      last_color_string_one_color_cmd = id;
     }
     return;
   }
@@ -565,7 +584,10 @@ String getLastColorStringCurr(uint32_t* cmd_id) {
   if (cmd_id) *cmd_id = last_color_string_curr_cmd;
   return last_color_string_curr;
 }
-
+String getLastColorOneColor(uint32_t* cmd_id) {
+  if (cmd_id) *cmd_id = last_color_one_color_cmd;
+  return last_color_one_color;
+}
 int getLastColorReadStep(uint32_t* cmd_id) {
   if (cmd_id) *cmd_id = last_color_read_step_cmd;
   return last_color_read_step;

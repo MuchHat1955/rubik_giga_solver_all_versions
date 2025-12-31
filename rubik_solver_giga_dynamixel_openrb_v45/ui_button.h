@@ -61,3 +61,8 @@ void clear_all_button_ptrs();
 void log_button_by_id(int id);
 void log_button_by_key(const char* key);
 void log_all_buttons(bool only_if_not_on_default = false);
+
+void buttons_set_text_ori(char* ori_text);
+void buttons_set_text_front_color(char* clr_text);
+void buttons_set_text_by_key(char* key, char* a_text);
+void buttons_set_color_string(char* color_string);

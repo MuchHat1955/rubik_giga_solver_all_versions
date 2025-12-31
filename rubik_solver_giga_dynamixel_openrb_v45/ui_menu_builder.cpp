@@ -674,7 +674,7 @@ const char jsonBuffer[] = R"json(
       ],
       [
         { "text": "color read", "type": "text", "key": ""  },
-        { "text": "", "type": "text", "key": "color_read_front_color_val","status": "yes" },
+        { "text": "", "type": "text", "key": "color_read_front_color_value","status": "yes" },
         { "text": "", "type": "text", "key": "" }
       ],
       [

@@ -68,6 +68,38 @@ void UIButton::set_is_busy(bool val) {
   is_busy_ = val;
 }
 
+//TODO use below
+void buttons_set_text_ori(char* ori_text) {
+  UIButton* btn_ptr = nullptr;
+
+  btn_ptr = find_button_by_key("k_orientation_val");
+  if (btn_ptr) btn_ptr->set_text(ori_text);
+  last_orientation = ori_text;
+}
+
+// TODO use below
+void buttons_set_text_front_color(char* clr_text) {
+  UIButton* btn_ptr = nullptr;
+
+  btn_ptr = find_button_by_key("k_cube_moves_front_color_value");
+  if (btn_ptr) btn_ptr->set_text(clr_text);
+  btn_ptr = find_button_by_key("k_cube_moves_front_color_value");
+  if (btn_ptr) btn_ptr->set_text(clr_text);
+  btn_ptr = find_button_by_key("color_read_front_color_value");
+  if (btn_ptr) btn_ptr->set_text(clr_text);
+}
+// TODO use below
+void buttons_set_text_by_key(char* key, char* a_text) {
+  UIButton* btn_ptr = nullptr;
+
+  btn_ptr = find_button_by_key(key);
+  if (btn_ptr) btn_ptr->set_text(a_text);
+}
+// TODO use below
+void buttons_set_color_string(char* color_string) {
+  last_color_string_54 = color_string;
+}
+
 // ============================================================================
 // Global button registry
 // ============================================================================
@@ -143,7 +175,7 @@ UIButton ui_buttons[] = {
   { 50, "restore", "k_orientation_restore", nullptr, true, false },
 
   { 51, "color read", "", nullptr, false, false },
-  { 52, "front is", "color_read_front_color_val", nullptr, true, false },
+  { 52, "front is", "color_read_front_color_value", nullptr, true, false },
 
   { 53, "all", "k_orientation_color_read_all", nullptr, true, false },
   { 54, "bottom", "k_orientation_color_read_bottom", nullptr, true, false },
