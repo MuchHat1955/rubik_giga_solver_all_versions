@@ -178,8 +178,9 @@ struct rb_cmd_state_t {
 
   // COLORSCAN
   String color_string_curr;  // full 54 when available, or partial
-  int color_read_step = -1;
+  String color_one_color;
   String color_read_map;  // f6_r6_b6_...
+  int color_read_step = -1;
 
   // MOVES
   int cube_move_step = -1;
@@ -213,7 +214,7 @@ static String last_color_string_54 = "WWWWWWWWWRRRRRRRRRGGGGGGGGGYYYYYYYYYOOOOOO
 static String last_orientation = "u->u_r->r_f->f_d->d_l->l_b->b";
 
 // ================= GLOBAL LAST-SEEN STATE =================
-static String last_color_one_color =".";
+static String last_color_one_color = ".";
 static uint32_t last_color_one_color_cmd = 0;
 
 static String last_color_string_curr;
@@ -230,6 +231,10 @@ static uint32_t last_robot_move_step_cmd = 0;
 
 static String last_color_read_map;
 static uint32_t last_color_read_map_cmd = 0;
+
+void set_last_color_string_54(String a_color_string) {
+  last_color_string_54 = a_color_string;
+}
 
 
 static void rb_command_end_cb(const String& result, const String& duration) {
@@ -350,7 +355,7 @@ static void rb_info_cb(const String& mod,
 
       st.color_one_color = value;
       last_color_one_color = value;
-      last_color_string_one_color_cmd = id;
+      last_color_one_color_cmd = id;
     }
     return;
   }

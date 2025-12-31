@@ -1,6 +1,7 @@
 #include "ui_button.h"
 #include "logging.h"
 #include "ui_theme.h"
+#include "rb_interface.h"
 
 // ============================================================================
 // UIButton implementation
@@ -97,7 +98,7 @@ void buttons_set_text_by_key(char* key, char* a_text) {
 }
 // TODO use below
 void buttons_set_color_string(char* color_string) {
-  last_color_string_54 = color_string;
+  set_last_color_string_54(color_string);
 }
 
 // ============================================================================

@@ -2,6 +2,7 @@
 #include "rb_interface.h"
 #include "logging.h"
 #include "ui_touch.h"
+#include "ui_button.h"
 
 //-----------------------------------------------------------------------------------------
 
@@ -158,7 +159,7 @@ bool runColorStickerByKey(const char* key, bool& result) {
     text = String("read color sticker c") + slot + " failed";
     setFooter(text.c_str());
   } else {
-    int icmd;
+    uint32_t icmd;
     String one_color = getLastColorOneColor(&icmd);
     buttons_set_text_by_key(key, one_color);
     text = String("read color sticker c") + slot + " " + one_color;
