@@ -161,7 +161,7 @@ bool runColorStickerByKey(const char* key, bool& result) {
   } else {
     uint32_t icmd;
     String one_color = getLastColorOneColor(&icmd);
-    buttons_set_text_by_key(key, one_color);
+    buttons_set_text_by_key(key, one_color.c_str());
     text = String("read color sticker c") + slot + " " + one_color;
     setFooter(text.c_str());
   }

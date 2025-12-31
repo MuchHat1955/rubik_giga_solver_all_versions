@@ -235,6 +235,9 @@ static uint32_t last_color_read_map_cmd = 0;
 void set_last_color_string_54(String a_color_string) {
   last_color_string_54 = a_color_string;
 }
+void set_last_orientation(String a_ori) {
+  last_orientation = a_ori;
+}
 
 
 static void rb_command_end_cb(const String& result, const String& duration) {

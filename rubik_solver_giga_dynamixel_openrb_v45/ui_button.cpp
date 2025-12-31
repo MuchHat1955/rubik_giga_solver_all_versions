@@ -75,7 +75,7 @@ void buttons_set_text_ori(char* ori_text) {
 
   btn_ptr = find_button_by_key("k_orientation_val");
   if (btn_ptr) btn_ptr->set_text(ori_text);
-  last_orientation = ori_text;
+  set_last_orientation(ori_text); // TODO is this needed
 }
 
 // TODO use below
@@ -90,15 +90,15 @@ void buttons_set_text_front_color(char* clr_text) {
   if (btn_ptr) btn_ptr->set_text(clr_text);
 }
 // TODO use below
-void buttons_set_text_by_key(char* key, char* a_text) {
+void buttons_set_text_by_key(const char* key, const char* a_text) {
   UIButton* btn_ptr = nullptr;
 
   btn_ptr = find_button_by_key(key);
   if (btn_ptr) btn_ptr->set_text(a_text);
 }
 // TODO use below
-void buttons_set_color_string(char* color_string) {
-  set_last_color_string_54(color_string);
+void buttons_set_color_string(const char* color_string) {
+  set_last_color_string_54(color_string); // TODO probably needed
 }
 
 // ============================================================================
