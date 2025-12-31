@@ -76,5 +76,4 @@ int getLastColorReadStep(uint32_t* cmd_id = nullptr);
 int getLastCubeMoveStep(uint32_t* cmd_id = nullptr);
 int getLastRobotMoveStep(uint32_t* cmd_id = nullptr);
 String getLastColorReadMap(uint32_t* cmd_id = nullptr);
-bool getLastServoStatus(int servo_id, rb_servo_status_t& out);
 String getLastServoStatusStr(int servo_id);

@@ -211,7 +211,7 @@ bool runSystemByKey(const char* key, bool& result) {
 
   String cmd;
 
-  if (strcmp(key, "k_system") == 0) cmd = "READSERVO";
+  if (strcmp(key, "k_system") == 0) cmd = "READSERVO 0";
   // else if (strcmp(key, "k_tests") == 0) cmd = "INFOSERVO"; //TODO to add ?
   else if (strcmp(key, "k_reboot_all") == 0) cmd = "REBOOTALL";         //TODO to add ?
   else if (strcmp(key, "k_set_stop_all") == 0) cmd = "SETSTOPALL";      //TODO to add ?

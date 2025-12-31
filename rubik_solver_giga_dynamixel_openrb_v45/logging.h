@@ -155,11 +155,23 @@ inline void serial_printf(const char* fmt, Args... args) {
     if (logging_on && log_section_index > 0) \
       log_section_end_internal(__FILE__, __LINE__); \
     else if (logging_on) \
+      serial_printf(""); \
+    current_section_enabled = true; \
+    current_log_prefix = ""; \
+  } while (0)
+
+/*
+  #define LOG_SECTION_END() \
+  do { \
+    if (logging_on && log_section_index > 0) \
+      log_section_end_internal(__FILE__, __LINE__); \
+    else if (logging_on) \
       serial_printf("[log] warning: redundant LOG_SECTION_END at {%s:%d} depth {%d}\n", \
                     __FILE__, __LINE__, log_section_index); \
     current_section_enabled = true; \
     current_log_prefix = ""; \
   } while (0)
+  */
 
 // ============================================================================
 // CATEGORY SECTION SHORTCUTS

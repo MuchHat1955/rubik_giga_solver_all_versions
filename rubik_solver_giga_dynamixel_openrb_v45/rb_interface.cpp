@@ -231,7 +231,7 @@ static uint32_t last_color_read_map_cmd = 0;
 
 
 static void rb_command_end_cb(const String& result, const String& duration) {
-  LOG_PRINTF("[CMD] done %s (%s)\n", result.c_str(), duration.c_str());
+  LOG_PRINTF("[RB CMD] done %s (%s)\n", result.c_str(), duration.c_str());
 
   uint32_t id = rb.get_current_cmd_id();  // see note below
 
@@ -242,18 +242,20 @@ static void rb_command_end_cb(const String& result, const String& duration) {
 }
 
 static void rb_error_cb(const String& module, uint32_t id, const String& payload) {
-  LOG_PRINTF("[ERR] %s (%lu) %s\n", module.c_str(), id, payload.c_str());
+  LOG_PRINTF("[RB ERR] %s (%lu) %s\n", module.c_str(), id, payload.c_str());
 
   auto& st = cmd_states[id];
   if (!st.last_error.isEmpty())
     st.last_error += " | ";
   st.last_error += module + ": " + payload;
+
+  addErrorLine("[RB ERR] " + st.last_error);
 }
 
 static void rb_info_cb(const String& mod,
                        uint32_t id,
                        const String& msg) {
-  LOG_PRINTF("[INFO] %s (%lu) %s\n",
+  LOG_PRINTF("[RB INFO] %s (%lu) %s\n",
              mod.c_str(),
              (unsigned long)id,
              msg.c_str());
@@ -462,6 +464,8 @@ bool runCommand(const String& command,
                 const String& params,
                 int* cmdId) {
 
+  LOG_PRINTF("run command {%s} params {%s}\n", command.c_str(), params.c_str());
+
   uint32_t id = rb.send_command(command, params);
 
   if (cmdId)
@@ -473,12 +477,13 @@ bool runCommand(const String& command,
   cmd_states[id] = st;
 
   unsigned long t0 = millis();
-  const unsigned long timeout_ms = 10000;
+  const unsigned long timeout_ms = 3333;
 
   while (!cmd_states[id].finished_bool) {
     rb.poll();
     if (millis() - t0 > timeout_ms) {
       cmd_states[id].last_error = "timeout waiting for command_end";
+      LOG_ERR("command start {%s} timeout\n", command.c_str());
       return false;
     }
     delay(1);
@@ -531,14 +536,16 @@ String getRbInterfaceVersion() {
   cmd_states[id] = st;
 
   unsigned long t0 = millis();
-  const unsigned long timeout_ms = 3000;
+  const unsigned long timeout_ms = 3333;
 
   while (!cmd_states[id].finished_bool) {
     rb.poll();
     if (millis() - t0 > timeout_ms) {
+      LOG_ERR("rb version command timeout\n");
+      LOG_ERR("no rb version\n");
       return "err";
     }
-    delay(1);
+    delay(5);
   }
 
   if (!cmd_states[id].ok_bool) {
@@ -551,7 +558,6 @@ String getRbInterfaceVersion() {
   if (v.isEmpty()) {
     return "rb interface version unknown";
   }
-
   return "rb interface version " + v;
 }
 
@@ -661,7 +667,6 @@ String getLastServoStatusStr(int servo_id) {
 
   return out;
 }
-
 
 /* --------------------------------------------------------------------------------------------------------------------------------------------------
 static CommandEntry command_table[] = {

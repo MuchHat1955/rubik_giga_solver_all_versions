@@ -92,6 +92,8 @@ void buttonAction_executeAction_run(const char *btn_key) {
   footer_txt = String("end ") + String(btn_key);
   setFooter(footer_txt.c_str());
 
+  LOG_PRINTF("running action for key {%s}\n", btn_key);
+
   bool handled = false;
   bool ok = false;
 
@@ -104,7 +106,7 @@ void buttonAction_executeAction_run(const char *btn_key) {
   if (!handled) handled |= runSolveCubeFindSolutionByKey(btn_key, ok);
   if (!handled) handled |= runSolveCubeRunSolutionByKey(btn_key, ok);
   if (!handled) handled |= runColorStickerByKey(btn_key, ok);
-  // if (!handled) handled |= runSystemByKey(btn_key, ok); // TODO is this needed?
+  if (!handled) handled |= runSystemByKey(btn_key, ok); 
 
   //TODO more actions go here
 }

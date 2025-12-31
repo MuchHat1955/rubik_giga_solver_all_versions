@@ -82,9 +82,9 @@ void buttonAction(const char* key, const char* name);
 int incrementValue(const char* key, int delta);
 bool runStartupTests();
 
-String rb_version="na";
+String rb_version = "na";
 
-String getRbVersion(){
+String getRbVersion() {
   return rb_version;
 }
 
@@ -166,10 +166,10 @@ void setup() {
   } else {
     rb_version = getRbInterfaceVersion();
     if (rb_version == "err") {
-      addErrorLine("no rb interface detected");
+      LOG_ERR("no rb interface detected");
       setFooter("no rb interface detected");
-    }
-    if (!runStartupTests()) {
+    } else if (!runStartupTests()) {
+      LOG_ERR("startup tests failed");
       setFooter("startup issues detected");
     } else {
       setFooter("startup test ok");
