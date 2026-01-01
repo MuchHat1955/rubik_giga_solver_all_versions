@@ -66,3 +66,53 @@ void buttons_set_text_ori(char* ori_text);
 void buttons_set_text_front_color(char* clr_text);
 void buttons_set_text_by_key(const char* key, const char* a_text);
 void buttons_set_color_string(const char* color_string);
+
+#pragma once
+
+#include <Arduino.h>
+
+// ============================================================
+// Central dispatcher
+// ============================================================
+
+// Entry point called by LVGL / UI button callback
+void ui_dispatch_action(const String &key);
+
+// ============================================================
+// Solve cube
+// ============================================================
+
+void on_solve_cube_read_all();
+void on_solve_cube_find_solution();
+void on_solve_cube_run_solution();
+
+// ============================================================
+// Read cube
+// ============================================================
+
+void on_read_cube_action(const String &key);
+
+// ============================================================
+// Robot moves
+// ============================================================
+
+void on_robot_move(const String &key);
+
+// ============================================================
+// Cube moves (shared handler for f+/r-/u2/etc)
+// ============================================================
+
+void on_cube_move(const String &key);
+
+// ============================================================
+// Orientation
+// ============================================================
+
+void on_orientation_action(const String &key);
+
+// ============================================================
+// Color stickers / rotations
+// ============================================================
+
+void on_color_action(const String &key);
+

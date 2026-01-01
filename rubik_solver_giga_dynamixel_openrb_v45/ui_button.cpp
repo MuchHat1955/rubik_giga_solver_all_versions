@@ -303,3 +303,189 @@ void log_all_buttons(bool only_if_not_on_default) {
   }
   LOG_SECTION_END_MENU();
 }
+
+// ============================================================================
+// Keys handling
+// ============================================================================
+
+// ============================================================
+// UI action dispatcher
+// ============================================================
+
+void ui_dispatch_action(const String &key) {
+
+  // ---- Solve cube ----
+  if (key == "k_solve_cube_read_cube_all") {
+    on_solve_cube_read_all();
+  } else if (key == "k_solve_cube_find_solution") {
+    on_solve_cube_find_solution();
+  } else if (key == "k_solve_cube_run_solution") {
+    on_solve_cube_run_solution();
+  }
+
+  // ---- Read cube ----
+  else if (key.startsWith("k_read_cube_")) {
+    on_read_cube_action(key);
+  }
+
+  // ---- Robot moves ----
+  else if (key.startsWith("k_robot_moves_")) {
+    on_robot_move(key);
+  }
+
+  // ---- Cube moves ----
+  else if (key.startsWith("k_cube_moves_")) {
+    on_cube_move(key);
+  }
+
+  // ---- Orientation ----
+  else if (key.startsWith("k_orientation_")) {
+    on_orientation_action(key);
+  }
+
+  // ---- Color stickers / rotate ----
+  else if (key.startsWith("k_color_")) {
+    on_color_action(key);
+  }
+
+  else {
+    LOG_ERR("UI", "unknown key", key.c_str());
+  }
+}
+
+
+// ============================================================
+// Solve cube
+// ============================================================
+
+void on_solve_cube_read_all() {
+  LOG_INFO("UI", "solve", "read all");
+  // TODO: trigger full read
+}
+
+void on_solve_cube_find_solution() {
+  LOG_INFO("UI", "solve", "find solution");
+  // TODO: solver
+}
+
+void on_solve_cube_run_solution() {
+  LOG_INFO("UI", "solve", "run solution");
+  // TODO: execute moves
+}
+
+// ============================================================
+// Read cube
+// ============================================================
+
+void on_read_cube_action(const String &key) {
+  if (key == "k_read_cube_all") {
+    LOG_INFO("UI", "read", "all");
+  } else if (key == "k_read_cube_bottom") {
+    LOG_INFO("UI", "read", "bottom");
+  } else if (key == "k_read_cube_centers") {
+    LOG_INFO("UI", "read", "centers");
+  }
+}
+
+// ============================================================
+// Robot moves
+// ============================================================
+
+void on_robot_move(const String &key) {
+  LOG_INFO("UI", "robot_move", key.c_str());
+
+  if (key == "k_robot_moves_d_plus") {
+    // TODO: robot D+
+  } else if (key == "k_robot_moves_d_minus") {
+    // TODO: robot D-
+  } else if (key == "k_robot_moves_d2") {
+    // TODO: robot D2
+  } else if (key == "k_robot_moves_z_plus") {
+    // TODO
+  } else if (key == "k_robot_moves_z_minus") {
+    // TODO
+  } else if (key == "k_robot_moves_z2") {
+    // TODO
+  } else if (key == "k_robot_moves_y_plus") {
+    // TODO
+  } else if (key == "k_robot_moves_y_minus") {
+    // TODO
+  } else if (key == "k_robot_moves_y2") {
+    // TODO
+  }
+}
+
+// ============================================================
+// Cube moves
+// ============================================================
+
+void on_cube_move(const String &key) {
+  LOG_INFO("UI", "cube_move", key.c_str());
+
+  // Extract move: f+, r-, u2, etc
+  // key format: k_cube_moves_<face>_<plus|minus|2>
+
+  char face = key.charAt(13);  // f r u b l d
+
+  char move = '?';
+  if (key.endsWith("_plus"))  move = '+';
+  if (key.endsWith("_minus")) move = '-';
+  if (key.endsWith("2"))      move = '2';
+
+  if (move == '?') {
+    LOG_ERR("UI", "cube_move", "invalid");
+    return;
+  }
+
+  // TODO: apply cube move
+  // cube_apply_move(face, move);
+}
+
+// ============================================================
+// Orientation
+// ============================================================
+
+void on_orientation_action(const String &key) {
+  LOG_INFO("UI", "orientation", key.c_str());
+
+  if (key == "k_orientation_detect") {
+    // TODO
+  } else if (key == "k_orientation_check") {
+    // TODO
+  } else if (key == "k_orientation_restore") {
+    // TODO
+  } else if (key == "k_orientation_color_read_all") {
+    // TODO
+  } else if (key == "k_orientation_color_read_bottom") {
+    // TODO
+  } else if (key == "k_orientation_color_read_sensor") {
+    // TODO
+  }
+}
+
+// ============================================================
+// Color actions
+// ============================================================
+
+void on_color_action(const String &key) {
+  LOG_INFO("UI", "color", key.c_str());
+
+  if (key == "k_color_c1") {
+    // TODO
+  } else if (key == "k_color_c2") {
+    // TODO
+  } else if (key == "k_color_c3") {
+    // TODO
+  } else if (key == "k_color_c4") {
+    // TODO
+  } else if (key == "k_color_c5") {
+    // TODO
+  } else if (key == "k_color_c6") {
+    // TODO
+  } else if (key == "k_color_y_plus") {
+    // TODO
+  } else if (key == "k_color_z_plus") {
+    // TODO
+  }
+}
+
