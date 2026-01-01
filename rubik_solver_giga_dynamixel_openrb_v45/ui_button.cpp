@@ -315,11 +315,11 @@ void log_all_buttons(bool only_if_not_on_default) {
 void ui_dispatch_action(const String &key) {
 
   // ---- Solve cube ----
-  if (key == "k_solve_cube_read_cube_all") {
+  if (key == "k_solve_cube_read_cube_all")
     on_solve_cube_read_all();
-  } else if (key == "k_solve_cube_find_solution") {
+  } else if (key == "k_solve_cube_find_solution")
     on_solve_cube_find_solution();
-  } else if (key == "k_solve_cube_run_solution") {
+  } else if (key == "k_solve_cube_run_solution")
     on_solve_cube_run_solution();
   }
 
@@ -349,7 +349,7 @@ void ui_dispatch_action(const String &key) {
   }
 
   else {
-    LOG_ERR("UI", "unknown key", key.c_str());
+    LOG_ERR("Button key unknown key\n", key.c_str());
   }
 }
 
@@ -359,17 +359,17 @@ void ui_dispatch_action(const String &key) {
 // ============================================================
 
 void on_solve_cube_read_all() {
-  LOG_INFO("UI", "solve", "read all");
+  LOG_PRINTF("Button key solve read all\n");
   // TODO: trigger full read
 }
 
 void on_solve_cube_find_solution() {
-  LOG_INFO("UI", "solve", "find solution");
+  LOG_PRINTF("Button key solve find solution\n");
   // TODO: solver
 }
 
 void on_solve_cube_run_solution() {
-  LOG_INFO("UI", "solve", "run solution");
+  LOG_PRINTF("Button key solve run solution\n");
   // TODO: execute moves
 }
 
@@ -378,12 +378,12 @@ void on_solve_cube_run_solution() {
 // ============================================================
 
 void on_read_cube_action(const String &key) {
-  if (key == "k_read_cube_all") {
-    LOG_INFO("UI", "read", "all");
-  } else if (key == "k_read_cube_bottom") {
-    LOG_INFO("UI", "read", "bottom");
-  } else if (key == "k_read_cube_centers") {
-    LOG_INFO("UI", "read", "centers");
+  if (key == "k_read_cube_all")
+    LOG_PRINTF("Button key read all\n");
+  } else if (key == "k_read_cube_bottom")
+    LOG_PRINTF("Button key read bottom\n");
+  } else if (key == "k_read_cube_centers")
+    LOG_PRINTF("Button key read centers\n");
   }
 }
 
@@ -392,25 +392,25 @@ void on_read_cube_action(const String &key) {
 // ============================================================
 
 void on_robot_move(const String &key) {
-  LOG_INFO("UI", "robot_move", key.c_str());
+  LOG_PRINTF("Button key robot_move", key.c_str());
 
-  if (key == "k_robot_moves_d_plus") {
+  if (key == "k_robot_moves_d_plus")
     // TODO: robot D+
-  } else if (key == "k_robot_moves_d_minus") {
+  } else if (key == "k_robot_moves_d_minus")
     // TODO: robot D-
-  } else if (key == "k_robot_moves_d2") {
+  } else if (key == "k_robot_moves_d2")
     // TODO: robot D2
-  } else if (key == "k_robot_moves_z_plus") {
+  } else if (key == "k_robot_moves_z_plus")
     // TODO
-  } else if (key == "k_robot_moves_z_minus") {
+  } else if (key == "k_robot_moves_z_minus")
     // TODO
-  } else if (key == "k_robot_moves_z2") {
+  } else if (key == "k_robot_moves_z2")
     // TODO
-  } else if (key == "k_robot_moves_y_plus") {
+  } else if (key == "k_robot_moves_y_plus")
     // TODO
-  } else if (key == "k_robot_moves_y_minus") {
+  } else if (key == "k_robot_moves_y_minus")
     // TODO
-  } else if (key == "k_robot_moves_y2") {
+  } else if (key == "k_robot_moves_y2")
     // TODO
   }
 }
@@ -420,7 +420,7 @@ void on_robot_move(const String &key) {
 // ============================================================
 
 void on_cube_move(const String &key) {
-  LOG_INFO("UI", "cube_move", key.c_str());
+  LOG_PRINTF("Button key cube_move", key.c_str());
 
   // Extract move: f+, r-, u2, etc
   // key format: k_cube_moves_<face>_<plus|minus|2>
@@ -433,7 +433,7 @@ void on_cube_move(const String &key) {
   if (key.endsWith("2"))      move = '2';
 
   if (move == '?') {
-    LOG_ERR("UI", "cube_move", "invalid");
+    LOG_ERR("Button key cube_move invalid");
     return;
   }
 
@@ -446,7 +446,7 @@ void on_cube_move(const String &key) {
 // ============================================================
 
 void on_orientation_action(const String &key) {
-  LOG_INFO("UI", "orientation", key.c_str());
+  LOG_PRINTF("Button key orientation", key.c_str());
 
   if (key == "k_orientation_detect") {
     // TODO
@@ -468,7 +468,7 @@ void on_orientation_action(const String &key) {
 // ============================================================
 
 void on_color_action(const String &key) {
-  LOG_INFO("UI", "color", key.c_str());
+  LOG_PRINTF("Button key color", key.c_str());
 
   if (key == "k_color_c1") {
     // TODO
