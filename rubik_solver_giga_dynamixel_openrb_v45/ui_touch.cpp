@@ -84,33 +84,6 @@ void setFooter(const char *msg) {
   }
 }
 
-void buttonAction_executeAction_run(const char *btn_key) {
-
-  String footer_txt = String("start ") + String(btn_key);
-  setFooter(footer_txt.c_str());
-  delay(666);
-  footer_txt = String("end ") + String(btn_key);
-  setFooter(footer_txt.c_str());
-
-  LOG_PRINTF("running action for key {%s}\n", btn_key);
-
-  bool handled = false;
-  bool ok = false;
-
-  handled |= runRobotMovesByKey(btn_key, ok);
-  if (!handled) handled |= runCubeMoveByKey(btn_key, ok);
-  if (!handled) handled |= runRunOrientationByKey(btn_key, ok);
-  if (!handled) handled |= runSolveReadByKey(btn_key, ok);
-  if (!handled) handled |= runColorReadByKey(btn_key, ok);
-  if (!handled) handled |= runColorOrientationByKey(btn_key, ok);
-  if (!handled) handled |= runSolveCubeFindSolutionByKey(btn_key, ok);
-  if (!handled) handled |= runSolveCubeRunSolutionByKey(btn_key, ok);
-  if (!handled) handled |= runColorStickerByKey(btn_key, ok);
-  if (!handled) handled |= runSystemByKey(btn_key, ok); 
-
-  //TODO more actions go here
-}
-
 // ---- below is for actions to be done when a menu is displayed ---
 void buttonAction_executeAction(int btn_id) {
   LOG_SECTION_START_MENU("update buttons on click for menu {%d}", btn_id);
@@ -130,7 +103,7 @@ void buttonAction_executeAction(int btn_id) {
     drawButtonOverlayById(btn_id);
     setFooter("updating system...");
     //.................
-    buttonAction_executeAction_run(btn_key);
+    buttonAction_run(btn_key);
     //.................
     b->set_is_busy(false);
     drawButtonOverlayById(btn_id);
@@ -145,7 +118,7 @@ void buttonAction_executeAction(int btn_id) {
       b->set_is_busy(true);
       drawButtonOverlayById(btn_id);
       //.................
-      buttonAction_executeAction_run(btn_key);
+      buttonAction_run(btn_key);
       //.................
       // reset busy
       b->set_is_busy(false);

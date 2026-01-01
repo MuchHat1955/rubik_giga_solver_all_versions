@@ -10,6 +10,8 @@
 //   - set `result` to the command execution result if handled
 // -----------------------------------------------------------------------------
 
+void buttonAction_run(const char *btn_key);
+
 bool runRobotMovesByKey(const char* key, bool& result);
 bool runCubeMoveByKey(const char* key, bool& result);
 

@@ -3,8 +3,41 @@
 #include "logging.h"
 #include "ui_touch.h"
 #include "ui_button.h"
+#include "run.h"
 
 //-----------------------------------------------------------------------------------------
+
+void buttonAction_run(const char* btn_key) {
+
+  String footer_txt = String("start ") + String(btn_key);
+  setFooter(footer_txt.c_str());
+  delay(666);
+  footer_txt = String("end ") + String(btn_key);
+  setFooter(footer_txt.c_str());
+
+  LOG_PRINTF("running action for key {%s}\n", btn_key);
+
+  bool handled = false;
+  bool ok = false;
+
+  handled |= runRobotMovesByKey(btn_key, ok);
+  if (!handled) handled |= runCubeMoveByKey(btn_key, ok);
+  if (!handled) handled |= runRunOrientationByKey(btn_key, ok);
+  if (!handled) handled |= runSolveReadByKey(btn_key, ok);
+  if (!handled) handled |= runColorReadByKey(btn_key, ok);
+  if (!handled) handled |= runColorOrientationByKey(btn_key, ok);
+  if (!handled) handled |= runSolveCubeFindSolutionByKey(btn_key, ok);
+  if (!handled) handled |= runSolveCubeRunSolutionByKey(btn_key, ok);
+  if (!handled) handled |= runColorStickerByKey(btn_key, ok);
+  if (!handled) handled |= runSystemByKey(btn_key, ok);
+
+  //TODO more actions go here
+
+  if (!handled) {
+    LOG_ERR("Unhandled action key: %s", btn_key);
+    setFooter("action not implemented");
+  }
+}
 
 bool runRobotMovesByKey(const char* key, bool& result) {
   if (!key) return false;
@@ -177,6 +210,7 @@ bool runSolveCubeFindSolutionByKey(const char* key, bool& result) {
   setFooter(text.c_str());
 
   int cmd_id = -1;
+  result = false;
 
   //TODO find cube goes here;
 
@@ -198,6 +232,7 @@ bool runSolveCubeRunSolutionByKey(const char* key, bool& result) {
   setFooter(text.c_str());
 
   int cmd_id = -1;
+  result = false;
 
   //TODO solve cube goes here;
 
@@ -216,7 +251,7 @@ bool runSystemByKey(const char* key, bool& result) {
   String cmd;
 
   if (strcmp(key, "k_system") == 0) cmd = "READSERVO 0";
-  // else if (strcmp(key, "k_tests") == 0) cmd = "INFOSERVO"; //TODO to add ?
+  else if (strcmp(key, "k_tests") == 0) cmd = "INFOSERVO";              //TODO to add ?
   else if (strcmp(key, "k_reboot_all") == 0) cmd = "REBOOTALL";         //TODO to add ?
   else if (strcmp(key, "k_set_stop_all") == 0) cmd = "SETSTOPALL";      //TODO to add ?
   else if (strcmp(key, "k_clear_stop_all") == 0) cmd = "CLEARSTOPALL";  //TODO to add ?
