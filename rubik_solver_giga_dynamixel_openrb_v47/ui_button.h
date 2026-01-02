@@ -66,4 +66,4 @@ void buttons_set_text_ori(char* ori_text);
 void buttons_set_text_front_color(char* clr_text);
 void buttons_set_text_by_key(const char* key, const char* a_text);
 void buttons_set_color_string(const char* color_string);
-void buttons_set_one_color_string(const char* color_string);
+void buttons_set_one_color_string(const char one_color);

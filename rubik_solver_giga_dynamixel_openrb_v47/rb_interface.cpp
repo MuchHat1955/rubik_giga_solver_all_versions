@@ -2,6 +2,7 @@
 #include "logging.h"
 #include "ui_touch.h"
 #include "ui_cube_view.h"
+#include "ui_button.h"
 
 /*
   uint32_t id = rb.send_command("READSERVO", "0");
@@ -178,7 +179,7 @@ struct rb_cmd_state_t {
 
   // COLORSCAN
   String color_string_curr;  // full 54 when available, or partial
-  String color_one_color;
+  char color_one_color_char;
   String color_read_map;  // f6_r6_b6_...
   int color_read_step = -1;
 
@@ -215,7 +216,7 @@ static String last_orientation = "";
 static String last_cube_solution = "";
 
 // ================= GLOBAL LAST-SEEN STATE =================
-static String last_color_one_color = ".";
+static char last_color_one_color_char = '.';
 static uint32_t last_color_one_color_cmd = 0;
 
 static String last_color_string_curr;
@@ -366,11 +367,11 @@ void buttons_set_color_string(const char* color_string)
       String value = msg.substring(eq + 1);
       value.trim();
 
-      st.color_one_color = value;
-      last_color_one_color = value;
+      st.color_one_color_char = value.charAt(0);
+      last_color_one_color_char = st.color_one_color_char;
       last_color_one_color_cmd = id;
       // update buttons
-      buttons_set_one_color_string(value.c_str());
+      buttons_set_one_color_string(last_color_one_color_char);
     }
     return;
   }
@@ -614,9 +615,9 @@ String getLastColorStringCurr(uint32_t* cmd_id) {
   if (cmd_id) *cmd_id = last_color_string_curr_cmd;
   return last_color_string_curr;
 }
-String getLastColorOneColor(uint32_t* cmd_id) {
+char getLastColorOneColor(uint32_t* cmd_id) {
   if (cmd_id) *cmd_id = last_color_one_color_cmd;
-  return last_color_one_color;
+  return last_color_one_color_char;
 }
 int getLastColorReadStep(uint32_t* cmd_id) {
   if (cmd_id) *cmd_id = last_color_read_step_cmd;

@@ -149,7 +149,7 @@ void buttons_set_color_string(const char* color_string) {
   set_last_color_string_54(color_string);  // TODO-> TO TEST if probably needed
 }
 // TODO-> TO IMPLEMENT use below
-void buttons_set_one_color_string(const char* color_string) {
+void buttons_set_one_color_string(const char one_color) {
   // TODO-> TO IMPLEMENT
   // also needs to account for the last button pressed, needs a global var likely
 }
