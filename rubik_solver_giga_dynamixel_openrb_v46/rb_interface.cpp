@@ -202,7 +202,7 @@ struct rb_servo_status_t {
   int zero_ticks = 0;
   int max_ticks = 0;
 
-  uint32_t cmd_id = 0;  // command that produced this snapshot
+  int cmd_id = 0;  // command that produced this snapshot
 };
 
 static std::map<int, rb_servo_status_t> last_servo_status_by_id;
@@ -210,8 +210,9 @@ static uint32_t last_servo_status_cmd = 0;
 
 static std::map<uint32_t, rb_cmd_state_t> cmd_states;
 static uint32_t last_finished_cmd_id = 0;
-static String last_color_string_54 = "WWWWWWWWWRRRRRRRRRGGGGGGGGGYYYYYYYYYOOOOOOOOOBBBBBBBBB";
-static String last_orientation = "u->u_r->r_f->f_d->d_l->l_b->b";
+static String last_color_string_54 = "";
+static String last_orientation = "";
+static String last_cube_solution = "";
 
 // ================= GLOBAL LAST-SEEN STATE =================
 static String last_color_one_color = ".";
@@ -461,18 +462,25 @@ String getLastColorString() {
   return last_color_string_54;
 }
 
+String getLastCubeSolution() {
+  return last_cube_solution;
+}
+void setLastCubeSolution(String a_solution) {
+  last_cube_solution = a_solution;
+}
+
 String getLastOrientation() {
   return last_orientation;
 }
 
-String getColorStringForCmd(uint32_t cmd_id) {
+String getColorStringForCmd(int cmd_id) {
   auto it = cmd_states.find(cmd_id);
   if (it == cmd_states.end())
     return "";
   return it->second.color_string_54;
 }
 
-String getOrientationForCmd(uint32_t cmd_id) {
+String getOrientationForCmd(int cmd_id) {
   auto it = cmd_states.find(cmd_id);
   if (it == cmd_states.end())
     return "";

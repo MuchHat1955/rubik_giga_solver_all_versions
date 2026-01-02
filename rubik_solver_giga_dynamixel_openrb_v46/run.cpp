@@ -4,6 +4,8 @@
 #include "ui_touch.h"
 #include "ui_button.h"
 #include "run.h"
+#include "rubik_solver.h"
+#include "ui_cube_view.h"
 
 //-----------------------------------------------------------------------------------------
 
@@ -212,7 +214,17 @@ bool runSolveCubeFindSolutionByKey(const char* key, bool& result) {
   int cmd_id = -1;
   result = false;
 
-  //TODO find cube goes here;
+  //TODO FEATURE INCOMPLETE below is only for bottom layer
+  String cube = getLastColorString();
+  String solution = find_solution_solve_bottom_layer(cube);
+
+  if (solution = "") {
+    LOG_ERR("no solution found for %s", cube.c_str());
+    result = false;
+  } else {
+    setLastCubeSolution(solution);
+    result = true;
+  }
 
   if (!result) {
     LOG_ERR("RUN %s", getLastError(cmd_id).c_str());
@@ -234,16 +246,22 @@ bool runSolveCubeRunSolutionByKey(const char* key, bool& result) {
   int cmd_id = -1;
   result = false;
 
-  //TODO solve cube goes here;
+  String solution = getLastCubeSolution();
 
-  if (!result) {
-    LOG_ERR("RUN %s", getLastError(cmd_id).c_str());
+  if (solution = "") {
+    LOG_ERR("RUN %s no solution", key);
     setFooter((text + " failed").c_str());
   } else {
-    setFooter((text + " ok").c_str());
+    setFooter((text + " starting").c_str());
   }
 
-  return true;
+  int cmd_id = 0;
+  ui_moves_progress_set(solution, getColorsForSolution(solution));  //TODO TEST if this is enough for index to update
+  ui_moves_progress_set_index(0);
+  LOG_PRINTF("progress bar created with {%s}\n", solution.c_str());
+  bool ok = runCommand("MOVECUBE", solution, &cmd_id);
+
+  return ok;
 }
 bool runSystemByKey(const char* key, bool& result) {
   if (!key) return false;

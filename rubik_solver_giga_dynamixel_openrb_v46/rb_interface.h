@@ -67,8 +67,9 @@ String getLastCommandParams(int cmdId);
 // TODO use all of below
 String getLastColorString();
 String getLastOrientation();
-String getColorStringForCmd(uint32_t cmd_id);
-String getOrientationForCmd(uint32_t cmd_id);
+String getLastCubeSolution();
+String getColorStringForCmd(int cmd_id);
+String getOrientationForCmd(int cmd_id);
 String getRbInterfaceVersion();
 
 String getLastColorStringCurr(uint32_t* cmd_id = nullptr);
@@ -81,3 +82,4 @@ String getLastColorOneColor(uint32_t* cmd_id);
 
 void set_last_color_string_54(String a_color_string);
 void set_last_orientation(String a_ori);
+void setLastCubeSolution(String a_solution);

@@ -17,7 +17,7 @@ String getSketchVersionWithDate();
 String getRbVersion();
 void buildMenu(const char *menuKey);
 
-extern String getLastColorString();
+String getLastColorString();
 
 extern RBInterface rb;
 
