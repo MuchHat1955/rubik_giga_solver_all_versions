@@ -387,6 +387,15 @@ void buttons_set_color_string(const char* color_string)
     last_color_read_step = step;
     last_color_read_step_cmd = id;
     // TODO-> TO IMPLEMENT need to send this to UI
+    //
+    // String getLastColorStringCurr(uint32_t* cmd_id = nullptr);
+    // int getLastColorReadStep(uint32_t* cmd_id = nullptr);
+    // int getLastCubeMoveStep(uint32_t* cmd_id = nullptr);
+    // int getLastRobotMoveStep(uint32_t* cmd_id = nullptr);
+    // String getLastColorReadMap(uint32_t* cmd_id = nullptr);
+    // String getLastServoStatusStr(int servo_id);
+    // char getLastColorOneColor(uint32_t* cmd_id);
+    //
     return;
   }
 
@@ -402,6 +411,15 @@ void buttons_set_color_string(const char* color_string)
     last_color_read_map = map;
     last_color_read_map_cmd = id;
     // TODO-> TO IMPLEMENT need to send this to UI
+    //
+    // String getLastColorStringCurr(uint32_t* cmd_id = nullptr);
+    // int getLastColorReadStep(uint32_t* cmd_id = nullptr);
+    // int getLastCubeMoveStep(uint32_t* cmd_id = nullptr);
+    // int getLastRobotMoveStep(uint32_t* cmd_id = nullptr);
+    // String getLastColorReadMap(uint32_t* cmd_id = nullptr);
+    // String getLastServoStatusStr(int servo_id);
+    // char getLastColorOneColor(uint32_t* cmd_id);
+    //
     return;
   }
 
@@ -416,6 +434,15 @@ void buttons_set_color_string(const char* color_string)
     last_robot_move_step = step;
     last_robot_move_step_cmd = id;
     // TODO-> TO IMPLEMENT need to send this to UI
+    //
+    // String getLastColorStringCurr(uint32_t* cmd_id = nullptr);
+    // int getLastColorReadStep(uint32_t* cmd_id = nullptr);
+    // int getLastCubeMoveStep(uint32_t* cmd_id = nullptr);
+    // int getLastRobotMoveStep(uint32_t* cmd_id = nullptr);
+    // String getLastColorReadMap(uint32_t* cmd_id = nullptr);
+    // String getLastServoStatusStr(int servo_id);
+    // char getLastColorOneColor(uint32_t* cmd_id);
+    //
     return;
   }
 
@@ -432,6 +459,15 @@ void buttons_set_color_string(const char* color_string)
     last_cube_move_step = step;
     last_cube_move_step_cmd = id;
     // TODO-> TO IMPLEMENT need to send this to UI
+    //
+    // String getLastColorStringCurr(uint32_t* cmd_id = nullptr);
+    // int getLastColorReadStep(uint32_t* cmd_id = nullptr);
+    // int getLastCubeMoveStep(uint32_t* cmd_id = nullptr);
+    // int getLastRobotMoveStep(uint32_t* cmd_id = nullptr);
+    // String getLastColorReadMap(uint32_t* cmd_id = nullptr);
+    // String getLastServoStatusStr(int servo_id);
+    // char getLastColorOneColor(uint32_t* cmd_id);
+    //
     return;
   }
 
