@@ -216,7 +216,12 @@ bool runSolveCubeFindSolutionByKey(const char* key, bool& result) {
 
   //TODO FEATURE INCOMPLETE below is only for bottom layer
   String cube = getLastColorString();
-  String solution = find_solution_solve_bottom_layer(cube);
+  bool ok = is_valid_color_string(cube);
+  String solution = "";
+  if (ok) solution = find_solution_solve_bottom_layer(cube);
+  else {
+    LOG_ERR("not a valid color string %s", cube.c_str());
+  }
 
   if (solution = "") {
     LOG_ERR("no solution found for %s", cube.c_str());
@@ -255,7 +260,7 @@ bool runSolveCubeRunSolutionByKey(const char* key, bool& result) {
     setFooter((text + " starting").c_str());
   }
 
-  int cmd_id = 0;
+  cmd_id = -1;
   ui_moves_progress_set(solution, getColorsForSolution(solution));  //TODO TEST if this is enough for index to update
   ui_moves_progress_set_index(0);
   LOG_PRINTF("progress bar created with {%s}\n", solution.c_str());

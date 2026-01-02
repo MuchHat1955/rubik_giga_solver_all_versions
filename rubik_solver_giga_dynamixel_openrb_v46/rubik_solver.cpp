@@ -2,6 +2,38 @@
 #include "rubik_solver.h"
 #include "logging.h"
 
+bool is_valid_color_string(const String &str54) {
+
+  if (str54.length() != 54) return false;
+
+  int counts[6] = { 0 };  // W Y G B R O
+
+  auto color_index = [](char c) -> int {
+    switch (c) {
+      case 'W': return 0;
+      case 'Y': return 1;
+      case 'G': return 2;
+      case 'B': return 3;
+      case 'R': return 4;
+      case 'O': return 5;
+      default: return -1;
+    }
+  };
+
+  for (int i = 0; i < 54; i++) {
+    char c = toupper(str54[i]);
+    int idx = color_index(c);
+    if (idx < 0) return false;  // invalid character
+    counts[idx]++;
+  }
+
+  for (int i = 0; i < 6; i++) {
+    if (counts[i] != 9) return false;
+  }
+
+  return true;
+}
+
 String getColorsForSolution(const String &solution) {
 
   auto face_to_color = [](char face) -> char {
@@ -12,7 +44,7 @@ String getColorsForSolution(const String &solution) {
       case 'B': return 'B';
       case 'L': return 'R';
       case 'R': return 'O';
-      default:  return '?';
+      default: return '?';
     }
   };
 
@@ -79,8 +111,9 @@ String getColorsForSolution(const String &solution) {
 // 1) Check top two layers solved
 // ============================================================
 
-bool top_two_layers_solved_bool(const String &cube) {
+bool top_two_layers_solved_bool(const String &a_cube) {
 
+  String cube = a_cube;
   cube.toUpperCase();
 
   // U face must be all white
