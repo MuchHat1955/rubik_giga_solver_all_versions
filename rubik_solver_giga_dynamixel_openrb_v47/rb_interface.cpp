@@ -272,7 +272,7 @@ static void rb_info_cb(const String& mod,
              msg.c_str());
 
   // We only care about RUN module for these payloads
-  //   if (mod != "RUN") TODO is this needed
+  //   if (mod != "RUN") TODO CHECK is this needed
   //    return;
 
   auto& st = cmd_states[id];
@@ -332,7 +332,7 @@ static void rb_info_cb(const String& mod,
   }
 
   /*
-  // TODO use below
+  // TODO-> TO IMPLEMENT use below
 void buttons_set_text_front_color(char* clr_text)
 void buttons_set_text_by_key(const char* key, const char* a_text)
 void buttons_set_color_string(const char* color_string) 
@@ -351,7 +351,7 @@ void buttons_set_color_string(const char* color_string)
       last_color_string_curr = value;
       last_color_string_curr_cmd = id;
       // update buttons
-      buttons_set_color_string(value);
+      buttons_set_color_string(value.c_str());
     }
     return;
   }
@@ -370,7 +370,7 @@ void buttons_set_color_string(const char* color_string)
       last_color_one_color = value;
       last_color_one_color_cmd = id;
       // update buttons
-      buttons_set_one_color_string(value);
+      buttons_set_one_color_string(value.c_str());
     }
     return;
   }
@@ -385,7 +385,7 @@ void buttons_set_color_string(const char* color_string)
     st.color_read_step = step;
     last_color_read_step = step;
     last_color_read_step_cmd = id;
-    // TODO need to send this to UI
+    // TODO-> TO IMPLEMENT need to send this to UI
     return;
   }
 
@@ -400,7 +400,7 @@ void buttons_set_color_string(const char* color_string)
     st.color_read_map = map;
     last_color_read_map = map;
     last_color_read_map_cmd = id;
-    // TODO need to send this to UI
+    // TODO-> TO IMPLEMENT need to send this to UI
     return;
   }
 
@@ -414,7 +414,7 @@ void buttons_set_color_string(const char* color_string)
     st.robot_move_step = step;
     last_robot_move_step = step;
     last_robot_move_step_cmd = id;
-    // TODO need to send this to UI
+    // TODO-> TO IMPLEMENT need to send this to UI
     return;
   }
 
@@ -430,7 +430,7 @@ void buttons_set_color_string(const char* color_string)
     st.cube_move_step = step;
     last_cube_move_step = step;
     last_cube_move_step_cmd = id;
-    // TODO need to send this to UI
+    // TODO-> TO IMPLEMENT need to send this to UI
     return;
   }
 
@@ -457,7 +457,7 @@ void buttons_set_color_string(const char* color_string)
     last_color_string_54 = value;
     ui_cube_view_set_colors(value);
     // update buttons
-    buttons_set_color_string(value);
+    buttons_set_color_string(value.c_str());
     return;
   }
 
@@ -471,7 +471,7 @@ void buttons_set_color_string(const char* color_string)
 
     st.orientation = value;
     last_orientation = value;
-    // TODO need to send this to UI
+    // TODO-> TO IMPLEMENT need to send this to UI
     return;
   }
 }

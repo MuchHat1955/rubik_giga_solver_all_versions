@@ -64,7 +64,6 @@ bool getLastResult(int cmdId);
 String getLastCommandName(int cmdId);
 String getLastCommandParams(int cmdId);
 
-// TODO use all of below
 String getLastColorString();
 String getLastOrientation();
 String getLastCubeSolution();

@@ -292,12 +292,12 @@ static unsigned long lastRefresh = 0;
 
 void ui_refresh() {
   unsigned long now = millis();
-  if (now - lastRefresh < 30000UL) return;  //TODO adjust this
+  if (now - lastRefresh < 30000UL) return;  //ADJUST-> adjust this
   lastRefresh = now;
 
   LOG_SECTION_START_MENU("refresh ui");
 
-  // TODO update butons status goes here
+  // TODO-> TO IMPLEMENT update butons status goes here
 
   // example
   // pose_store.reflect_poses_last_run();

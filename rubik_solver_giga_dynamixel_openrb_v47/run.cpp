@@ -33,7 +33,7 @@ void buttonAction_run(const char* btn_key) {
   if (!handled) handled |= runColorStickerByKey(btn_key, ok);
   if (!handled) handled |= runSystemByKey(btn_key, ok);
 
-  //TODO more actions go here
+  //TODO-> TO IMPLEMENT more actions go here
 
   if (!handled) {
     LOG_ERR("Unhandled action key: %s", btn_key);
@@ -214,7 +214,7 @@ bool runSolveCubeFindSolutionByKey(const char* key, bool& result) {
   int cmd_id = -1;
   result = false;
 
-  //TODO FEATURE INCOMPLETE below is only for bottom layer
+  //TODO-> TO IMPLEMENT  below is only for bottom layer
   String cube = getLastColorString();
   bool ok = is_valid_color_string(cube);
   String solution = "";
@@ -261,7 +261,7 @@ bool runSolveCubeRunSolutionByKey(const char* key, bool& result) {
   }
 
   cmd_id = -1;
-  ui_moves_progress_set(solution, getColorsForSolution(solution));  //TODO TEST if this is enough for index to update
+  ui_moves_progress_set(solution, getColorsForSolution(solution));  //TODO-> TO TEST if this is enough for index to update
   ui_moves_progress_set_index(0);
   LOG_PRINTF("progress bar created with {%s}\n", solution.c_str());
   bool ok = runCommand("MOVECUBE", solution, &cmd_id);
@@ -274,10 +274,10 @@ bool runSystemByKey(const char* key, bool& result) {
   String cmd;
 
   if (strcmp(key, "k_system") == 0) cmd = "READSERVO 0";
-  else if (strcmp(key, "k_tests") == 0) cmd = "INFOSERVO";              //TODO to add ?
-  else if (strcmp(key, "k_reboot_all") == 0) cmd = "REBOOTALL";         //TODO to add ?
-  else if (strcmp(key, "k_set_stop_all") == 0) cmd = "SETSTOPALL";      //TODO to add ?
-  else if (strcmp(key, "k_clear_stop_all") == 0) cmd = "CLEARSTOPALL";  //TODO to add ?
+  else if (strcmp(key, "k_tests") == 0) cmd = "INFOSERVO";              //TODO-> TO TEST if to add ?
+  else if (strcmp(key, "k_reboot_all") == 0) cmd = "REBOOTALL";         //TODO-> TO TEST if to add ?
+  else if (strcmp(key, "k_set_stop_all") == 0) cmd = "SETSTOPALL";      //TODO-> TO TEST if to add ?
+  else if (strcmp(key, "k_clear_stop_all") == 0) cmd = "CLEARSTOPALL";  //TODO-> TO TEST if to add ?
   else return false;
 
   setFooter(cmd.c_str());

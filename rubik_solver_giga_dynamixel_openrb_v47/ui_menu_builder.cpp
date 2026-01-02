@@ -152,7 +152,7 @@ void buildMenu(const char *menuKey) {
   int footer_h = lv_obj_get_height(footLbl);
 
   int available_h = SCREEN_H - (title_h + footer_h + 50);
-  if (available_h < 60) available_h = 80;  // TODO was 60
+  if (available_h < 60) available_h = 80;  // ADJUST-> was 60
 
   const int rowH = 62;
   int contH = available_h - (available_h % rowH);
@@ -446,7 +446,7 @@ void buildMenu(const char *menuKey) {
 
     // 2️⃣ Geometry
     lv_obj_set_size(cube_panel, 340, 225);
-    lv_obj_align(cube_panel, LV_ALIGN_TOP_MID, 0, y + 16);  // TODO was y + 10
+    lv_obj_align(cube_panel, LV_ALIGN_TOP_MID, 0, y + 16);  // ADJUST-> was y + 10
     int cube_h = 225;
 
     // 3️⃣ Visuals (intentionally minimal)
@@ -467,7 +467,7 @@ void buildMenu(const char *menuKey) {
 
     y += cube_h;
 
-    // TODO below are for test
+    // TODO-> TO IMPLEMENT below are for test
     String colors54 = getLastColorString();
     if (colors54.length() == 54) {
       ui_cube_view_set_colors(colors54);
@@ -488,7 +488,7 @@ void buildMenu(const char *menuKey) {
     lv_obj_t *moves_ui = ui_moves_progress_create(cont, moves_w, moves_h);
     lv_obj_remove_style_all(moves_ui);
     lv_obj_set_size(moves_ui, moves_w - 8, moves_h - 8);
-    lv_obj_set_pos(moves_ui, (SCREEN_W - moves_w) / 2, y - 2);  // TODO was y + 10
+    lv_obj_set_pos(moves_ui, (SCREEN_W - moves_w) / 2, y - 2);  // ADJUST-> was y + 10
 
     // FLEX layout
     lv_obj_set_flex_flow(moves_ui, LV_FLEX_FLOW_ROW_WRAP);
@@ -500,13 +500,13 @@ void buildMenu(const char *menuKey) {
 
     // SCROLL behavior
     lv_obj_set_scroll_dir(moves_ui, LV_DIR_VER);
-    lv_obj_set_scrollbar_mode(moves_ui, LV_SCROLLBAR_MODE_OFF);  // <<< KEY LINE
+    lv_obj_set_scrollbar_mode(moves_ui, LV_SCROLLBAR_MODE_OFF);
 
     // Padding
     lv_obj_set_style_pad_all(moves_ui, 6, 0);
     lv_obj_set_style_pad_gap(moves_ui, 6, 0);
 
-    // TODO below are for test
+    // TODO-> TO IMPLEMENT below are for test
     String moves = "f+ f-";
     String colors = "RG";
     ui_moves_progress_set(moves, colors);

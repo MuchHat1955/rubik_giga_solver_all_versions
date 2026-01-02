@@ -270,7 +270,7 @@ void ui_moves_progress_set_index(int idx) {
 
     lv_obj_t* lbl = lv_label_create(moves_cont);
     lv_label_set_text(lbl, progress_items[i].move.c_str());
-    lv_obj_set_style_text_font(lbl, FONT_BTN_LARGE_PTR, 0);  // TODO was FONT_BTN_SMALL_PTR
+    lv_obj_set_style_text_font(lbl, FONT_BTN_LARGE_PTR, 0);  // ADJUST-> was FONT_BTN_SMALL_PTR
 
     lv_color_t col;
 
