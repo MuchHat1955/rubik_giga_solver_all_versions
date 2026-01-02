@@ -230,8 +230,9 @@ String align_bottom_layer(const String &cube) {
 // 5) Full bottom-layer solver
 // ============================================================
 
-String find_solution_solve_bottom_layer(const String &cube) {
+String find_solution_solve_bottom_layer(const String &a_cube) {
 
+  String cube = a_cube;
   cube.toUpperCase();
 
   if (!top_two_layers_solved_bool(cube)) {
