@@ -331,6 +331,13 @@ static void rb_info_cb(const String& mod,
     return;
   }
 
+  /*
+  // TODO use below
+void buttons_set_text_front_color(char* clr_text)
+void buttons_set_text_by_key(const char* key, const char* a_text)
+void buttons_set_color_string(const char* color_string) 
+  */
+
   // ------------------------------------------------------------
   // COLORSCAN color_string_curr / color_string_curr_face
   // ------------------------------------------------------------
@@ -343,6 +350,8 @@ static void rb_info_cb(const String& mod,
       st.color_string_curr = value;
       last_color_string_curr = value;
       last_color_string_curr_cmd = id;
+      // update buttons
+      buttons_set_color_string(value);
     }
     return;
   }
@@ -360,6 +369,8 @@ static void rb_info_cb(const String& mod,
       st.color_one_color = value;
       last_color_one_color = value;
       last_color_one_color_cmd = id;
+      // update buttons
+      buttons_set_one_color_string(value);
     }
     return;
   }
@@ -374,6 +385,7 @@ static void rb_info_cb(const String& mod,
     st.color_read_step = step;
     last_color_read_step = step;
     last_color_read_step_cmd = id;
+    // TODO need to send this to UI
     return;
   }
 
@@ -388,6 +400,7 @@ static void rb_info_cb(const String& mod,
     st.color_read_map = map;
     last_color_read_map = map;
     last_color_read_map_cmd = id;
+    // TODO need to send this to UI
     return;
   }
 
@@ -401,6 +414,7 @@ static void rb_info_cb(const String& mod,
     st.robot_move_step = step;
     last_robot_move_step = step;
     last_robot_move_step_cmd = id;
+    // TODO need to send this to UI
     return;
   }
 
@@ -416,6 +430,7 @@ static void rb_info_cb(const String& mod,
     st.cube_move_step = step;
     last_cube_move_step = step;
     last_cube_move_step_cmd = id;
+    // TODO need to send this to UI
     return;
   }
 
@@ -441,6 +456,8 @@ static void rb_info_cb(const String& mod,
     st.color_string_54 = value;
     last_color_string_54 = value;
     ui_cube_view_set_colors(value);
+    // update buttons
+    buttons_set_color_string(value);
     return;
   }
 
@@ -454,6 +471,7 @@ static void rb_info_cb(const String& mod,
 
     st.orientation = value;
     last_orientation = value;
+    // TODO need to send this to UI
     return;
   }
 }
@@ -461,25 +479,21 @@ static void rb_info_cb(const String& mod,
 String getLastColorString() {
   return last_color_string_54;
 }
-
 String getLastCubeSolution() {
   return last_cube_solution;
 }
 void setLastCubeSolution(String a_solution) {
   last_cube_solution = a_solution;
 }
-
 String getLastOrientation() {
   return last_orientation;
 }
-
 String getColorStringForCmd(int cmd_id) {
   auto it = cmd_states.find(cmd_id);
   if (it == cmd_states.end())
     return "";
   return it->second.color_string_54;
 }
-
 String getOrientationForCmd(int cmd_id) {
   auto it = cmd_states.find(cmd_id);
   if (it == cmd_states.end())

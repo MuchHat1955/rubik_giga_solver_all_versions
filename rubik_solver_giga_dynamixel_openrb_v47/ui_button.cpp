@@ -69,11 +69,60 @@ void UIButton::set_is_busy(bool val) {
   is_busy_ = val;
 }
 
+static char face_to_color(char face) {
+  switch (face) {
+    case 'u': return 'W';
+    case 'r': return 'R';
+    case 'f': return 'G';
+    case 'd': return 'Y';
+    case 'l': return 'O';
+    case 'b': return 'B';
+    default:  return '?';
+  }
+}
+
+char* ori_text_to_compact(char* ori_text) {
+  static char out[16];
+
+  char f_phys = '?';
+  char r_phys = '?';
+
+  if (!ori_text) {
+    strcpy(out, "f:? r:?");
+    return out;
+  }
+
+  for (char* p = ori_text; *p; p++) {
+
+    // detect "<cube>-><physical>"
+    if (p[1] == '-' && p[2] == '>') {
+      char cube_face = p[0];
+      char phys_face = p[3];
+
+      // skip separators
+      if (phys_face == '_' || phys_face == ' ') {
+        phys_face = p[4];
+      }
+
+      if (cube_face == 'f') f_phys = phys_face;
+      if (cube_face == 'r') r_phys = phys_face;
+    }
+  }
+
+  char f_color = face_to_color(f_phys);
+  char r_color = face_to_color(r_phys);
+
+  snprintf(out, sizeof(out), "f:%c r:%c", f_color, r_color);
+  return out;
+}
+
 //TODO use below
 void buttons_set_text_ori(char* ori_text) {
   UIButton* btn_ptr = nullptr;
 
   btn_ptr = find_button_by_key("k_orientation_val");
+  // convert ori text to small format
+  char* ori_text_compact = ori_text_to_compact(ori_text);
   if (btn_ptr) btn_ptr->set_text(ori_text);
   set_last_orientation(ori_text);  // TODO is this needed
 }
@@ -99,6 +148,11 @@ void buttons_set_text_by_key(const char* key, const char* a_text) {
 // TODO use below
 void buttons_set_color_string(const char* color_string) {
   set_last_color_string_54(color_string);  // TODO probably needed
+}
+// TODO use below
+void buttons_set_color_string(const char* color_string) {
+  // TODO to implement
+  // also needs to account for the last button pressed
 }
 
 // ============================================================================
