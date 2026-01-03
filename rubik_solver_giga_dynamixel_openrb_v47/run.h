@@ -3,6 +3,11 @@
 
 #include <Arduino.h>
 
+extern bool send_move_cube_progress_bool;
+extern bool send_readcolors_progress_bool;
+extern bool send_orientation_progress_bool;
+extern int last_onecolor_read_slot;
+
 // -----------------------------------------------------------------------------
 // Robot / Cube / UI action dispatchers
 // All functions:
@@ -10,7 +15,7 @@
 //   - set `result` to the command execution result if handled
 // -----------------------------------------------------------------------------
 
-void buttonAction_run(const char *btn_key);
+void buttonAction_run(const char* btn_key);
 
 bool runRobotMovesByKey(const char* key, bool& result);
 bool runCubeMoveByKey(const char* key, bool& result);
@@ -34,4 +39,3 @@ bool runColorOrientationByKey(const char* key, bool& result);
 
 
 #endif  // RUN_H
-

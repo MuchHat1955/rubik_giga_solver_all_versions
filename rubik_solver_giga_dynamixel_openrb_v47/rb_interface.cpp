@@ -272,10 +272,6 @@ static void rb_info_cb(const String& mod,
              (unsigned long)id,
              msg.c_str());
 
-  // We only care about RUN module for these payloads
-  //   if (mod != "RUN") TODO CHECK is this needed
-  //    return;
-
   auto& st = cmd_states[id];
 
   // ------------------------------------------------------------

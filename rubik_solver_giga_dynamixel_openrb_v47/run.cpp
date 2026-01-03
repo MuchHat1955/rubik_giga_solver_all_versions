@@ -7,6 +7,12 @@
 #include "rubik_solver.h"
 #include "ui_cube_view.h"
 
+// TODO-> TO IMPLEMENT use below to reflect UI
+bool send_move_cube_progress_bool = false;
+bool send_readcolors_progress_bool = false;
+bool send_orientation_progress_bool = false;
+int last_onecolor_read_slot = -1;
+
 //-----------------------------------------------------------------------------------------
 
 void buttonAction_run(const char* btn_key) {
@@ -126,11 +132,10 @@ bool runCubeMoveByKey(const char* key, bool& result) {
 
   // ---------------- Run command ----------------
   int cmd_id = 0;
-  result = runCommand("CUBEMOVE", move, &cmd_id);
-
+  result = runCommand("MOVECUBE", move, &cmd_id);
   // ---------------- Footer + logging ----------------
   if (!result) {
-    LOG_ERR("CUBEMOVE %s", getLastError(cmd_id).c_str());
+    LOG_ERR("MOVECUBE %s", getLastError(cmd_id).c_str());
     text = String("run cube move ") + move + " failed";
     setFooter(text.c_str());
   } else {
@@ -155,7 +160,9 @@ bool runRunOrientationByKey(const char* key, bool& result) {
   setFooter(text.c_str());
 
   int cmd_id = 0;
+  send_orientation_progress_bool = true;
   result = runCommand("RUN", cmd, &cmd_id);
+  send_orientation_progress_bool = false;
 
   if (!result) {
     LOG_ERR("RUN %s", getLastError(cmd_id).c_str());
@@ -193,9 +200,11 @@ bool runColorStickerByKey(const char* key, bool& result) {
     LOG_ERR("ONECOLOR", "error", getLastError(cmd_id).c_str());
     text = String("read color sticker c") + slot + " failed";
     setFooter(text.c_str());
+    last_onecolor_read_slot = -1;
   } else {
     uint32_t icmd;
     char one_color_char = getLastColorOneColor(&icmd);
+    last_onecolor_read_slot = slot.toInt();
     buttons_set_text_by_key(key, String(one_color_char).c_str());
     text = String("read color sticker c") + slot + " " + String(one_color_char);
     setFooter(text.c_str());
@@ -216,15 +225,26 @@ bool runSolveCubeFindSolutionByKey(const char* key, bool& result) {
 
   //TODO-> TO IMPLEMENT  below is only for bottom layer
   String cube = getLastColorString();
-  bool ok = is_valid_color_string(cube);
   String solution = "";
-  if (ok) solution = find_solution_solve_bottom_layer(cube);
-  else {
+
+  bool ok = is_valid_color_string(cube);
+  if (!ok) {
     LOG_ERR("not a valid color string %s", cube.c_str());
+    setFooter("err invalid color read");
+  }
+  if (ok) {
+    ok = is_solved_top_two_layers(cube);
+    if (ok) {
+      solution = find_solution_for_bottom_layer(cube);
+    } else {
+      LOG_ERR("for now supporting only bottom layer solution %s", cube.c_str());
+      setFooter("full solution not implemented");  //TODO-> TO IMPLEMENT full solution
+    }
   }
 
   if (solution = "") {
     LOG_ERR("no solution found for %s", cube.c_str());
+    setFooter("no solution found");
     result = false;
   } else {
     setLastCubeSolution(solution);
@@ -264,7 +284,10 @@ bool runSolveCubeRunSolutionByKey(const char* key, bool& result) {
   ui_moves_progress_set(solution, getColorsForSolution(solution));  //TODO-> TO TEST if this is enough for index to update
   ui_moves_progress_set_index(0);
   LOG_PRINTF("progress bar created with {%s}\n", solution.c_str());
+
+  send_move_cube_progress_bool = true;
   bool ok = runCommand("MOVECUBE", solution, &cmd_id);
+  send_move_cube_progress_bool = false;
 
   return ok;
 }
@@ -314,7 +337,9 @@ bool runColorReadByKey(const char* key, bool& result) {
   setFooter(cmd.c_str());
 
   int cmd_id = 0;
+  send_readcolors_progress_bool = true;
   result = runCommand(cmd, param, &cmd_id);
+  send_readcolors_progress_bool = false;
 
   if (!result) {
     LOG_ERR(cmd.c_str(), "error", getLastError(cmd_id).c_str());
@@ -345,7 +370,9 @@ bool runSolveReadByKey(const char* key, bool& result) {
   setFooter(text.c_str());
 
   int cmd_id = 0;
+  send_readcolors_progress_bool = true;
   result = runCommand(cmd, param, &cmd_id);
+  send_readcolors_progress_bool = false;
 
   if (!result) {
     LOG_ERR(cmd.c_str(), "error", getLastError(cmd_id).c_str());

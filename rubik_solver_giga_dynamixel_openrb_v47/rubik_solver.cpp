@@ -111,7 +111,7 @@ String getColorsForSolution(const String &solution) {
 // 1) Check top two layers solved
 // ============================================================
 
-bool top_two_layers_solved_bool(const String &a_cube) {
+bool is_solved_top_two_layers(const String &a_cube) {
 
   String cube = a_cube;
   cube.toUpperCase();
@@ -230,12 +230,12 @@ String align_bottom_layer(const String &cube) {
 // 5) Full bottom-layer solver
 // ============================================================
 
-String find_solution_solve_bottom_layer(const String &a_cube) {
+String find_solution_for_bottom_layer(const String &a_cube) {
 
   String cube = a_cube;
   cube.toUpperCase();
 
-  if (!top_two_layers_solved_bool(cube)) {
+  if (!is_solved_top_two_layers(cube)) {
     LOG_ERR("ERR top two layers not solved\n");
     return "";
   }
