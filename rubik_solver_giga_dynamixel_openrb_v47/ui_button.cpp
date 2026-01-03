@@ -2,6 +2,7 @@
 #include "logging.h"
 #include "ui_theme.h"
 #include "rb_interface.h"
+#include "run.h"
 
 // ============================================================================
 // UIButton implementation
@@ -81,28 +82,28 @@ static char face_to_color(char face) {
   }
 }
 
-char* ori_text_to_compact(char* ori_text) {
-  static char out[16];
-
+String ori_text_to_compact(const char* ori_text) {
   char f_phys = '?';
   char r_phys = '?';
 
-  if (!ori_text) {
-    strcpy(out, "f:? r:?");
-    return out;
+  if (!ori_text || !*ori_text) {
+    return String("f:? r:?");
   }
 
-  for (char* p = ori_text; *p; p++) {
+  for (int i = 0; ori_text[i] && ori_text[i + 2]; i++) {
 
-    // detect "<cube>-><physical>"
-    if (p[1] == '-' && p[2] == '>') {
-      char cube_face = p[0];
-      char phys_face = p[3];
+    // detect "<cube>->"
+    if (ori_text[i + 1] == '-' && ori_text[i + 2] == '>') {
 
-      // skip separators
-      if (phys_face == '_' || phys_face == ' ') {
-        phys_face = p[4];
+      char cube_face = ori_text[i];
+      int j = i + 3;
+
+      // skip separators (_ or space)
+      while (ori_text[j] == '_' || ori_text[j] == ' ') {
+        j++;
       }
+
+      char phys_face = ori_text[j];
 
       if (cube_face == 'f') f_phys = phys_face;
       if (cube_face == 'r') r_phys = phys_face;
@@ -112,16 +113,18 @@ char* ori_text_to_compact(char* ori_text) {
   char f_color = face_to_color(f_phys);
   char r_color = face_to_color(r_phys);
 
+  char out[16];
   snprintf(out, sizeof(out), "f:%c r:%c", f_color, r_color);
-  return out;
+
+  return String(out);
 }
 
-void buttons_set_text_ori(char* ori_text) {
+void buttons_set_text_ori(const char* ori_text) {
   UIButton* btn_ptr = nullptr;
 
   btn_ptr = find_button_by_key("k_orientation_val");
   // convert ori text to small format
-  char* ori_text_compact = ori_text_to_compact(ori_text);
+  String ori_text_compact = ori_text_to_compact(ori_text);
   if (btn_ptr) btn_ptr->set_text(ori_text);
   set_last_orientation(ori_text);
 }
@@ -145,11 +148,14 @@ void buttons_set_text_by_key(const char* key, const char* a_text) {
 }
 
 void buttons_set_color_string(const char* color_string) {
-  set_last_color_string_54(color_string); 
+  set_last_color_string_54(color_string);
 }
 void buttons_set_one_color_string(const char one_color) {
-  String key = String("k_color_c") + String(last_color_one_color_char);
-  buttons_set_text_by_key(key, String(one_color_char).c_str());
+  int cmd = 0;
+  char clr_char = getLastColorOneColor(&cmd);
+
+  String key_str = String("k_color_c") + String(last_onecolor_read_slot);
+  buttons_set_text_by_key(key_str.c_str(), String(clr_char).c_str());
 }
 // ============================================================================
 // Global button registry

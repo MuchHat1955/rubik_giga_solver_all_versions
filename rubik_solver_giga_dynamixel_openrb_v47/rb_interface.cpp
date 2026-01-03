@@ -204,7 +204,7 @@ struct rb_servo_status_t {
   int zero_ticks = 0;
   int max_ticks = 0;
 
-  int cmd_id = 0;  // command that produced this snapshot
+  int cmd_id = -1;  // command that produced this snapshot
 };
 
 static std::map<int, rb_servo_status_t> last_servo_status_by_id;
@@ -420,7 +420,7 @@ static void rb_info_cb(const String& mod,
     last_robot_move_step_cmd = id;
 
     // TODO-> TO TEST
-    if (send_move_robot_progress) {
+    if (send_move_robot_progress_bool) {
       ui_moves_progress_set_index(step);
     }
     return;
@@ -440,7 +440,7 @@ static void rb_info_cb(const String& mod,
     last_cube_move_step_cmd = id;
 
     // TODO-> TO TEST
-    if (send_move_cube_progress) {
+    if (send_move_cube_progress_bool) {
       ui_moves_progress_set_index(step);
     }
     return;
@@ -559,7 +559,7 @@ bool runCommand(const String& command,
 }
 
 bool checkServosStatus() {
-  int cmd_id = 0;
+  int cmd_id = -1;
   return runCommand("READSERVO", "0", &cmd_id);
 }
 
@@ -592,7 +592,7 @@ String getLastCommandParams(int cmdId) {
 }
 
 String getRbInterfaceVersion() {
-  int cmd_id = 0;
+  int cmd_id = -1;
 
   uint32_t id = rb.send_command("VERSION", "");
   cmd_id = (int)id;
@@ -627,30 +627,30 @@ String getRbInterfaceVersion() {
   return "rb interface version " + v;
 }
 
-String getLastColorStringCurr(uint32_t* cmd_id) {
+String getLastColorStringCurr(int* cmd_id) {
   if (cmd_id) *cmd_id = last_color_string_curr_cmd;
   return last_color_string_curr;
 }
-char getLastColorOneColor(uint32_t* cmd_id) {
+char getLastColorOneColor(int* cmd_id) {
   if (cmd_id) *cmd_id = last_color_one_color_cmd;
   return last_color_one_color_char;
 }
-int getLastColorReadStep(uint32_t* cmd_id) {
+int getLastColorReadStep(int* cmd_id) {
   if (cmd_id) *cmd_id = last_color_read_step_cmd;
   return last_color_read_step;
 }
 
-int getLastCubeMoveStep(uint32_t* cmd_id) {
+int getLastCubeMoveStep(int* cmd_id) {
   if (cmd_id) *cmd_id = last_cube_move_step_cmd;
   return last_cube_move_step;
 }
 
-int getLastRobotMoveStep(uint32_t* cmd_id) {
+int getLastRobotMoveStep(int* cmd_id) {
   if (cmd_id) *cmd_id = last_robot_move_step_cmd;
   return last_robot_move_step;
 }
 
-String getLastColorReadMap(uint32_t* cmd_id) {
+String getLastColorReadMap(int* cmd_id) {
   if (cmd_id) *cmd_id = last_color_read_map_cmd;
   return last_color_read_map;
 }
@@ -664,7 +664,7 @@ bool getLastServoStatus(int servo_id, rb_servo_status_t& out) {
   return true;
 }
 
-std::map<int, rb_servo_status_t> getAllLastServoStatus(uint32_t* cmd_id) {
+std::map<int, rb_servo_status_t> getAllLastServoStatus(int* cmd_id) {
   if (cmd_id) *cmd_id = last_servo_status_cmd;
   return last_servo_status_by_id;
 }

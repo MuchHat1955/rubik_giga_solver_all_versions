@@ -76,7 +76,7 @@ bool runRobotMovesByKey(const char* key, bool& result) {
   String text = String("run robot move ") + String(move);
   setFooter(text.c_str());
   // run
-  int cmd_id = 0;
+  int cmd_id = -1;
 
   send_move_robot_progress_bool = true;
   result = runCommand("MOVEROBOT", move, &cmd_id);
@@ -138,7 +138,7 @@ bool runCubeMoveByKey(const char* key, bool& result) {
   setFooter(text.c_str());
 
   // ---------------- Run command ----------------
-  int cmd_id = 0;
+  int cmd_id = -1;
   send_cube_view_bool = true;
   result = runCommand("MOVECUBE", move, &cmd_id);
   send_cube_view_bool = false;
@@ -168,7 +168,7 @@ bool runRunOrientationByKey(const char* key, bool& result) {
   String text = String("run ") + cmd;
   setFooter(text.c_str());
 
-  int cmd_id = 0;
+  int cmd_id = -1;
   send_orientation_data_bool = true;
   result = runCommand("RUN", cmd, &cmd_id);
   send_orientation_data_bool = false;
@@ -201,7 +201,7 @@ bool runColorStickerByKey(const char* key, bool& result) {
   setFooter(text.c_str());
 
   // ---------------- Run command ----------------
-  int cmd_id = 0;
+  int cmd_id = -1;
   result = runCommand("ONECOLOR", slot, &cmd_id);
 
   // ---------------- Footer + logging ----------------
@@ -211,7 +211,7 @@ bool runColorStickerByKey(const char* key, bool& result) {
     setFooter(text.c_str());
     last_onecolor_read_slot = -1;
   } else {
-    uint32_t icmd;
+    int icmd = -1;
     char one_color_char = getLastColorOneColor(&icmd);
     last_onecolor_read_slot = slot.toInt();
     buttons_set_text_by_key(key, String(one_color_char).c_str());
@@ -281,7 +281,7 @@ bool runSolveCubeRunSolutionByKey(const char* key, bool& result) {
   result = false;
 
   String solution = getLastCubeSolution();
-  ui_cube_view_set_colors(set_last_color_string_54());
+  ui_cube_view_set_colors(getLastColorString());
   if (solution = "") {
     LOG_ERR("RUN %s no solution", key);
     setFooter((text + " failed").c_str());
@@ -314,7 +314,7 @@ bool runSystemByKey(const char* key, bool& result) {
 
   setFooter(cmd.c_str());
 
-  int cmd_id = 0;
+  int cmd_id = -1;
   result = runCommand(cmd, "", &cmd_id);
 
   if (!result) {
@@ -345,7 +345,7 @@ bool runColorReadByKey(const char* key, bool& result) {
 
   setFooter(cmd.c_str());
 
-  int cmd_id = 0;
+  int cmd_id = -1;
   send_readcolors_progress_bool = true;
   result = runCommand(cmd, param, &cmd_id);
   send_readcolors_progress_bool = false;
@@ -378,7 +378,7 @@ bool runSolveReadByKey(const char* key, bool& result) {
   String text = cmd + " " + param;
   setFooter(text.c_str());
 
-  int cmd_id = 0;
+  int cmd_id = -1;
   send_readcolors_progress_bool = true;
   result = runCommand(cmd, param, &cmd_id);
   send_readcolors_progress_bool = false;
@@ -403,7 +403,7 @@ bool runColorOrientationByKey(const char* key, bool& result) {
 
   setFooter(("rotate " + move).c_str());
 
-  int cmd_id = 0;
+  int cmd_id = -1;
   result = runCommand("ROBOTMOVE", move, &cmd_id);
 
   if (!result) {

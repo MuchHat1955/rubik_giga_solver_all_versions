@@ -71,13 +71,13 @@ String getColorStringForCmd(int cmd_id);
 String getOrientationForCmd(int cmd_id);
 String getRbInterfaceVersion();
 
-String getLastColorStringCurr(uint32_t* cmd_id = nullptr);
-int getLastColorReadStep(uint32_t* cmd_id = nullptr);
-int getLastCubeMoveStep(uint32_t* cmd_id = nullptr);
-int getLastRobotMoveStep(uint32_t* cmd_id = nullptr);
-String getLastColorReadMap(uint32_t* cmd_id = nullptr);
+String getLastColorStringCurr(int* cmd_id = nullptr);
+int getLastColorReadStep(int* cmd_id = nullptr);
+int getLastCubeMoveStep(int* cmd_id = nullptr);
+int getLastRobotMoveStep(int* cmd_id = nullptr);
+String getLastColorReadMap(int* cmd_id = nullptr);
 String getLastServoStatusStr(int servo_id);
-char getLastColorOneColor(uint32_t* cmd_id);
+char getLastColorOneColor(int* cmd_id);
 
 void set_last_color_string_54(String a_color_string);
 void set_last_orientation(String a_ori);

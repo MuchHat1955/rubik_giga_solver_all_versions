@@ -501,8 +501,7 @@ void buildMenu(const char *menuKey) {
     lv_obj_set_style_pad_all(moves_ui, 6, 0);
     lv_obj_set_style_pad_gap(moves_ui, 6, 0);
 
-    LOG_PRINTF("progress bar created\n"));
-    // END TEST
+    LOG_PRINTF("progress bar created\n");
   }
 
   lv_obj_invalidate(lv_scr_act());
