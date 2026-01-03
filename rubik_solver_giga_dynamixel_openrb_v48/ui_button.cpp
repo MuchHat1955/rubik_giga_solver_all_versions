@@ -133,7 +133,7 @@ void buttons_set_text_ori(const char* ori_text) {
   btn_ptr = find_button_by_key("k_orientation_val");
   // convert ori text to small format
   String ori_text_compact = ori_text_to_compact(ori_text);
-  if (btn_ptr) btn_ptr->set_text(ori_text_compact);
+  if (btn_ptr) btn_ptr->set_text(ori_text_compact.c_str());
   set_last_orientation(ori_text);
 }
 
