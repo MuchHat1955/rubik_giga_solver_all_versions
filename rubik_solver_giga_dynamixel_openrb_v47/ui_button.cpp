@@ -147,7 +147,7 @@ void buttons_set_text_by_key(const char* key, const char* a_text) {
 void buttons_set_color_string(const char* color_string) {
   set_last_color_string_54(color_string); 
 }
-void void buttons_set_one_color_string(const char one_color) {
+void buttons_set_one_color_string(const char one_color) {
   String key = String("k_color_c") + String(last_color_one_color_char);
   buttons_set_text_by_key(key, String(one_color_char).c_str());
 }

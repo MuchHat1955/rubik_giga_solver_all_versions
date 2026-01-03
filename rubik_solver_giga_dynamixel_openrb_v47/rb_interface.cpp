@@ -3,6 +3,7 @@
 #include "ui_touch.h"
 #include "ui_cube_view.h"
 #include "ui_button.h"
+#include "run.h"
 
 /*
   uint32_t id = rb.send_command("READSERVO", "0");
@@ -486,7 +487,7 @@ static void rb_info_cb(const String& mod,
     last_orientation = value;
     // TODO-> TO TEST
     if (send_orientation_data_bool) {
-      buttons_set_text_ori(value);
+      buttons_set_text_ori(value.c_str());
     }
     return;
   }
