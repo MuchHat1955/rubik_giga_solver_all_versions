@@ -40,8 +40,8 @@ void buttonAction_run(const char* btn_key) {
   //TODO-> TO TEST if more actions go here
 
   if (handled) {
-    footer_txt = String("end ") + String(btn_key);
-    setFooter(footer_txt.c_str());
+    // footer_txt = String("end ") + String(btn_key);
+    // setFooter(footer_txt.c_str());
   }
 
   if (!handled) {
@@ -312,13 +312,19 @@ bool runSystemByKey(const char* key, bool& result) {
   if (strcmp(key, "k_servos_info") == 0) cmd = "INFOSERVO";
   else if (strcmp(key, "k_reboot_all") == 0) cmd = "REBOOTALL";
   else if (strcmp(key, "k_set_stop_all") == 0) cmd = "SETSTOPALL";
-  else if (strcmp(key, "k_clear_stop_all") == 0) cmd = "CLEARSTOPALL";
   else return false;
 
   setFooter(cmd.c_str());
 
   int cmd_id = -1;
   result = runCommand(cmd, "", &cmd_id);
+  if (result) {
+    if (strcmp(key, "k_reboot_all") == 0) {
+      // reboot does also clear
+      cmd = cmd = "CLEARSTOPALL";
+      result = runCommand(cmd, "", &cmd_id);
+    }
+  }
 
   if (!result) {
     LOG_ERR(cmd.c_str(), "error", getLastError(cmd_id).c_str());

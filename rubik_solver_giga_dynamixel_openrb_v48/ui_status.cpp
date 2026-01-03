@@ -64,7 +64,7 @@ void drawButtonOverlayById(int btn_id) {
   }
   lv_obj_t *btn = btn_ptr->get_ptr();
   if (!btn) {
-    LOG_ERR("[!] drawButtonOverlay: button object is null for id {%d}\n", btn_id);
+    // LOG_ERR("[!] drawButtonOverlay: button object is null for id {%d}\n", btn_id);
     return;
   }
 

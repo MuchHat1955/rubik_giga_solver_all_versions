@@ -184,8 +184,8 @@ void buildMenu(const char *menuKey) {
         extraPad = 24;
       }
       lv_txt_get_size(&sz, txt, btnFont, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
-      if (strcmp(type, "error_status") == 0)
-        extraPad = SCREEN_W - sz.x - textPad - 60;
+      //  if (strcmp(type, "k_system_info_text") == 0)
+      //   extraPad = SCREEN_W - sz.x - textPad - 60;
       int width = sz.x + textPad + extraPad;
       if (width > colWidths[ci]) colWidths[ci] = width;
     }
@@ -255,6 +255,17 @@ void buildMenu(const char *menuKey) {
 
       // ---------- ACTION / MENU ----------
       else if (strcmp(type, "action") == 0 || strcmp(type, "menu") == 0) {
+
+        bool is_system_back =
+          strcmp(menuKey, "k_system") == 0 &&  //
+          strcmp(type, "menu") == 0 &&         //
+          strcasecmp(txt, "back") == 0;
+
+        if (is_system_back) {
+          // DO NOT add to cont
+          continue;
+        }
+
         lv_color_t colorBtn = COLOR_BTN_ACTION;
         if (strcmp(type, "menu") == 0) colorBtn = COLOR_BTN_MENU;
         if (strcasecmp(txt, "back") == 0) colorBtn = COLOR_BTN_BACK;
@@ -396,26 +407,33 @@ void buildMenu(const char *menuKey) {
         lv_obj_add_event_cb(btnPlus, on_num_plus_clicked, LV_EVENT_CLICKED, (void *)key);
       }
 
-      // ---------- ERROR STATUS ----------
-      else if (strcmp(type, "error_status") == 0) {
-        int textH = SCREEN_H - 250;
-        if (textH < 60) textH = 60;
+      // ---------- SERVOS INFO ----------
+      else if (strcmp(type, "k_system_info_text") == 0) {
+        const int top_margin = 70;
+        const int bottom_reserved = 220;
+        const int side_margin = 15;
+
+        int textH = SCREEN_H - bottom_reserved - top_margin;
+        if (textH < 120) textH = 120;
+
+        int textW = SCREEN_W - side_margin * 2;
 
         lv_obj_t *ta = lv_textarea_create(cont);
-        lv_obj_set_size(ta, colW, textH);
-        // TODO-> TO ADJUST row of menus height 40?
-        lv_obj_set_pos(ta, x + 40, y);
+        lv_obj_set_size(ta, textW, textH);
+
+        // ⬇️ Top-left anchored, not grid-based
+        lv_obj_set_pos(ta, side_margin, top_margin);
         lv_obj_set_scrollbar_mode(ta, LV_SCROLLBAR_MODE_AUTO);
 
         updateButtonPtrByKey("k_system_info_text", ta);
 
-        String servoText = "";
-        servoText = String("#FFA500 servos info#\n") + getLastServoStatusStr(0) + "\n\n";
+        String servoText = getLastServoStatusStr(0);
 
         String systemText =
-          String("#FFA500 main build#\n") + getSketchVersionWithDate() + "\n\n" +  //
-          String("#FFA500 rb build#\n") + getRbVersion() + "\n\n" +                //
-          String("#FFA500 log lines#\n") + getAllErrorLines() + "\n\n" + servoText;
+          String("#FFA500 main build# ") + getSketchVersionWithDate() + "\n" +  //
+          String("#FFA500 rb build# ") + getRbVersion() + "\n\n" +              //
+          String("#FFA500 servos status#\n") + servoText + "\n" +               //
+          String("#FFA500 errors log#\n") + getAllErrorLines();
 
         lv_textarea_set_text(ta, systemText.c_str());
         lv_textarea_set_cursor_click_pos(ta, false);
@@ -432,7 +450,45 @@ void buildMenu(const char *menuKey) {
         lv_obj_set_style_border_width(ta, 0, 0);
         lv_obj_set_style_text_font(ta, FONT_BTN_SMALL_PTR, 0);
 
-        adjustedRowH = textH + 20;
+        adjustedRowH = SCREEN_H - bottom_reserved;
+      }
+      if (strcmp(menuKey, "k_system") == 0) {
+
+        const int back_h = 52;
+        const int back_w = 160;
+
+        lv_obj_t *back_btn = lv_btn_create(scr);  // 🔥 NOTE: scr, not cont
+        lv_obj_remove_style_all(back_btn);
+        lv_obj_set_size(back_btn, back_w, back_h);
+        lv_obj_align(back_btn, LV_ALIGN_BOTTOM_MID, 0, -footer_h - 30);
+
+        lv_obj_set_style_radius(back_btn, CORNERS, 0);
+        lv_obj_set_style_border_width(back_btn, 2, 0);
+        lv_obj_set_style_border_color(back_btn, COLOR_BTN_BACK, 0);
+        lv_obj_set_style_bg_color(back_btn, COLOR_BTN_BACK, LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(back_btn, LV_OPA_COVER, LV_PART_MAIN);
+
+        lv_obj_t *lbl = lv_label_create(back_btn);
+        lv_label_set_text(lbl, "back");
+        lv_obj_center(lbl);
+        lv_obj_set_style_text_font(lbl, FONT_BTN_LARGE_PTR, 0);
+        lv_obj_set_style_text_color(lbl, COLOR_BTN_TEXT, 0);
+
+        // connect to existing button system
+        UIButton *btn_ptr = find_button_by_key("k_main");
+        if (btn_ptr) {
+          btn_ptr->set_ptr(back_btn);
+          drawButtonOverlayByKey("k_main");
+
+          lv_obj_add_event_cb(
+            back_btn,
+            [](lv_event_t *e) {
+              if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+              buttonAction(find_button_by_key("k_main")->get_id());
+            },
+            LV_EVENT_CLICKED,
+            nullptr);
+        }
       }
       x += colW + 8;
     }
@@ -529,7 +585,7 @@ const char jsonBuffer[] = R"json(
       [{ "text": "solve cube", "type": "menu", "key": "k_solve_cube" }],
       [{ "text": "read cube", "type": "menu", "key": "k_read_cube" }],
       [{ "text": "tests", "type": "menu", "key": "k_tests" }],
-      [{ "text": "system", "type": "menu", "key": "k_system", "status": "yes" }]
+      [{ "text": "system", "type": "menu", "key": "k_system"}]
     ]
   },
   "k_solve_cube": {
@@ -561,16 +617,15 @@ const char jsonBuffer[] = R"json(
   "k_system": {
     "title": "system status",
     "footer": "scroll for details",
-    "columns": 4,
+    "columns": 3,
     "equal_columns": "all",
     "rows": [
        [
-        { "text": "info", "type": "action", "key": "k_servos_info" },
-        { "text": "reboot", "type": "action", "key": "k_reboot_all" },
-        { "text": "stop", "type": "action", "key": "k_set_stop_all" },
-        { "text": "clear", "type": "menu", "key": "k_clear_stop_all" }
+        { "text": "info", "type": "action", "key": "k_servos_info","status": "yes" },
+        { "text": "reboot", "type": "action", "key": "k_reboot_all","status": "yes" },
+        { "text": "stop", "type": "action", "key": "k_set_stop_all","status": "yes" }
       ],
-      [{ "type": "error_status", "text": "" }],
+      [{ "type": "k_system_info_text", "text": "" }],
       [{ "text": "back", "type": "menu", "key": "k_main" }]
     ]
   },

@@ -96,35 +96,19 @@ void buttonAction_executeAction(int btn_id) {
   const char *btn_key = b->get_key();
   const char *btn_txt = b->get_text();
 
-  // handle the system
-  if (strcmp(btn_key, "k_system") == 0) {
-    LOG_SECTION_START_MENU("update servos for btn {%s}", btn_key);
+  // haddle all status buttons
+  if (b->get_is_status() && !b->get_is_menu()) {
+    LOG_SECTION_START_MENU("update overlay for btn {%s}", btn_key);
+    // show busy
     b->set_is_busy(true);
     drawButtonOverlayById(btn_id);
-    setFooter("updating system...");
     //.................
     buttonAction_run(btn_key);
     //.................
+    // reset busy
     b->set_is_busy(false);
     drawButtonOverlayById(btn_id);
     LOG_SECTION_END_MENU();
-  }
-
-  // haddle all status buttons
-  else {
-    if (b->get_is_status() && !b->get_is_menu()) {
-      LOG_SECTION_START_MENU("update overlay for btn {%s}", btn_key);
-      // show busy
-      b->set_is_busy(true);
-      drawButtonOverlayById(btn_id);
-      //.................
-      buttonAction_run(btn_key);
-      //.................
-      // reset busy
-      b->set_is_busy(false);
-      drawButtonOverlayById(btn_id);
-      LOG_SECTION_END_MENU();
-    }
   }
   LOG_SECTION_END_MENU();
 }

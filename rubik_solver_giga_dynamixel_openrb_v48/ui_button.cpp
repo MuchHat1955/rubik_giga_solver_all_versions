@@ -149,10 +149,43 @@ void buttons_set_text_front_color(char* clr_text) {
 }
 
 void buttons_set_text_by_key(const char* key, const char* a_text) {
-  UIButton* btn_ptr = nullptr;
 
-  btn_ptr = find_button_by_key(key);
-  if (btn_ptr) btn_ptr->set_text(a_text);
+#if LV_USE_ASYNC_CALL
+  struct Args {
+    const char* key;
+    const char* text;
+  };
+
+  static Args args;
+  args.key = key;
+  args.text = a_text;
+
+  lv_async_call(
+    [](void* p) {
+      Args* a = (Args*)p;
+      buttons_set_text_by_key(a->key, a->text);
+    },
+    &args);
+  return;
+#endif
+
+  // ---- normal LVGL context path below ----
+  UIButton* btn_ptr = find_button_by_key(key);
+  if (!btn_ptr) return;
+
+  btn_ptr->set_text(a_text);
+
+  lv_obj_t* btn = btn_ptr->get_ptr();
+  if (!btn) return;
+
+  lv_obj_t* lbl = lv_obj_get_child(btn, 0);
+  if (lbl) lv_label_set_text(lbl, a_text);
+
+  lv_obj_invalidate(btn);
+
+  lv_timer_handler();
+  delay(5);
+  lv_timer_handler(); //NOW TO TEST HERE
 }
 
 void buttons_set_color_string(const char* color_string) {
@@ -169,13 +202,13 @@ void buttons_set_one_color_string(const char one_color) {
 // ============================================================================
 
 // All interactive/menu buttons extracted from your JSON (no num/text types)
-//  UIButton(int id, const char* text, const char* key, lv_obj_t* ptr = nullptr, bool is_status = false, bool is_menu = false);
+//  { TEXT, KEY, nullptr, STATUS, MENU);
 UIButton ui_buttons[] = {
 
   { 1, "solve cube", "k_solve_cube", nullptr, false, true },
   { 2, "read cube", "k_read_cube", nullptr, false, true },
   { 3, "tests", "k_tests", nullptr, false, true },
-  { 4, "system", "k_system", nullptr, true, true },
+  { 4, "system", "k_system", nullptr, false, true },
 
   { 5, "read", "k_solve_cube_read_cube_all", nullptr, true, false },
   { 6, "solve", "k_solve_cube_find_solution", nullptr, true, false },
@@ -259,13 +292,12 @@ UIButton ui_buttons[] = {
   { 64, "y+", "k_color_y_plus", nullptr, true, false },
   { 65, "z+", "k_color_z_plus", nullptr, true, false },
 
-  { 66, "tests", "k_servos_info", nullptr, false, false },
-  { 67, "tests", "k_reboot_all", nullptr, false, false },
-  { 68, "tests", "k_set_stop_all", nullptr, false, false },
-  { 69, "tests", "k_clear_stop_all", nullptr, false, false },
+  { 66, "info", "k_servos_info", nullptr, true, false },
+  { 68, "stop", "k_set_stop_all", nullptr, true, false },
+  { 67, "reboot", "k_reboot_all", nullptr, true, false },
 
-  { 70, "", "k_system_info_text", nullptr, false, false },  // this is the text for servos info
-  { 71, "back", "k_tests", nullptr, false, true }
+  { 69, "", "k_system_info_text", nullptr, false, false },  // this is the text for servos info
+  { 70, "back", "k_tests", nullptr, false, true }
 };
 
 const int UI_BUTTON_COUNT = sizeof(ui_buttons) / sizeof(ui_buttons[0]);
