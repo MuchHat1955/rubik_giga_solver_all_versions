@@ -96,6 +96,7 @@ String ori_text_to_compact(const char* ori_text) {
     if (ori_text[i + 1] == '-' && ori_text[i + 2] == '>') {
 
       char cube_face = ori_text[i];
+
       int j = i + 3;
 
       // skip separators (_ or space)
@@ -162,6 +163,7 @@ void buttons_set_one_color_string(const char one_color) {
 // ============================================================================
 
 // All interactive/menu buttons extracted from your JSON (no num/text types)
+//  UIButton(int id, const char* text, const char* key, lv_obj_t* ptr = nullptr, bool is_status = false, bool is_menu = false);
 UIButton ui_buttons[] = {
 
   { 1, "solve cube", "k_solve_cube", nullptr, false, true },
@@ -251,10 +253,14 @@ UIButton ui_buttons[] = {
   { 64, "y+", "k_color_y_plus", nullptr, true, false },
   { 65, "z+", "k_color_z_plus", nullptr, true, false },
 
-  { 66, "back", "k_tests", nullptr, false, true }
+  { 66, "tests", "k_servos_info", nullptr, false, false },
+  { 67, "tests", "k_reboot_all", nullptr, false, false },
+  { 68, "tests", "k_set_stop_all", nullptr, false, false },
+  { 69, "tests", "k_clear_stop_all", nullptr, false, false },
+
+  { 70, "back", "k_system_info_text", nullptr, false, false },  // this is the text for servos info
+  { 70, "back", "k_tests", nullptr, false, true }
 };
-
-
 
 const int UI_BUTTON_COUNT = sizeof(ui_buttons) / sizeof(ui_buttons[0]);
 

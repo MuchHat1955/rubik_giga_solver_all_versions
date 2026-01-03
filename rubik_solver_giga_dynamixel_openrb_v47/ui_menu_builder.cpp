@@ -398,8 +398,11 @@ void buildMenu(const char *menuKey) {
 
         lv_obj_t *ta = lv_textarea_create(cont);
         lv_obj_set_size(ta, colW, textH);
-        lv_obj_set_pos(ta, x, y);
+        // TODO-> TO ADJUST row of menus height 40?
+        lv_obj_set_pos(ta, x + 40, y);
         lv_obj_set_scrollbar_mode(ta, LV_SCROLLBAR_MODE_AUTO);
+
+        updateButtonPtrByKey("k_system_info_text", ta);
 
         String servoText = "";
         servoText = String("#FFA500 servos info#\n") + getLastServoStatusStr(0) + "\n\n";
@@ -553,9 +556,15 @@ const char jsonBuffer[] = R"json(
   "k_system": {
     "title": "system status",
     "footer": "scroll for details",
-    "columns": 1,
+    "columns": 4,
     "equal_columns": "all",
     "rows": [
+       [
+        { "text": "info", "type": "action", "key": "k_servos_info" },
+        { "text": "reboot", "type": "action", "key": "k_reboot_all" },
+        { "text": "stop", "type": "action", "key": "k_set_stop_all" },
+        { "text": "clear", "type": "menu", "key": "k_clear_stop_all" }
+      ],
       [{ "type": "error_status", "text": "" }],
       [{ "text": "back", "type": "menu", "key": "k_main" }]
     ]

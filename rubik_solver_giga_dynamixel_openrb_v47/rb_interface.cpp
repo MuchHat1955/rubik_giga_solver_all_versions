@@ -402,7 +402,8 @@ static void rb_info_cb(const String& mod,
 
     // TODO-> TO TEST
     if (send_readcolors_progress_bool) {
-      ui_moves_progress_set(map, "");  //TODO-> TO IMPLEMENT compute for the map
+      //TODO-> OPTIONAL TO IMPLEMENT actual colors for the z+ y+ etc map
+      ui_moves_progress_set_map(map, "GRBOOBRGWYYW");  // most likely the colors, trimmed bu the set map if too many
       ui_moves_progress_set_index(0);
     }
     return;
@@ -669,10 +670,72 @@ std::map<int, rb_servo_status_t> getAllLastServoStatus(int* cmd_id) {
   return last_servo_status_by_id;
 }
 
+/*
+Servo 11 (arm1): pos=75.50 deg, min=-72.0 deg, max=73.0 deg, I=0 mA, T=25 C
+Servo 12 (arm2): pos=-59.50 deg, min=-72.0 deg, max=125.0 deg, I=0 mA, T=25 C
+Servo 13 (wrist): pos=76.46 deg, min=-41.8 deg, max=318.2 deg, I=0 mA, T=25 C
+Servo 14 (grip1): pos=39.29 deg, min=-31.4 deg, max=54.9 deg, I=0 mA, T=25 C
+Servo 15 (grip2): pos=133.51 deg, min=-124.1 deg, max=77.3 deg, I=0 mA, T=25 C
+Servo 17 (base): pos=0.00 deg, min=-180.0 deg, max=180.0 deg, I=0 mA, T=23 C
+
+Servo 16 (unknown): NO DATA
+
+*/
+
 String getLastServoStatusStr(int servo_id) {
 
+  auto ticks_to_deg = [](const rb_servo_status_t& s, int ticks) -> float {
+    if (s.max_ticks == s.min_ticks) return 0.0f;
+    float span_ticks = (float)(s.max_ticks - s.min_ticks);
+    float span_deg   = 360.0f;   // generic safe span
+    return (ticks - s.zero_ticks) * (span_deg / span_ticks);
+  };
+
+  auto format_servo = [&](const rb_servo_status_t& s) -> String {
+
+    String out;
+    out.reserve(128);
+
+    out += "Servo ";
+    out += String(s.servo_id);
+    out += " (";
+    out += s.servo_name;
+    out += "): ";
+
+    // ---- NO DATA CASE ----
+    if (s.cmd_id == -1) {
+      out += "NO DATA";
+      return out;
+    }
+
+    float min_deg = ticks_to_deg(s, s.min_ticks);
+    float max_deg = ticks_to_deg(s, s.max_ticks);
+
+    out += "pos=";
+    out += String(s.pos_deg, 2);
+    out += " deg, ";
+
+    out += "min=";
+    out += String(min_deg, 1);
+    out += " deg, ";
+
+    out += "max=";
+    out += String(max_deg, 1);
+    out += " deg, ";
+
+    out += "I=";
+    out += String(s.current_ma);
+    out += " mA, ";
+
+    out += "T=";
+    out += String(s.temp_c);
+    out += " C";
+
+    return out;
+  };
+
   // ------------------------------------------------------------
-  // ALL SERVOS
+  // ALL SERVOS (servo_id == 0)
   // ------------------------------------------------------------
   if (servo_id == 0) {
     if (last_servo_status_by_id.empty()) {
@@ -680,29 +743,14 @@ String getLastServoStatusStr(int servo_id) {
     }
 
     String out;
-    out.reserve(128);
+    out.reserve(320);
 
     bool first = true;
     for (const auto& it : last_servo_status_by_id) {
-      const rb_servo_status_t& s = it.second;
-
       if (!first) out += "\n";
       first = false;
 
-      out += "Servo ";
-      out += String(s.servo_id);
-      out += " (";
-      out += s.servo_name;
-      out += "): ";
-
-      out += String(s.pos_deg, 2);
-      out += " deg, ";
-
-      out += String(s.current_ma);
-      out += " mA, ";
-
-      out += String(s.temp_c);
-      out += " C";
+      out += format_servo(it.second);
     }
 
     return out;
@@ -716,28 +764,10 @@ String getLastServoStatusStr(int servo_id) {
     return "no servo info";
   }
 
-  String out;
-  out.reserve(64);
-
-  out += "Servo ";
-  out += String(s.servo_id);
-  out += " (";
-  out += s.servo_name;
-  out += "): ";
-
-  out += String(s.pos_deg, 2);
-  out += " deg, ";
-
-  out += String(s.current_ma);
-  out += " mA, ";
-
-  out += String(s.temp_c);
-  out += " C";
-
-  return out;
+  return format_servo(s);
 }
 
-/* --------------------------------------------------------------------------------------------------------------------------------------------------
+/* --------------------------------------------------SERIAL EXAMPLES------------------------------------------------------------
 static CommandEntry command_table[] = {
 
   // version

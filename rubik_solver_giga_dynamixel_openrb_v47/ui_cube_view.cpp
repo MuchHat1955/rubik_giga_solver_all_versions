@@ -208,8 +208,7 @@ lv_obj_t* ui_moves_progress_create(lv_obj_t* parent, int w, int h) {
   return moves_root;
 }
 
-void ui_moves_progress_set(String moves_str,
-                           String colors_str) {
+void ui_moves_progress_set_map(String moves_str, String colors_str) {
   // normalize case
   moves_str.toLowerCase();
   colors_str.toLowerCase();
@@ -248,7 +247,6 @@ void ui_moves_progress_set(String moves_str,
   for (int i = 0; i < (int)tokens.size(); i++) {
     progress_items.push_back({ tokens[i], colors_str[i] });
   }
-
   ui_moves_progress_set_index(0);
 }
 

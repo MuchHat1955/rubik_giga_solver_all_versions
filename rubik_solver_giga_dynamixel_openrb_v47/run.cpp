@@ -37,7 +37,7 @@ void buttonAction_run(const char* btn_key) {
   if (!handled) handled |= runColorStickerByKey(btn_key, ok);
   if (!handled) handled |= runSystemByKey(btn_key, ok);
 
-  //TODO-> TO IMPLEMENT more actions go here
+  //TODO-> TO TEST if more actions go here
 
   if (handled) {
     footer_txt = String("end ") + String(btn_key);
@@ -232,7 +232,6 @@ bool runSolveCubeFindSolutionByKey(const char* key, bool& result) {
   int cmd_id = -1;
   result = false;
 
-  //TODO-> TO IMPLEMENT solution below is only for bottom layer
   String cube = getLastColorString();
   String solution = "";
 
@@ -246,6 +245,8 @@ bool runSolveCubeFindSolutionByKey(const char* key, bool& result) {
     if (ok) {
       solution = find_solution_for_bottom_layer(cube);
     } else {
+      //TODO-> TO IMPLEMENT add solution for full cube
+      solution = "";
       LOG_ERR("for now supporting only bottom layer solution %s", cube.c_str());
       setFooter("full solution not implemented");
     }
@@ -290,7 +291,7 @@ bool runSolveCubeRunSolutionByKey(const char* key, bool& result) {
   }
 
   cmd_id = -1;
-  ui_moves_progress_set(solution, getColorsForSolution(solution));
+  ui_moves_progress_set_map(solution, getColorsForSolution(solution));
   ui_moves_progress_set_index(0);
   LOG_PRINTF("progress bar created with {%s}\n", solution.c_str());
 
@@ -300,16 +301,17 @@ bool runSolveCubeRunSolutionByKey(const char* key, bool& result) {
 
   return ok;
 }
+
+// TODO-> TO TEST
 bool runSystemByKey(const char* key, bool& result) {
   if (!key) return false;
 
   String cmd;
 
-  if (strcmp(key, "k_system") == 0) cmd = "READSERVO 0";                //TODO-> TO IMPLEMENT add these as buttons in system
-  else if (strcmp(key, "k_tests") == 0) cmd = "INFOSERVO";              //TODO-> TO IMPLEMENT add these as buttons in system
-  else if (strcmp(key, "k_reboot_all") == 0) cmd = "REBOOTALL";         //TODO-> TO IMPLEMENT add these as buttons in system
-  else if (strcmp(key, "k_set_stop_all") == 0) cmd = "SETSTOPALL";      //TODO-> TO IMPLEMENT add these as buttons in system
-  else if (strcmp(key, "k_clear_stop_all") == 0) cmd = "CLEARSTOPALL";  //TODO-> TO IMPLEMENT add these as buttons in system
+  if (strcmp(key, "k_servos_info") == 0) cmd = "INFOSERVO";
+  else if (strcmp(key, "k_reboot_all") == 0) cmd = "REBOOTALL";
+  else if (strcmp(key, "k_set_stop_all") == 0) cmd = "SETSTOPALL";
+  else if (strcmp(key, "k_clear_stop_all") == 0) cmd = "CLEARSTOPALL";
   else return false;
 
   setFooter(cmd.c_str());
@@ -323,6 +325,10 @@ bool runSystemByKey(const char* key, bool& result) {
   } else {
     setFooter((cmd + " ok").c_str());
   }
+  String servos_info = getLastServoStatusStr(0);
+  LOG_PRINTF("updated servos info /n{%s/n}/n", servos_info);
+  buttons_set_text_by_key("k_system_info_text", servos_info.c_str());
+
   return true;
 }
 
