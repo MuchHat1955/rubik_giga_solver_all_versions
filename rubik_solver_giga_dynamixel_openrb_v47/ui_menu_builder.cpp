@@ -467,12 +467,7 @@ void buildMenu(const char *menuKey) {
 
     y += cube_h;
 
-    // TODO-> TO IMPLEMENT below are for test
-    String colors54 = getLastColorString();
-    if (colors54.length() == 54) {
-      ui_cube_view_set_colors(colors54);
-    }
-    LOG_PRINTF("cube view created with {%s}\n", colors54.c_str());
+    LOG_PRINTF("cube view created\n");
     // END TEST
 
     // ----------------------------------------------------------
@@ -506,12 +501,7 @@ void buildMenu(const char *menuKey) {
     lv_obj_set_style_pad_all(moves_ui, 6, 0);
     lv_obj_set_style_pad_gap(moves_ui, 6, 0);
 
-    // TODO-> TO IMPLEMENT below are for test
-    String moves = "f+ f-";
-    String colors = "RG";
-    ui_moves_progress_set(moves, colors);
-    ui_moves_progress_set_index(0);
-    LOG_PRINTF("progress bar created with {%s}\n", colors.c_str());
+    LOG_PRINTF("progress bar created\n"));
     // END TEST
   }
 

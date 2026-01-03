@@ -4,8 +4,10 @@
 #include <Arduino.h>
 
 extern bool send_move_cube_progress_bool;
+extern bool send_move_robot_progress_bool;
 extern bool send_readcolors_progress_bool;
-extern bool send_orientation_progress_bool;
+extern bool send_cube_view_bool;
+extern bool send_orientation_data_bool;
 extern int last_onecolor_read_slot;
 
 // -----------------------------------------------------------------------------

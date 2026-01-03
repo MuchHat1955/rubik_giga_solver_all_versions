@@ -7,10 +7,11 @@
 #include "rubik_solver.h"
 #include "ui_cube_view.h"
 
-// TODO-> TO IMPLEMENT use below to reflect UI
 bool send_move_cube_progress_bool = false;
+bool send_move_robot_progress_bool = false;
+bool send_orientation_data_bool = false;
 bool send_readcolors_progress_bool = false;
-bool send_orientation_progress_bool = false;
+bool send_cube_view_bool = false;
 int last_onecolor_read_slot = -1;
 
 //-----------------------------------------------------------------------------------------
@@ -76,10 +77,14 @@ bool runRobotMovesByKey(const char* key, bool& result) {
   setFooter(text.c_str());
   // run
   int cmd_id = 0;
-  result = runCommand("ROBOTMOVE", move, &cmd_id);
+
+  send_move_robot_progress_bool = true;
+  result = runCommand("MOVEROBOT", move, &cmd_id);
+  send_move_robot_progress_bool = false;
+
   // updated footer
   if (!result) {
-    LOG_ERR("ROBOTMOVE %s", getLastError(cmd_id).c_str());
+    LOG_ERR("MOVEROBOT %s", getLastError(cmd_id).c_str());
     text = String("run robot move ") + String(move) + String(" failed");
     setFooter(text.c_str());
   } else {
@@ -134,7 +139,9 @@ bool runCubeMoveByKey(const char* key, bool& result) {
 
   // ---------------- Run command ----------------
   int cmd_id = 0;
+  send_cube_view_bool = true;
   result = runCommand("MOVECUBE", move, &cmd_id);
+  send_cube_view_bool = false;
   // ---------------- Footer + logging ----------------
   if (!result) {
     LOG_ERR("MOVECUBE %s", getLastError(cmd_id).c_str());
@@ -162,9 +169,9 @@ bool runRunOrientationByKey(const char* key, bool& result) {
   setFooter(text.c_str());
 
   int cmd_id = 0;
-  send_orientation_progress_bool = true;
+  send_orientation_data_bool = true;
   result = runCommand("RUN", cmd, &cmd_id);
-  send_orientation_progress_bool = false;
+  send_orientation_data_bool = false;
 
   if (!result) {
     LOG_ERR("RUN %s", getLastError(cmd_id).c_str());
@@ -225,7 +232,7 @@ bool runSolveCubeFindSolutionByKey(const char* key, bool& result) {
   int cmd_id = -1;
   result = false;
 
-  //TODO-> TO IMPLEMENT  below is only for bottom layer
+  //TODO-> TO IMPLEMENT solution below is only for bottom layer
   String cube = getLastColorString();
   String solution = "";
 
@@ -240,7 +247,7 @@ bool runSolveCubeFindSolutionByKey(const char* key, bool& result) {
       solution = find_solution_for_bottom_layer(cube);
     } else {
       LOG_ERR("for now supporting only bottom layer solution %s", cube.c_str());
-      setFooter("full solution not implemented");  //TODO-> TO IMPLEMENT full solution
+      setFooter("full solution not implemented");
     }
   }
 
@@ -274,7 +281,7 @@ bool runSolveCubeRunSolutionByKey(const char* key, bool& result) {
   result = false;
 
   String solution = getLastCubeSolution();
-
+  ui_cube_view_set_colors(set_last_color_string_54());
   if (solution = "") {
     LOG_ERR("RUN %s no solution", key);
     setFooter((text + " failed").c_str());
@@ -283,7 +290,7 @@ bool runSolveCubeRunSolutionByKey(const char* key, bool& result) {
   }
 
   cmd_id = -1;
-  ui_moves_progress_set(solution, getColorsForSolution(solution));  //TODO-> TO TEST if this is enough for index to update
+  ui_moves_progress_set(solution, getColorsForSolution(solution));
   ui_moves_progress_set_index(0);
   LOG_PRINTF("progress bar created with {%s}\n", solution.c_str());
 
@@ -298,11 +305,11 @@ bool runSystemByKey(const char* key, bool& result) {
 
   String cmd;
 
-  if (strcmp(key, "k_system") == 0) cmd = "READSERVO 0";
-  else if (strcmp(key, "k_tests") == 0) cmd = "INFOSERVO";              //TODO-> TO TEST if to add ?
-  else if (strcmp(key, "k_reboot_all") == 0) cmd = "REBOOTALL";         //TODO-> TO TEST if to add ?
-  else if (strcmp(key, "k_set_stop_all") == 0) cmd = "SETSTOPALL";      //TODO-> TO TEST if to add ?
-  else if (strcmp(key, "k_clear_stop_all") == 0) cmd = "CLEARSTOPALL";  //TODO-> TO TEST if to add ?
+  if (strcmp(key, "k_system") == 0) cmd = "READSERVO 0";                //TODO-> TO IMPLEMENT add these as buttons in system
+  else if (strcmp(key, "k_tests") == 0) cmd = "INFOSERVO";              //TODO-> TO IMPLEMENT add these as buttons in system
+  else if (strcmp(key, "k_reboot_all") == 0) cmd = "REBOOTALL";         //TODO-> TO IMPLEMENT add these as buttons in system
+  else if (strcmp(key, "k_set_stop_all") == 0) cmd = "SETSTOPALL";      //TODO-> TO IMPLEMENT add these as buttons in system
+  else if (strcmp(key, "k_clear_stop_all") == 0) cmd = "CLEARSTOPALL";  //TODO-> TO IMPLEMENT add these as buttons in system
   else return false;
 
   setFooter(cmd.c_str());

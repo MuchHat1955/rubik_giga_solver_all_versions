@@ -295,15 +295,7 @@ void ui_refresh() {
   if (now - lastRefresh < 30000UL) return;  //ADJUST-> adjust this
   lastRefresh = now;
 
-  LOG_SECTION_START_MENU("refresh ui");
-
-  // TODO-> TO IMPLEMENT update butons status goes here
-
-  // example
-  // pose_store.reflect_poses_last_run();
-  // log_all_buttons(true);
-
-  LOG_SECTION_END_MENU();
+  // TODO-> TO CHECK if this is still needed
 }
 
 void ui_loop() {

@@ -328,13 +328,6 @@ static void rb_info_cb(const String& mod,
     return;
   }
 
-  /*
-  // TODO-> TO IMPLEMENT use below
-void buttons_set_text_front_color(char* clr_text)
-void buttons_set_text_by_key(const char* key, const char* a_text)
-void buttons_set_color_string(const char* color_string) 
-  */
-
   // ------------------------------------------------------------
   // COLORSCAN color_string_curr / color_string_curr_face
   // ------------------------------------------------------------
@@ -347,8 +340,11 @@ void buttons_set_color_string(const char* color_string)
       st.color_string_curr = value;
       last_color_string_curr = value;
       last_color_string_curr_cmd = id;
-      // update buttons
-      buttons_set_color_string(value.c_str());
+      if (send_cube_view_bool) {
+        ui_cube_view_set_colors(value);
+        // update buttons
+        buttons_set_color_string(value.c_str());
+      }
     }
     return;
   }
@@ -382,15 +378,11 @@ void buttons_set_color_string(const char* color_string)
     st.color_read_step = step;
     last_color_read_step = step;
     last_color_read_step_cmd = id;
-    // TODO-> TO IMPLEMENT need to send this to UI
-    //
-    // String getLastColorStringCurr(uint32_t* cmd_id = nullptr);
-    // int getLastColorReadStep(uint32_t* cmd_id = nullptr);
-    // int getLastCubeMoveStep(uint32_t* cmd_id = nullptr);
-    // int getLastRobotMoveStep(uint32_t* cmd_id = nullptr);
-    // String getLastColorReadMap(uint32_t* cmd_id = nullptr);
-    // String getLastServoStatusStr(int servo_id);
-    // char getLastColorOneColor(uint32_t* cmd_id);
+
+    // TODO-> TO TEST
+    if (send_readcolors_progress_bool) {
+      ui_moves_progress_set_index(step);
+    }
     //
     return;
   }
@@ -406,16 +398,12 @@ void buttons_set_color_string(const char* color_string)
     st.color_read_map = map;
     last_color_read_map = map;
     last_color_read_map_cmd = id;
-    // TODO-> TO IMPLEMENT need to send this to UI
-    //
-    // String getLastColorStringCurr(uint32_t* cmd_id = nullptr);
-    // int getLastColorReadStep(uint32_t* cmd_id = nullptr);
-    // int getLastCubeMoveStep(uint32_t* cmd_id = nullptr);
-    // int getLastRobotMoveStep(uint32_t* cmd_id = nullptr);
-    // String getLastColorReadMap(uint32_t* cmd_id = nullptr);
-    // String getLastServoStatusStr(int servo_id);
-    // char getLastColorOneColor(uint32_t* cmd_id);
-    //
+
+    // TODO-> TO TEST
+    if (send_readcolors_progress_bool) {
+      ui_moves_progress_set(map, "");  //TODO-> TO IMPLEMENT compute for the map
+      ui_moves_progress_set_index(0);
+    }
     return;
   }
 
@@ -429,16 +417,11 @@ void buttons_set_color_string(const char* color_string)
     st.robot_move_step = step;
     last_robot_move_step = step;
     last_robot_move_step_cmd = id;
-    // TODO-> TO IMPLEMENT need to send this to UI
-    //
-    // String getLastColorStringCurr(uint32_t* cmd_id = nullptr);
-    // int getLastColorReadStep(uint32_t* cmd_id = nullptr);
-    // int getLastCubeMoveStep(uint32_t* cmd_id = nullptr);
-    // int getLastRobotMoveStep(uint32_t* cmd_id = nullptr);
-    // String getLastColorReadMap(uint32_t* cmd_id = nullptr);
-    // String getLastServoStatusStr(int servo_id);
-    // char getLastColorOneColor(uint32_t* cmd_id);
-    //
+
+    // TODO-> TO TEST
+    if (send_move_robot_progress) {
+      ui_moves_progress_set_index(step);
+    }
     return;
   }
 
@@ -454,16 +437,11 @@ void buttons_set_color_string(const char* color_string)
     st.cube_move_step = step;
     last_cube_move_step = step;
     last_cube_move_step_cmd = id;
-    // TODO-> TO IMPLEMENT need to send this to UI
-    //
-    // String getLastColorStringCurr(uint32_t* cmd_id = nullptr);
-    // int getLastColorReadStep(uint32_t* cmd_id = nullptr);
-    // int getLastCubeMoveStep(uint32_t* cmd_id = nullptr);
-    // int getLastRobotMoveStep(uint32_t* cmd_id = nullptr);
-    // String getLastColorReadMap(uint32_t* cmd_id = nullptr);
-    // String getLastServoStatusStr(int servo_id);
-    // char getLastColorOneColor(uint32_t* cmd_id);
-    //
+
+    // TODO-> TO TEST
+    if (send_move_cube_progress) {
+      ui_moves_progress_set_index(step);
+    }
     return;
   }
 
@@ -488,9 +466,11 @@ void buttons_set_color_string(const char* color_string)
 
     st.color_string_54 = value;
     last_color_string_54 = value;
-    ui_cube_view_set_colors(value);
-    // update buttons
-    buttons_set_color_string(value.c_str());
+    if (send_cube_view_bool) {
+      ui_cube_view_set_colors(value);
+      // update buttons
+      buttons_set_color_string(value.c_str());
+    }
     return;
   }
 
@@ -504,7 +484,10 @@ void buttons_set_color_string(const char* color_string)
 
     st.orientation = value;
     last_orientation = value;
-    // TODO-> TO IMPLEMENT need to send this to UI
+    // TODO-> TO TEST
+    if (send_orientation_data_bool) {
+      buttons_set_text_ori(value);
+    }
     return;
   }
 }

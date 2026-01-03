@@ -77,7 +77,7 @@ static char face_to_color(char face) {
     case 'd': return 'Y';
     case 'l': return 'O';
     case 'b': return 'B';
-    default:  return '?';
+    default: return '?';
   }
 }
 
@@ -123,10 +123,9 @@ void buttons_set_text_ori(char* ori_text) {
   // convert ori text to small format
   char* ori_text_compact = ori_text_to_compact(ori_text);
   if (btn_ptr) btn_ptr->set_text(ori_text);
-  set_last_orientation(ori_text);  // TODO-> TO TEST is this enough
+  set_last_orientation(ori_text);
 }
 
- // TODO-> TO TEST is this enough
 void buttons_set_text_front_color(char* clr_text) {
   UIButton* btn_ptr = nullptr;
 
@@ -137,23 +136,21 @@ void buttons_set_text_front_color(char* clr_text) {
   btn_ptr = find_button_by_key("color_read_front_color_value");
   if (btn_ptr) btn_ptr->set_text(clr_text);
 }
-// TODO-> TO IMPLEMENT use below
+
 void buttons_set_text_by_key(const char* key, const char* a_text) {
   UIButton* btn_ptr = nullptr;
 
   btn_ptr = find_button_by_key(key);
   if (btn_ptr) btn_ptr->set_text(a_text);
 }
-// TODO-> TO IMPLEMENT use below
-void buttons_set_color_string(const char* color_string) {
-  set_last_color_string_54(color_string);  // TODO-> TO TEST if probably needed
-}
-// TODO-> TO IMPLEMENT use below
-void buttons_set_one_color_string(const char one_color) {
-  // TODO-> TO IMPLEMENT
-  // also needs to account for the last button pressed, needs a global var likely
-}
 
+void buttons_set_color_string(const char* color_string) {
+  set_last_color_string_54(color_string); 
+}
+void void buttons_set_one_color_string(const char one_color) {
+  String key = String("k_color_c") + String(last_color_one_color_char);
+  buttons_set_text_by_key(key, String(one_color_char).c_str());
+}
 // ============================================================================
 // Global button registry
 // ============================================================================
