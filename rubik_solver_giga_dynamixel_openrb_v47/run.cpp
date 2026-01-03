@@ -19,10 +19,7 @@ void buttonAction_run(const char* btn_key) {
 
   String footer_txt = String("start ") + String(btn_key);
   setFooter(footer_txt.c_str());
-  delay(666);
-  footer_txt = String("end ") + String(btn_key);
-  setFooter(footer_txt.c_str());
-
+  delay(111);
   LOG_PRINTF("running action for key {%s}\n", btn_key);
 
   bool handled = false;
@@ -40,6 +37,11 @@ void buttonAction_run(const char* btn_key) {
   if (!handled) handled |= runSystemByKey(btn_key, ok);
 
   //TODO-> TO IMPLEMENT more actions go here
+
+  if (handled) {
+    footer_txt = String("end ") + String(btn_key);
+    setFooter(footer_txt.c_str());
+  }
 
   if (!handled) {
     LOG_ERR("Unhandled action key: %s", btn_key);
