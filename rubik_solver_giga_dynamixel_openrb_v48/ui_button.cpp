@@ -7,7 +7,10 @@
 // ============================================================================
 // UIButton implementation
 // ============================================================================
-UIButton::UIButton() {}
+UIButton::UIButton()
+  : id_(0), text_(""), key_(""), ptr_(nullptr),
+    is_status_(false), is_menu_(false),
+    is_active_(false), has_issue_(false), is_busy_(false) {}
 
 UIButton::UIButton(int id, const char* text, const char* key, lv_obj_t* ptr, bool is_status, bool is_menu)
   : id_(id), text_(text ? text : "err"), key_(key ? key : "k_err"), ptr_(ptr), is_status_(is_status), is_menu_(is_menu) {}
@@ -71,6 +74,7 @@ void UIButton::set_is_busy(bool val) {
 }
 
 static char face_to_color(char face) {
+  face = tolower(face);
   switch (face) {
     case 'u': return 'W';
     case 'r': return 'R';
@@ -90,25 +94,28 @@ String ori_text_to_compact(const char* ori_text) {
     return String("f:? r:?");
   }
 
-  for (int i = 0; ori_text[i] && ori_text[i + 2]; i++) {
+  const char* p = ori_text;
 
-    // detect "<cube>->"
-    if (ori_text[i + 1] == '-' && ori_text[i + 2] == '>') {
+  // Look for patterns like "f->x" and "r->x"
+  while ((p = strstr(p, "->")) != nullptr) {
 
-      char cube_face = ori_text[i];
+    // char before "->" is the cube face
+    char cube_face = *(p - 1);
 
-      int j = i + 3;
-
-      // skip separators (_ or space)
-      while (ori_text[j] == '_' || ori_text[j] == ' ') {
-        j++;
-      }
-
-      char phys_face = ori_text[j];
-
-      if (cube_face == 'f') f_phys = phys_face;
-      if (cube_face == 'r') r_phys = phys_face;
+    // char after "->" is the physical face (skip _ or space)
+    const char* q = p + 2;
+    while (*q == '_' || *q == ' ') {
+      q++;
     }
+
+    if (*q == '\0') break;  // safety
+
+    char phys_face = *q;
+
+    if (cube_face == 'f') f_phys = phys_face;
+    if (cube_face == 'r') r_phys = phys_face;
+
+    p = q + 1;  // advance to avoid infinite loop
   }
 
   char f_color = face_to_color(f_phys);
@@ -126,7 +133,7 @@ void buttons_set_text_ori(const char* ori_text) {
   btn_ptr = find_button_by_key("k_orientation_val");
   // convert ori text to small format
   String ori_text_compact = ori_text_to_compact(ori_text);
-  if (btn_ptr) btn_ptr->set_text(ori_text);
+  if (btn_ptr) btn_ptr->set_text(ori_text_compact);
   set_last_orientation(ori_text);
 }
 
@@ -135,9 +142,9 @@ void buttons_set_text_front_color(char* clr_text) {
 
   btn_ptr = find_button_by_key("k_cube_moves_front_color_value");
   if (btn_ptr) btn_ptr->set_text(clr_text);
-  btn_ptr = find_button_by_key("k_cube_moves_front_color_value");
+  btn_ptr = find_button_by_key("k_robot_move_front_color_value");
   if (btn_ptr) btn_ptr->set_text(clr_text);
-  btn_ptr = find_button_by_key("color_read_front_color_value");
+  btn_ptr = find_button_by_key("k_color_read_front_color_value");
   if (btn_ptr) btn_ptr->set_text(clr_text);
 }
 
@@ -152,8 +159,7 @@ void buttons_set_color_string(const char* color_string) {
   set_last_color_string_54(color_string);
 }
 void buttons_set_one_color_string(const char one_color) {
-  int cmd = 0;
-  char clr_char = getLastColorOneColor(&cmd);
+  char clr_char = one_color;
 
   String key_str = String("k_color_c") + String(last_onecolor_read_slot);
   buttons_set_text_by_key(key_str.c_str(), String(clr_char).c_str());
@@ -234,7 +240,7 @@ UIButton ui_buttons[] = {
   { 50, "restore", "k_orientation_restore", nullptr, true, false },
 
   { 51, "color read", "", nullptr, false, false },
-  { 52, "front is", "color_read_front_color_value", nullptr, true, false },
+  { 52, "front is", "k_color_read_front_color_value", nullptr, true, false },
 
   { 53, "all", "k_orientation_color_read_all", nullptr, true, false },
   { 54, "bottom", "k_orientation_color_read_bottom", nullptr, true, false },
@@ -258,8 +264,8 @@ UIButton ui_buttons[] = {
   { 68, "tests", "k_set_stop_all", nullptr, false, false },
   { 69, "tests", "k_clear_stop_all", nullptr, false, false },
 
-  { 70, "back", "k_system_info_text", nullptr, false, false },  // this is the text for servos info
-  { 70, "back", "k_tests", nullptr, false, true }
+  { 70, "", "k_system_info_text", nullptr, false, false },  // this is the text for servos info
+  { 71, "back", "k_tests", nullptr, false, true }
 };
 
 const int UI_BUTTON_COUNT = sizeof(ui_buttons) / sizeof(ui_buttons[0]);
@@ -273,7 +279,7 @@ UIButton* find_button_by_key(const char* key) {
     if (strcmp(ui_buttons[i].get_key(), key) == 0)
       return &ui_buttons[i];
   }
-  LOG_PRINTF_MENU("[!] find_button_by_key: no match for {%s}\n", key);
+  LOG_ERR("find_button_by_key: no match for {%s}\n", key);
   return nullptr;
 }
 
@@ -282,7 +288,7 @@ UIButton* find_button_by_id(int id) {
     if (ui_buttons[i].get_id() == id)
       return &ui_buttons[i];
   }
-  LOG_PRINTF_MENU("[!] find_button_by_id: no match for id {%d}\n", id);
+  LOG_ERR("find_button_by_id: no match for id {%d}\n", id);
   return nullptr;
 }
 
@@ -299,7 +305,7 @@ void clear_all_button_ptrs() {
 void log_button_by_id(int id) {
   UIButton* b = find_button_by_id(id);
   if (!b) {
-    LOG_PRINTF_MENU("[!] logButton: no button found for id {%d}\n", id);
+    LOG_ERR("logButton: no button found for id {%d}\n", id);
     return;
   }
 
@@ -316,13 +322,13 @@ void log_button_by_id(int id) {
 
 void log_button_by_key(const char* txt) {
   if (!txt || !*txt) {
-    LOG_PRINTF_MENU("[!] logButton: invalid or empty text\n");
+    LOG_ERR("logButton: invalid or empty text\n");
     return;
   }
 
   UIButton* b = find_button_by_key(txt);
   if (!b) {
-    LOG_PRINTF_MENU("[!] logButton: no button found for text {%s}\n", txt);
+    LOG_ERR("logButton: no button found for text {%s}\n", txt);
     return;
   }
 

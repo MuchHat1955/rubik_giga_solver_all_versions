@@ -18,7 +18,7 @@ static const lv_color_t COLOR_ERROR = lv_color_hex(0xC02020);   // red
 //                       CORE LOGIC
 // ----------------------------------------------------------
 
-void uiStatusClear() {
+void uiStatusPtrClear() {
   // fully reset to avoid dangling pointers and map growth
   LOG_PRINTF_MENU("start clear button map\n");
   clear_all_button_ptrs();
@@ -186,7 +186,7 @@ void drawButtonOverlayById(int btn_id) {
 void drawButtonOverlayByKey(const char *btn_key) {
   UIButton *btn_ptr = find_button_by_key(btn_key);
   if (!btn_ptr) {
-    LOG_ERR("[!] drawButtonOverlay: invalid button key {%s}", btn_key);
+    LOG_ERR("drawButtonOverlay: invalid button key {%s}", btn_key);
     return;
   }
   drawButtonOverlayById(btn_ptr->get_id());

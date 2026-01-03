@@ -20,7 +20,7 @@ struct ButtonState {
   bool active{ false };
 };
 
-void uiStatusClear();
+void uiStatusPtrClear();
 void updateButtonPtrByKey(const char *btn_key, lv_obj_t *btn);
 void updateButtonPtrById(int btn_id, lv_obj_t *btn);
 void drawButtonOverlayById(int btn_id);

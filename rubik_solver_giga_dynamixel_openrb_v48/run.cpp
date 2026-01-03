@@ -20,22 +20,22 @@ void buttonAction_run(const char* btn_key) {
 
   String footer_txt = String("start ") + String(btn_key);
   setFooter(footer_txt.c_str());
-  delay(111);
+  delay(11);
   LOG_PRINTF("running action for key {%s}\n", btn_key);
 
   bool handled = false;
   bool ok = false;
 
-  handled |= runRobotMovesByKey(btn_key, ok);
-  if (!handled) handled |= runCubeMoveByKey(btn_key, ok);
-  if (!handled) handled |= runRunOrientationByKey(btn_key, ok);
-  if (!handled) handled |= runSolveReadByKey(btn_key, ok);
-  if (!handled) handled |= runColorReadByKey(btn_key, ok);
-  if (!handled) handled |= runColorOrientationByKey(btn_key, ok);
-  if (!handled) handled |= runSolveCubeFindSolutionByKey(btn_key, ok);
-  if (!handled) handled |= runSolveCubeRunSolutionByKey(btn_key, ok);
-  if (!handled) handled |= runColorStickerByKey(btn_key, ok);
-  if (!handled) handled |= runSystemByKey(btn_key, ok);
+  handled = runRobotMovesByKey(btn_key, ok);
+  if (!handled) handled = runCubeMoveByKey(btn_key, ok);
+  if (!handled) handled = runRunOrientationByKey(btn_key, ok);
+  if (!handled) handled = runSolveReadByKey(btn_key, ok);
+  if (!handled) handled = runColorReadByKey(btn_key, ok);
+  if (!handled) handled = runColorOrientationByKey(btn_key, ok);
+  if (!handled) handled = runSolveCubeFindSolutionByKey(btn_key, ok);
+  if (!handled) handled = runSolveCubeRunSolutionByKey(btn_key, ok);
+  if (!handled) handled = runColorStickerByKey(btn_key, ok);
+  if (!handled) handled = runSystemByKey(btn_key, ok);
 
   //TODO-> TO TEST if more actions go here
 
@@ -45,7 +45,7 @@ void buttonAction_run(const char* btn_key) {
   }
 
   if (!handled) {
-    LOG_ERR("Unhandled action key: %s", btn_key);
+    LOG_ERR("Unhandled action key=%s", btn_key);
     setFooter("action not implemented");
   }
 }
@@ -84,7 +84,7 @@ bool runRobotMovesByKey(const char* key, bool& result) {
 
   // updated footer
   if (!result) {
-    LOG_ERR("MOVEROBOT %s", getLastError(cmd_id).c_str());
+    LOG_ERR("MOVEROBOT error=%s", getLastError(cmd_id).c_str());
     text = String("run robot move ") + String(move) + String(" failed");
     setFooter(text.c_str());
   } else {
@@ -144,7 +144,7 @@ bool runCubeMoveByKey(const char* key, bool& result) {
   send_cube_view_bool = false;
   // ---------------- Footer + logging ----------------
   if (!result) {
-    LOG_ERR("MOVECUBE %s", getLastError(cmd_id).c_str());
+    LOG_ERR("MOVECUBE error=%s", getLastError(cmd_id).c_str());
     text = String("run cube move ") + move + " failed";
     setFooter(text.c_str());
   } else {
@@ -174,7 +174,7 @@ bool runRunOrientationByKey(const char* key, bool& result) {
   send_orientation_data_bool = false;
 
   if (!result) {
-    LOG_ERR("RUN %s", getLastError(cmd_id).c_str());
+    LOG_ERR("RUN error=%s", getLastError(cmd_id).c_str());
     setFooter((text + " failed").c_str());
   } else {
     setFooter((text + " ok").c_str());
@@ -206,7 +206,7 @@ bool runColorStickerByKey(const char* key, bool& result) {
 
   // ---------------- Footer + logging ----------------
   if (!result) {
-    LOG_ERR("ONECOLOR", "error", getLastError(cmd_id).c_str());
+    LOG_ERR("ONECOLOR", "error=%s", getLastError(cmd_id).c_str());
     text = String("read color sticker c") + slot + " failed";
     setFooter(text.c_str());
     last_onecolor_read_slot = -1;
@@ -252,7 +252,7 @@ bool runSolveCubeFindSolutionByKey(const char* key, bool& result) {
     }
   }
 
-  if (solution = "") {
+  if (solution.isEmpty()) {
     LOG_ERR("no solution found for %s", cube.c_str());
     setFooter("no solution found");
     result = false;
@@ -298,6 +298,7 @@ bool runSolveCubeRunSolutionByKey(const char* key, bool& result) {
   send_move_cube_progress_bool = true;
   bool ok = runCommand("MOVECUBE", solution, &cmd_id);
   send_move_cube_progress_bool = false;
+  result = ok;
 
   return ok;
 }
@@ -410,10 +411,10 @@ bool runColorOrientationByKey(const char* key, bool& result) {
   setFooter(("rotate " + move).c_str());
 
   int cmd_id = -1;
-  result = runCommand("ROBOTMOVE", move, &cmd_id);
+  result = runCommand("MOVEROBOT", move, &cmd_id);
 
   if (!result) {
-    LOG_ERR("ROBOTMOVE %s", getLastError(cmd_id).c_str());
+    LOG_ERR("MOVEROBOT error=%s", getLastError(cmd_id).c_str());
     setFooter("rotate failed");
   } else {
     setFooter("rotate ok");

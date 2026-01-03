@@ -252,6 +252,16 @@ static void rb_command_end_cb(const String& result, const String& duration) {
   st.finished_bool = true;
   st.ok_bool = (result == "ok");
   last_finished_cmd_id = id;
+
+  // --------------------------------------------------
+  // PRUNE OLD COMMAND STATES (keep last 20)
+  // --------------------------------------------------
+  const size_t MAX_CMD_HISTORY = 20;
+
+  if (cmd_states.size() > MAX_CMD_HISTORY) {
+    auto oldest = cmd_states.begin();  // std::map is ordered by key
+    cmd_states.erase(oldest);
+  }
 }
 
 static void rb_error_cb(const String& module, uint32_t id, const String& payload) {
@@ -403,7 +413,9 @@ static void rb_info_cb(const String& mod,
     // TODO-> TO TEST
     if (send_readcolors_progress_bool) {
       //TODO-> OPTIONAL TO IMPLEMENT actual colors for the z+ y+ etc map
-      ui_moves_progress_set_map(map, "GRBOOBRGWYYW");  // most likely the colors, trimmed bu the set map if too many
+
+      // below are most likely the colors, they will be trimmed by the ui code if too many
+      ui_moves_progress_set_map(map, "GRBOOBRGWYYW");
       ui_moves_progress_set_index(0);
     }
     return;
@@ -687,12 +699,11 @@ String getLastServoStatusStr(int servo_id) {
   auto ticks_to_deg = [](const rb_servo_status_t& s, int ticks) -> float {
     if (s.max_ticks == s.min_ticks) return 0.0f;
     float span_ticks = (float)(s.max_ticks - s.min_ticks);
-    float span_deg   = 360.0f;   // generic safe span
+    float span_deg = 360.0f;  // generic safe span
     return (ticks - s.zero_ticks) * (span_deg / span_ticks);
   };
 
   auto format_servo = [&](const rb_servo_status_t& s) -> String {
-
     String out;
     out.reserve(128);
 

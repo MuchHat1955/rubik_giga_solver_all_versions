@@ -99,7 +99,7 @@ void buildMenu(const char *menuKey) {
   footLbl = nullptr;
   statusWidgets.clear();
   numLabels.clear();
-  uiStatusClear();  // clear persistent button map on rebuild
+  uiStatusPtrClear();  // clear persistent button map on rebuild
 
   JsonObject root = menuDoc[menuKey];
   if (root.isNull()) {
@@ -189,10 +189,13 @@ void buildMenu(const char *menuKey) {
       int width = sz.x + textPad + extraPad;
       if (width > colWidths[ci]) colWidths[ci] = width;
     }
+    int maxCol = (SCREEN_W - 40) / columns;
+    for (auto &w : colWidths)
+      if (w > maxCol) w = maxCol;
   }
   lv_obj_del(measLbl);
 
-  if (strcasecmp(equalColumns, "all") == 0) {
+  if (String(equalColumns).equalsIgnoreCase("all")) {
     int maxW = *std::max_element(colWidths.begin(), colWidths.end());
     for (auto &w : colWidths) w = maxW;
   } else if (strcasecmp(equalColumns, "last") == 0 && columns > 1) {
@@ -350,6 +353,7 @@ void buildMenu(const char *menuKey) {
 
         lv_obj_t *lblVal = lv_label_create(numBox);
         char buf[8];
+        snprintf(buf, sizeof(buf), "n/a");
         double val = PARAM_VAL_NA;
 
         //pose_store.get_pose_params(key, &val);
@@ -386,6 +390,7 @@ void buildMenu(const char *menuKey) {
         lv_obj_set_style_pad_gap(numBox, 8, 0);
 
         // attach proper C-style callbacks
+        char *key_copy = strdup(key);
         lv_obj_add_event_cb(lblVal, on_num_value_clicked, LV_EVENT_CLICKED, nullptr);
         lv_obj_add_event_cb(btnMinus, on_num_minus_clicked, LV_EVENT_CLICKED, (void *)key);
         lv_obj_add_event_cb(btnPlus, on_num_plus_clicked, LV_EVENT_CLICKED, (void *)key);
@@ -672,7 +677,7 @@ const char jsonBuffer[] = R"json(
       ],
       [
         { "text": "color read", "type": "text", "key": ""  },
-        { "text": "", "type": "text", "key": "color_read_front_color_value","status": "yes" },
+        { "text": "", "type": "text", "key": "k_color_read_front_color_value","status": "yes" },
         { "text": "", "type": "text", "key": "" }
       ],
       [
