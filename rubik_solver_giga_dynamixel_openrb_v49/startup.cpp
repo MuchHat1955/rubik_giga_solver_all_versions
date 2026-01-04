@@ -33,10 +33,10 @@ bool runStartupTests() {
   startupOK = true;
 
   if (startupOK) {
-    setFooter("startup test ok");
+    setFooter("startup test ok",_DONE_SUCCESS);
     LOG_PRINTF("startup status ok\n");
   } else {
-    setFooter(getLastError(cmd_id).c_str());
+    setFooter(getLastError(cmd_id).c_str(),_DONE_ERROR);
   }
 
   startupDone = true;

@@ -270,7 +270,7 @@ void setFooter(const char *msg, footer_state_t state) {
   }
   *l = '\0';
 
-  LOG_PRINTF_MENU("set footer start text{%s} state{%d} \n", msg, state);
+  // LOG_PRINTF_MENU("set footer start text{%s} state{%d} \n", msg, state);
 
   /* defaults */
   const char *icon = "";
@@ -328,8 +328,8 @@ void setFooter(const char *msg, footer_state_t state) {
   /* dim / block UI */
   ui_dim_overlay_show(blocking);
 
-  LOG_PRINTF_MENU("set footer end text{%s} state{%d} blocking{%d} show_stop{%d} \n",  //
-                  msg, state, blocking, show_stop);
+  // LOG_PRINTF_MENU("set footer end text{%s} state{%d} blocking{%d} show_stop{%d} \n",  //
+  //                 msg, state, blocking, show_stop);
 
   if (foot_cont) {
     lv_obj_invalidate(foot_cont);
