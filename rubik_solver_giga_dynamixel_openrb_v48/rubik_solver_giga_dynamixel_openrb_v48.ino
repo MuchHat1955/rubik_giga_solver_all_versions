@@ -163,17 +163,17 @@ void setup() {
   bool rb_ok = !rb.begin(115200, 200);
   if (!rb_ok) {
     LOG_ERR("rb interface could not start\n");
-    setFooter("rb interface could not start");
+    setFooter("rb interface could not start",_ERROR);
   } else {
     rb_version = getRbInterfaceVersion();
     if (rb_version == "err") {
       LOG_ERR("rb could not get version\n");
-      setFooter("could not get rb version");
+      setFooter("could not get rb version",_ERROR);
     } else if (!runStartupTests()) {
       LOG_ERR("startup tests failed\n");
-      setFooter("startup tests failed");
+      setFooter("startup tests failed",_ERROR);
     } else {
-      setFooter("startup test ok");
+      setFooter("startup test ok",_DONE_SUCCESS);
     }
   }
   LOG_PRINTF("---- [SETUP] end ----\n");

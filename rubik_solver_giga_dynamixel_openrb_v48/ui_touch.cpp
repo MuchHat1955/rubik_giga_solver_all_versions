@@ -129,11 +129,10 @@ static void footer_stop_cb(lv_event_t *e) {
   setFooter("stopped");
 }
 
-static inline void obj_set_hidden(lv_obj_t *obj, bool hide)
-{
+static inline void obj_set_hidden(lv_obj_t *obj, bool hide) {
   if (!obj) return;
   if (hide) lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
-  else      lv_obj_clear_flag(obj, LV_OBJ_FLAG_HIDDEN);
+  else lv_obj_clear_flag(obj, LV_OBJ_FLAG_HIDDEN);
 }
 
 /* ----------------------------------------------------------
@@ -145,11 +144,18 @@ void createFooter(lv_obj_t *parent) {
   lv_obj_set_size(foot_cont, LV_PCT(100), 28);
   lv_obj_align(foot_cont, LV_ALIGN_BOTTOM_MID, 0, 0);
 
+  lv_obj_set_style_pad_left(foot_cont, 8, 0);
+  lv_obj_set_style_pad_right(foot_cont, 8, 0);
+  lv_obj_set_style_pad_top(foot_cont, 4, 0);
+  lv_obj_set_style_pad_bottom(foot_cont, 6, 0);
+  lv_obj_set_style_pad_gap(foot_cont, 6, 0);
+
   lv_obj_set_flex_flow(foot_cont, LV_FLEX_FLOW_ROW);
   lv_obj_set_flex_align(foot_cont,
-                        LV_FLEX_ALIGN_START,
-                        LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER,  // main axis (horizontal)
+                        LV_FLEX_ALIGN_CENTER,  // cross axis (vertical)
                         LV_FLEX_ALIGN_CENTER);
+
 
   lv_obj_set_style_pad_left(foot_cont, 6, 0);
   lv_obj_set_style_pad_right(foot_cont, 6, 0);
@@ -164,6 +170,8 @@ void createFooter(lv_obj_t *parent) {
   foot_lbl = lv_label_create(foot_cont);
   lv_label_set_text(foot_lbl, "");
   lv_obj_set_flex_grow(foot_lbl, 1);
+  lv_obj_set_style_text_align(foot_lbl, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_set_style_text_font(foot_lbl, FONT_FOOT_PTR, 0);
 
   /* STOP button */
   foot_stop_btn = lv_btn_create(foot_cont);
@@ -247,7 +255,7 @@ void setFooter(const char *msg, footer_state_t state) {
   }
   *l = '\0';
 
-  LOG_PRINTF_MENU("set footer [%d] {%s}\n", state, b);
+  LOG_PRINTF_MENU("set footer start text{%s} state{%d} \n", state, b);
 
   /* defaults */
   const char *icon = "";
@@ -264,7 +272,7 @@ void setFooter(const char *msg, footer_state_t state) {
     case _ERROR:
       icon = LV_SYMBOL_WARNING;
       icon_color = lv_palette_main(LV_PALETTE_RED);
-      blocking = true;
+      blocking = false;
       break;
 
     case _RUNNING_STOP:
@@ -305,7 +313,22 @@ void setFooter(const char *msg, footer_state_t state) {
   /* dim / block UI */
   ui_dim_overlay_show(blocking);
 
-  lv_obj_invalidate(foot_cont);
+  LOG_PRINTF_MENU("set footer end text{%s} state{%d} \n", state, b);
+
+  lv_obj_invalidate(footLbl);
+  //lv_refr_now(NULL);
+  //lv_timer_handler();
+  //delay(5);
+
+  // lv_obj_invalidate(footLbl);
+  // lv_refr_now(NULL);
+  // delay(5);
+
+  for (int i = 0; i < 6; ++i) {
+    lv_timer_handler();
+    delay(5);
+  }
+  delay(15);
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

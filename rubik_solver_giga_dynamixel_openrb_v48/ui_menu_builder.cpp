@@ -413,7 +413,6 @@ void buildMenu(const char *menuKey) {
         lv_obj_set_style_pad_gap(numBox, 8, 0);
 
         // attach proper C-style callbacks
-        char *key_copy = strdup(key);
         lv_obj_add_event_cb(lblVal, on_num_value_clicked, LV_EVENT_CLICKED, nullptr);
         lv_obj_add_event_cb(btnMinus, on_num_minus_clicked, LV_EVENT_CLICKED, (void *)key);
         lv_obj_add_event_cb(btnPlus, on_num_plus_clicked, LV_EVENT_CLICKED, (void *)key);
@@ -594,6 +593,7 @@ void buildMenu(const char *menuKey) {
     LOG_PRINTF("progress bar created\n");
   }
 
+  setFooter(footer);
   lv_obj_invalidate(lv_scr_act());
   LOG_SECTION_END_MENU();
 }
