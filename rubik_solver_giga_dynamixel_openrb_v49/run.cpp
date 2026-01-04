@@ -58,8 +58,9 @@ void buttonAction_run(const char* btn_key) {
   }
 
   if (!handled) {
-    LOG_ERR("Unhandled action key=%s", btn_key);
-    setFooter("action not implemented", _ERROR);
+    String text = String("action not implemented ") + String(btn_key);
+    LOG_ERR("unhandled action key=%s\n", btn_key);
+    setFooter(text.c_str(), _ERROR);
   }
 }
 
@@ -274,7 +275,7 @@ bool runSolveCubeFindSolutionByKey(const char* key, bool& result) {
   }
 
   if (!result) {
-    LOG_ERR("RUN %s", getLastError(cmd_id).c_str());
+    LOG_ERR("RUN %s\n", getLastError(cmd_id).c_str());
     setFooter("no solution found", _DONE_ERROR);
   } else {
     setFooter("find solution done", _DONE_SUCCESS);
@@ -295,9 +296,9 @@ bool runSolveCubeRunSolutionByKey(const char* key, bool& result) {
   String solution = getLastCubeSolution();
   ui_cube_view_set_colors(getLastColorString());
   if (solution = "") {
-    LOG_ERR("RUN %s no solution", key);
+    LOG_ERR("RUN %s no solution\n", key);
     setFooter("no solution found", _DONE_ERROR);
-    return false;
+    return true; // handled
   }
 
   cmd_id = -1;
@@ -313,7 +314,7 @@ bool runSolveCubeRunSolutionByKey(const char* key, bool& result) {
   if (ok) setFooter("solve cube done", _DONE_SUCCESS);
   else setFooter("solve cube failed", _DONE_ERROR);
 
-  return ok;
+  return true; //handled
 }
 
 // TODO-> TO TEST

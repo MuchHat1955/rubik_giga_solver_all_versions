@@ -126,7 +126,7 @@ static void footer_stop_cb(lv_event_t *e) {
        solver_abort();
        servo_emergency_stop();
   */
-  setFooter("stopped");
+  setFooter("stopped",_DONE_ERROR);
 }
 
 static inline void obj_set_hidden(lv_obj_t *obj, bool hide) {
