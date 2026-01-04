@@ -99,7 +99,13 @@ void buildMenu(const char *menuKey) {
   footLbl = nullptr;
   statusWidgets.clear();
   numLabels.clear();
-  uiStatusPtrClear();  // clear persistent button map on rebuild
+  uiStatusPtrClear();
+
+  /* ----------------------------------------------------------
+   *  GLOBAL OVERLAYS / FOOTER (once per screen)
+   * ---------------------------------------------------------- */
+  ui_dim_overlay_create(scr);  // full-screen dim & input blocker
+  createFooter(scr);           // footer with glyphs + stop button
 
   JsonObject root = menuDoc[menuKey];
   if (root.isNull()) {
@@ -144,13 +150,19 @@ void buildMenu(const char *menuKey) {
   lv_obj_update_layout(titleLbl);
   int title_h = lv_obj_get_height(titleLbl);
 
+  /*
+// this is for prev set footer version
   footLbl = lv_label_create(scr);
   lv_obj_set_style_text_font(footLbl, FONT_FOOT_PTR, 0);
   lv_label_set_text(footLbl, footer);
   lv_obj_align(footLbl, LV_ALIGN_BOTTOM_MID, 0, -18);
   lv_obj_update_layout(footLbl);
-  int footer_h = lv_obj_get_height(footLbl);
 
+*/
+
+#define FOOTER_H 30
+
+  int footer_h = FOOTER_H;
   int available_h = SCREEN_H - (title_h + footer_h + 50);
   if (available_h < 60) available_h = 80;  // ADJUST-> was 60
 

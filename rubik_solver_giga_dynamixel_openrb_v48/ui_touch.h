@@ -1,5 +1,6 @@
 #pragma once
 #include "utils.h"
+#include <stdbool.h>
 
 // ----------------------------------------------------------
 // CONFIGURATION
@@ -19,7 +20,7 @@ void drawButtonOverlayById(int btn_id);
 void updateButtonAndRefreshServosOnClick(int btn_id);
 
 // utility functions
-void setFooter(const char *msg);
+void setFooter_v1(const char *msg);
 // double getParamValue(const char *name);
 // void setParamValue(const char *name, double val);
 const char *getStatusText(const char *name);
@@ -48,3 +49,30 @@ String getSketchVersionWithDate();
 // Declare shared widget maps (no definitions here)
 extern std::map<String, lv_obj_t *> statusWidgets;
 extern std::map<String, lv_obj_t *> numLabels;
+
+/* ----------------------------------------------------------
+ * Footer semantic states
+ * ONE param controls icon, color, blocking, stop button
+ * ---------------------------------------------------------- */
+typedef enum {
+  _INFO,
+  _ERROR,
+  _RUNNING_STOP,    // running, STOP allowed
+  _RUNNING_NOSTOP,  // running, cannot stop
+  _DONE_SUCCESS,
+  _DONE_ERROR
+} footer_state_t;
+
+/* ----------------------------------------------------------
+ * Public API
+ * ---------------------------------------------------------- */
+
+/* Call once from your menu / screen builder */
+void createFooter(lv_obj_t *parent);
+
+/* Update footer state + message */
+void setFooter(const char *msg, footer_state_t state = _INFO);
+
+/* Show or hide the dim / input-blocking overlay */
+void ui_dim_overlay_create(lv_obj_t *parent);
+void ui_dim_overlay_show(bool show);

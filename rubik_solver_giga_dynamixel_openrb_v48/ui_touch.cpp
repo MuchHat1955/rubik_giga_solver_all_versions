@@ -52,7 +52,7 @@ static std::map<String, ServoButtonInfo> stateButtons;  // key → info
 // ----------------------------------------------------------
 //                   UTILITY HELPERS
 // ----------------------------------------------------------
-void setFooter(const char *msg) {
+void setFooter_v1(const char *msg) {
   if (footLbl && msg) {
     char b[200];
     char *l = b;
@@ -83,6 +83,232 @@ void setFooter(const char *msg) {
     delay(15);
   }
 }
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~ SET FOOTER ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+/* ----------------------------------------------------------
+ * External helpers you already have
+ * ---------------------------------------------------------- */
+extern void ui_dim_overlay_show(bool show);
+
+/* ----------------------------------------------------------
+ * Internal objects
+ * ---------------------------------------------------------- */
+static lv_obj_t *foot_cont = NULL;
+static lv_obj_t *foot_icon_lbl = NULL;
+static lv_obj_t *foot_lbl = NULL;
+static lv_obj_t *foot_stop_btn = NULL;
+
+/*
+LV_SYMBOL_OK        // ✔
+LV_SYMBOL_CLOSE     // ✖
+LV_SYMBOL_WARNING   // ⚠
+LV_SYMBOL_INFO      // ℹ
+LV_SYMBOL_REFRESH   // 🔄
+LV_SYMBOL_PLAY      // ▶
+LV_SYMBOL_STOP      // ■
+LV_SYMBOL_PAUSE     // ❚❚
+LV_SYMBOL_CHARGE    // ⚡
+*/
+
+/* ----------------------------------------------------------
+ * STOP callback (placeholder)
+ * ---------------------------------------------------------- */
+static void footer_stop_cb(lv_event_t *e) {
+  LV_UNUSED(e);
+
+  LOG_PRINTF_MENU("footer STOP pressed\n");
+
+  /* ---- PLACEHOLDER ----
+     hook your cancel / abort logic here
+     examples:
+       rb_cancel_current_command();
+       solver_abort();
+       servo_emergency_stop();
+  */
+  setFooter("stopped");
+}
+
+static inline void obj_set_hidden(lv_obj_t *obj, bool hide)
+{
+  if (!obj) return;
+  if (hide) lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+  else      lv_obj_clear_flag(obj, LV_OBJ_FLAG_HIDDEN);
+}
+
+/* ----------------------------------------------------------
+ * Create footer (call from menu builder)
+ * ---------------------------------------------------------- */
+void createFooter(lv_obj_t *parent) {
+  foot_cont = lv_obj_create(parent);
+  lv_obj_remove_style_all(foot_cont);
+  lv_obj_set_size(foot_cont, LV_PCT(100), 28);
+  lv_obj_align(foot_cont, LV_ALIGN_BOTTOM_MID, 0, 0);
+
+  lv_obj_set_flex_flow(foot_cont, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(foot_cont,
+                        LV_FLEX_ALIGN_START,
+                        LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER);
+
+  lv_obj_set_style_pad_left(foot_cont, 6, 0);
+  lv_obj_set_style_pad_right(foot_cont, 6, 0);
+  lv_obj_set_style_pad_gap(foot_cont, 6, 0);
+
+  /* icon */
+  foot_icon_lbl = lv_label_create(foot_cont);
+  lv_label_set_text(foot_icon_lbl, "");
+  lv_obj_add_flag(foot_icon_lbl, LV_OBJ_FLAG_HIDDEN);
+
+  /* text */
+  foot_lbl = lv_label_create(foot_cont);
+  lv_label_set_text(foot_lbl, "");
+  lv_obj_set_flex_grow(foot_lbl, 1);
+
+  /* STOP button */
+  foot_stop_btn = lv_btn_create(foot_cont);
+  lv_obj_set_size(foot_stop_btn, 26, 26);
+  lv_obj_add_event_cb(foot_stop_btn, footer_stop_cb,
+                      LV_EVENT_CLICKED, NULL);
+
+  lv_obj_set_style_bg_opa(foot_stop_btn, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(foot_stop_btn, 2, 0);
+  lv_obj_set_style_border_color(
+    foot_stop_btn,
+    lv_palette_main(LV_PALETTE_ORANGE), 0);
+  lv_obj_set_style_radius(foot_stop_btn, 4, 0);
+
+  lv_obj_t *lbl = lv_label_create(foot_stop_btn);
+  lv_label_set_text(lbl, LV_SYMBOL_STOP);
+  lv_obj_center(lbl);
+
+  obj_set_hidden(foot_stop_btn, true);
+}
+
+/* ----------------------------------------------------------
+ * Internal object
+ * ---------------------------------------------------------- */
+static lv_obj_t *ui_dim_overlay = NULL;
+
+/* ----------------------------------------------------------
+ * Create overlay (call once per screen)
+ * ---------------------------------------------------------- */
+void ui_dim_overlay_create(lv_obj_t *parent) {
+  if (ui_dim_overlay) return;
+
+  ui_dim_overlay = lv_obj_create(parent);
+  lv_obj_remove_style_all(ui_dim_overlay);
+
+  lv_obj_set_size(ui_dim_overlay, LV_PCT(100), LV_PCT(100));
+  lv_obj_set_pos(ui_dim_overlay, 0, 0);
+
+  /* semi-transparent black */
+  lv_obj_set_style_bg_color(ui_dim_overlay, lv_color_black(), 0);
+  lv_obj_set_style_bg_opa(ui_dim_overlay, LV_OPA_50, 0);
+
+  /* sit above everything */
+  lv_obj_move_foreground(ui_dim_overlay);
+
+  /* absorb all input when visible */
+  lv_obj_add_flag(ui_dim_overlay, LV_OBJ_FLAG_CLICKABLE);
+
+  /* start hidden */
+  obj_set_hidden(ui_dim_overlay, true);
+}
+
+/* ----------------------------------------------------------
+ * Show / hide overlay
+ * ---------------------------------------------------------- */
+void ui_dim_overlay_show(bool show) {
+  if (!ui_dim_overlay) return;
+
+  if (show) {
+    lv_obj_clear_flag(ui_dim_overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_move_foreground(ui_dim_overlay);
+  } else {
+    lv_obj_add_flag(ui_dim_overlay, LV_OBJ_FLAG_HIDDEN);
+  }
+}
+
+/* ----------------------------------------------------------
+ * Set footer (ONE semantic param)
+ * ---------------------------------------------------------- */
+void setFooter(const char *msg, footer_state_t state) {
+  if (!foot_lbl || !msg) return;
+
+  char b[200];
+  char *l = b;
+
+  /* lowercase conversion */
+  for (const char *p = msg;
+       *p && (l - b) < (int)sizeof(b) - 1;
+       ++p) {
+    *l++ = tolower((unsigned char)*p);
+  }
+  *l = '\0';
+
+  LOG_PRINTF_MENU("set footer [%d] {%s}\n", state, b);
+
+  /* defaults */
+  const char *icon = "";
+  lv_color_t icon_color = lv_color_white();
+  bool blocking = false;
+  bool show_stop = false;
+
+  switch (state) {
+    case _INFO:
+      icon = LV_SYMBOL_OK;
+      icon_color = lv_color_white();
+      break;
+
+    case _ERROR:
+      icon = LV_SYMBOL_WARNING;
+      icon_color = lv_palette_main(LV_PALETTE_RED);
+      blocking = true;
+      break;
+
+    case _RUNNING_STOP:
+      icon = LV_SYMBOL_REFRESH;
+      icon_color = lv_palette_main(LV_PALETTE_YELLOW);
+      blocking = true;
+      show_stop = true;
+      break;
+
+    case _RUNNING_NOSTOP:
+      icon = LV_SYMBOL_REFRESH;
+      icon_color = lv_palette_main(LV_PALETTE_YELLOW);
+      blocking = true;
+      break;
+
+    case _DONE_SUCCESS:
+      icon = LV_SYMBOL_OK;
+      icon_color = lv_palette_main(LV_PALETTE_GREEN);
+      break;
+
+    case _DONE_ERROR:
+      icon = LV_SYMBOL_CLOSE;
+      icon_color = lv_palette_main(LV_PALETTE_RED);
+      break;
+  }
+
+  /* icon */
+  lv_label_set_text(foot_icon_lbl, icon);
+  lv_obj_set_style_text_color(foot_icon_lbl, icon_color, 0);
+  obj_set_hidden(foot_icon_lbl, icon[0] == '\0');
+
+  /* text */
+  lv_label_set_text(foot_lbl, b);
+
+  /* STOP button */
+  obj_set_hidden(foot_stop_btn, !show_stop);
+
+  /* dim / block UI */
+  ui_dim_overlay_show(blocking);
+
+  lv_obj_invalidate(foot_cont);
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 // ---- below is for actions to be done when a menu is displayed ---
 void buttonAction_executeAction(int btn_id) {
