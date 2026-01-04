@@ -96,7 +96,7 @@ void buildMenu(const char *menuKey) {
 
   // clear previous screen and reset pointers
   lv_obj_clean(scr);
-  footLbl = nullptr;
+  footLbl_old = nullptr;
   statusWidgets.clear();
   numLabels.clear();
   uiStatusPtrClear();
@@ -152,11 +152,11 @@ void buildMenu(const char *menuKey) {
 
   /*
 // this is for prev set footer version
-  footLbl = lv_label_create(scr);
-  lv_obj_set_style_text_font(footLbl, FONT_FOOT_PTR, 0);
-  lv_label_set_text(footLbl, footer);
-  lv_obj_align(footLbl, LV_ALIGN_BOTTOM_MID, 0, -18);
-  lv_obj_update_layout(footLbl);
+  footLbl_old = lv_label_create(scr);
+  lv_obj_set_style_text_font(footLbl_old, FONT_FOOT_PTR, 0);
+  lv_label_set_text(footLbl_old, footer);
+  lv_obj_align(footLbl_old, LV_ALIGN_BOTTOM_MID, 0, -18);
+  lv_obj_update_layout(footLbl_old);
 
 */
 

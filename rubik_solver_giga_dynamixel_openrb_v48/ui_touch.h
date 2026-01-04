@@ -32,7 +32,7 @@ void select_num_pair(lv_obj_t *numBox, bool toggle);
 // ----------------------------------------------------------
 extern StaticJsonDocument<12288> menuDoc;
 extern String currentMenu;
-extern lv_obj_t *footLbl;
+extern lv_obj_t *footLbl_old;
 extern std::map<String, lv_obj_t *> statusWidgets;
 extern std::map<String, lv_obj_t *> numLabels;
 extern const char jsonBuffer[];

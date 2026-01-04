@@ -22,7 +22,7 @@ extern RBInterface rb;
 // ----------------------------------------------------------
 StaticJsonDocument<12288> menuDoc;
 
-extern lv_obj_t *footLbl;
+extern lv_obj_t *footLbl_old;  // DO NOT USE
 extern std::map<String, lv_obj_t *> numLabels;
 
 extern lv_obj_t *selected_num_box;
@@ -53,7 +53,7 @@ static std::map<String, ServoButtonInfo> stateButtons;  // key → info
 //                   UTILITY HELPERS
 // ----------------------------------------------------------
 void setFooter_v1(const char *msg) {
-  if (footLbl && msg) {
+  if (footLbl_old && msg) {
     char b[200];
     char *l = b;
 
@@ -65,13 +65,13 @@ void setFooter_v1(const char *msg) {
 
     LOG_PRINTF_MENU("set footer {%s}\n", b);
 
-    lv_label_set_text(footLbl, b);
+    lv_label_set_text(footLbl_old, b);
 
     // force a visible redraw
-    lv_obj_invalidate(footLbl);
+    lv_obj_invalidate(footLbl_old);
     lv_refr_now(NULL);
     lv_timer_handler();
-    lv_obj_invalidate(footLbl);
+    lv_obj_invalidate(footLbl_old);
     lv_refr_now(NULL);
     delay(15);
 
@@ -142,38 +142,55 @@ void createFooter(lv_obj_t *parent) {
   foot_cont = lv_obj_create(parent);
   lv_obj_remove_style_all(foot_cont);
   lv_obj_set_size(foot_cont, LV_PCT(100), 28);
-  lv_obj_align(foot_cont, LV_ALIGN_BOTTOM_MID, 0, 0);
+  lv_obj_align(foot_cont, LV_ALIGN_BOTTOM_MID, 0, -15);
 
   lv_obj_set_style_pad_left(foot_cont, 8, 0);
   lv_obj_set_style_pad_right(foot_cont, 8, 0);
   lv_obj_set_style_pad_top(foot_cont, 4, 0);
-  lv_obj_set_style_pad_bottom(foot_cont, 6, 0);
+  lv_obj_set_style_pad_bottom(foot_cont, 4, 0);
   lv_obj_set_style_pad_gap(foot_cont, 6, 0);
 
   lv_obj_set_flex_flow(foot_cont, LV_FLEX_FLOW_ROW);
   lv_obj_set_flex_align(foot_cont,
-                        LV_FLEX_ALIGN_CENTER,  // main axis (horizontal)
-                        LV_FLEX_ALIGN_CENTER,  // cross axis (vertical)
+                        LV_FLEX_ALIGN_START,
+                        LV_FLEX_ALIGN_CENTER,
                         LV_FLEX_ALIGN_CENTER);
 
+  /* left spacer */
+  lv_obj_t *left_spacer = lv_obj_create(foot_cont);
+  lv_obj_remove_style_all(left_spacer);
+  lv_obj_set_flex_grow(left_spacer, 1);
 
-  lv_obj_set_style_pad_left(foot_cont, 6, 0);
-  lv_obj_set_style_pad_right(foot_cont, 6, 0);
-  lv_obj_set_style_pad_gap(foot_cont, 6, 0);
+  /* center group */
+  lv_obj_t *center_cont = lv_obj_create(foot_cont);
+  lv_obj_remove_style_all(center_cont);
+  lv_obj_set_flex_flow(center_cont, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(center_cont,
+                        LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_gap(center_cont, 6, 0);
+
+  /* IMPORTANT: limit center width */
+  lv_obj_set_width(center_cont, LV_PCT(60));
 
   /* icon */
-  foot_icon_lbl = lv_label_create(foot_cont);
+  foot_icon_lbl = lv_label_create(center_cont);
   lv_label_set_text(foot_icon_lbl, "");
   lv_obj_add_flag(foot_icon_lbl, LV_OBJ_FLAG_HIDDEN);
 
   /* text */
-  foot_lbl = lv_label_create(foot_cont);
+  foot_lbl = lv_label_create(center_cont);
   lv_label_set_text(foot_lbl, "");
-  lv_obj_set_flex_grow(foot_lbl, 1);
   lv_obj_set_style_text_align(foot_lbl, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_set_style_text_font(foot_lbl, FONT_FOOT_PTR, 0);
 
-  /* STOP button */
+  /* right spacer */
+  lv_obj_t *right_spacer = lv_obj_create(foot_cont);
+  lv_obj_remove_style_all(right_spacer);
+  lv_obj_set_flex_grow(right_spacer, 1);
+
+  /* stop button */
   foot_stop_btn = lv_btn_create(foot_cont);
   lv_obj_set_size(foot_stop_btn, 26, 26);
   lv_obj_add_event_cb(foot_stop_btn, footer_stop_cb,
@@ -202,7 +219,9 @@ static lv_obj_t *ui_dim_overlay = NULL;
  * Create overlay (call once per screen)
  * ---------------------------------------------------------- */
 void ui_dim_overlay_create(lv_obj_t *parent) {
-  if (ui_dim_overlay) return;
+  if (ui_dim_overlay && lv_obj_is_valid(ui_dim_overlay)) return;
+
+  ui_dim_overlay = NULL;  // stale pointer protection
 
   ui_dim_overlay = lv_obj_create(parent);
   lv_obj_remove_style_all(ui_dim_overlay);
@@ -210,17 +229,10 @@ void ui_dim_overlay_create(lv_obj_t *parent) {
   lv_obj_set_size(ui_dim_overlay, LV_PCT(100), LV_PCT(100));
   lv_obj_set_pos(ui_dim_overlay, 0, 0);
 
-  /* semi-transparent black */
   lv_obj_set_style_bg_color(ui_dim_overlay, lv_color_black(), 0);
   lv_obj_set_style_bg_opa(ui_dim_overlay, LV_OPA_50, 0);
 
-  /* sit above everything */
-  lv_obj_move_foreground(ui_dim_overlay);
-
-  /* absorb all input when visible */
   lv_obj_add_flag(ui_dim_overlay, LV_OBJ_FLAG_CLICKABLE);
-
-  /* start hidden */
   obj_set_hidden(ui_dim_overlay, true);
 }
 
@@ -228,7 +240,7 @@ void ui_dim_overlay_create(lv_obj_t *parent) {
  * Show / hide overlay
  * ---------------------------------------------------------- */
 void ui_dim_overlay_show(bool show) {
-  if (!ui_dim_overlay) return;
+  if (!ui_dim_overlay || !lv_obj_is_valid(ui_dim_overlay)) return;
 
   if (show) {
     lv_obj_clear_flag(ui_dim_overlay, LV_OBJ_FLAG_HIDDEN);
@@ -255,7 +267,7 @@ void setFooter(const char *msg, footer_state_t state) {
   }
   *l = '\0';
 
-  LOG_PRINTF_MENU("set footer start text{%s} state{%d} \n", state, b);
+  LOG_PRINTF_MENU("set footer start text{%s} state{%d} \n", msg, state);
 
   /* defaults */
   const char *icon = "";
@@ -313,20 +325,23 @@ void setFooter(const char *msg, footer_state_t state) {
   /* dim / block UI */
   ui_dim_overlay_show(blocking);
 
-  LOG_PRINTF_MENU("set footer end text{%s} state{%d} \n", state, b);
+  LOG_PRINTF_MENU("set footer end text{%s} state{%d} blocking{%d} show_stop{%d} \n",  //
+                  msg, state, blocking, show_stop);
 
-  lv_obj_invalidate(footLbl);
-  //lv_refr_now(NULL);
-  //lv_timer_handler();
-  //delay(5);
-
-  // lv_obj_invalidate(footLbl);
-  // lv_refr_now(NULL);
-  // delay(5);
-
-  for (int i = 0; i < 6; ++i) {
+  if (foot_cont) {
+    lv_obj_invalidate(foot_cont);
+    lv_refr_now(NULL);
     lv_timer_handler();
     delay(5);
+
+    lv_obj_invalidate(foot_cont);
+    lv_refr_now(NULL);
+    delay(5);
+
+    for (int i = 0; i < 6; ++i) {
+      lv_timer_handler();
+      delay(5);
+    }
   }
   delay(15);
 }

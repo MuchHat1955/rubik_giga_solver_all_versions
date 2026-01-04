@@ -71,7 +71,7 @@ String currentMenu = "k_main";
 const int SCREEN_W = 800;
 const int SCREEN_H = 480;
 
-lv_obj_t* footLbl = nullptr;
+lv_obj_t* footLbl_old = nullptr;
 
 lv_obj_t* selected_num_box = nullptr;
 lv_style_t style_num_selected;     // orange border + light background
