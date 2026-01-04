@@ -420,9 +420,8 @@ void buildMenu(const char *menuKey) {
 
         lv_obj_t *ta = lv_textarea_create(cont);
         lv_obj_set_size(ta, textW, textH);
-        
+
         // Disable interaction
-        lv_obj_clear_flag(ta, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_clear_state(ta, LV_STATE_FOCUSED);
         lv_group_remove_obj(ta);
 

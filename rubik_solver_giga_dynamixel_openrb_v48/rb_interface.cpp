@@ -22,6 +22,8 @@ bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
   serial_->begin(baud);
   serial_->setTimeout(timeout_ms);
 
+  setFooter("starting rb...");
+
   // Flush startup noise
   delay(300);
   while (serial_->available()) serial_->read();
