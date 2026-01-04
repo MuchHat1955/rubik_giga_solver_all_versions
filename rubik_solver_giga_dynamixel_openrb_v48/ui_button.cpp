@@ -3,6 +3,7 @@
 #include "ui_theme.h"
 #include "rb_interface.h"
 #include "run.h"
+#include "ui_status.h"
 
 // ============================================================================
 // UIButton implementation
@@ -148,44 +149,30 @@ void buttons_set_text_front_color(char* clr_text) {
   if (btn_ptr) btn_ptr->set_text(clr_text);
 }
 
-void buttons_set_text_by_key(const char* key, const char* a_text) {
+void buttons_set_text_by_key(const char* key, const char* a_text, bool refresh_ui) {
+  if (!key || !a_text) return;
 
-#if LV_USE_ASYNC_CALL
-  struct Args {
-    const char* key;
-    const char* text;
-  };
-
-  static Args args;
-  args.key = key;
-  args.text = a_text;
-
-  lv_async_call(
-    [](void* p) {
-      Args* a = (Args*)p;
-      buttons_set_text_by_key(a->key, a->text);
-    },
-    &args);
-  return;
-#endif
-
-  // ---- normal LVGL context path below ----
   UIButton* btn_ptr = find_button_by_key(key);
   if (!btn_ptr) return;
 
+  LOG_PRINTF("buttons_set_text_by_key \nkey{%s} \ntext{%s} \nrefresh ui{%d}\n", key, a_text, refresh_ui);
+
   btn_ptr->set_text(a_text);
-
-  lv_obj_t* btn = btn_ptr->get_ptr();
-  if (!btn) return;
-
-  lv_obj_t* lbl = lv_obj_get_child(btn, 0);
+  lv_obj_t* lv_btn = btn_ptr->get_ptr();
+  lv_obj_t* lbl = lv_obj_get_child(lv_btn, 0);
   if (lbl) lv_label_set_text(lbl, a_text);
 
-  lv_obj_invalidate(btn);
+  if (!refresh_ui) return;
 
-  lv_timer_handler();
-  delay(5);
-  lv_timer_handler(); //NOW TO TEST HERE
+  lv_obj_invalidate(lv_btn);
+  lv_refr_now(NULL);
+
+  // Force redraw passes to ensure UI visibly updates on hardware
+  for (int i = 0; i < 6; ++i) {
+    lv_timer_handler();
+    delay(5);
+  }
+  delay(15);
 }
 
 void buttons_set_color_string(const char* color_string) {

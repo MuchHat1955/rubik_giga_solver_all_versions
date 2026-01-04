@@ -173,7 +173,7 @@ void buttonAction(int btn_id) {
   // --- Navigate to submenu only after operation finished
   if (b->get_is_menu()) {
     currentMenu = key;
-    setFooter((String("switch menu to ") + key).c_str());
+    // setFooter((String("switch menu to ") + key).c_str());
     buildMenu(currentMenu.c_str());
     LOG_SECTION_END_MENU();
     return;
@@ -182,7 +182,7 @@ void buttonAction(int btn_id) {
   // --- Explicit back to main menu
   if (strcmp(key, "k_main") == 0) {
     currentMenu = "k_main";
-    setFooter("back to main menu");
+    // setFooter("back to main menu");
     buildMenu(currentMenu.c_str());
     LOG_SECTION_END_MENU();
     return;

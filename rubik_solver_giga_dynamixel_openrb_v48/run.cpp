@@ -14,12 +14,25 @@ bool send_readcolors_progress_bool = false;
 bool send_cube_view_bool = false;
 int last_onecolor_read_slot = -1;
 
+String getRbVersion();
+
 //-----------------------------------------------------------------------------------------
+
+String getSystemText() {
+  String servoText = getLastServoStatusStr(0);
+
+  String systemText =
+    String("#FFA500 main build# ") + getSketchVersionWithDate() + "\n" +  //
+    String("#FFA500 rb build# ") + getRbVersion() + "\n\n" +              //
+    String("#FFA500 servos status#\n") + servoText + "\n" +               //
+    String("#FFA500 errors log#\n") + getAllErrorLines();
+  return systemText;
+}
 
 void buttonAction_run(const char* btn_key) {
 
-  String footer_txt = String("start ") + String(btn_key);
-  setFooter(footer_txt.c_str());
+  //String footer_txt = String("start ") + String(btn_key);
+  //setFooter(footer_txt.c_str());
   delay(11);
   LOG_PRINTF("running action for key {%s}\n", btn_key);
 
@@ -206,7 +219,7 @@ bool runColorStickerByKey(const char* key, bool& result) {
 
   // ---------------- Footer + logging ----------------
   if (!result) {
-    LOG_ERR("ONECOLOR", "error=%s", getLastError(cmd_id).c_str());
+    LOG_ERR("ONECOLOR error {%s}", getLastError(cmd_id).c_str());
     text = String("read color sticker c") + slot + " failed";
     setFooter(text.c_str());
     last_onecolor_read_slot = -1;
@@ -238,7 +251,7 @@ bool runSolveCubeFindSolutionByKey(const char* key, bool& result) {
   bool ok = is_valid_color_string(cube);
   if (!ok) {
     LOG_ERR("not a valid color string %s", cube.c_str());
-    setFooter("err invalid color read");
+    setFooter("color read failed");
   }
   if (ok) {
     ok = is_solved_top_two_layers(cube);
@@ -314,7 +327,8 @@ bool runSystemByKey(const char* key, bool& result) {
   else if (strcmp(key, "k_set_stop_all") == 0) cmd = "SETSTOPALL";
   else return false;
 
-  setFooter(cmd.c_str());
+  String text = "run " + cmd;
+  setFooter(text.c_str());
 
   int cmd_id = -1;
   result = runCommand(cmd, "", &cmd_id);
@@ -327,14 +341,14 @@ bool runSystemByKey(const char* key, bool& result) {
   }
 
   if (!result) {
-    LOG_ERR(cmd.c_str(), "error", getLastError(cmd_id).c_str());
+    LOG_ERR("%s: error {%s}", cmd.c_str(), getLastError(cmd_id).c_str());
     setFooter((cmd + " failed").c_str());
   } else {
     setFooter((cmd + " ok").c_str());
   }
-  String servos_info = getLastServoStatusStr(0);
-  LOG_PRINTF("updated servos info /n{%s/n}/n", servos_info);
-  buttons_set_text_by_key("k_system_info_text", servos_info.c_str());
+  String system_info = getSystemText();
+  LOG_PRINTF("updated system info /n{%s}/n", system_info.c_str());
+  buttons_set_text_by_key("k_system_info_text", system_info.c_str());
 
   return true;
 }
@@ -356,7 +370,8 @@ bool runColorReadByKey(const char* key, bool& result) {
     param = "centers";
   } else return false;
 
-  setFooter(cmd.c_str());
+  String text = "run " + cmd;
+  setFooter(text.c_str());
 
   int cmd_id = -1;
   send_readcolors_progress_bool = true;
@@ -364,7 +379,7 @@ bool runColorReadByKey(const char* key, bool& result) {
   send_readcolors_progress_bool = false;
 
   if (!result) {
-    LOG_ERR(cmd.c_str(), "error", getLastError(cmd_id).c_str());
+    LOG_ERR("%s: error {%s}", cmd.c_str(), getLastError(cmd_id).c_str());
     setFooter((cmd + " failed").c_str());
   } else {
     setFooter((cmd + " ok").c_str());
@@ -397,7 +412,7 @@ bool runSolveReadByKey(const char* key, bool& result) {
   send_readcolors_progress_bool = false;
 
   if (!result) {
-    LOG_ERR(cmd.c_str(), "error", getLastError(cmd_id).c_str());
+    LOG_ERR("%s: error {%s}", cmd.c_str(), getLastError(cmd_id).c_str());
     setFooter((text + " failed").c_str());
   } else {
     setFooter((text + " ok").c_str());

@@ -59,7 +59,7 @@ void updateButtonPtrById(int btn_id, lv_obj_t *btn) {
 void drawButtonOverlayById(int btn_id) {
   UIButton *btn_ptr = find_button_by_id(btn_id);
   if (!btn_ptr) {
-    LOG_ERR("[!] drawButtonOverlay: invalid button id {%d}\n", btn_id);
+    LOG_ERR("drawButtonOverlay: invalid button id {%d}\n", btn_id);
     return;
   }
   lv_obj_t *btn = btn_ptr->get_ptr();
@@ -95,6 +95,9 @@ void drawButtonOverlayById(int btn_id) {
 
   // Base color by type
   lv_color_t baseColor = is_menu ? COLOR_BTN_MENU : COLOR_BTN_ACTION;
+
+  bool is_back = (strcmp(btn_ptr->get_key(), "k_main") == 0);
+  if (is_back) baseColor = COLOR_BTN_BACK;
 
 #if LV_USE_USER_DATA
   // --- remove old overlay children tagged as overlays

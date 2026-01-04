@@ -37,7 +37,7 @@ bool runSystemByKey(const char* key, bool& result);
 bool runColorReadByKey(const char* key, bool& result);
 bool runSolveReadByKey(const char* key, bool& result);
 bool runColorOrientationByKey(const char* key, bool& result);
-
+String getSystemText();
 
 
 #endif  // RUN_H

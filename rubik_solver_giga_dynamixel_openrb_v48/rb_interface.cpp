@@ -26,12 +26,21 @@ bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
   delay(300);
   while (serial_->available()) serial_->read();
 
-  // Disable verbose output
-  serial_->println("VERBOSEOFF");
-  delay(100);
-  while (serial_->available()) serial_->read();
+  // --- ACTIVE PROBE ---
+  uint32_t start = millis();
+  serial_->println("VERSION");  // or VERSION / PING
 
-  return true;
+  while (millis() - start < timeout_ms) {
+    if (serial_->available()) {
+      String line = serial_->readStringUntil('\n');
+      line.trim();
+      if (line.length()) {
+        return true;   // ✅ RB responded
+      }
+    }
+  }
+
+  return false;  // ❌ timed out, no RB
 }
 
 // ============================================================

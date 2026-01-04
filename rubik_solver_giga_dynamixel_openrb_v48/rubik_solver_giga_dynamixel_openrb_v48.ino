@@ -162,15 +162,16 @@ void setup() {
   init_rb_wrappers();
   bool rb_ok = !rb.begin(115200, 200);
   if (!rb_ok) {
-    setFooter("rb interface issues detected");
+    LOG_ERR("rb interface could not start\n");
+    setFooter("rb interface could not start");
   } else {
     rb_version = getRbInterfaceVersion();
     if (rb_version == "err") {
-      LOG_ERR("no rb interface detected");
-      setFooter("no rb interface detected");
+      LOG_ERR("rb could not get version\n");
+      setFooter("rb could not get version");
     } else if (!runStartupTests()) {
-      LOG_ERR("startup tests failed");
-      setFooter("startup issues detected");
+      LOG_ERR("startup tests failed\n");
+      setFooter("startup tests failed");
     } else {
       setFooter("startup test ok");
     }

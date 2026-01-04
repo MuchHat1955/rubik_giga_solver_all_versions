@@ -16,7 +16,7 @@ String getSketchVersion();
 String getSketchVersionWithDate();
 String getRbVersion();
 void buildMenu(const char *menuKey);
-
+String getSystemText();
 String getLastColorString();
 
 extern RBInterface rb;
@@ -420,20 +420,26 @@ void buildMenu(const char *menuKey) {
 
         lv_obj_t *ta = lv_textarea_create(cont);
         lv_obj_set_size(ta, textW, textH);
+        
+        // Disable interaction
+        lv_obj_clear_flag(ta, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_clear_state(ta, LV_STATE_FOCUSED);
+        lv_group_remove_obj(ta);
+
+        // Disable cursor positioning
+        lv_textarea_set_cursor_click_pos(ta, false);
+
+        // Hide cursor (LVGL 8 way)
+        lv_obj_set_style_bg_opa(ta, LV_OPA_TRANSP, LV_PART_CURSOR);
+        lv_obj_set_style_border_opa(ta, LV_OPA_TRANSP, LV_PART_CURSOR);
 
         // ⬇️ Top-left anchored, not grid-based
         lv_obj_set_pos(ta, side_margin, top_margin);
         lv_obj_set_scrollbar_mode(ta, LV_SCROLLBAR_MODE_AUTO);
 
         updateButtonPtrByKey("k_system_info_text", ta);
-
-        String servoText = getLastServoStatusStr(0);
-
-        String systemText =
-          String("#FFA500 main build# ") + getSketchVersionWithDate() + "\n" +  //
-          String("#FFA500 rb build# ") + getRbVersion() + "\n\n" +              //
-          String("#FFA500 servos status#\n") + servoText + "\n" +               //
-          String("#FFA500 errors log#\n") + getAllErrorLines();
+        String systemText = getSystemText();
+        buttons_set_text_by_key("k_system_info_text", systemText.c_str(), false);
 
         lv_textarea_set_text(ta, systemText.c_str());
         lv_textarea_set_cursor_click_pos(ta, false);
