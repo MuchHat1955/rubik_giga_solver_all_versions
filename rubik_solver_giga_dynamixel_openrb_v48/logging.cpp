@@ -167,6 +167,7 @@ void addErrorLine(const String& line) {
 
   String cleanLine = line;
   cleanLine.trim();
+  cleanLine.toLowerCase();
 
   errNo++;
   String lineToAdd = String(errNo) + ". [!] " + cleanLine + " (" + (errNo == 1 ? "since boot " : "+") + timeText + ")";

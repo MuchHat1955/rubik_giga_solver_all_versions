@@ -86,7 +86,7 @@ bool runRobotMovesByKey(const char* key, bool& result) {
   else return false;
 
   // updated footer
-  String text = String("run robot move ") + String(move);
+  String text = String("runnning... robot move ") + String(move);
   setFooter(text.c_str());
   // run
   int cmd_id = -1;
@@ -98,10 +98,10 @@ bool runRobotMovesByKey(const char* key, bool& result) {
   // updated footer
   if (!result) {
     LOG_ERR("MOVEROBOT error=%s", getLastError(cmd_id).c_str());
-    text = String("run robot move ") + String(move) + String(" failed");
+    text = String("robot move ") + String(move) + String(" failed");
     setFooter(text.c_str());
   } else {
-    text = String("run robot move ") + String(move) + String(" ok");
+    text = String("robot move ") + String(move) + String(" ok");
     setFooter(text.c_str());
   }
   return true;
@@ -147,7 +147,7 @@ bool runCubeMoveByKey(const char* key, bool& result) {
   else return false;  // not a cube move key
 
   // ---------------- Footer update ----------------
-  String text = String("run cube move ") + move;
+  String text = String("running... cube move ") + move;
   setFooter(text.c_str());
 
   // ---------------- Run command ----------------
@@ -158,10 +158,10 @@ bool runCubeMoveByKey(const char* key, bool& result) {
   // ---------------- Footer + logging ----------------
   if (!result) {
     LOG_ERR("MOVECUBE error=%s", getLastError(cmd_id).c_str());
-    text = String("run cube move ") + move + " failed";
+    text = String("cube move ") + move + " failed";
     setFooter(text.c_str());
   } else {
-    text = String("run cube move ") + move + " ok";
+    text = String("cube move ") + move + " ok";
     setFooter(text.c_str());
   }
 
@@ -178,7 +178,7 @@ bool runRunOrientationByKey(const char* key, bool& result) {
   else if (strcmp(key, "k_orientation_restore") == 0) cmd = "RESTOREORI";
   else return false;
 
-  String text = String("run ") + cmd;
+  String text = String("running... ") + cmd;
   setFooter(text.c_str());
 
   int cmd_id = -1;
@@ -239,7 +239,7 @@ bool runSolveCubeFindSolutionByKey(const char* key, bool& result) {
   if (!key) return false;
   if (strcmp(key, "k_solve_cube_find_solution") != 0) return false;  //k_solve_cube_solve
 
-  String text = String("run solve cube");
+  String text = String("running... solve cube");
   setFooter(text.c_str());
 
   int cmd_id = -1;
@@ -288,7 +288,7 @@ bool runSolveCubeRunSolutionByKey(const char* key, bool& result) {
   if (!key) return false;
   if (strcmp(key, "k_solve_cube_run_solution") != 0) return false;  //k_solve_cube_solve
 
-  String text = String("run solve cube");
+  String text = String("running... solve cube");
   setFooter(text.c_str());
 
   int cmd_id = -1;
@@ -327,7 +327,7 @@ bool runSystemByKey(const char* key, bool& result) {
   else if (strcmp(key, "k_set_stop_all") == 0) cmd = "SETSTOPALL";
   else return false;
 
-  String text = "run " + cmd;
+  String text = "running... " + cmd;
   setFooter(text.c_str());
 
   int cmd_id = -1;
@@ -370,7 +370,7 @@ bool runColorReadByKey(const char* key, bool& result) {
     param = "centers";
   } else return false;
 
-  String text = "run " + cmd;
+  String text = "running... " + cmd;
   setFooter(text.c_str());
 
   int cmd_id = -1;

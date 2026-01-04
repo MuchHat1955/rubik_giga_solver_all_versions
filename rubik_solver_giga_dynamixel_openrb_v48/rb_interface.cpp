@@ -554,7 +554,7 @@ bool runCommand(const String& command,
                 const String& params,
                 int* cmdId) {
 
-  LOG_PRINTF("run command {%s} params {%s}\n", command.c_str(), params.c_str());
+  LOG_PRINTF("running command {%s} params {%s}\n", command.c_str(), params.c_str());
 
   uint32_t id = rb.send_command(command, params);
 

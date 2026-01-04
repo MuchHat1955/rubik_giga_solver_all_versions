@@ -168,7 +168,7 @@ void setup() {
     rb_version = getRbInterfaceVersion();
     if (rb_version == "err") {
       LOG_ERR("rb could not get version\n");
-      setFooter("rb could not get version");
+      setFooter("could not get rb version");
     } else if (!runStartupTests()) {
       LOG_ERR("startup tests failed\n");
       setFooter("startup tests failed");
