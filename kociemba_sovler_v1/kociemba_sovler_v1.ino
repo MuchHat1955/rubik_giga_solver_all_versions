@@ -39,29 +39,42 @@ char buf479[479*1024];   // 479K in DMAMEM
 char  buf248[248 * 1024];       // 248K on in DTCM 
 */
 
-__attribute__((section(".sdram")))
-uint8_t buf479[479 * 1024];
-
-__attribute__((section(".sdram")))
-uint8_t buf248[248 * 1024];
-
+uint8_t *buf479;
+uint8_t *buf248;
 
 void setup() {
-  while (!Serial)
-    ;
+  Serial.begin(115200);
+
   em_start_ms = millis();
+  while (!Serial && millis() < em_start_ms + 11000) { delay(5); }
+  em_start_ms = millis();
+  Serial.println();
+  Serial.println("Setup started!");
+
+  buf479 = (uint8_t *)malloc(479 * 1024);
+  buf248 = (uint8_t *)malloc(248 * 1024);
+
+  if (!buf479 || !buf248) {
+    Serial.println("Memory allocation failed! Stopping program!");
+    while (1) { delay(5); }
+  }
+
+  kociemba::set_memory(buf479, buf248);
   kociemba::set_memory(buf479, buf248);  // removing this line slows the computation by a factor of 4 (but saves a lot of RAM...)
 
-  Serial.print("RAM buffer created in ");
+  Serial.print("ram buffer created in ");
   Serial.print(millis() - em_start_ms);
   Serial.println(" ms.");
+
+  Serial.println("Setup end!");
+  Serial.println();
 }
 
 
 void loop() {
   for (auto s : test_cube) {
     em_start_ms = millis();
-    const char* res = kociemba::solve(s);
+    const char *res = kociemba::solve(s);
     if (res == nullptr)
       Serial.println("no solution found :(");
     else {
