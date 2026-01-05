@@ -20,6 +20,7 @@
 #include <Arduino.h>
 
 #include "kociemba.h"
+bool kociemba_init_tables();
 
 
 // 5 randomly scrambled cube.
@@ -50,6 +51,11 @@ void setup() {
   em_start_ms = millis();
   Serial.println();
   Serial.println("Setup started!");
+
+  if (!kociemba_init_tables()) {
+    Serial.println("Kociemba table init failed! Stopping program!");
+    while (1) { delay(5); }
+  }
 
   buf479 = (uint8_t *)malloc(479 * 1024);
   buf248 = (uint8_t *)malloc(248 * 1024);
