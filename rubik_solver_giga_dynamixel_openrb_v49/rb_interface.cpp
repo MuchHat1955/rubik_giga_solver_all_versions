@@ -22,7 +22,7 @@ bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
   serial_->begin(baud);
   serial_->setTimeout(timeout_ms);
 
-  setFooter("starting rb...",_RUNNING_NOSTOP);
+  setFooter("starting rb...", _RUNNING_NOSTOP);
 
   // Flush startup noise
   delay(300);
@@ -37,7 +37,7 @@ bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
       String line = serial_->readStringUntil('\n');
       line.trim();
       if (line.length()) {
-        return true;   // ✅ RB responded
+        return true;  // ✅ RB responded
       }
     }
   }
@@ -51,7 +51,6 @@ bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
 uint32_t RBInterface::send_command(const String& command,
                                    const String& params) {
   waiting_for_start_ = true;
-  current_cmd_id_ = 0;
 
   String line = command;
   if (!params.isEmpty()) {
@@ -65,8 +64,28 @@ uint32_t RBInterface::send_command(const String& command,
   while (waiting_for_start_ && millis() - t0 < 3000) {
     poll();
   }
-
+  if (waiting_for_start_) {
+    LOG_ERR("command %s %s timed out\n", command, params);
+    return -1;  // command never received TODO-> TO IMPLEMENT use this}
+  }
+  current_cmd_id_++;
   return current_cmd_id_;
+}
+
+bool RBInterface::send_stop_command() {
+  waiting_for_end_ = true;
+  int stopCmdId = send_command("STOP", "");
+  if (stopCmdId < 0) return false;
+
+  unsigned long t0 = millis();
+  while (waiting_for_end_ && millis() - t0 < 3000) {
+    poll();
+  }
+  if (waiting_for_end_) {
+    LOG_ERR("stop timed out, no end command received\n");
+    return false;  // command never received TODO-> TO IMPLEMENT use this
+  }
+  return true;
 }
 
 // ============================================================
@@ -126,6 +145,7 @@ void RBInterface::handle_line(const String& line) {
 
       if (command_end_cb_)
         command_end_cb_(result, duration);
+      waiting_for_end_ = false;
       return;
     }
   }
@@ -252,7 +272,6 @@ void set_last_color_string_54(String a_color_string) {
 void set_last_orientation(String a_ori) {
   last_orientation = a_ori;
 }
-
 
 static void rb_command_end_cb(const String& result, const String& duration) {
   LOG_PRINTF("[RB CMD] done %s (%s)\n", result.c_str(), duration.c_str());

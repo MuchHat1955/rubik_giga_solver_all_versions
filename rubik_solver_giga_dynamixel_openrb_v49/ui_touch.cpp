@@ -117,16 +117,15 @@ LV_SYMBOL_CHARGE    // ⚡
 static void footer_stop_cb(lv_event_t *e) {
   LV_UNUSED(e);
 
-  LOG_PRINTF_MENU("footer STOP pressed\n");
+  LOG_PRINTF_MENU("footer stop button pressed\n");
 
-  /* ---- PLACEHOLDER ----
-     hook your cancel / abort logic here
-     examples:
-       rb_cancel_current_command();
-       solver_abort();
-       servo_emergency_stop();
-  */
-  setFooter("stopped",_DONE_ERROR);
+  setFooter("sending... stop command", _RUNNING_NOSTOP);
+  bool ok = rb.send_stop_command();
+
+  if (ok) setFooter("stop command received", _DONE_SUCCESS);
+  else setFooter("stop command not received", _DONE_ERROR);
+
+  for (int i = 0; i < 111; i++) { delay(3); }
 }
 
 static inline void obj_set_hidden(lv_obj_t *obj, bool hide) {

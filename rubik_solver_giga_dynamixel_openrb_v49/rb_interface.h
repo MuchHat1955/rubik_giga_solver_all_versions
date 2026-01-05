@@ -26,6 +26,7 @@ public:
 
   // Sends command and waits until command_start is received
   uint32_t send_command(const String& command, const String& params);
+  bool send_stop_command();
 
   // User callbacks
   void on_command_end(command_end_cb_t cb);
@@ -44,6 +45,7 @@ private:
 
   uint32_t current_cmd_id_ = 0;
   bool waiting_for_start_ = false;
+  bool waiting_for_end_ = false;
 
   command_end_cb_t command_end_cb_;
   info_cb_t info_cb_;
@@ -58,6 +60,7 @@ void init_rb_wrappers();
 bool runCommand(const String& command,
                 const String& params,
                 int* cmdId);
+bool runStopCommand();
 bool checkServosStatus();
 String getLastError(int cmdId);
 bool getLastResult(int cmdId);
