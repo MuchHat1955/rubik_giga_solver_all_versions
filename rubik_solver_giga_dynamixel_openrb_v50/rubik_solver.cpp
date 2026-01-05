@@ -236,7 +236,7 @@ String find_solution_for_bottom_layer(const String &a_cube) {
   cube.toUpperCase();
 
   if (!is_solved_top_two_layers(cube)) {
-    LOG_ERR("ERR top two layers not solved\n");
+    LOG_ERR("[SOLVER] top two layers not solved\n");
     return "";
   }
 

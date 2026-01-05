@@ -280,11 +280,12 @@ UIButton ui_buttons[] = {
   { 65, "z+", "k_color_z_plus", nullptr, true, false },
 
   { 66, "info", "k_servos_info", nullptr, true, false },
+  { 67, "zero", "k_run_zero", nullptr, true, false },
   { 68, "stop", "k_set_stop_all", nullptr, true, false },
-  { 67, "reboot", "k_reboot_all", nullptr, true, false },
+  { 69, "reboot", "k_reboot_all", nullptr, true, false },
 
-  { 69, "", "k_system_info_text", nullptr, false, false },  // this is the text for servos info
-  { 70, "back", "k_tests", nullptr, false, true }
+  { 70, "", "k_system_info_text", nullptr, false, false },  // this is the text for servos info
+  { 71, "back", "k_tests", nullptr, false, true }
 };
 
 const int UI_BUTTON_COUNT = sizeof(ui_buttons) / sizeof(ui_buttons[0]);

@@ -34,7 +34,7 @@ void buttonAction_run(const char* btn_key) {
   //String footer_txt = String("start ") + String(btn_key);
   //setFooter(footer_txt.c_str());
   delay(11);
-  LOG_PRINTF("running action for key {%s}\n", btn_key);
+  LOG_PRINTF_RUN("running action for key {%s}\n", btn_key);
 
   bool handled = false;
   bool ok = false;
@@ -59,7 +59,7 @@ void buttonAction_run(const char* btn_key) {
 
   if (!handled) {
     String text = String("action not implemented ") + String(btn_key);
-    LOG_ERR("unhandled action key=%s\n", btn_key);
+    LOG_ERR("[RUN] unhandled action key=%s\n", btn_key);
     setFooter(text.c_str(), _ERROR);
   }
 }
@@ -88,17 +88,17 @@ bool runRobotMovesByKey(const char* key, bool& result) {
 
   // updated footer
   String text = String("runnning... robot move ") + String(move);
-  setFooter(text.c_str(), _RUNNING_NOSTOP);
+  setFooter(text.c_str(), _RUNNING_STOP);
   // run
   int cmd_id = -1;
 
   send_move_robot_progress_bool = true;
-  result = runCommand("MOVEROBOT", move, &cmd_id);
+  result = runCommand("moverobot", move, &cmd_id);
   send_move_robot_progress_bool = false;
 
   // updated footer
   if (!result) {
-    LOG_ERR("MOVEROBOT error=%s", getLastError(cmd_id).c_str());
+    LOG_ERR("[RUN] moverobot error=%s", getLastError(cmd_id).c_str());
     text = String("robot move ") + String(move) + String(" failed");
     setFooter(text.c_str(), _DONE_ERROR);
   } else {
@@ -149,16 +149,16 @@ bool runCubeMoveByKey(const char* key, bool& result) {
 
   // ---------------- Footer update ----------------
   String text = String("running... cube move ") + move;
-  setFooter(text.c_str(), _RUNNING_NOSTOP);
+  setFooter(text.c_str(), _RUNNING_STOP);
 
   // ---------------- Run command ----------------
   int cmd_id = -1;
   send_cube_view_bool = true;
-  result = runCommand("MOVECUBE", move, &cmd_id);
+  result = runCommand("movecube", move, &cmd_id);
   send_cube_view_bool = false;
   // ---------------- Footer + logging ----------------
   if (!result) {
-    LOG_ERR("MOVECUBE error=%s", getLastError(cmd_id).c_str());
+    LOG_ERR("[RUN] movecube error=%s", getLastError(cmd_id).c_str());
     text = String("cube move ") + move + " failed";
     setFooter(text.c_str(), _DONE_ERROR);
   } else {
@@ -180,7 +180,7 @@ bool runRunOrientationByKey(const char* key, bool& result) {
   else return false;
 
   String text = String("running... ") + cmd;
-  setFooter(text.c_str(), _RUNNING_NOSTOP);
+  setFooter(text.c_str(), _RUNNING_STOP);
 
   int cmd_id = -1;
   send_orientation_data_bool = true;
@@ -188,7 +188,7 @@ bool runRunOrientationByKey(const char* key, bool& result) {
   send_orientation_data_bool = false;
 
   if (!result) {
-    LOG_ERR("RUN error=%s", getLastError(cmd_id).c_str());
+    LOG_ERR("[RUN] error=%s", getLastError(cmd_id).c_str());
     setFooter((text + " failed").c_str(), _DONE_SUCCESS);
   } else {
     setFooter((text + " ok").c_str(), _DONE_ERROR);
@@ -220,7 +220,7 @@ bool runColorStickerByKey(const char* key, bool& result) {
 
   // ---------------- Footer + logging ----------------
   if (!result) {
-    LOG_ERR("ONECOLOR error {%s}", getLastError(cmd_id).c_str());
+    LOG_ERR("[RUN] ONECOLOR error {%s}", getLastError(cmd_id).c_str());
     text = String("read color sticker c") + slot + " failed";
     setFooter(text.c_str(), _DONE_ERROR);
     last_onecolor_read_slot = -1;
@@ -251,7 +251,7 @@ bool runSolveCubeFindSolutionByKey(const char* key, bool& result) {
 
   bool ok = is_valid_color_string(cube);
   if (!ok) {
-    LOG_ERR("not a valid color string %s", cube.c_str());
+    LOG_ERR("[RUN] not a valid color string %s", cube.c_str());
     setFooter("color read failed", _DONE_ERROR);
   }
   if (ok) {
@@ -261,13 +261,13 @@ bool runSolveCubeFindSolutionByKey(const char* key, bool& result) {
     } else {
       //TODO-> TO IMPLEMENT add solution for full cube
       solution = "";
-      LOG_ERR("for now supporting only bottom layer solution %s", cube.c_str());
+      LOG_ERR("[SOLVER] for now supporting only bottom layer solution %s", cube.c_str());
       setFooter("full solution not implemented", _DONE_ERROR);
     }
   }
 
   if (solution.isEmpty()) {
-    LOG_ERR("no solution found for %s\n", cube.c_str());
+    LOG_ERR("[SOLVER] no solution found for %s\n", cube.c_str());
     result = false;
   } else {
     setLastCubeSolution(solution);
@@ -275,7 +275,7 @@ bool runSolveCubeFindSolutionByKey(const char* key, bool& result) {
   }
 
   if (!result) {
-    LOG_ERR("RUN %s\n", getLastError(cmd_id).c_str());
+    LOG_ERR("[RUN] RUN %s\n", getLastError(cmd_id).c_str());
     setFooter("no solution found", _DONE_ERROR);
   } else {
     setFooter("find solution done", _DONE_SUCCESS);
@@ -288,7 +288,7 @@ bool runSolveCubeRunSolutionByKey(const char* key, bool& result) {
   if (!key) return false;
   if (strcmp(key, "k_solve_cube_run_solution") != 0) return false;  //k_solve_cube_solve
 
-  setFooter("running... solve cube", _RUNNING_NOSTOP);
+  setFooter("running... solve cube", _RUNNING_STOP);
 
   int cmd_id = -1;
   result = false;
@@ -296,9 +296,9 @@ bool runSolveCubeRunSolutionByKey(const char* key, bool& result) {
   String solution = getLastCubeSolution();
   ui_cube_view_set_colors(getLastColorString());
   if (solution = "") {
-    LOG_ERR("RUN %s no solution\n", key);
+    LOG_ERR("[SOLVER] %s no solution\n", key);
     setFooter("no solution found", _DONE_ERROR);
-    return true; // handled
+    return true;  // handled
   }
 
   cmd_id = -1;
@@ -307,14 +307,14 @@ bool runSolveCubeRunSolutionByKey(const char* key, bool& result) {
   LOG_PRINTF("progress bar created with {%s}\n", solution.c_str());
 
   send_move_cube_progress_bool = true;
-  bool ok = runCommand("MOVECUBE", solution, &cmd_id);
+  bool ok = runCommand("movecube", solution, &cmd_id);
   send_move_cube_progress_bool = false;
   result = ok;
 
   if (ok) setFooter("solve cube done", _DONE_SUCCESS);
   else setFooter("solve cube failed", _DONE_ERROR);
 
-  return true; //handled
+  return true;  //handled
 }
 
 // TODO-> TO TEST
@@ -326,10 +326,12 @@ bool runSystemByKey(const char* key, bool& result) {
   if (strcmp(key, "k_servos_info") == 0) cmd = "INFOSERVO";
   else if (strcmp(key, "k_reboot_all") == 0) cmd = "REBOOTALL";
   else if (strcmp(key, "k_set_stop_all") == 0) cmd = "SETSTOPALL";
+  else if (strcmp(key, "k_run_zero") == 0) cmd = "RUN 0";
   else return false;
 
   String text = "running... " + cmd;
-  setFooter(text.c_str(), _RUNNING_NOSTOP);
+  if (strcmp(key, "k_run_zero") == 0) setFooter(text.c_str(), _RUNNING_STOP);
+  else setFooter(text.c_str(), _RUNNING_NOSTOP);
 
   int cmd_id = -1;
   result = runCommand(cmd, "", &cmd_id);
@@ -342,7 +344,7 @@ bool runSystemByKey(const char* key, bool& result) {
   }
 
   if (!result) {
-    LOG_ERR("%s: error {%s}", cmd.c_str(), getLastError(cmd_id).c_str());
+    LOG_ERR("[RUN] %s: error {%s}", cmd.c_str(), getLastError(cmd_id).c_str());
     setFooter((cmd + " failed").c_str(), _DONE_ERROR);
   } else {
     setFooter((cmd + " done").c_str(), _DONE_SUCCESS);
@@ -371,7 +373,7 @@ bool runColorReadByKey(const char* key, bool& result) {
     param = "centers";
   } else return false;
 
-  setFooter("running... read colors", _RUNNING_NOSTOP);
+  setFooter("running... read colors", _RUNNING_STOP);
 
   int cmd_id = -1;
   send_readcolors_progress_bool = true;
@@ -379,7 +381,7 @@ bool runColorReadByKey(const char* key, bool& result) {
   send_readcolors_progress_bool = false;
 
   if (!result) {
-    LOG_ERR("%s: error {%s}", cmd.c_str(), getLastError(cmd_id).c_str());
+    LOG_ERR("[RUN] %s: error {%s}", cmd.c_str(), getLastError(cmd_id).c_str());
     setFooter("read colors failed", _DONE_ERROR);
   } else {
     setFooter("read colors done", _DONE_SUCCESS);
@@ -403,7 +405,7 @@ bool runSolveReadByKey(const char* key, bool& result) {
     param = "centers";
   } else return false;
 
-  setFooter("running... read colors", _RUNNING_NOSTOP);
+  setFooter("running... read colors", _RUNNING_STOP);
 
   int cmd_id = -1;
   send_readcolors_progress_bool = true;
@@ -411,7 +413,7 @@ bool runSolveReadByKey(const char* key, bool& result) {
   send_readcolors_progress_bool = false;
 
   if (!result) {
-    LOG_ERR("%s: error {%s}", cmd.c_str(), getLastError(cmd_id).c_str());
+    LOG_ERR("[RUN] %s: error {%s}", cmd.c_str(), getLastError(cmd_id).c_str());
     setFooter("read colors failed", _DONE_ERROR);
   } else {
     setFooter("read colors done", _DONE_SUCCESS);
@@ -428,12 +430,12 @@ bool runColorOrientationByKey(const char* key, bool& result) {
   else if (strcmp(key, "k_color_z_plus") == 0) move = "z+";
   else return false;
 
-  setFooter("running... rotate", _RUNNING_NOSTOP);
+  setFooter("running... rotate", _RUNNING_STOP);
   int cmd_id = -1;
-  result = runCommand("MOVEROBOT", move, &cmd_id);
+  result = runCommand("moverobot", move, &cmd_id);
 
   if (!result) {
-    LOG_ERR("MOVEROBOT error=%s", getLastError(cmd_id).c_str());
+    LOG_ERR("[RUN] moverobot error=%s", getLastError(cmd_id).c_str());
     setFooter("rotate failed", _DONE_ERROR);
   } else {
     setFooter("rotate done", _DONE_SUCCESS);

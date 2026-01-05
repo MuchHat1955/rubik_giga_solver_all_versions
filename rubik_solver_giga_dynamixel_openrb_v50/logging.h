@@ -9,10 +9,8 @@
 
 // CATEGORY ENABLES (comment out to disable compile-time)
 #define LOG_RB
-#define LOG_PARAM
-#define LOG_POSE
-#define LOG_SEQUENCES
-#define LOG_CUBE
+#define LOG_SOLVER
+#define LOG_RUN
 #define LOG_MENU
 
 // Forward declaration to avoid circular include
@@ -27,10 +25,8 @@ extern int log_section_index;
 
 extern bool log_menu_enabled;
 extern bool log_rb_enabled;
-extern bool log_param_enabled;
-extern bool log_pose_enabled;
-extern bool log_seq_enabled;
-extern bool log_cube_enabled;
+extern bool log_solver_enabled;
+extern bool log_run_enabled;
 
 void addErrorLine(const String& line);
 const char* getLastErrorLine();
@@ -160,57 +156,33 @@ inline void serial_printf(const char* fmt, Args... args) {
     current_log_prefix = ""; \
   } while (0)
 
-/*
-  #define LOG_SECTION_END() \
-  do { \
-    if (logging_on && log_section_index > 0) \
-      log_section_end_internal(__FILE__, __LINE__); \
-    else if (logging_on) \
-      serial_printf("[log] warning: redundant LOG_SECTION_END at {%s:%d} depth {%d}\n", \
-                    __FILE__, __LINE__, log_section_index); \
-    current_section_enabled = true; \
-    current_log_prefix = ""; \
-  } while (0)
-  */
-
 // ============================================================================
 // CATEGORY SECTION SHORTCUTS
 // ============================================================================
 #ifdef LOG_MENU
-#define LOG_SECTION_START_MENU(fmt, ...) LOG_SECTION_START_IF(log_menu_enabled, "MENU", fmt, ##__VA_ARGS__)
+#define LOG_SECTION_START_MENU(fmt, ...) LOG_SECTION_START_IF(log_menu_enabled, "[MENU]", fmt, ##__VA_ARGS__)
 #else
 #define LOG_SECTION_START_MENU(fmt, ...) ((void)0)
 #endif
 
 #ifdef LOG_RB
-#define LOG_SECTION_START_RB(fmt, ...) LOG_SECTION_START_IF(log_rb_enabled, "RB", fmt, ##__VA_ARGS__)
+#define LOG_SECTION_START_RB(fmt, ...) LOG_SECTION_START_IF(log_rb_enabled, "[RB]", fmt, ##__VA_ARGS__)
 #else
 #define LOG_SECTION_START_RB(fmt, ...) ((void)0)
 #endif
 
-#ifdef LOG_PARAM
-#define LOG_SECTION_START_PARAM(fmt, ...) LOG_SECTION_START_IF(log_param_enabled, "PARAM", fmt, ##__VA_ARGS__)
+#ifdef LOG_SOLVER
+#define LOG_SECTION_START_PARAM(fmt, ...) LOG_SECTION_START_IF(log_solver_enabled, "[SOLVER]", fmt, ##__VA_ARGS__)
 #else
 #define LOG_SECTION_START_PARAM(fmt, ...) ((void)0)
 #endif
 
-#ifdef LOG_POSE
-#define LOG_SECTION_START_POSE(fmt, ...) LOG_SECTION_START_IF(log_pose_enabled, "POSE", fmt, ##__VA_ARGS__)
+#ifdef LOG_RUN
+#define LOG_SECTION_START_POSE(fmt, ...) LOG_SECTION_START_IF(log_run_enabled, "[RUN]", fmt, ##__VA_ARGS__)
 #else
 #define LOG_SECTION_START_POSE(fmt, ...) ((void)0)
 #endif
 
-#ifdef LOG_SEQUENCES
-#define LOG_SECTION_START_SEQ(fmt, ...) LOG_SECTION_START_IF(log_seq_enabled, "SEQ", fmt, ##__VA_ARGS__)
-#else
-#define LOG_SECTION_START_SEQ(fmt, ...) ((void)0)
-#endif
-
-#ifdef LOG_CUBE
-#define LOG_SECTION_START_CUBE(fmt, ...) LOG_SECTION_START_IF(log_cube_enabled, "CUBE", fmt, ##__VA_ARGS__)
-#else
-#define LOG_SECTION_START_CUBE(fmt, ...) ((void)0)
-#endif
 
 // ============================================================================
 // CATEGORY PRINTF MACROS (independent or inside a section)
@@ -239,43 +211,23 @@ inline void serial_printf(const char* fmt, Args... args) {
 #endif
 
 // ---------------------------------------------------------------- PARAM --
-#ifdef LOG_PARAM
-#define LOG_PRINTF_PARAM(fmt, ...) \
+#ifdef LOG_RUN
+#define LOG_PRINTF_RUN(fmt, ...) \
   do { \
-    if (LOG_SHOULD_PRINT("PARAM", log_param_enabled)) LOG_PRINTF("[PARAM] " fmt, ##__VA_ARGS__); \
+    if (LOG_SHOULD_PRINT("RUN", log_solver_enabled)) LOG_PRINTF("[RUN] " fmt, ##__VA_ARGS__); \
   } while (0)
 #else
-#define LOG_PRINTF_PARAM(fmt, ...) ((void)0)
+#define LOG_PRINTF_RUN(fmt, ...) ((void)0)
 #endif
 
-// ---------------------------------------------------------------- POSE --
-#ifdef LOG_POSE
-#define LOG_PRINTF_POSE(fmt, ...) \
+// ---------------------------------------------------------------- RUN --
+#ifdef LOG_SOLVER
+#define LOG_PRINTF_SOLVER(fmt, ...) \
   do { \
-    if (LOG_SHOULD_PRINT("POSE", log_pose_enabled)) LOG_PRINTF("[POSE] " fmt, ##__VA_ARGS__); \
+    if (LOG_SHOULD_PRINT("SOLVER", log_run_enabled)) LOG_PRINTF("[SOLVER] " fmt, ##__VA_ARGS__); \
   } while (0)
 #else
-#define LOG_PRINTF_POSE(fmt, ...) ((void)0)
-#endif
-
-// ------------------------------------------------------------- SEQUENCES --
-#ifdef LOG_SEQUENCES
-#define LOG_PRINTF_SEQ(fmt, ...) \
-  do { \
-    if (LOG_SHOULD_PRINT("SEQ", log_seq_enabled)) LOG_PRINTF("[SEQ] " fmt, ##__VA_ARGS__); \
-  } while (0)
-#else
-#define LOG_PRINTF_SEQ(fmt, ...) ((void)0)
-#endif
-
-// ---------------------------------------------------------------- CUBE ---
-#ifdef LOG_CUBE
-#define LOG_PRINTF_CUBE(fmt, ...) \
-  do { \
-    if (LOG_SHOULD_PRINT("CUBE", log_cube_enabled)) LOG_PRINTF("[CUBE] " fmt, ##__VA_ARGS__); \
-  } while (0)
-#else
-#define LOG_PRINTF_CUBE(fmt, ...) ((void)0)
+#define LOG_PRINTF_SOLVER(fmt, ...) ((void)0)
 #endif
 
 // ============================================================================
@@ -293,13 +245,13 @@ inline void serial_printf(const char* fmt, Args... args) {
 #define LOG_SECTION_END_RB() ((void)0)
 #endif
 
-#ifdef LOG_PARAM
+#ifdef LOG_SOLVER
 #define LOG_SECTION_END_PARAM() LOG_SECTION_END()
 #else
 #define LOG_SECTION_END_PARAM() ((void)0)
 #endif
 
-#ifdef LOG_POSE
+#ifdef LOG_RUN
 #define LOG_SECTION_END_POSE() LOG_SECTION_END()
 #else
 #define LOG_SECTION_END_POSE() ((void)0)

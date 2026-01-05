@@ -280,7 +280,7 @@ void setFooter(const char *msg, footer_state_t state) {
   switch (state) {
     case _INFO:
       icon = LV_SYMBOL_OK;
-      icon_color = lv_palette_main(LV_PALETTE_GREEN);
+      icon_color = lv_palette_main(LV_PALETTE_BLUE);
       break;
 
     case _ERROR:
@@ -300,6 +300,7 @@ void setFooter(const char *msg, footer_state_t state) {
       icon = LV_SYMBOL_REFRESH;
       icon_color = lv_palette_main(LV_PALETTE_YELLOW);
       blocking = true;
+      show_stop = false;
       break;
 
     case _DONE_SUCCESS:

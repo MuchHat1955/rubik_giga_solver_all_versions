@@ -15,10 +15,8 @@ bool logging_on = true;
 
 bool log_rb_enabled = true;
 bool log_menu_enabled = true;
-bool log_param_enabled = true;
-bool log_pose_enabled = true;
-bool log_seq_enabled = true;
-bool log_cube_enabled = true;
+bool log_solver_enabled = true;
+bool log_run_enabled = true;
 
 bool current_section_enabled = true;
 const char* current_log_prefix = "";
