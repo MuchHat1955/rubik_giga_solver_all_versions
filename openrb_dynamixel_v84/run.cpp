@@ -935,28 +935,28 @@ bool stop_is_on = false;
 unsigned long millis_stop_set = 0;
 
 void timeout_stop_on() {
-  if (stop_is_on) return;
-  if (millis() < millis_stop_set + 66000) return;
-  LOG_INFO(MOD_RUN, "stop_set_result", "timeout");
-  LOG_INFO(MOD_RUN, "stop_set_val", "set_false");
+  if (!stop_is_on) return;
+  if (millis() < millis_stop_set + 33000) return;
+
+  LOG_INFO(MOD_RUN, "stop_set", "set_false_timeout");
+  LOG_INFO(MOD_RUN, "stop_val", "is_false");
   stop_is_on = false;
 }
 
 bool is_stop_on() {
   timeout_stop_on();
+
   return stop_is_on;
-}
-void set_stop_on(bool s) {
-  LOG_INFO(MOD_RUN, "stop_set_val", "set_true");
-  stop_is_on = s;
 }
 
 bool cmd_stop(int argc, double *argv) {
   millis_stop_set = millis();
   stop_is_on = true;
-  return true;  //NOW
-}
 
+  LOG_INFO(MOD_RUN, "stop_set", "set_true_cmd");
+  LOG_INFO(MOD_RUN, "stop_val", "is_true");
+  return true;
+}
 
 char crrColorChar = '.';
 

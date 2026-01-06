@@ -727,24 +727,26 @@ static bool refineEndPositions(uint8_t id1, uint8_t id2, uint8_t id3,
 // ----------------------------------------------------------------------
 
 bool move_smooth() {
-  bool stop_before_move = is_stop_on();
+
+  if (is_stop_on()) {
+    LOG_INFO(MOD_RUN, "stop_val", "is_false");
+    LOG_INFO(MOD_RUN, "stop_result", "move_stopped");
+    return false;
+  }
+
   bool ok = move_smooth_v2();
   // print_kinematics_state("move_end");
-  if (!stop_before_move) {
-    set_stop_on(false);
-    LOG_INFO(MOD_RUN, "stop_set_val", "set_false");
-    LOG_INFO(MOD_RUN, "stop_set_result", "move_stopped");
-    ok = false;
+
+  // assume below !ok is because of stop
+  if (is_stop_on() && !ok) {
+    LOG_INFO(MOD_RUN, "stop_val", "is_false");
+    LOG_INFO(MOD_RUN, "stop_result", "move_stopped");
+    return false;
   }
+
   return ok;
 }
 
-/*
-safe_delay(1000, { ID_BASE, ID_ARM1 });
-safe_delay(800,  { ID_GRIP1, ID_GRIP2 });
-safe_delay(500,  { });   // check all
-safe_delay(300,  { ID_WRIST });
-*/
 // Define known IDs in one place
 bool is_known_servo_id(int id) {
   return (id == ID_BASE || id == ID_ARM1 || id == ID_ARM2 || id == ID_GRIP1 || id == ID_GRIP2 || id == ID_WRIST);
@@ -752,6 +754,7 @@ bool is_known_servo_id(int id) {
 
 bool safe_delay(unsigned long delay_millis, std::initializer_list<int> ids) {
   if (is_stop_on()) return false;
+
   unsigned long start_millis = millis();
 
   while ((millis() - start_millis) < delay_millis) {
@@ -785,6 +788,8 @@ bool safe_delay(unsigned long delay_millis, std::initializer_list<int> ids) {
 // ----------------------------------------------------------------------
 
 bool move_smooth_v2() {
+  if (is_stop_on()) return false;
+
   const int axes_count = axes.axesCount();
   if (axes_count == 0) return false;
 
@@ -885,6 +890,7 @@ bool move_smooth_v2() {
         t0 = millis();
         lastPos = p;
       }
+      if (is_stop_on()) return false;
       if (!safe_delay(5, { id })) return false;
     }
   }
@@ -904,6 +910,7 @@ bool move_smooth_v2() {
         //DEBUG_INFO(MOD_SERVO_MOVE, "final check: servo %d still off by %d → resending goal",
         //        id, diff);
         if (!safeSetGoalPosition(id, goalTicks[i])) return false;
+        if (is_stop_on()) return false;
         if (!safe_delay(50, { id })) return false;
       }
     }

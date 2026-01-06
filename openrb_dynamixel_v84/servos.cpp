@@ -227,6 +227,7 @@ bool servo_ok(uint8_t id) {
 }
 
 bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
+  if (is_stop_on()) return false;
 
   if (check_servos_stop_all()) {
     LOG_ERR(MOD_SERVOS, "error", "global servo error is set skip everything");
@@ -246,7 +247,7 @@ bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
     if (!servo_ok(id)) {
       LOG_ERR(MOD_SERVOS, "error", "setting global servo error flag");
       LOG_VAR("servo_responsible_name", id2name(id));
-          flash_led_servo(id, 8);
+      flash_led_servo(id, 8);
       set_flag_servos_stop_all();
       return false;
     }
