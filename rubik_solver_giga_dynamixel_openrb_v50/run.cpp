@@ -248,39 +248,31 @@ bool runSolveCubeFindSolutionByKey(const char* key, bool& result) {
 
   String cube = getLastColorString();
   String solution = "";
+  int solution_move_count = 0;
+  int solution_millis = 0;
 
+  // find solution if colors ok
   bool ok = is_valid_color_string(cube);
   if (!ok) {
-    LOG_ERR("[RUN] not a valid color string %s", cube.c_str());
+    LOG_ERR("[RUN] color_string_error=not_a_valid_color_string cube=%s", cube.c_str());
     setFooter("color read failed", _DONE_ERROR);
-  }
-  if (ok) {
-    ok = is_solved_top_two_layers(cube);
-    if (ok) {
-      solution = find_solution_for_bottom_layer(cube);
-    } else {
-      //TODO-> TO IMPLEMENT add solution for full cube
-      solution = "";
-      LOG_ERR("[SOLVER] for now supporting only bottom layer solution %s", cube.c_str());
-      setFooter("full solution not implemented", _DONE_ERROR);
-    }
+  } else {
+    // teensy solution
+    solution = solver_find_solution(cube, solution_move_count, solution_millis);
   }
 
   if (solution.isEmpty()) {
-    LOG_ERR("[SOLVER] no solution found for %s\n", cube.c_str());
+    LOG_ERR("[SOLVER] solver_error=no_solution_found cube=%s\n", cube.c_str());
+    LOG_ERR("[SOLVER] solver_error=%s\n", solver_find_solution().c_str());
+    setFooter("no solution found", _DONE_ERROR);
     result = false;
   } else {
     setLastCubeSolution(solution);
+    String footer_text = "solution found with " + String(solution_move_count) + " moves";
+    setFooter(footer_text, _DONE_SUCCESS);
     result = true;
   }
-
-  if (!result) {
-    LOG_ERR("[RUN] RUN %s\n", getLastError(cmd_id).c_str());
-    setFooter("no solution found", _DONE_ERROR);
-  } else {
-    setFooter("find solution done", _DONE_SUCCESS);
-  }
-
+  // true means the command completed
   return true;
 }
 
@@ -295,6 +287,7 @@ bool runSolveCubeRunSolutionByKey(const char* key, bool& result) {
 
   String solution = getLastCubeSolution();
   ui_cube_view_set_colors(getLastColorString());
+
   if (solution = "") {
     LOG_ERR("[SOLVER] %s no solution\n", key);
     setFooter("no solution found", _DONE_ERROR);
@@ -442,5 +435,14 @@ bool runColorOrientationByKey(const char* key, bool& result) {
   }
   return true;
 }
+
+
+/* 
+    // TODO the simple solution below is not used
+    ok = is_solved_top_two_layers(cube);
+    if (ok) {
+      solution = find_solution_for_bottom_layer(cube);
+    }
+*/
 
 //-----------------------------------------------------------------------------------------

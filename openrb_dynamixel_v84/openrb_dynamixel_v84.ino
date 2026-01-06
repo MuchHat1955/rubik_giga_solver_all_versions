@@ -1,3 +1,11 @@
+/*
+HARDWARE IS OpenRB-150
+to debug recompile with serial instead of serial1
+
+// TODO change below in utils.h for debugging to Serial
+#define __serial Serial1
+*/
+
 #include <Arduino.h>
 #include "utils.h"
 #include "log.h"
@@ -129,7 +137,7 @@ void loop() {
 
   if (serial_line.count() < 1) return;
 
-  const char* line = serial_line.read(0);
+  const char *line = serial_line.read(0);
   if (!line) return;
 
   process_serial_command(line);

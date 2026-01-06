@@ -17,8 +17,22 @@
 * - solve a cube with kociemba::solve()
 *********************************************************************/
 
+/**********************************************************************
+//  HARDWARE is Teensy 4.1
+// under ports menu should be a "teensy ports" section and it should
+// connect to a port there
+
+to debug recompile with serial instead of serial1
+
+// TODO change below for debugging to Serial instead of Serial1
+#define __serial Serial
+*********************************************************************/
+
 #include <Arduino.h>
 #include "kociemba.h"
+
+#define __serial Serial1 // this is for running
+//#define __serial Serial // this is for debugging
 
 // Teensy-specific
 elapsedMillis em;
@@ -87,27 +101,31 @@ static bool colors_to_faces(const char *in, char *out) {
 }
 
 void print_help() {
-  Serial.println("HELP teensy 4.1 solver v2");
-  Serial.println("COMMANDS:");
-  Serial.println("FINDSOLUTION cube=<54 chars>");
-  Serial.println("format cube=URFDLB... or cube=WYROGB...");
-  Serial.println("examples");
-  Serial.println("FINDSOLUTION cube=BUFUUDFBLURRFRLRFBDRFUFRBBFRDDFDDBULLLLDLBRLUURDBBLUFD");
-  Serial.println("FINDSOLUTION cube=BWGWWYGBOWRRGRORGBYRGWGRBBGRYYGYYBWOOOOYOBROWWRYBBOWGY");
-  Serial.println();
+  __serial.println("HELP teensy 4.1 solver v2");
+  __serial.println("version=teensy_4_1_v2");
+  __serial.println("COMMANDS:");
+  __serial.println("FINDSOLUTION cube=<54 chars>");
+  __serial.println("format cube=URFDLB... or cube=WYROGB...");
+  __serial.println("examples");
+  __serial.println("FINDSOLUTION cube=BUFUUDFBLURRFRLRFBDRFUFRBBFRDDFDDBULLLLDLBRLUURDBBLUFD");
+  __serial.println("FINDSOLUTION cube=BWGWWYGBOWRRGRORGBYRGWGRBBGRYYGYYBWOOOOYOBROWWRYBBOWGY");
+  __serial.println();
 }
 
 void setup() {
-  Serial.begin(115200);
-  while (!Serial)
-    ;  // wait for USB
-
+  __serial.begin(115200);
+  while (!__serial) {
+    delay(5);
+  }
+  __serial.printf("setup start\n");
   em = 0;
   kociemba::set_memory(buf479, buf248);
 
-  Serial.printf("READY ram_init_ms=%d\n", (int)em);
-  Serial.println();
+  __serial.printf("READY ram_init_ms=%d\n", (int)em);
+  __serial.println();
   print_help();
+  __serial.printf("setup end\n");
+  __serial.println();
 }
 
 /**
@@ -126,23 +144,23 @@ void handle_command(char *line) {
 
   // FINDSOLUTION
   if (strncmp(line, "FINDSOLUTION", 12) != 0) {
-    Serial.println("ERR error=unknown_command");
+    __serial.println("ERR error=unknown_command");
     print_help();
     return;
   }
 
   char *cube = strstr(line, "CUBE=");
   if (!cube) {
-    Serial.println("ERR error=missing_cube");
-    Serial.println();
+    __serial.println("ERR error=missing_cube");
+    __serial.println();
     return;
   }
 
   cube += 5;  // skip "CUBE="
 
   if (strlen(cube) != 54) {
-    Serial.println("ERR error=cube_invalid_length");
-    Serial.println();
+    __serial.println("ERR error=cube_invalid_length");
+    __serial.println();
     return;
   }
 
@@ -150,8 +168,8 @@ void handle_command(char *line) {
 
   if (is_color_format(cube)) {
     if (!colors_to_faces(cube, cube_faces)) {
-      Serial.println("ERR error=color_parse_failed");
-      Serial.println();
+      __serial.println("ERR error=color_parse_failed");
+      __serial.println();
       return;
     }
   } else {
@@ -159,28 +177,28 @@ void handle_command(char *line) {
     cube_faces[54] = '\0';
   }
 
-  Serial.println("starting solve...");
+  __serial.println("starting solve...");
   em = 0;
   const char *res = kociemba::solve(cube_faces);
   int ms = (int)em;
-  Serial.println("solve done");
+  __serial.println("solve done");
   if (!res) {
-    Serial.println("SOLUTION result=not_found");
-    Serial.println();
+    __serial.println("SOLUTION result=not_found");
+    __serial.println();
   } else {
     int movecount = count_moves(res);
-    Serial.printf(
+    __serial.printf(
       "SOLUTION result=found solution=%s move_count=%d time_ms=%d\n",
       res,
       movecount,
       ms);
-    Serial.println();
+    __serial.println();
   }
 }
 
 void loop() {
-  while (Serial.available()) {
-    char c = Serial.read();
+  while (__serial.available()) {
+    char c = __serial.read();
 
     // line termination
     if (c == '\n' || c == '\r') {

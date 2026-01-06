@@ -324,3 +324,218 @@ String compress_moves(const String &moves) {
   flush();
   return out;
 }
+
+#include "solver_interface.h"
+#include "logging.h"
+
+// ============================================================
+// Internal state
+// ============================================================
+
+static HardwareSerial *solver_serial = nullptr;
+static uint32_t solver_timeout_ms = 3000;
+
+static String last_solver_error;
+
+// ============================================================
+// Utilities
+// ============================================================
+
+static int count_moves_in_solution(const String &sol) {
+  if (sol.isEmpty()) return 0;
+
+  int count = 1;
+  for (size_t i = 0; i < sol.length(); i++) {
+    if (sol[i] == ' ') count++;
+  }
+  return count;
+}
+
+// ============================================================
+// Begin
+// ============================================================
+
+bool solver_begin() {
+  solver_serial = &SOLVER_SERIAL;
+  solver_timeout_ms = 500;
+  last_solver_error = "";
+
+  solver_serial->begin(115200);
+  solver_serial->setTimeout(timeout_ms);
+
+  // flush startup noise
+  delay(300);
+  while (solver_serial->available())
+    solver_serial->read();
+
+  // probe with HELP
+  solver_serial->println("HELP");
+
+  unsigned long t0 = millis();
+  while (millis() - t0 < timeout_ms) {
+    if (solver_serial->available()) {
+      String line = solver_serial->readStringUntil('\n');
+      line.trim();
+      if (line.startsWith("HELP")) {
+        return true;
+      }
+    }
+  }
+
+  last_solver_error = "solver not responding";
+  return false;
+}
+
+// ============================================================
+// Version
+// ============================================================
+
+String solver_get_version() {
+  if (!solver_serial) return "err";
+
+  last_solver_error = "";
+
+  solver_serial->println("HELP");
+
+  unsigned long t0 = millis();
+  while (millis() - t0 < solver_timeout_ms) {
+    if (!solver_serial->available()) continue;
+
+    String line = solver_serial->readStringUntil('\n');
+    line.trim();
+
+    // version=teensy_4_1_v2
+    if (line.startsWith("version=")) {
+      String v = line.substring(strlen("version="));
+      v.replace("_", " ");
+      return v;
+    }
+  }
+
+  last_solver_error = "version timeout";
+  LOG_ERR("[SOLVER] solver interface timeout\n")
+  return "err";
+}
+
+// ============================================================
+// Find solution
+// ============================================================
+
+bool solver_find_solution(const String &cube54,
+                          String &out_solution,
+                          int &out_move_count,
+                          int *out_time_ms) {
+  if (!solver_serial) {
+    last_solver_error = "solver not initialized";
+    return false;
+  }
+
+  last_solver_error = "";
+  out_solution = "";
+  out_move_count = 0;
+  if (out_time_ms) *out_time_ms = 0;
+
+  // Send command
+  solver_serial->print("FINDSOLUTION cube=");
+  solver_serial->println(cube54);
+
+  unsigned long t0 = millis();
+
+  while (millis() - t0 < solver_timeout_ms) {
+    if (!solver_serial->available()) continue;
+
+    String line = solver_serial->readStringUntil('\n');
+    line.trim();
+
+    // SOLUTION result=found solution=... move_count=22 time_ms=1109
+    if (line.startsWith("SOLUTION")) {
+
+      // --- result ---
+      int r = line.indexOf("result=");
+      if (r < 0) {
+        last_solver_error = line;
+        return false;
+      }
+
+      int r_end = line.indexOf(' ', r);
+      String result = line.substring(r + 7,
+                                     r_end < 0 ? line.length() : r_end);
+
+      if (result != "found") {
+        last_solver_error = line;
+        LOG_ERR("[SOLVER] solver_error=%s\n", line.c_str());
+        return false;
+      }
+
+      // --- solution ---
+      int s = line.indexOf("solution=");
+      if (s < 0) {
+        last_solver_error = "solution missing";
+        LOG_ERR("[SOLVER] solver_error=%s\n", line.c_str());
+        return false;
+      }
+
+      int s_end = line.indexOf(" move_count=", s);
+      String solution = line.substring(
+        s + 9,
+        s_end < 0 ? line.length() : s_end);
+
+      solution.trim();
+      out_solution = solution;
+
+      // --- move_count ---
+      int m = line.indexOf("move_count=");
+      if (m < 0) {
+        last_solver_error = "move_count missing";
+        LOG_ERR("[SOLVER] solver_error=%s\n", line.c_str());
+        return false;
+      }
+
+      int m_end = line.indexOf(' ', m);
+      int move_count = line.substring(
+                             m + 11,
+                             m_end < 0 ? line.length() : m_end)
+                         .toInt();
+
+      // --- verify move count ---
+      int computed = count_moves_in_solution(solution);
+      if (computed != move_count) {
+        last_solver_error =
+          "move count mismatch (parsed=" + String(computed) + " reported=" + String(move_count) + ")";
+        LOG_ERR("[SOLVER] solver_error=%s\n", line.c_str());
+        return false;
+      }
+
+      out_move_count = move_count;
+
+      // --- time_ms ---
+      if (out_time_ms) {
+        int t = line.indexOf("time_ms=");
+        if (t >= 0) {
+          *out_time_ms =
+            line.substring(t + 8).toInt();
+        }
+      }
+
+      return true;
+    }
+
+    // Any other line is considered an error
+    if (!line.isEmpty()) {
+      last_solver_error = line;
+      LOG_ERR("[SOLVER] solver_error=%s\n", line.c_str());
+    }
+  }
+
+  last_solver_error = "solver timeout";
+  LOG_ERR("[SOLVER] solver_error=%s\n", line.c_str());
+  return false;
+}
+
+// ============================================================
+// Error
+// ============================================================
+
+String solver_get_last_error() {
+  return last_solver_error;
+}

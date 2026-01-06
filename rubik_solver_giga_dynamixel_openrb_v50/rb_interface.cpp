@@ -18,23 +18,23 @@ RBInterface::RBInterface() {}
 // ============================================================
 // Begin communication
 // ============================================================
-bool RBInterface::begin(unsigned long baud, uint32_t timeout_ms) {
-  serial_->begin(baud);
-  serial_->setTimeout(timeout_ms);
+bool RBInterface::begin() {
+  serial_rb->begin(115200);
+  serial_rb->setTimeout(500);
 
   setFooter("starting rb...", _RUNNING_NOSTOP);
 
   // Flush startup noise
   delay(300);
-  while (serial_->available()) serial_->read();
+  while (serial_rb->available()) serial_rb->read();
 
   // --- ACTIVE PROBE ---
   uint32_t start = millis();
-  serial_->println("VERSION");  // or VERSION / PING
+  serial_rb->println("VERSION");  // or VERSION / PING
 
   while (millis() - start < timeout_ms) {
-    if (serial_->available()) {
-      String line = serial_->readStringUntil('\n');
+    if (serial_rb->available()) {
+      String line = serial_rb->readStringUntil('\n');
       line.trim();
       if (line.length()) {
         return true;  // ✅ RB responded
@@ -58,14 +58,14 @@ uint32_t RBInterface::send_command(const String& command,
     line += params;
   }
 
-  serial_->println(line);
+  serial_rb->println(line);
 
   unsigned long t0 = millis();
   while (waiting_for_start_ && millis() - t0 < 3000) {
     poll();
   }
   if (waiting_for_start_) {
-    LOG_ERR("command %s %s timed out\n", command, params);
+    LOG_ERR("[RB] command %s %s timed out\n", command, params);
     return -1;  // command never received TODO-> TO IMPLEMENT use this}
   }
   current_cmd_id_++;
@@ -82,7 +82,7 @@ bool RBInterface::send_stop_command() {
     poll();
   }
   if (waiting_for_end_) {
-    LOG_ERR("stop timed out, no end command received\n");
+    LOG_ERR("[RB] stop timed out, no end command received\n");
     return false;  // command never received TODO-> TO IMPLEMENT use this
   }
   return true;
@@ -92,8 +92,8 @@ bool RBInterface::send_stop_command() {
 // Poll serial (call from loop)
 // ============================================================
 void RBInterface::poll() {
-  while (serial_->available()) {
-    String line = serial_->readStringUntil('\n');
+  while (serial_rb->available()) {
+    String line = serial_rb->readStringUntil('\n');
     line.trim();
     if (!line.isEmpty())
       handle_line(line);
@@ -592,7 +592,7 @@ bool runCommand(const String& command,
     rb.poll();
     if (millis() - t0 > timeout_ms) {
       cmd_states[id].last_error = "timeout waiting for command_end";
-      LOG_ERR("command start {%s} timeout\n", command.c_str());
+      LOG_ERR("[RB] command start {%s} timeout\n", command.c_str());
       return false;
     }
     delay(1);
@@ -650,8 +650,8 @@ String getRbInterfaceVersion() {
   while (!cmd_states[id].finished_bool) {
     rb.poll();
     if (millis() - t0 > timeout_ms) {
-      LOG_ERR("rb version command timeout\n");
-      LOG_ERR("no rb version\n");
+      LOG_ERR("[RB] rb version command timeout\n");
+      LOG_ERR("[RB] no rb version\n");
       return "err";
     }
     delay(5);
@@ -982,5 +982,26 @@ CMD (8) command_end=CHECKORI result=ok duration=3s638ms
 CMD (9) command_start=RUN arg=0.00
         RUN (9) run_zero_start=wrist_is_horiz
 CMD (9) command_end=RUN result=ok duration=3s190ms
+
+
+Teensy interface
+
+setup start
+READY ram_init_ms=44
+
+HELP teensy 4.1 solver v2
+version=teensy_4_1_v2
+COMMANDS:
+FINDSOLUTION cube=<54 chars>
+format cube=URFDLB... or cube=WYROGB...
+examples
+FINDSOLUTION cube=BUFUUDFBLURRFRLRFBDRFUFRBBFRDDFDDBULLLLDLBRLUURDBBLUFD
+FINDSOLUTION cube=BWGWWYGBOWRRGRORGBYRGWGRBBGRYYGYYBWOOOOYOBROWWRYBBOWGY
+
+setup end
+
+starting solve...
+solve done
+SOLUTION result=found solution=B2 L' F L' D' F2 L' B U D2 B R2 D R2 B2 U' R2 F2 L2 B2 U'  move_count=22 time_ms=1109
 
 -------------------------------------------------------------------------------------------------------------------------------------------------*/

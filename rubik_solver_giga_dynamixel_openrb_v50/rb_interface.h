@@ -5,6 +5,8 @@
 #include <vector>
 #include <functional>
 
+#define RB_SERIAL Serial2
+
 class RBInterface {
 public:
   using command_end_cb_t =
@@ -41,7 +43,7 @@ public:
   }
 
 private:
-  HardwareSerial* serial_ = &Serial2;
+  HardwareSerial* serial_rb = &RB_SERIAL;
 
   uint32_t current_cmd_id_ = 0;
   bool waiting_for_start_ = false;
