@@ -889,7 +889,7 @@ int16_t readReg16(uint8_t id, uint16_t addr) {
   return 0;
 }
 
-const int PWM_TOUCH = 185;  // TODO_ADJUST was 90
+const int PWM_TOUCH = 185;  // TODO_ADJUST if needed was 90
 double MAX_PER_CLAMP_GRIP = 90.0;
 
 bool isGripAtTouch(int pwm) {
@@ -906,7 +906,7 @@ bool cmdMoveGripperClamp() {
     setPid(ID_GRIP2, 0.8, 0.10, 0.35);
 
     const uint16_t PWM_REG = 124;
-    const double extraGrip2Fingers = 2.5;  //TODO_ADJUST was 1.5
+    const double extraGrip2Fingers = 2.5;  //TODO_ADJUST if needed was 1.5
 
     bool touched1 = false;
     bool touched2 = false;
@@ -1130,7 +1130,7 @@ bool cmdMoveXmm(double goal_xmm) {
   //DEBUG_INFO(MOD_SERVO_MO{VE, "START move_smooth for MODE_XY_HORIZONTAL");
   //DEBUG_INFO(MOD_SERVO_MOVE, "goal x=%.2f existing y=%.2f", x_mm, kin.getYmm());
   double prev_speed = speed;
-  if (speed > 0.25) speed = 0.25;  //TODO_ADJUST
+  if (speed > 0.25) speed = 0.25;  //TODO_ADJUST if needed was 0.25
   bool ret = move_smooth();
   speed = prev_speed;
   // read_print_kinematics_state();

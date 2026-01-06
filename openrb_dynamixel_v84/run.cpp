@@ -722,8 +722,6 @@ bool cmd_color(int argc, double *argv) {
   return true;
 }
 
-//TODO run 0 messes the ori
-
 bool isWristHoriz() {
   double goal_deg = kin.getWdeg_for_horizontal_right();
   double w_deg = getPos_deg(ID_WRIST);
@@ -1107,28 +1105,6 @@ char read_one_color_cb(int slot) {
   char c = cmd_read_one_color_run(slot);
   return c;
 }
-
-//TODO detect ori not working
-/*
- RUN (3) just_read_string_54=.............B........R...............................
-        RUN (3) updating_ori_from_color_string_54=.............B........R...............................
-        RUN (3) before_update=u->u_r->r_f->f_d->d_l->l_b->b
-        RUN (3) infer_all_centers_from=.............B........R...............................
-        RUN (3) f_color=R
-        RUN (3) r_color=B
-        RUN (3) f_face=r
-        RUN (3) r_face=b
-        CUBEORI (3) called_ori_set_from_f=r r=b
-        CUBEORI (3) set_ori_return_true_with=u->u_r->f_f->l_d->d_l->b_b->r
-        RUN (3) after_update=u->u_r->f_f->l_d->d_l->b_b->r
-        CUBEORI (3) info=orientation_restore_start
-        CUBEORI (3) oerientation_restore_solution_found_with_moves_count=1
-        ROBOTMOVE (3) info=robot_move_start move=y_minus
-        RUN (3) base_->start=center ->rel move=right ->goal=right
-        RUN (3) color_reader_should_be_clear_string_54=......................................................
-        RUN (3) color_analyze_color_string_54=......................................................
-        RUN (3) color_analyzer_is_valid=0
-*/
 
 bool cmd_read_cube_colors(const String &mode_in) {
   String mode = mode_in;

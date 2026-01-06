@@ -2,7 +2,8 @@
 #include <Arduino.h>
 #include <math.h>
 
-#define __serial Serial
+// TODO change below for debugging to Serial
+#define __serial Serial1
 
 // -------------------------------------------------------------------
 //                         UTILS - DECLARATIONS
