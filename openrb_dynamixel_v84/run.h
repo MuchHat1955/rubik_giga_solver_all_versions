@@ -172,3 +172,7 @@ bool cmd_check_ori(int argc, double *argv);
 bool cmd_check_ori_run();
 bool cmd_restore_ori_run();
 bool cmdSquareBase();
+
+bool cmd_stop(int argc, double *argv);
+bool is_stop_on();
+void set_stop_on(bool s);

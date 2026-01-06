@@ -43,6 +43,7 @@ static CommandEntry command_table[] = {
   { "GETCOLORDATA", "", cmd_getcolor_data, "GETCOLORDATA - print raw color data" },
   { "GETORIDATA", "", cmd_getori_data, "GETORIDATA - print orientation move log" },
   { "CLEARORIDATA", "", cmd_clear_ori_data, "CLEARORIDATA - clear orientation data" },
+  { "STOP", "", cmd_stop, "STOP - stop in progress moves" },
   { "", "", nullptr, "---------------- DEBUG COMMANDS  ----------------" },
   // debug for robot moves
   // { "", "", nullptr, "---------------- DEBUG : ROBOT MOVES ----------------" },

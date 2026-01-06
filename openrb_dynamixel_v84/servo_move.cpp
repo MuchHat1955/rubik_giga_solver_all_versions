@@ -729,6 +729,9 @@ static bool refineEndPositions(uint8_t id1, uint8_t id2, uint8_t id3,
 bool move_smooth() {
   bool ok = move_smooth_v2();
   // print_kinematics_state("move_end");
+  set_stop_on(false);
+  LOG_INFO(MOD_RUN, "stop_set", "set_false");
+  LOG_INFO(MOD_RUN, "stop_set", "move_stopped");
   return ok;
 }
 
@@ -744,6 +747,7 @@ bool is_known_servo_id(int id) {
 }
 
 bool safe_delay(unsigned long delay_millis, std::initializer_list<int> ids) {
+  if (is_stop_on()) return false;
   unsigned long start_millis = millis();
 
   while ((millis() - start_millis) < delay_millis) {
@@ -1004,7 +1008,7 @@ bool isGripAtTouch(int pwm) {
 }
 
 bool cmdMoveGripperClamp() {
-  RUN_CMD(cmdSquareBase(),"square base before clamp");
+  RUN_CMD(cmdSquareBase(), "square base before clamp");
 
   if (getPos_per(ID_GRIP1) < 85.0 || getPos_per(ID_GRIP2) < 85.0) {
     if (!cmdMoveGripperPer(85.0)) return false;
