@@ -81,6 +81,7 @@ bool RBInterface::send_stop_command() {
   while (waiting_for_end_ && millis() - t0 < 3000) {
     poll();
   }
+  // TODO-> TO IMPLEMENT, also wait for something like stop_result=move_stopped
   if (waiting_for_end_) {
     LOG_ERR("[RB] stop timed out, no end command received\n");
     return false;  // command never received TODO-> TO IMPLEMENT use this

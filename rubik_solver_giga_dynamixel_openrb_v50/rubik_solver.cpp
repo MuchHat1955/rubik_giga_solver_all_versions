@@ -325,11 +325,8 @@ String compress_moves(const String &moves) {
   return out;
 }
 
-#include "solver_interface.h"
-#include "logging.h"
-
 // ============================================================
-// Internal state
+// Serial interface with teensy solver
 // ============================================================
 
 static HardwareSerial *solver_serial = nullptr;
