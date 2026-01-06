@@ -33,101 +33,6 @@ enum WristPos {
 };
 
 // ----------------------------------------------------------------------
-// NudgeController implementation
-// ----------------------------------------------------------------------
-
-NudgeController::NudgeController(uint8_t id_)
-  : id(id_) {}
-
-void NudgeController::recordData(int prevGoalTicks, int currPos, int nudge, MovePhase phase) {
-  Record r;
-  r.t_ms = millis();
-  r.prevGoalTicks = prevGoalTicks;
-  r.currPosTicks = currPos;
-  r.errTicks = prevGoalTicks - currPos;
-  r.nudgeApplied = nudge;
-  r.phase = phase;
-
-  if (records.size() >= maxRecords)
-    records.erase(records.begin());
-
-  records.push_back(r);
-}
-
-int NudgeController::computeNudge(int currErr, int dir, MovePhase phase, int samePosCount) {
-  // Ignore tiny errors
-  if (abs(currErr) <= 4) return 0;
-
-  // In early phases, don't pull back if ahead of target
-  if (currErr * dir < 0 && phase != MovePhase::FINAL) return 0;
-
-  // Base estimate from simple proportional rule
-  int nudge = baseEstimate(currErr, phase, samePosCount);
-
-  // In final phase, add reinforcement if stuck
-  if (phase == MovePhase::FINAL && samePosCount > 0) {
-    nudge += (int)(samePosCount * 0.5 * (currErr > 0 ? 1 : -1));
-  }
-
-  nudge = (int)constrain(nudge, -20.0, 20.0);
-  if (nudge > 0 && nudge < 6) nudge = 6;
-  if (nudge < 0 && nudge > -6) nudge = -6;
-  return nudge;
-}
-
-void NudgeController::printLog() {
-  //DEBUG_INFO(MOD_SERVO_MOVE, "---- Nudge log for servo %d (count) ----",
-  //    id, (int)records.size());
-
-  for (auto& r : records) {
-    const char* phaseStr =
-      (r.phase == MovePhase::ACCEL) ? "ACC" : (r.phase == MovePhase::COAST) ? "COAST"
-                                            : (r.phase == MovePhase::DECEL) ? "DEC"
-                                                                            : "FINAL";
-
-    //DEBUG_INFO(MOD_SERVO_MOVE, "[%lu ms] %s goal curr err nudge",
-    //       r.t_ms, phaseStr, r.prevGoalTicks,
-    //      r.currPosTicks, r.errTicks, r.nudgeApplied);
-  }
-}
-
-int NudgeController::baseEstimate(int errTicks, MovePhase phase, int samePosCount) {
-  double k = phaseGain(phase);
-  double nudge = k * -errTicks;
-
-  if (phase == MovePhase::FINAL && samePosCount > 0) {
-    nudge += samePosCount * 2 * (errTicks > 0 ? -1 : 1);
-  }
-
-  nudge = constrain(nudge, -35.0, 35.0);
-  return (int)nudge;
-}
-
-double NudgeController::phaseGain(MovePhase p) {
-  switch (p) {
-    case MovePhase::ACCEL: return 0.10;
-    case MovePhase::COAST: return 0.12;
-    case MovePhase::DECEL: return 0.16;
-    case MovePhase::FINAL: return 0.25;
-    default: return 0.10;
-  }
-}
-
-// ----------------------------------------------------------------------
-// Global NudgeController DB (per servo-id)
-// ----------------------------------------------------------------------
-
-static std::map<uint8_t, NudgeController> nudgeDB;
-
-static NudgeController& getNudgeControllerForId(uint8_t id) {
-  auto it = nudgeDB.find(id);
-  if (it == nudgeDB.end()) {
-    it = nudgeDB.emplace(id, NudgeController(id)).first;
-  }
-  return it->second;
-}
-
-// ----------------------------------------------------------------------
 // AxisGroupController implementation
 // ----------------------------------------------------------------------
 
@@ -148,7 +53,6 @@ AxisGroupController::AxisGroupController(Dynamixel2Arduino* dxl_ptr,
   curr_ticks.assign(3, 0);
   id_list.assign(3, 0);
   dir_list.assign(3, 0.0);
-  nudge_flags.assign(3, false);
 }
 
 void AxisGroupController::setMode(AxisRunMode m) {
@@ -167,7 +71,6 @@ void AxisGroupController::setMode(AxisRunMode m) {
   curr_ticks.assign(3, 0);
   id_list.assign(3, 0);
   dir_list.assign(3, 0.0);
-  nudge_flags.assign(3, false);
 }
 
 void AxisGroupController::setServoId(uint8_t id) {
@@ -224,18 +127,6 @@ const char* AxisGroupController::getMoveName() const {
     case AxisRunMode::XY_HORIZONTAL: return "xy horiz";
     default: return "na";
   }
-}
-
-bool AxisGroupController::getNudgeFlag(uint8_t index) const {
-  if (index >= nudge_flags.size()) return false;
-  return nudge_flags[index];
-}
-
-NudgeController* AxisGroupController::getNudgeController(uint8_t index) {
-  if (index >= id_list.size()) return nullptr;
-  uint8_t id = id_list[index];
-  if (id == 0) return nullptr;
-  return &getNudgeControllerForId(id);
 }
 
 void AxisGroupController::start() {
@@ -297,10 +188,6 @@ bool AxisGroupController::initSingle() {
   goal_ticks[0] = goal_ticks_servo;
   goal_ticks[1] = -1;
   goal_ticks[2] = -1;
-
-  nudge_flags[0] = false;
-  nudge_flags[1] = false;
-  nudge_flags[2] = false;
 
   dir_list[0] = (goal_ticks_servo - start_ticks_servo >= 0) ? 1.0 : -1.0;
   dir_list[1] = 0.0;
@@ -455,10 +342,6 @@ bool AxisGroupController::initXY(bool keepX) {
   goal_ticks[1] = deg2ticks(ID_ARM2, a2);
   goal_ticks[2] = deg2ticks(ID_WRIST, g);
 
-  nudge_flags[0] = true;
-  nudge_flags[1] = true;
-  nudge_flags[2] = false;
-
   dir_list[0] = (goal_ticks[0] - start_ticks[0] >= 0) ? 1.0 : -1.0;
   dir_list[1] = (goal_ticks[1] - start_ticks[1] >= 0) ? 1.0 : -1.0;
   dir_list[2] = (goal_ticks[2] - start_ticks[2] >= 0) ? 1.0 : -1.0;
@@ -521,11 +404,6 @@ bool AxisGroupController::initGripper() {
     goal_ticks[1] = goal1;
     goal_ticks[2] = -1;
   }
-
-  nudge_flags[0] = false;
-  nudge_flags[1] = false;
-  nudge_flags[2] = false;
-
   dir_list[0] = (goal_ticks[0] - start_ticks[0] >= 0) ? 1.0 : -1.0;
   dir_list[1] = (goal_ticks[1] - start_ticks[1] >= 0) ? 1.0 : -1.0;
   dir_list[2] = 0.0;
@@ -1093,8 +971,8 @@ bool cmdMoveGripperClamp() {
       if (per1 > 115.0) per1 = 115.0;
       if (per2 > 115.0) per2 = 115.0;
     }
-    // Serial.println(touched1);
-    // Serial.println(touched2);
+    // __serial.println(touched1);
+    // __serial.println(touched2);
     return (touched1 && touched2);
   }
   return false;

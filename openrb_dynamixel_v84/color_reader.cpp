@@ -535,7 +535,7 @@ bool CubeColorReader::read_cube(int scan_mode) {
       LOG_INFO(MOD_COLORSCAN, "color scan failed", "color string was");
 
       String diagram_str = rubik_54_to_labeled_diagram(colors_justread_54);
-      Serial.print(diagram_str);
+      __serial.print(diagram_str);
 
       if (scan_mode != SCAN_MODE_CENTERS) {
         LOG_INFO(MOD_COLORSCAN, "clear colors and restore ori, mode was", mode_string);
@@ -554,7 +554,7 @@ bool CubeColorReader::read_cube(int scan_mode) {
     if (filled == "") {
       LOG_ERR(MOD_COLORSCAN, "fill colors for solved failed, mode was", mode_string);
       String diagram_str = rubik_54_to_labeled_diagram(colors_justread_54);
-      Serial.print(diagram_str);
+      __serial.print(diagram_str);
       LOG_INFO(MOD_COLORSCAN, "clear colors and restore ori, mode was", mode_string);
       ori_.restore_cube_orientation();
       clear_color_reader();
@@ -568,7 +568,7 @@ bool CubeColorReader::read_cube(int scan_mode) {
     if (filled_2_layers == "") {
       LOG_ERR(MOD_COLORSCAN, "fill colors for top two layers failed, mode was", mode_string);
       String diagram_str = rubik_54_to_labeled_diagram(colors_justread_54);
-      Serial.print(diagram_str);
+      __serial.print(diagram_str);
       LOG_INFO(MOD_COLORSCAN, "clear colors and restore ori, mode was", mode_string);
       ori_.restore_cube_orientation();
       clear_color_reader();
@@ -580,7 +580,7 @@ bool CubeColorReader::read_cube(int scan_mode) {
 
   LOG_INFO(MOD_COLORSCAN, "info", "color_scan_completed");
   String diagram_str = rubik_54_to_labeled_diagram(colors_justread_54);
-  Serial.print(diagram_str);
+  __serial.print(diagram_str);
   LOG_INFO(MOD_COLORSCAN, "color_string_54", get_justread_color_string_54().c_str());
   LOG_INFO(MOD_COLORSCAN, "color_string_faces", get_justread_color_string_faces().c_str());
   LOG_INFO(MOD_COLORSCAN, "ori after color read", ori.get_orientation_string().c_str());

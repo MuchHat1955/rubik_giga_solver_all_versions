@@ -175,3 +175,4 @@ bool cmdSquareBase();
 
 bool cmd_stop(int argc, double *argv);
 bool is_stop_on();
+void set_stop();

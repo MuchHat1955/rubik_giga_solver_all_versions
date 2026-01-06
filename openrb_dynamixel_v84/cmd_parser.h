@@ -26,7 +26,6 @@ bool resetBase(int baseTurnToAccomodate);
 bool liftCube();
 bool lowerCube();
 
-
 // ============================================================
 // All command handler function declarations
 // ============================================================
@@ -91,3 +90,50 @@ bool cmd_read_one_face_colors(int argc, double *argv);
 bool cmd_getcolor_data(int argc, double *argv);
 void print_colors_analyzer_detail();
 bool cmd_get_version(int argc, double *argv);
+
+void process_serial_command(const char* line);
+
+// ============================================================
+// class serial_line_history
+// ============================================================
+
+#define LINE_MAX_LEN   128
+#define LINE_HISTORY   10
+
+class serial_line_history {
+public:
+  explicit serial_line_history(Stream& s);
+
+  // Call frequently from loop()
+  void poll();
+
+  // ===== line history =====
+  int count() const;                 // number of complete buffered lines
+  const char* peek(int idx) const;   // 0 = newest, 1 = previous, ...
+  const char* read(int idx);         // peek + remove
+  void clear(int idx);               // idx >= 0 removes one, -1 clears all
+
+  // ===== partial line =====
+  bool has_partial() const;          // bytes received but no newline yet
+  int  partial_len() const;          // length of partial line
+  const char* peek_partial() const;  // inspect partial line (read-only)
+  void clear_partial();              // discard partial line
+
+private:
+  Stream& serial_;   // 🔴 THIS MUST BE Stream&, NOT HardwareSerial&
+
+  // ring buffer for complete lines
+  char lines_[LINE_HISTORY][LINE_MAX_LEN];
+  int head_;     // index of newest line
+  int count_;    // number of valid lines
+
+  // current assembling line
+  char cur_[LINE_MAX_LEN];
+  int cur_len_;
+
+  void commit_line();
+  int resolve_index(int idx) const;
+};
+
+extern serial_line_history serial_line;
+

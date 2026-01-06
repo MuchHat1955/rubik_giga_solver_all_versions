@@ -16,35 +16,6 @@ enum class MovePhase : uint8_t {
 };
 
 // ----------------------------------------------------------------------
-// NudgeController - per-servo nudging logic
-// ----------------------------------------------------------------------
-class NudgeController {
-public:
-  explicit NudgeController(uint8_t id = 0);
-
-  void recordData(int prevGoalTicks, int currPos, int nudge, MovePhase phase);
-  int computeNudge(int currErr, int dir, MovePhase phase, int samePosCount);
-  void printLog();
-
-private:
-  struct Record {
-    uint32_t t_ms;
-    int prevGoalTicks;
-    int currPosTicks;
-    int errTicks;
-    int nudgeApplied;
-    MovePhase phase;
-  };
-
-  int baseEstimate(int errTicks, MovePhase phase, int samePosCount);
-  double phaseGain(MovePhase p);
-
-  uint8_t id;
-  std::vector<Record> records;
-  static const size_t maxRecords = 64;
-};
-
-// ----------------------------------------------------------------------
 // AxisGroupController - abstraction for 1–3 axis coordinated motion
 // ----------------------------------------------------------------------
 class AxisGroupController {
@@ -77,7 +48,6 @@ public:
   const char* getMoveName() const;
 
   bool getNudgeFlag(uint8_t index) const;
-  NudgeController* getNudgeController(uint8_t index);
 
   void start();  // LEDs on etc.
   void end();    // LEDs off etc.

@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <stdarg.h>
+#include "utils.h"
 #include "log.h"
 
 // ============================================================
@@ -38,7 +39,7 @@ void serial_print_with_underscores(const char *description) {
     if (c == ',') c = '_';
     if (c == ':') c = '_';
     if (c == ',') c = '_';
-    Serial.print(c);
+    __serial.print(c);
   }
 }
 
@@ -65,36 +66,36 @@ void log_begin_str(log_module_t enum_module, int i_type, const char *key, const 
 #if LOG_ENABLE || DEBUG_ENABLE
   if (!serial_ok) return;
   if (log_line_open > 0) {
-    Serial.println();
+    __serial.println();
     log_line_open--;
     if (log_line_open > 0)
-      Serial.println();
+      __serial.println();
     log_line_open = 0;
   }
 
-  if (enum_module != MOD_CMD && i_type == log_info_type) Serial.print("        ");
-  if (enum_module != MOD_CMD && i_type == debug_info_type) Serial.print("        ");
-  if (i_type == debug_error_type) Serial.print("[!] ERR ");
-  if (i_type == log_error_type) Serial.print("[!] ERR ");
+  if (enum_module != MOD_CMD && i_type == log_info_type) __serial.print("        ");
+  if (enum_module != MOD_CMD && i_type == debug_info_type) __serial.print("        ");
+  if (i_type == debug_error_type) __serial.print("[!] ERR ");
+  if (i_type == log_error_type) __serial.print("[!] ERR ");
 
 
-  if (enum_module == MOD_RUN) Serial.print("RUN");
-  if (enum_module == MOD_SERVO_MOVE) Serial.print("SERVOMOVE");
-  if (enum_module == MOD_SERVOS) Serial.print("SERVOS");
-  if (enum_module == MOD_COLORSCAN) Serial.print("COLORSCAN");
-  if (enum_module == MOD_COLORCHECK) Serial.print("COLORCHECK");
-  if (enum_module == MOD_CUBEORI) Serial.print("CUBEORI");
-  if (enum_module == MOD_CUBEMOVE) Serial.print("CUBEMOVE");
-  if (enum_module == MOD_ROBOTMOVE) Serial.print("ROBOTMOVE");
-  if (enum_module == MOD_CMD) Serial.print("CMD");
+  if (enum_module == MOD_RUN) __serial.print("RUN");
+  if (enum_module == MOD_SERVO_MOVE) __serial.print("SERVOMOVE");
+  if (enum_module == MOD_SERVOS) __serial.print("SERVOS");
+  if (enum_module == MOD_COLORSCAN) __serial.print("COLORSCAN");
+  if (enum_module == MOD_COLORCHECK) __serial.print("COLORCHECK");
+  if (enum_module == MOD_CUBEORI) __serial.print("CUBEORI");
+  if (enum_module == MOD_CUBEMOVE) __serial.print("CUBEMOVE");
+  if (enum_module == MOD_ROBOTMOVE) __serial.print("ROBOTMOVE");
+  if (enum_module == MOD_CMD) __serial.print("CMD");
 
-  Serial.print(" (");
-  Serial.print(cmd_no);
-  Serial.print(") ");
+  __serial.print(" (");
+  __serial.print(cmd_no);
+  __serial.print(") ");
 
 
   serial_print_with_underscores(key);
-  Serial.print("=");
+  __serial.print("=");
   serial_print_with_underscores(v.c_str());
 
   log_line_open = 1;
@@ -109,7 +110,7 @@ void log_end_() {
 #if DEBUG_ENABLE || LOG_ENABLE
   if (!serial_ok) return;
   if (log_line_open > 0) {
-    Serial.println();
+    __serial.println();
     log_line_open = 0;
   }
 #endif
@@ -119,9 +120,9 @@ void log_ln_() {
 #if DEBUG_ENABLE || LOG_ENABLE
   if (!serial_ok) return;
   if (log_line_open > 0) {
-    Serial.println();
+    __serial.println();
   }
-  Serial.println();
+  __serial.println();
   log_line_open = 0;
 #endif
 }
@@ -133,10 +134,10 @@ void log_ln_() {
 void log_var_(const char *key, const char *val_c_str) {
 #if DEBUG_ENABLE || LOG_ENABLE
   if (!serial_ok) return;
-  Serial.print(" ");
-  Serial.print(key);
-  Serial.print("=");
-  Serial.print(val_c_str);
+  __serial.print(" ");
+  __serial.print(key);
+  __serial.print("=");
+  __serial.print(val_c_str);
 #else
   (void)key;
   (void)val_c_str;
@@ -146,10 +147,10 @@ void log_var_(const char *key, const char *val_c_str) {
 void log_var_(const char *key, int32_t val_i) {
 #if DEBUG_ENABLE || LOG_ENABLE
   if (!serial_ok) return;
-  Serial.print(" ");
-  Serial.print(key);
-  Serial.print("=");
-  Serial.print(val_i);
+  __serial.print(" ");
+  __serial.print(key);
+  __serial.print("=");
+  __serial.print(val_i);
 #else
   (void)key;
   (void)val_i;
@@ -159,10 +160,10 @@ void log_var_(const char *key, int32_t val_i) {
 void log_var_(const char *key, int val_i) {
 #if DEBUG_ENABLE || LOG_ENABLE
   if (!serial_ok) return;
-  Serial.print(" ");
-  Serial.print(key);
-  Serial.print("=");
-  Serial.print(val_i);
+  __serial.print(" ");
+  __serial.print(key);
+  __serial.print("=");
+  __serial.print(val_i);
 #else
   (void)key;
   (void)val_i;
@@ -172,10 +173,10 @@ void log_var_(const char *key, int val_i) {
 void log_var_(const char *key, double val_d) {
 #if DEBUG_ENABLE || LOG_ENABLE
   if (!serial_ok) return;
-  Serial.print(" ");
-  Serial.print(key);
-  Serial.print("=");
-  Serial.print(val_d, 2);
+  __serial.print(" ");
+  __serial.print(key);
+  __serial.print("=");
+  __serial.print(val_d, 2);
 #else
   (void)key;
   (void)val_d;

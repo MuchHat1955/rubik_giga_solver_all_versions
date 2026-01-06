@@ -22,7 +22,7 @@ void serial_print_lowercase(const char *s) {
   while (*s) {
     char c = *s++;
     if (c >= 'A' && c <= 'Z') c = c - 'A' + 'a';
-    Serial.print(c);
+    __serial.print(c);
   }
 }
 
@@ -47,7 +47,7 @@ const char *extract_version_from_file() {
 }
 
 void print_build_banner() {
-  Serial.print("----- dynamixel servos controller ");
+  __serial.print("----- dynamixel servos controller ");
   version_str = String(extract_version_from_file());
   version_str += " | built ";
   version_str += String(__DATE__);
@@ -56,8 +56,8 @@ void print_build_banner() {
   version_str += " | ";
   version_str += protocol_str;
   version_str.toLowerCase();
-  Serial.print(version_str.c_str());
-  Serial.println(" -----");
+  __serial.print(version_str.c_str());
+  __serial.println(" -----");
 }
 
 // -------------------------------------------------------------------
@@ -65,7 +65,7 @@ void print_build_banner() {
 // -------------------------------------------------------------------
 
 void setup() {
-  Serial.begin(115200);
+  __serial.begin(115200);
   unsigned long end_millis = millis() + 11000;
   while (!Serial && millis() < end_millis) {
     delay(11);
@@ -111,13 +111,13 @@ void setup() {
     }
   }
 
-  Serial.println();
+  __serial.println();
   print_build_banner();
-  Serial.println(get_help_text());
-  Serial.println("----------------------------------------------------------------------------");
+  __serial.println(get_help_text());
+  __serial.println("----------------------------------------------------------------------------");
 
   init_servo_limits();
-  Serial.println();
+  __serial.println();
 }
 
 // -------------------------------------------------------------------
@@ -125,11 +125,12 @@ void setup() {
 // -------------------------------------------------------------------
 
 void loop() {
-  if (!Serial.available()) return;
+  serial_line.poll();
 
-  String line = Serial.readStringUntil('\n');
-  line.trim();
-  if (line.length() == 0) return;
+  if (serial_line.count() < 1) return;
+
+  const char* line = serial_line.read(0);
+  if (!line) return;
 
   process_serial_command(line);
 }

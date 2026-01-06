@@ -17,8 +17,29 @@ extern String version_str;
 extern CubeOri ori;
 extern CubeColorReader color_reader;
 extern ColorAnalyzer color_analyzer;
+extern serial_line_history serial_line;
 
 extern const char runHelp[];
+
+/*
+ TODO -> use below
+
+   // Call frequently from loop()
+  void poll();
+
+  // ===== line history =====
+  int count() const;                 // number of complete buffered lines
+  const char* peek(int idx) const;   // 0 = newest, 1 = previous, ...
+  const char* read(int idx);         // peek + remove
+  void clear(int idx);               // idx >= 0 removes one, -1 clears all
+
+  // ===== partial line =====
+  bool has_partial() const;          // bytes received but no newline yet
+  int  partial_len() const;          // length of partial line
+  const char* peek_partial() const;  // inspect partial line (read-only)
+  void clear_partial();              // discard partial line
+
+*/
 
 struct CommandEntry {
   const char *name;
@@ -43,7 +64,7 @@ static CommandEntry command_table[] = {
   { "GETCOLORDATA", "", cmd_getcolor_data, "GETCOLORDATA - print raw color data" },
   { "GETORIDATA", "", cmd_getori_data, "GETORIDATA - print orientation move log" },
   { "CLEARORIDATA", "", cmd_clear_ori_data, "CLEARORIDATA - clear orientation data" },
-  { "STOP", "", cmd_stop, "STOP - stop in progress moves for 30 secs" },
+  { "STOP", "", cmd_stop, "STOP - stop moves for 30 secs" },
   { "", "", nullptr, "---------------- DEBUG COMMANDS  ----------------" },
   // debug for robot moves
   // { "", "", nullptr, "---------------- DEBUG : ROBOT MOVES ----------------" },
@@ -132,8 +153,8 @@ bool cmd_get_version(int argc, double *argv) {
 }
 
 bool cmd_help(int argc, double *argv) {
-  Serial.println();
-  Serial.println(get_help_text());
+  __serial.println();
+  __serial.println(get_help_text());
   return true;
 }
 
@@ -404,3 +425,138 @@ void process_serial_command(String &line) {
   //
   LOG_ERR(MOD_CMD, "error", "unknown_command");  //
 }
+
+void process_serial_command(const char* line) {
+  if (!line) return;
+  String s(line);
+  process_serial_command(s);
+}
+
+// ============================================================
+// class serial_line_history
+// ============================================================
+
+serial_line_history::serial_line_history(Stream& s)
+  : serial_(s),
+    head_(0),
+    count_(0),
+    cur_len_(0) {
+}
+
+// ============================================================
+// Poll serial input (non-blocking)
+// ============================================================
+
+void serial_line_history::poll() {
+  while (serial_.available()) {
+    char c = serial_.read();
+
+    if (c == '\r') continue;
+
+    if (c == '\n') {
+      commit_line();
+      return;  // process one full line per poll
+    }
+
+    if (cur_len_ < LINE_MAX_LEN - 1) {
+      cur_[cur_len_++] = c;
+    }
+    // else: silently truncate
+  }
+}
+
+// ============================================================
+// Line history API
+// ============================================================
+
+int serial_line_history::count() const {
+  return count_;
+}
+
+const char *serial_line_history::peek(int idx) const {
+  int pos = resolve_index(idx);
+  if (pos < 0) return nullptr;
+  return lines_[pos];
+}
+
+const char *serial_line_history::read(int idx) {
+  int pos = resolve_index(idx);
+  if (pos < 0) return nullptr;
+
+  static char out[LINE_MAX_LEN];
+  strncpy(out, lines_[pos], LINE_MAX_LEN);
+  out[LINE_MAX_LEN - 1] = '\0';
+
+  clear(idx);
+  return out;
+}
+
+void serial_line_history::clear(int idx) {
+  if (idx == -1) {
+    head_ = 0;
+    count_ = 0;
+    cur_len_ = 0;
+    return;
+  }
+
+  int pos = resolve_index(idx);
+  if (pos < 0) return;
+
+  // shift newer lines down
+  for (int i = pos; i != head_; i = (i + 1) % LINE_HISTORY) {
+    int next = (i + 1) % LINE_HISTORY;
+    strncpy(lines_[i], lines_[next], LINE_MAX_LEN);
+  }
+
+  head_ = (head_ - 1 + LINE_HISTORY) % LINE_HISTORY;
+  count_--;
+}
+
+// ============================================================
+// Partial line API
+// ============================================================
+
+bool serial_line_history::has_partial() const {
+  return cur_len_ > 0;
+}
+
+int serial_line_history::partial_len() const {
+  return cur_len_;
+}
+
+const char *serial_line_history::peek_partial() const {
+  if (cur_len_ == 0) return nullptr;
+
+  static char tmp[LINE_MAX_LEN];
+  strncpy(tmp, cur_, LINE_MAX_LEN);
+  tmp[cur_len_] = '\0';
+  return tmp;
+}
+
+void serial_line_history::clear_partial() {
+  cur_len_ = 0;
+}
+
+// ============================================================
+// Internal helpers
+// ============================================================
+
+void serial_line_history::commit_line() {
+  cur_[cur_len_] = '\0';
+
+  head_ = (head_ + 1) % LINE_HISTORY;
+  strncpy(lines_[head_], cur_, LINE_MAX_LEN);
+  lines_[head_][LINE_MAX_LEN - 1] = '\0';
+
+  if (count_ < LINE_HISTORY)
+    count_++;
+
+  cur_len_ = 0;
+}
+
+int serial_line_history::resolve_index(int idx) const {
+  if (idx < 0 || idx >= count_) return -1;
+  return (head_ - idx + LINE_HISTORY) % LINE_HISTORY;
+}
+
+serial_line_history serial_line(Serial);

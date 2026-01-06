@@ -943,18 +943,38 @@ void timeout_stop_on() {
   stop_is_on = false;
 }
 
+// check any line in the buffer for stop and clears it
 bool is_stop_on() {
-  timeout_stop_on();
 
+  serial_line.poll();
+
+  int n = serial_line.count();
+  for (int i = 0; i < n; i++) {
+    const char *line = serial_line.peek(i);
+    if (!line) continue;
+
+    if (strncasecmp(line, "STOP", 4) == 0) {
+      // STOP command found
+      set_stop();
+      serial_line.clear(i);  // clear ONLY the matching line
+      break;                 // one STOP is enough
+    }
+  }
+
+  timeout_stop_on();
   return stop_is_on;
 }
 
-bool cmd_stop(int argc, double *argv) {
+void set_stop() {
   millis_stop_set = millis();
   stop_is_on = true;
 
   LOG_INFO(MOD_RUN, "stop_set", "set_true_cmd");
   LOG_INFO(MOD_RUN, "stop_val", "is_true");
+}
+
+bool cmd_stop(int argc, double *argv) {
+  set_stop();
   return true;
 }
 
@@ -1194,7 +1214,7 @@ bool cmd_read_cube_colors(const String &mode_in) {
     if (!ok) {
       LOG_ERR(MOD_RUN, "color_analyzer_set_colors_failed", colors_just_read);
       String diagram_str = rubik_54_to_labeled_diagram(colors_just_read);
-      Serial.print(diagram_str);
+      __serial.print(diagram_str);
       color_reader.clear_color_reader();
       ori.restore_cube_orientation();
       return false;
