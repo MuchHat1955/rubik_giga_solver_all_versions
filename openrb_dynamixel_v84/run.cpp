@@ -937,8 +937,8 @@ unsigned long millis_stop_set = 0;
 void timeout_stop_on() {
   if (stop_is_on) return;
   if (millis() < millis_stop_set + 66000) return;
-  LOG_INFO(MOD_RUN, "stop_set", "timeout");
-  LOG_INFO(MOD_RUN, "stop_set", "set_false");
+  LOG_INFO(MOD_RUN, "stop_set_result", "timeout");
+  LOG_INFO(MOD_RUN, "stop_set_val", "set_false");
   stop_is_on = false;
 }
 
@@ -947,7 +947,7 @@ bool is_stop_on() {
   return stop_is_on;
 }
 void set_stop_on(bool s) {
-  LOG_INFO(MOD_RUN, "stop_set", "set_true");
+  LOG_INFO(MOD_RUN, "stop_set_val", "set_true");
   stop_is_on = s;
 }
 

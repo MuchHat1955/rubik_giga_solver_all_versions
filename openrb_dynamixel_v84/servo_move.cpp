@@ -727,11 +727,15 @@ static bool refineEndPositions(uint8_t id1, uint8_t id2, uint8_t id3,
 // ----------------------------------------------------------------------
 
 bool move_smooth() {
+  bool stop_before_move = is_stop_on();
   bool ok = move_smooth_v2();
   // print_kinematics_state("move_end");
-  set_stop_on(false);
-  LOG_INFO(MOD_RUN, "stop_set", "set_false");
-  LOG_INFO(MOD_RUN, "stop_set", "move_stopped");
+  if (!stop_before_move) {
+    set_stop_on(false);
+    LOG_INFO(MOD_RUN, "stop_set_val", "set_false");
+    LOG_INFO(MOD_RUN, "stop_set_result", "move_stopped");
+    ok = false;
+  }
   return ok;
 }
 
