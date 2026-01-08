@@ -15,6 +15,7 @@
 String getSketchVersion();
 String getSketchVersionWithDate();
 String getRbVersion();
+String getSolverVersion();
 void buildMenu(const char *menuKey);
 String getSystemText();
 String getLastColorString();
