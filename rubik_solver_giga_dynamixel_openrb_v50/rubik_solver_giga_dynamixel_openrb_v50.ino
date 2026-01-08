@@ -92,6 +92,9 @@ String solver_version = "na";
 String getRbVersion() {
   return rb_version;
 }
+String getSolverVersion() {
+  return solver_version;
+}
 
 // ----------------------------------------------------------
 //                   VERSION HELPERS

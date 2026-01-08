@@ -357,7 +357,6 @@ bool solver_begin() {
   _SERIAL_SOLVER.setTimeout(SERIAL_TIMEOUT);
 
   setFooter("starting solver...", _RUNNING_NOSTOP);
-  // Serial.println("starting solver...");
 
   String ver = solver_get_version();
   if (ver == "err" || ver.isEmpty()) return false;
@@ -384,7 +383,7 @@ String solver_get_version() {
       char c = _SERIAL_SOLVER.read();
       if (t_first_rx == 0) {
         t_first_rx = millis();
-        LOG_PRINTF_SOLVER("first byte after %lu ms\n", t_first_rx - t0);
+        LOG_PRINTF_SOLVER("first char after %lu ms\n", t_first_rx - t0);
       }
 
       if (c == '\n') {
@@ -415,141 +414,149 @@ String solver_get_version() {
 // Find solution
 // ============================================================
 
-#define SOLUTION_COMPUTE_TIMEOUT 11000  // normaly takes tensy about 1s to compute
+#define SOLUTION_COMPUTE_TIMEOUT 11000  // normally takes Teensy about 1s
 
 bool solver_find_solution(const String &cube54,
                           String &out_solution,
                           int &out_move_count,
                           int &out_time_ms) {
-  if (!_SERIAL_SOLVER) {
-    last_solver_error = "solver not initialized";
-    return false;
-  }
-
   last_solver_error = "";
   out_solution = "";
   out_move_count = 0;
   out_time_ms = 0;
 
+  unsigned long t_first_rx = 0;
+
   // Send command
+  LOG_PRINTF_SOLVER("start solver command {FINDSOLUTION}\n");
   _SERIAL_SOLVER.print("FINDSOLUTION cube=");
   _SERIAL_SOLVER.println(cube54);
 
   unsigned long t0 = millis();
+  String line;
 
   while (millis() - t0 < SOLUTION_COMPUTE_TIMEOUT) {
 
-    if (!_SERIAL_SOLVER.available()) {
-      delay(2);
-      continue;
+    while (_SERIAL_SOLVER.available()) {
+      char c = _SERIAL_SOLVER.read();
+
+      if (t_first_rx == 0) {
+        t_first_rx = millis();
+        LOG_PRINTF_SOLVER("first char after %lu ms\n", t_first_rx - t0);
+      }
+
+      if (c == '\n') {
+        line.trim();
+        LOG_PRINTF_SOLVER("line received {%s}\n", line.c_str());
+
+        // ------------------------------------------------------------
+        // ERR lines → append, keep waiting
+        // ------------------------------------------------------------
+        if (line.startsWith("ERR")) {
+          if (!last_solver_error.isEmpty())
+            last_solver_error += "\n";
+          last_solver_error += line;
+
+          LOG_ERR("[SOLVER] %s\n", line.c_str());
+          line = "";
+          continue;
+        }
+
+        // Ignore everything except SOLUTION
+        if (!line.startsWith("SOLUTION")) {
+          line = "";
+          continue;
+        }
+
+        // ------------------------------------------------------------
+        // SOLUTION result=...
+        // ------------------------------------------------------------
+        int r = line.indexOf("result=");
+        if (r < 0) {
+          if (!last_solver_error.isEmpty())
+            last_solver_error += "\n";
+          last_solver_error += line;
+
+          LOG_ERR("[SOLVER] malformed SOLUTION: %s\n", line.c_str());
+          return false;
+        }
+
+        int r_end = line.indexOf(' ', r);
+        String result = line.substring(
+          r + 7,
+          r_end < 0 ? line.length() : r_end);
+
+        if (result != "found") {
+          if (!last_solver_error.isEmpty())
+            last_solver_error += "\n";
+          last_solver_error += line;
+
+          LOG_ERR("[SOLVER] solve failed: %s\n", line.c_str());
+          return false;
+        }
+
+        // --- solution ---
+        int s = line.indexOf("solution=");
+        if (s < 0) {
+          if (!last_solver_error.isEmpty())
+            last_solver_error += "\n";
+          last_solver_error += "solution missing";
+
+          LOG_ERR("[SOLVER] malformed SOLUTION: %s\n", line.c_str());
+          return false;
+        }
+
+        int s_end = line.indexOf(" move_count=", s);
+        String solution = line.substring(
+          s + 9,
+          s_end < 0 ? line.length() : s_end);
+
+        solution.trim();
+        out_solution = solution;
+
+        // --- move_count ---
+        int m = line.indexOf("move_count=");
+        if (m < 0) {
+          if (!last_solver_error.isEmpty())
+            last_solver_error += "\n";
+          last_solver_error += "move_count missing";
+
+          LOG_ERR("[SOLVER] malformed SOLUTION: %s\n", line.c_str());
+          return false;
+        }
+
+        int m_end = line.indexOf(' ', m);
+        int move_count = line.substring(
+                             m + 11,
+                             m_end < 0 ? line.length() : m_end)
+                           .toInt();
+
+        // --- verify move count ---
+        int computed = count_moves_in_solution(solution);
+        if (computed != move_count) {
+          if (!last_solver_error.isEmpty())
+            last_solver_error += "\n";
+          last_solver_error +=
+            "move count mismatch parsed=" + String(computed) +
+            " reported=" + String(move_count);
+
+          LOG_ERR("[SOLVER] %s\n", last_solver_error.c_str());
+          return false;
+        }
+        out_move_count = move_count;
+
+        // --- time_ms ---
+        int t = line.indexOf("time_ms=");
+        if (t >= 0)
+          out_time_ms = line.substring(t + 8).toInt();
+
+        return true;
+      } else {
+        line += c;
+      }
     }
 
-    String line = _SERIAL_SOLVER.readStringUntil('\n');
-    LOG_PRINTF_SOLVER("line received {%s}\n", line.c_str());
-    line.trim();
-
-    // ------------------------------------------------------------
-    // ERR lines → append, keep waiting
-    // ------------------------------------------------------------
-    if (line.startsWith("ERR")) {
-      if (!last_solver_error.isEmpty())
-        last_solver_error += "\n";
-      last_solver_error += line;
-
-      LOG_ERR("[SOLVER] %s\n", line.c_str());
-      continue;
-    }
-
-    // Ignore everything except SOLUTION
-    if (!line.startsWith("SOLUTION")) {
-      delay(2);
-      continue;
-    }
-
-    // ------------------------------------------------------------
-    // SOLUTION result=...
-    // ------------------------------------------------------------
-
-    int r = line.indexOf("result=");
-    if (r < 0) {
-      if (!last_solver_error.isEmpty())
-        last_solver_error += "\n";
-      last_solver_error += line;
-
-      LOG_ERR("[SOLVER] malformed SOLUTION: %s\n", line.c_str());
-      return false;
-    }
-
-    int r_end = line.indexOf(' ', r);
-    String result = line.substring(
-      r + 7,
-      r_end < 0 ? line.length() : r_end);
-
-    // result=not_found (or anything else)
-    if (result != "found") {
-      if (!last_solver_error.isEmpty())
-        last_solver_error += "\n";
-      last_solver_error += line;
-
-      LOG_ERR("[SOLVER] solve failed: %s\n", line.c_str());
-      return false;
-    }
-
-    // --- solution ---
-    int s = line.indexOf("solution=");
-    if (s < 0) {
-      if (!last_solver_error.isEmpty())
-        last_solver_error += "\n";
-      last_solver_error += "solution missing";
-
-      LOG_ERR("[SOLVER] malformed solution=%s\n", line.c_str());
-      return false;
-    }
-
-    int s_end = line.indexOf(" move_count=", s);
-    String solution = line.substring(
-      s + 9,
-      s_end < 0 ? line.length() : s_end);
-
-    solution.trim();
-    out_solution = solution;
-
-    // --- move_count ---
-    int m = line.indexOf("move_count=");
-    if (m < 0) {
-      if (!last_solver_error.isEmpty())
-        last_solver_error += "\n";
-      last_solver_error += "move_count missing";
-
-      LOG_ERR("[SOLVER] malformed SOLUTION: %s\n", line.c_str());
-      return false;
-    }
-
-    int m_end = line.indexOf(' ', m);
-    int move_count = line.substring(
-                           m + 11,
-                           m_end < 0 ? line.length() : m_end)
-                       .toInt();
-
-    // --- verify move count ---
-    int computed = count_moves_in_solution(solution);
-    if (computed != move_count) {
-      if (!last_solver_error.isEmpty())
-        last_solver_error += "\n";
-      last_solver_error +=
-        "move count mismatch parsed=" + String(computed) + " reported=" + String(move_count);
-
-      LOG_ERR("[SOLVER] %s\n", last_solver_error.c_str());
-      return false;
-    }
-    out_move_count = move_count;
-
-    // --- time_ms ---
-    int t = line.indexOf("time_ms=");
-    if (t >= 0)
-      out_time_ms = line.substring(t + 8).toInt();
-
-    return true;
+    delay(2);
   }
 
   // ------------------------------------------------------------

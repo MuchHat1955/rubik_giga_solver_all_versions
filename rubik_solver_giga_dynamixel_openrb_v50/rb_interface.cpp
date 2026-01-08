@@ -24,30 +24,9 @@ bool RBInterface::begin() {
 
   setFooter("starting rb...", _RUNNING_NOSTOP);
 
-  // Flush startup noise
-  delay(222);
-  int c = 0;
-  while (_SERIAL_RB.available() && c < 999) {
-    _SERIAL_RB.read();
-    c++;
-  }
-
-  // --- ACTIVE PROBE ---
-  uint32_t start = millis();
-  _SERIAL_RB.println("VERSION");  // or VERSION / PING
-
-  while (millis() - start < SERIAL_CMD_TIMEOUT) {
-    if (_SERIAL_RB.available()) {
-      String line = _SERIAL_RB.readStringUntil('\n');
-      line.trim();
-      if (line.length()) {
-        LOG_PRINTF_RB("serial rb responded {%s}\n", line.c_str());
-        return true;  // ✅ RB responded
-      }
-    }
-    delay(2);
-  }
-  return false;  // ❌ timed out, no RB
+  String ver = getRbInterfaceVersion();
+  if (ver == "err" || ver.isEMpty()) return false;
+  return true;
 }
 
 // ============================================================
@@ -100,7 +79,7 @@ bool RBInterface::send_stop_command() {
 // ============================================================
 void RBInterface::poll() {
   while (_SERIAL_RB.available()) {
-    String line = _SERIAL_RB.readStringUntil('\n');
+    String line = _SERIAL_RB.readStringUntil('\n');  // TODO needs to be fixed just like for solver
     line.trim();
     if (!line.isEmpty()) {
       LOG_PRINTF_RB("serial rb responded {%s}\n", line.c_str());
