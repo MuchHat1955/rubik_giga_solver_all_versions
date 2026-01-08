@@ -18,8 +18,10 @@
  *    - 800x480 LVGL touchscreen (Arduino_H7_Video + GigaDisplayTouch)
  *    - Dynamixel XL430 servos via Serial1 + DIR pin
  *    - Adafruit TCS34725 color sensor on I2C (SDA=20, SCL=21)
-*    - servos rb controller (teensy 4.1) connected over #define RB_SERIAL Serial2 (in rb_interface.h)
- *    - solves (teensy 4.1) connected over #define SOLVER_SERIAL Serial3 (in rubik_solver.h)
+ *    - servos rb controller - connected over #define _SERIAL_RB Serial4 (in utils.h) 
+ *        // board has a bug and shows Serial4 as serial3
+ *    - solver teensy 4.1 - connected over #define _SERIAL_SOLVER. Serial3 (in utils.h) 
+ *        // board has a bug and shows Serial3 as Serial2
  *
  * ---------------------------------------------------------------
  *  Purpose:
@@ -43,6 +45,7 @@
 #include "ui_touch.h"
 #include "ui_status.h"
 #include "rb_interface.h"
+#include "rubik_solver.h"
 
 extern RBInterface rb;
 
@@ -164,15 +167,16 @@ void setup() {
   init_rb_wrappers();
   bool rb_ok = !rb.begin();
   if (!rb_ok) {
-    LOG_ERR("[RB] rb interface could not start\n");
+    LOG_ERR("[RB] error=rb_interface_could_not_start\n");
     setFooter("rb interface could not start", _ERROR);
   } else {
     rb_version = getRbInterfaceVersion();
     if (rb_version == "err") {
-      LOG_ERR("[RB] rb could not get version\n");
+      LOG_ERR("[RB] error=rb_could_not_get_version\n");
       setFooter("could not get rb version", _ERROR);
+      rb_ok = false;
     } else if (!runStartupTests()) {
-      LOG_ERR("[SYSTEM] startup tests failed\n");
+      LOG_ERR("[SYSTEM] error=startup_tests_failed\n");
       setFooter("startup tests failed", _ERROR);
     } else {
       setFooter("startup test ok", _DONE_SUCCESS);
@@ -180,13 +184,13 @@ void setup() {
   }
   bool solver_ok = solver_begin();
   if (!solver_ok) {
-    LOG_ERR("[SOLVER] solver interface could not start\n");
+    LOG_ERR("[SOLVER] error=solver_interface_could_not_start\n");
     if (rb_ok) setFooter("rb interface ok | solver interface failed", _ERROR);
-    else setFooter("rb interface failed | solver interface failed", _ERROR);
+    else setFooter("rb failed | solver failed", _ERROR);
   } else {
     solver_version = solver_get_version();
     if (solver_version == "err") {
-      LOG_ERR("[SOLVER] solver could not get version\n");
+      LOG_ERR("[SOLVER] error=solver_could_not_get_version\n");
       if (rb_ok) setFooter("rb version ok | solver version failed", _ERROR);
       else setFooter("rb version failed | solver version failed", _ERROR);
     }

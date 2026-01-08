@@ -5,8 +5,6 @@
 #include <vector>
 #include <functional>
 
-#define RB_SERIAL Serial2
-
 class RBInterface {
 public:
   using command_end_cb_t =
@@ -24,7 +22,7 @@ public:
 
   RBInterface();
 
-  bool begin(unsigned long baud, uint32_t timeout_ms);
+  bool begin();
 
   // Sends command and waits until command_start is received
   uint32_t send_command(const String& command, const String& params);
@@ -43,7 +41,7 @@ public:
   }
 
 private:
-  HardwareSerial* serial_rb = &RB_SERIAL;
+  HardwareSerial* serial_rb = &_SERIAL_RB;
 
   uint32_t current_cmd_id_ = 0;
   bool waiting_for_start_ = false;

@@ -2,8 +2,9 @@
 #include <Arduino.h>
 #include <math.h>
 
-// TODO change below for debugging to Serial
-#define __serial Serial1
+// TODO change below for normal usage vs debugging
+// #define __serial Serial // logs in IDE for debugging
+#define __serial Serial2 // normal usage, nothing shows in IDE
 
 // -------------------------------------------------------------------
 //                         UTILS - DECLARATIONS

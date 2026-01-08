@@ -31,7 +31,7 @@ to debug recompile with serial instead of serial1
 #include <Arduino.h>
 #include "kociemba.h"
 
-#define __serial Serial1 // this is for running
+#define __serial Serial2  // this is for running
 //#define __serial Serial // this is for debugging
 
 // Teensy-specific
@@ -112,20 +112,35 @@ void print_help() {
   __serial.println();
 }
 
-void setup() {
-  __serial.begin(115200);
-  while (!__serial) {
-    delay(5);
+const int ledPin = 13;
+
+void blink_led(int c) {
+  for (int i = 0; i < c; i++) {
+    digitalWrite(ledPin, HIGH);  // set the LED on
+    delay(111);                  // wait for a second
+    digitalWrite(ledPin, LOW);   // set the LED off
+    delay(111);
   }
-  __serial.printf("setup start\n");
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(1100);
+  Serial.printf("setup start\n");
+  pinMode(ledPin, OUTPUT);
+  blink_led(4);
+
+  __serial.begin(115200);
+  delay(1100);
+
   em = 0;
   kociemba::set_memory(buf479, buf248);
 
-  __serial.printf("READY ram_init_ms=%d\n", (int)em);
-  __serial.println();
+  Serial.printf("READY ram_init_ms=%d\n", (int)em);
   print_help();
-  __serial.printf("setup end\n");
-  __serial.println();
+  Serial.printf("setup end\n");
+  Serial.println();
+  blink_led(4);
 }
 
 /**
@@ -134,11 +149,14 @@ void setup() {
  */
 void handle_command(char *line) {
 
+  blink_led(1);
   str_to_upper(line);
 
   // HELP command
   if (strcmp(line, "HELP") == 0) {
     print_help();
+    delay(333);
+    blink_led(2);
     return;
   }
 
@@ -146,6 +164,8 @@ void handle_command(char *line) {
   if (strncmp(line, "FINDSOLUTION", 12) != 0) {
     __serial.println("ERR error=unknown_command");
     print_help();
+    delay(333);
+    blink_led(3);
     return;
   }
 
@@ -153,6 +173,8 @@ void handle_command(char *line) {
   if (!cube) {
     __serial.println("ERR error=missing_cube");
     __serial.println();
+    delay(333);
+    blink_led(3);
     return;
   }
 
@@ -161,6 +183,8 @@ void handle_command(char *line) {
   if (strlen(cube) != 54) {
     __serial.println("ERR error=cube_invalid_length");
     __serial.println();
+    delay(333);
+    blink_led(3);
     return;
   }
 
@@ -170,6 +194,8 @@ void handle_command(char *line) {
     if (!colors_to_faces(cube, cube_faces)) {
       __serial.println("ERR error=color_parse_failed");
       __serial.println();
+      delay(333);
+      blink_led(3);
       return;
     }
   } else {
@@ -185,6 +211,8 @@ void handle_command(char *line) {
   if (!res) {
     __serial.println("SOLUTION result=not_found");
     __serial.println();
+    delay(333);
+    blink_led(3);
   } else {
     int movecount = count_moves(res);
     __serial.printf(
@@ -193,6 +221,8 @@ void handle_command(char *line) {
       movecount,
       ms);
     __serial.println();
+    delay(333);
+    blink_led(2);
   }
 }
 

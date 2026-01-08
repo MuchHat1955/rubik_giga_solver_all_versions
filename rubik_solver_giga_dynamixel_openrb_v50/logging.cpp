@@ -120,7 +120,7 @@ void log_section_end_internal(const char* file, int line) {
   if (!logging_on) return;
 
   if (log_section_index < 1) {
-    Serial.printf("[log] warning: section_end called with no active section at %s:%d\n", file, line);
+    serial_printf("[log] warning: section_end called with no active section at %s:%d\n", file, line);
     return;
   }
 

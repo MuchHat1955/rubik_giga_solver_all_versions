@@ -252,26 +252,33 @@ bool runSolveCubeFindSolutionByKey(const char* key, bool& result) {
   int solution_millis = 0;
 
   // find solution if colors ok
-  bool ok = is_valid_color_string(cube);
-  if (!ok) {
-    LOG_ERR("[RUN] color_string_error=not_a_valid_color_string cube=%s", cube.c_str());
-    setFooter("color read failed", _DONE_ERROR);
-  } else {
+  bool colors_ok = is_valid_color_string(cube);
+  bool solution_ok = false;
+
+  // log colors
+  if (!colors_ok) LOG_ERR("[RUN] color_string_error=not_a_valid_color_string cube=%s", cube.c_str());
+
+  // find solution
+  if (colors_ok) {
     // teensy solution
-    solution = solver_find_solution(cube, solution_move_count, solution_millis);
+    solution_ok = solver_find_solution(cube, solution, solution_move_count, solution_millis);
+    if (solution.isEmpty()) solution_ok = false;
+  } else LOG_ERR("[RUN] color_string_error=not_a_valid_color_string cube=%s", cube.c_str());
+
+  // set solution if ok
+  if (solution_ok) {
+    setLastCubeSolution(solution);
+    result = true;
+  } else LOG_ERR("[SOLVER] solver_error=no_solution_found cube=%s\n", cube.c_str());
+
+  // display the results of both in the footer
+  if (colors_ok && !solution_ok) setFooter("colors valid | no solution found", _DONE_ERROR);
+  if (!colors_ok) setFooter("colors invalid | no solution found", _DONE_ERROR);
+  if (colors_ok && solution_ok) {
+    String footer_text = "solution found with " + String(solution_move_count) + " moves";
+    setFooter(footer_text.c_str(), _DONE_SUCCESS);
   }
 
-  if (solution.isEmpty()) {
-    LOG_ERR("[SOLVER] solver_error=no_solution_found cube=%s\n", cube.c_str());
-    LOG_ERR("[SOLVER] solver_error=%s\n", solver_find_solution().c_str());
-    setFooter("no solution found", _DONE_ERROR);
-    result = false;
-  } else {
-    setLastCubeSolution(solution);
-    String footer_text = "solution found with " + String(solution_move_count) + " moves";
-    setFooter(footer_text, _DONE_SUCCESS);
-    result = true;
-  }
   // true means the command completed
   return true;
 }

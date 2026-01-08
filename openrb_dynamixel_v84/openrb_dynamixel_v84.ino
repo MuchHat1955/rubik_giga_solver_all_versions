@@ -2,8 +2,9 @@
 HARDWARE IS OpenRB-150
 to debug recompile with serial instead of serial1
 
-// TODO change below in utils.h for debugging to Serial
-#define __serial Serial1
+// TODO change below in utils.h for debugging vs normal usage
+#define __serial Serial // logs in IDE for debugging
+#define __serial Serial2 // normal usage, nothing shows in IDE
 */
 
 #include <Arduino.h>

@@ -19,29 +19,34 @@ RBInterface::RBInterface() {}
 // Begin communication
 // ============================================================
 bool RBInterface::begin() {
-  serial_rb->begin(115200);
-  serial_rb->setTimeout(500);
+  _SERIAL_RB.begin(SERIAL_BAUD);
+  _SERIAL_RB.setTimeout(SERIAL_TIMEOUT);
 
   setFooter("starting rb...", _RUNNING_NOSTOP);
 
   // Flush startup noise
-  delay(300);
-  while (serial_rb->available()) serial_rb->read();
+  delay(222);
+  int c = 0;
+  while (_SERIAL_RB.available() && c < 999) {
+    _SERIAL_RB.read();
+    c++;
+  }
 
   // --- ACTIVE PROBE ---
   uint32_t start = millis();
-  serial_rb->println("VERSION");  // or VERSION / PING
+  _SERIAL_RB.println("VERSION");  // or VERSION / PING
 
-  while (millis() - start < timeout_ms) {
-    if (serial_rb->available()) {
-      String line = serial_rb->readStringUntil('\n');
+  while (millis() - start < SERIAL_CMD_TIMEOUT) {
+    if (_SERIAL_RB.available()) {
+      String line = _SERIAL_RB.readStringUntil('\n');
       line.trim();
       if (line.length()) {
+        LOG_RB("serial rb responded {%s}\n", line.c_str());
         return true;  // ✅ RB responded
       }
     }
+    delay(2);
   }
-
   return false;  // ❌ timed out, no RB
 }
 
@@ -58,14 +63,14 @@ uint32_t RBInterface::send_command(const String& command,
     line += params;
   }
 
-  serial_rb->println(line);
+  _SERIAL_RB.println(line);
 
   unsigned long t0 = millis();
   while (waiting_for_start_ && millis() - t0 < 3000) {
     poll();
   }
   if (waiting_for_start_) {
-    LOG_ERR("[RB] command %s %s timed out\n", command, params);
+    LOG_ERR("[RB] error=timeout command={%s} params={%s}\n", command.c_str(), params.c_str());
     return -1;  // command never received TODO-> TO IMPLEMENT use this}
   }
   current_cmd_id_++;
@@ -80,10 +85,11 @@ bool RBInterface::send_stop_command() {
   unsigned long t0 = millis();
   while (waiting_for_end_ && millis() - t0 < 3000) {
     poll();
+    delay(5);
   }
   // TODO-> TO IMPLEMENT, also wait for something like stop_result=move_stopped
   if (waiting_for_end_) {
-    LOG_ERR("[RB] stop timed out, no end command received\n");
+    LOG_ERR("[RB] error=stop_timed_out {no end command received}\n");
     return false;  // command never received TODO-> TO IMPLEMENT use this
   }
   return true;
@@ -93,11 +99,14 @@ bool RBInterface::send_stop_command() {
 // Poll serial (call from loop)
 // ============================================================
 void RBInterface::poll() {
-  while (serial_rb->available()) {
-    String line = serial_rb->readStringUntil('\n');
+  while (_SERIAL_RB.available()) {
+    String line = _SERIAL_RB.readStringUntil('\n');
     line.trim();
-    if (!line.isEmpty())
+    if (!line.isEmpty()) {
+      LOG_RB("serial rb responded {%s}\n", line.c_str());
       handle_line(line);
+      break;
+    }
   }
 }
 
@@ -587,13 +596,12 @@ bool runCommand(const String& command,
   cmd_states[id] = st;
 
   unsigned long t0 = millis();
-  const unsigned long timeout_ms = 3333;
 
   while (!cmd_states[id].finished_bool) {
     rb.poll();
-    if (millis() - t0 > timeout_ms) {
+    if (millis() - t0 > SERIAL_CMD_TIMEOUT) {
       cmd_states[id].last_error = "timeout waiting for command_end";
-      LOG_ERR("[RB] command start {%s} timeout\n", command.c_str());
+      LOG_ERR("[RB] error=timeout command={%s}\n", command.c_str());
       return false;
     }
     delay(1);
@@ -646,13 +654,12 @@ String getRbInterfaceVersion() {
   cmd_states[id] = st;
 
   unsigned long t0 = millis();
-  const unsigned long timeout_ms = 3333;
 
   while (!cmd_states[id].finished_bool) {
     rb.poll();
-    if (millis() - t0 > timeout_ms) {
-      LOG_ERR("[RB] rb version command timeout\n");
-      LOG_ERR("[RB] no rb version\n");
+    if (millis() - t0 > SERIAL_CMD_TIMEOUT) {
+      LOG_ERR("[RB] error=rb_version_command_timeout\n");
+      LOG_ERR("[RB] error=no_rb_version\n");
       return "err";
     }
     delay(5);

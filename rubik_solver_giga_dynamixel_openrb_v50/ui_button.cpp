@@ -299,7 +299,7 @@ UIButton* find_button_by_key(const char* key) {
     if (strcmp(ui_buttons[i].get_key(), key) == 0)
       return &ui_buttons[i];
   }
-  LOG_ERR("[MENU] find_button_by_key: no match for {%s}\n", key);
+  LOG_ERR("[MENU] error=find_button_by_key | no match for {%s}\n", key);
   return nullptr;
 }
 
@@ -308,7 +308,7 @@ UIButton* find_button_by_id(int id) {
     if (ui_buttons[i].get_id() == id)
       return &ui_buttons[i];
   }
-  LOG_ERR("[MENU] find_button_by_id: no match for id {%d}\n", id);
+  LOG_ERR("[MENU] error=find_button_by_id | no match for id {%d}\n", id);
   return nullptr;
 }
 
@@ -325,7 +325,7 @@ void clear_all_button_ptrs() {
 void log_button_by_id(int id) {
   UIButton* b = find_button_by_id(id);
   if (!b) {
-    LOG_ERR("[MENU] logButton: no button found for id {%d}\n", id);
+    LOG_ERR("[MENU] error=no_button_found_for_id | id=%d\n", id);
     return;
   }
 
@@ -342,13 +342,13 @@ void log_button_by_id(int id) {
 
 void log_button_by_key(const char* txt) {
   if (!txt || !*txt) {
-    LOG_ERR("[MENU] logButton: invalid or empty text\n");
+    LOG_ERR("[MENU] error=invalid_or_empty_text\n");
     return;
   }
 
   UIButton* b = find_button_by_key(txt);
   if (!b) {
-    LOG_ERR("[MENU] logButton: no button found for text {%s}\n", txt);
+    LOG_ERR("[MENU] error=no_button_found_for_key | key={%s}\n", txt);
     return;
   }
 
