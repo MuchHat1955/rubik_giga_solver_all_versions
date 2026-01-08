@@ -41,7 +41,7 @@ bool RBInterface::begin() {
       String line = _SERIAL_RB.readStringUntil('\n');
       line.trim();
       if (line.length()) {
-        LOG_RB("serial rb responded {%s}\n", line.c_str());
+        LOG_PRINTF_RB("serial rb responded {%s}\n", line.c_str());
         return true;  // ✅ RB responded
       }
     }
@@ -103,7 +103,7 @@ void RBInterface::poll() {
     String line = _SERIAL_RB.readStringUntil('\n');
     line.trim();
     if (!line.isEmpty()) {
-      LOG_RB("serial rb responded {%s}\n", line.c_str());
+      LOG_PRINTF_RB("serial rb responded {%s}\n", line.c_str());
       handle_line(line);
       break;
     }

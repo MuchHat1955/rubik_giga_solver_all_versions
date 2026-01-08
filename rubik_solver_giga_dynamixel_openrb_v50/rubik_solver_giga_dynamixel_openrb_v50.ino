@@ -185,14 +185,17 @@ void setup() {
   bool solver_ok = solver_begin();
   if (!solver_ok) {
     LOG_ERR("[SOLVER] error=solver_interface_could_not_start\n");
-    if (rb_ok) setFooter("rb interface ok | solver interface failed", _ERROR);
+    if (rb_ok) setFooter("rb ok | solver failed", _ERROR);
     else setFooter("rb failed | solver failed", _ERROR);
   } else {
     solver_version = solver_get_version();
     if (solver_version == "err") {
       LOG_ERR("[SOLVER] error=solver_could_not_get_version\n");
-      if (rb_ok) setFooter("rb version ok | solver version failed", _ERROR);
-      else setFooter("rb version failed | solver version failed", _ERROR);
+      if (rb_ok) setFooter("rb version ok | solver failed", _ERROR);
+      else setFooter("rb failed | solver failed", _ERROR);
+    } else {
+      if (rb_ok) setFooter("rb ok | solver ok", _ERROR);
+      else setFooter("rb failed | solver ok", _ERROR);
     }
   }
   LOG_PRINTF("---- [SETUP] end ----\n");

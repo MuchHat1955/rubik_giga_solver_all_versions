@@ -359,34 +359,9 @@ bool solver_begin() {
   setFooter("starting solver...", _RUNNING_NOSTOP);
   // Serial.println("starting solver...");
 
-  // flush startup noise
-  delay(222);
-  int c = 0;
-  while (_SERIAL_SOLVER.available() && c < 999) {
-    _SERIAL_SOLVER.read();
-    c++;
-  }
-
-  // Serial.println("sending help");
-
-  // probe with HELP
-  _SERIAL_SOLVER.println("HELP");
-
-  unsigned long t0 = millis();
-  while (millis() - t0 < SERIAL_CMD_TIMEOUT) {
-    if (_SERIAL_SOLVER.available()) {
-      String line = _SERIAL_SOLVER.readStringUntil('\n');
-      LOG_SOLVER("line received {%s}\n", line.c_str());
-      line.trim();
-      if (line.startsWith("HELP")) {
-        return true;
-      }
-    }
-    delay(2);
-  }
-  last_solver_error = "solver not responding to help command";
-  LOG_ERR("[SOLVER] error=command_timeout command={%s} params={%s}\n", "HELP", "");
-  return false;
+  String ver = solver_get_version();
+  if (ver == "err" || ver.isEmpty()) return false;
+  return true;
 }
 
 // ============================================================
@@ -394,37 +369,44 @@ bool solver_begin() {
 // ============================================================
 
 String solver_get_version() {
-  if (!_SERIAL_SOLVER) {
-    LOG_ERR("[SOLVER] error=no_solver_serial\n");
-    return "err";
-  }
-
   last_solver_error = "";
+  unsigned long t_first_rx = 0;
 
-  LOG_SOLVER("start solver command {HELP}\n");
+  LOG_PRINTF_SOLVER("start solver command {HELP}\n");
   _SERIAL_SOLVER.println("HELP");
 
   unsigned long t0 = millis();
-  while (millis() - t0 < SERIAL_TIMEOUT) {
-    if (!_SERIAL_SOLVER.available()) {
-      delay(2);
-      continue;
-    }
-    String line = _SERIAL_SOLVER.readStringUntil('\n');
-    LOG_SOLVER("line received {%s}\n", line.c_str());
-    line.trim();
+  String line;
 
-    // version=teensy_4_1_v2
-    if (line.startsWith("version=")) {
-      String v = line.substring(strlen("version="));
-      v.replace("_", " ");
-      return v;
+  while (millis() - t0 < SERIAL_CMD_TIMEOUT) {
+
+    while (_SERIAL_SOLVER.available()) {
+      char c = _SERIAL_SOLVER.read();
+      if (t_first_rx == 0) {
+        t_first_rx = millis();
+        LOG_PRINTF_SOLVER("first byte after %lu ms\n", t_first_rx - t0);
+      }
+
+      if (c == '\n') {
+        line.trim();
+        LOG_PRINTF_SOLVER("line received {%s}\n", line.c_str());
+
+        if (line.startsWith("version=")) {
+          String v = line.substring(strlen("version="));
+          v.replace("_", " ");
+          return v;
+        }
+
+        line = "";  // reset for next line
+      } else {
+        line += c;
+      }
     }
     delay(2);
   }
 
-  last_solver_error = "solver not responding to version command";
-  LOG_ERR("[SOLVER] error=command_timeout command={%s} params={%s}\n", "VERSION", "");
+  last_solver_error = "solver not responding to HELP command";
+  LOG_ERR("[SOLVER] error=command_timeout command={HELP}\n");
 
   return "err";
 }
@@ -463,7 +445,7 @@ bool solver_find_solution(const String &cube54,
     }
 
     String line = _SERIAL_SOLVER.readStringUntil('\n');
-    LOG_SOLVER("line received {%s}\n", line.c_str());
+    LOG_PRINTF_SOLVER("line received {%s}\n", line.c_str());
     line.trim();
 
     // ------------------------------------------------------------
@@ -560,7 +542,6 @@ bool solver_find_solution(const String &cube54,
       LOG_ERR("[SOLVER] %s\n", last_solver_error.c_str());
       return false;
     }
-
     out_move_count = move_count;
 
     // --- time_ms ---
