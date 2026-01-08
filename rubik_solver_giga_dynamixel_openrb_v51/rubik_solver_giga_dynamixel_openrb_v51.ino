@@ -168,26 +168,36 @@ void setup() {
   // STARTUP SELF TEST
   // ----------------------------------------------------------
   init_rb_wrappers();
+
+  // start rb servos controller
   bool rb_ok = !rb.begin();
   if (!rb_ok) {
     LOG_ERR("[RB] error=rb_interface_could_not_start\n");
     setFooter("rb failed", _ERROR);
+    delay(666);
   } else {
     if (!runStartupTests()) {
       LOG_ERR("[SYSTEM] error=startup_tests_failed\n");
       setFooter("startup tests failed", _ERROR);
+      delay(666);
     } else {
       setFooter("startup test ok", _DONE_SUCCESS);
     }
   }
+
+  // start teensy cube solution solver
   bool solver_ok = solver_begin();
   if (!solver_ok) {
     LOG_ERR("[SOLVER] error=solver_interface_could_not_start\n");
     if (rb_ok) setFooter("rb ok | solver failed", _ERROR);
     else setFooter("rb failed | solver failed", _ERROR);
+    delay(666);
   } else {
     if (rb_ok) setFooter("rb ok | solver ok", _ERROR);
-    else setFooter("rb failed | solver ok", _ERROR);
+    else {
+      setFooter("rb failed | solver ok", _ERROR);
+      delay(666);
+    }
   }
   LOG_PRINTF("---- [SETUP] end ----\n");
 }
