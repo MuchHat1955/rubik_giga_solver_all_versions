@@ -1321,7 +1321,7 @@ String apply_cube_move_54(const String &in, const String &move) {
 // TODO add log here or where called
 bool ColorAnalyzer::apply_cube_move(String mv) {
   String after_move = apply_cube_move_54(colors_standard_orientation_54_, mv);
-  if (after_move == "") return false;
+  if (after_move.isEmpty()) return false;
   colors_standard_orientation_54_ = after_move;
   return true;
 }

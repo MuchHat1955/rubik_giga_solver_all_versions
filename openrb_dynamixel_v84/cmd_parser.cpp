@@ -129,20 +129,20 @@ static int parse_args(const String &line, const char *fmt, double *out, int max_
 
   if (params.length() == 0) return 0;
   // Tokenize (safe for mixed types)
-  int argc = 0;
+  int argn = 0;
   int pos = 0;
-  while (argc < max_args) {
+  while (argn < max_args) {
     int next_space = params.indexOf(' ', pos);
     String token = (next_space == -1) ? params.substring(pos) : params.substring(pos, next_space);
     token.trim();
     if (token.length() == 0) break;
-    if (raw_tokens) raw_tokens[argc] = token;
-    out[argc] = token.toDouble();
-    argc++;
+    if (raw_tokens) raw_tokens[argn] = token;
+    out[argn] = token.toDouble();
+    argn++;
     if (next_space == -1) break;
     pos = next_space + 1;
   }
-  return argc;
+  return argn;
 }
 
 bool cmd_get_version(int argc, double *argv) {
@@ -166,7 +166,7 @@ String get_help_text() {
   String help = "\nCOMMANDS:\n";
   for (int i = 0; i < COMMAND_COUNT; i++) {
     help += "  ";
-    if (command_table[i].name == "") help += "\n";
+    if (command_table[i].name[0] == '\0') help += "\n";
     help += command_table[i].desc;
     help += "\n";
   }
@@ -263,7 +263,7 @@ void process_serial_command(String &line) {
   speed = 1.0;
 
   for (int i = 0; i < COMMAND_COUNT; i++) {
-    if (command_table[i].name == "") continue;
+    if (command_table[i].name[0] == '\0') continue;
     const CommandEntry &cmd = command_table[i];
 
     if (U.startsWith(cmd.name)) {
@@ -382,14 +382,16 @@ void process_serial_command(String &line) {
       derive_format_info(cmd.fmt, min_args);
 
       double argv[8] = { 0 };
-      int argc = 0;
+      int argn = 0;
       String raw[8];
-      argc = parse_args(line, cmd.fmt, argv, 8, raw);
+      argn = parse_args(line, cmd.fmt, argv, 8, raw);
 
       // ~~~~~~~~~~~~~~~- Argument validation ~~~~~~~~~~~~~~~-
-      if (argc < min_args) {
+      if (argn < min_args) {
 
         LOG_ERR(MOD_CMD, "invalid_command_usage", cmd.name);
+        LOG_VAR("argn", argn);
+        LOG_VAR("min_args", min_args);
         LOG_VAR("usage", cmd.desc);
         return;
       }
@@ -406,6 +408,11 @@ void process_serial_command(String &line) {
 
       // read_print_kinematics_state();
       bool ok = cmd.handler(argc, argv);
+      if (!cmd.handler) {
+        LOG_ERR(MOD_CMD, "error", "no_handler");
+        LOG_VAR("command", cmd.name);
+        return;
+      }
       //
       LOG_INFO(MOD_CMD, "command_end", cmd.name);
       LOG_VAR("result", ok ? "ok" : "fail");
@@ -426,7 +433,7 @@ void process_serial_command(String &line) {
   LOG_ERR(MOD_CMD, "error", "unknown_command");  //
 }
 
-void process_serial_command(const char* line) {
+void process_serial_command(const char *line) {
   if (!line) return;
   String s(line);
   process_serial_command(s);
@@ -436,7 +443,7 @@ void process_serial_command(const char* line) {
 // class serial_line_history
 // ============================================================
 
-serial_line_history::serial_line_history(Stream& s)
+serial_line_history::serial_line_history(Stream &s)
   : serial_(s),
     head_(0),
     count_(0),

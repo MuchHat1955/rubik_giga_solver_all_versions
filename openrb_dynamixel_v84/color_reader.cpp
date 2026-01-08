@@ -551,7 +551,7 @@ bool CubeColorReader::read_cube(int scan_mode) {
   // the fill 2 layers is now here as the centers are known
   if (scan_mode == SCAN_MODE_SOLVED) {
     String filled = fill_solved_cube();
-    if (filled == "") {
+    if (filled.isEmpty()) {
       LOG_ERR(MOD_COLORSCAN, "fill colors for solved failed, mode was", mode_string);
       String diagram_str = rubik_54_to_labeled_diagram(colors_justread_54);
       __serial.print(diagram_str);
@@ -565,7 +565,7 @@ bool CubeColorReader::read_cube(int scan_mode) {
   if (scan_mode == SCAN_MODE_BOTTOM) {
     String filled_2_layers = fill_colors_if_top_two_layers_solved(colors_justread_54);
 
-    if (filled_2_layers == "") {
+    if (filled_2_layers.isEmpty()) {
       LOG_ERR(MOD_COLORSCAN, "fill colors for top two layers failed, mode was", mode_string);
       String diagram_str = rubik_54_to_labeled_diagram(colors_justread_54);
       __serial.print(diagram_str);
