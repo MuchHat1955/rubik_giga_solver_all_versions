@@ -23,11 +23,11 @@ String getSystemText() {
   String servoText = getLastServoStatusStr(0);
 
   String systemText =
-    String("#FFA500  main build# ") + getSketchVersionWithDate() + "\n\n" +  //
-    String("#FFA500  rb build# ") + getRbVersion() + "\n" +                  //
-    String("#FFA500  solver build# ") + getSolverVersion() + "\n\n" +        //
-    String("#FFA500  servos status#\n") + servoText + "\n\n" +               //
-    String("#FFA500  errors log#\n") + getAllErrorLines();
+    String("#FFA500 main build# ") + getSketchVersionWithDate() + "\n\n" +  //
+    String("#FFA500 rb build# ") + getRbVersion() + "\n" +                  //
+    String("#FFA500 solver build# ") + getSolverVersion() + "\n\n" +        //
+    String("#FFA500 servos status#\n") + servoText + "\n\n" +               //
+    String("#FFA500 errors log#\n") + getAllErrorLines();
   return systemText;
 }
 

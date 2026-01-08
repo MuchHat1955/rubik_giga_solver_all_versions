@@ -171,14 +171,9 @@ void setup() {
   bool rb_ok = !rb.begin();
   if (!rb_ok) {
     LOG_ERR("[RB] error=rb_interface_could_not_start\n");
-    setFooter("rb interface could not start", _ERROR);
+    setFooter("rb failed", _ERROR);
   } else {
-    rb_version = getRbInterfaceVersion();
-    if (rb_version == "err") {
-      LOG_ERR("[RB] error=rb_could_not_get_version\n");
-      setFooter("could not get rb version", _ERROR);
-      rb_ok = false;
-    } else if (!runStartupTests()) {
+    if (!runStartupTests()) {
       LOG_ERR("[SYSTEM] error=startup_tests_failed\n");
       setFooter("startup tests failed", _ERROR);
     } else {
@@ -191,15 +186,8 @@ void setup() {
     if (rb_ok) setFooter("rb ok | solver failed", _ERROR);
     else setFooter("rb failed | solver failed", _ERROR);
   } else {
-    solver_version = solver_get_version();
-    if (solver_version == "err") {
-      LOG_ERR("[SOLVER] error=solver_could_not_get_version\n");
-      if (rb_ok) setFooter("rb version ok | solver failed", _ERROR);
-      else setFooter("rb failed | solver failed", _ERROR);
-    } else {
-      if (rb_ok) setFooter("rb ok | solver ok", _ERROR);
-      else setFooter("rb failed | solver ok", _ERROR);
-    }
+    if (rb_ok) setFooter("rb ok | solver ok", _ERROR);
+    else setFooter("rb failed | solver ok", _ERROR);
   }
   LOG_PRINTF("---- [SETUP] end ----\n");
 }
