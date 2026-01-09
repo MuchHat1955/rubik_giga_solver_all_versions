@@ -1,0 +1,686 @@
+#include "servos.h"
+#include "servo_move.h"
+#include "vertical_kinematics.h"
+#include <Arduino.h>
+#include <vector>
+#include <math.h>
+#include <string.h>
+
+// -------------------------------------------------------------------
+//                        GLOBAL CONSTANTS
+// -------------------------------------------------------------------
+
+const int STALL_CURRENT_mA = 500;
+const int TEMP_LIMIT_C = 70;
+
+const float TICKS_PER_REV = 4096.0f;
+const float PV_UNIT_RPM = 0.229f;
+const float TIME_SAFETY_FACTOR = 1.20f;
+const uint32_t MIN_WAIT_MS = 120;
+const uint32_t EXTRA_SETTLE_MS = 50;
+
+const double TICKS_PER_DEG = 4096.0 / 360.0;
+const double DEG_PER_TICK = 0.087890625;
+const double MM_PER_TICK = 0.0767;
+
+// -------------------------------------------------------------------
+//                         DYNAMIXEL SETUP
+// -------------------------------------------------------------------
+
+#define DXL_SERIAL Serial1
+#define DXL_DIR_PIN -1
+const float PROTOCOL = 2.0f;
+Dynamixel2Arduino dxl(DXL_SERIAL, DXL_DIR_PIN);
+
+extern VerticalKinematics kin;
+
+bool servo_error_global_flag = false;
+constexpr int LED_FLASH_DELAY_MS = 95;
+
+void flash_led_all_servos(int count) {
+  if (count > 6) count = 6;
+  for (int i = 0; i < count; i++) {
+    // all on
+    for (uint8_t i = 0; i < SERVO_COUNT; i++) {
+      ServoConfig *s = all_servos[i];
+      uint8_t sid = s->get_id();
+      lOn(sid);
+    }
+    delay(LED_FLASH_DELAY_MS);
+
+    // all off
+    for (uint8_t i = 0; i < SERVO_COUNT; i++) {
+      ServoConfig *s = all_servos[i];
+      uint8_t sid = s->get_id();
+      lOff(sid);
+    }
+    delay(LED_FLASH_DELAY_MS);
+  }
+}
+
+void flash_led_servo(int sid, int count) {
+  if (count > 6) count = 6;
+  for (int i = 0; i < count; i++) {
+    lOn(sid);
+    delay(LED_FLASH_DELAY_MS);
+    lOff(sid);
+    delay(LED_FLASH_DELAY_MS);
+  }
+}
+
+bool check_servos_stop_all() {
+  if (!servo_error_global_flag) {
+    return false;
+  }
+  LOG_ERR(MOD_SERVOS, "error", "global_stop_all_servos_is_set");
+  return true;
+}
+
+void set_flag_servos_stop_all() {
+  // already set
+  if (servo_error_global_flag) {
+    LOG_ERR(MOD_SERVOS, "error", "set_global_stop_all_servos_already_set");
+    return;
+  }
+  LOG_ERR(MOD_SERVOS, "error", "setting_global_stop_all_servos");
+
+  for (uint8_t i = 0; i < SERVO_COUNT; i++) {
+    ServoConfig *s = all_servos[i];
+    uint8_t sid = s->get_id();
+
+    LOG_ERR(MOD_SERVOS, "error", "disabling_torque");
+    LOG_VAR("servo_name", id2name(sid));
+    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, sid, 0);
+    LOG_VAR("torque", "off");
+  }
+
+  servo_error_global_flag = true;
+  LOG_ERR(MOD_SERVOS, "error", "global_stop_all_servos_is_set");
+  flash_led_all_servos(3);
+}
+
+bool reboot_all_servos() {
+  LOG_ERR(MOD_SERVOS, "error", "rebooting_all_servos");
+
+  bool all_ok = true;
+
+  for (uint8_t i = 0; i < SERVO_COUNT; i++) {
+    ServoConfig *s = all_servos[i];
+    uint8_t sid = s->get_id();
+    reboot_servo(sid);
+    if (!servo_ok(sid)) all_ok = false;
+  }
+  return all_ok;
+}
+
+bool clear_flag_servos_stop_all() {
+  // already set
+  if (!servo_error_global_flag) {
+    return true;
+  }
+  LOG_ERR(MOD_SERVOS, "error", "resetting_global_stop_all_servos");
+
+  for (uint8_t i = 0; i < SERVO_COUNT; i++) {
+    ServoConfig *s = all_servos[i];
+    uint8_t sid = s->get_id();
+
+    LOG_ERR(MOD_SERVOS, "error", "enabling_torque");
+    LOG_VAR("servo_name", id2name(sid));
+    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, sid, 1);
+    LOG_VAR("torque", "on");
+  }
+
+  servo_error_global_flag = false;
+  LOG_ERR(MOD_SERVOS, "error", "global_stop_all_servos_is_reset");
+
+  bool ok = check_all_servos_if_ok();
+  if (ok) flash_led_all_servos(1);
+  else flash_led_all_servos(3);
+  return ok;
+}
+
+bool check_all_servos_if_ok() {
+  LOG_ERR(MOD_SERVOS, "error", "checking_all_servos");
+
+  bool all_ok = true;
+
+  for (uint8_t i = 0; i < SERVO_COUNT; i++) {
+    ServoConfig *s = all_servos[i];
+    uint8_t sid = s->get_id();
+
+    if (!servo_ok(sid)) all_ok = false;
+  }
+  return all_ok;
+}
+
+void set_torque_all_servos(bool _on) {
+  //LOG_INFO(MOD_SERVOS, "info","set torque all servos");
+  //LOG_VAR("torque", _on ? "on" : "off");
+
+  if (_on) flash_led_all_servos(1);
+  else flash_led_all_servos(2);
+
+  for (uint8_t i = 0; i < SERVO_COUNT; i++) {
+    ServoConfig *s = all_servos[i];
+    uint8_t sid = s->get_id();
+    dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, sid, _on ? 1 : 0);
+  }
+}
+
+// -------------------------------------------------------------------
+//   SAFE GOAL POSITION WRAPPER (with LED flash on fault)
+// -------------------------------------------------------------------
+//  Checks servo current and temperature before commanding a move.
+//  If either exceeds safety limits, torque is turned off and
+//  the LED flashes several times to signal a fault.
+// -------------------------------------------------------------------
+
+bool reboot_servo(uint8_t id) {
+
+  LOG_INFO(MOD_SERVOS, "info", "rebooting_servo");
+  LOG_VAR("servo_name", id2name(id));
+
+  // Disable torque before reboot
+  dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, id, 0);
+  delay(20);
+
+  dxl.reboot(id);
+  delay(50);
+
+  // Optional: re-enable torque
+  dxl.writeControlTableItem(ControlTableItem::TORQUE_ENABLE, id, 1);
+  delay(200);
+
+  bool ok_now = servo_ok(id);
+  if (ok_now) {
+    LOG_INFO(MOD_SERVOS, "info", "servo_ok_after_servo_reboot");
+    LOG_VAR("servo_name", id2name(id));
+    LOG_VAR("torque", "on");
+    return true;
+  }
+  LOG_ERR(MOD_SERVOS, "error", "servo_failed_after_servo_reboot");
+  LOG_VAR("servo_name", id2name(id));
+  return false;
+}
+
+bool servo_ok(uint8_t id) {
+
+  // read hardware error flags
+  int hw_err = dxl.readControlTableItem(ControlTableItem::HARDWARE_ERROR_STATUS, id);
+
+  // -1 means read failed
+  if (hw_err < 0) {
+    LOG_INFO(MOD_SERVOS, "info", "failed to read_hw_error_status");
+    LOG_VAR("servo_name", id2name(id));
+    return false;
+  }
+  // If no hardware errors → OK
+  if (hw_err == 0) {
+    return true;
+  }
+
+  LOG_ERR(MOD_SERVOS, "error", "servo_error");
+  LOG_VAR("servo_name", id2name(id));
+  LOG_VAR("hw_err", hw_err);
+
+  return false;
+}
+
+bool safeSetGoalPosition(uint8_t id, int goal_ticks) {
+  if (is_stop_on()) return false;
+
+  if (check_servos_stop_all()) {
+    LOG_ERR(MOD_SERVOS, "error", "global servo error is set skip everything");
+    return false;
+  }
+
+  int hw_err = dxl.readControlTableItem(ControlTableItem::HARDWARE_ERROR_STATUS, id);
+
+  if (!servo_ok(id)) {
+    LOG_ERR(MOD_SERVOS, "error", "servo error");
+    LOG_VAR("servo_name", id2name(id));
+    LOG_VAR("hw_err", hw_err);
+
+    flash_led_servo(id, 6);
+    // attempt one reboot
+    reboot_servo(id);
+    if (!servo_ok(id)) {
+      LOG_ERR(MOD_SERVOS, "error", "setting global servo error flag");
+      LOG_VAR("servo_responsible_name", id2name(id));
+      flash_led_servo(id, 8);
+      set_flag_servos_stop_all();
+      return false;
+    }
+    flash_led_servo(id, 1);
+  }
+
+  // Check for min and maxt
+  if (goal_ticks < getMin_ticks(id) || goal_ticks > getMax_ticks(id)) {
+    // Flash LED a few times as a warning
+    flash_led_servo(id, 3);
+
+    if (goal_ticks < getMin_ticks(id)) {
+      DEBUG_INFO(MOD_SERVOS, "safe move skipped goal under min ticks");
+      LOG_VAR("servo_name", id2name(id));
+      DEBUG_VAR("goal_ticks", goal_ticks);
+      DEBUG_VAR("min_ticks", getMin_ticks(id));
+    }
+    if (goal_ticks > getMax_ticks(id)) {
+      DEBUG_INFO(MOD_SERVOS, "safe move skipped goal over max ticks");
+      LOG_VAR("servo_name", id2name(id));
+      DEBUG_VAR("goal_ticks", goal_ticks);
+      DEBUG_VAR("max_ticks", getMax_ticks(id));
+    }
+
+    flash_led_servo(id, 3);
+    return false;  // abort move
+  }
+
+  // Otherwise safe to move
+  dxl.writeControlTableItem(ControlTableItem::GOAL_POSITION,
+                            id, goal_ticks);
+  return true;
+}
+
+// -------------------------------------------------------------------
+//                     ServoConfig CLASS IMPLEMENTATION
+// -------------------------------------------------------------------
+
+ServoConfig::ServoConfig(const char *key,
+                         uint8_t id,
+                         uint16_t zero_ticks,
+                         double dir,
+                         uint16_t limit_min,
+                         uint16_t limit_max)
+  : key_(key),
+    id_(id),
+    zero_ticks_(zero_ticks),
+    dir_(dir),
+    limit_min_(limit_min),
+    limit_max_(limit_max) {}
+
+bool ServoConfig::init() {
+
+  if (limit_max_ > 4095) limit_max_ = 4095;
+  RUN_PING(id_);
+
+  // read min and max from the servo
+  limit_min_ = dxl.readControlTableItem(ControlTableItem::MIN_POSITION_LIMIT, id_);
+  limit_max_ = dxl.readControlTableItem(ControlTableItem::MAX_POSITION_LIMIT, id_);
+
+  return true;
+}
+
+uint8_t ServoConfig::get_id() const {
+  return id_;
+}
+const char *ServoConfig::get_key() const {
+  return key_;
+}
+uint16_t ServoConfig::zero_ticks() const {
+  return zero_ticks_;
+}
+uint16_t ServoConfig::min_ticks() const {
+  return limit_min_;
+}
+uint16_t ServoConfig::max_ticks() const {
+  return limit_max_;
+}
+double ServoConfig::dir() const {
+  return dir_;
+}
+
+void ServoConfig::set_min_ticks(uint16_t t) {
+
+  limit_min_ = t;
+  if (limit_min_ > limit_max_) {
+    uint16_t a = limit_min_;
+    limit_min_ = limit_max_;
+    limit_max_ = a;
+  }
+
+  // DEBUG_INFO(MOD_SERVOS, "[set min] | %s id=%u set min=%u (max=%u)\n", key_, id_, limit_min_, limit_max_);
+  dxl.torqueOff(id_);
+  dxl.writeControlTableItem(ControlTableItem::MIN_POSITION_LIMIT, id_, limit_min_);
+  dxl.writeControlTableItem(ControlTableItem::MAX_POSITION_LIMIT, id_, limit_max_);
+  dxl.torqueOn(id_);
+
+  // DEBUG_INFO(MOD_SERVOS, "[set min] servo control table min set | %s id=%u zero=%u min=%u max=%u dir=%d\n",
+  //      key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
+}
+void ServoConfig::set_max_ticks(uint16_t t) {
+
+  limit_max_ = t;
+  if (limit_min_ > limit_max_) {
+    uint16_t a = limit_min_;
+    limit_min_ = limit_max_;
+    limit_max_ = a;
+  }
+
+  // DEBUG_INFO(MOD_SERVOS, "[set max] | %s id=%u set max=%u (min=%u)\n", key_, id_, limit_max_, limit_min_);
+  dxl.torqueOff(id_);
+  dxl.writeControlTableItem(ControlTableItem::MIN_POSITION_LIMIT, id_, limit_min_);
+  dxl.writeControlTableItem(ControlTableItem::MAX_POSITION_LIMIT, id_, limit_max_);
+  dxl.torqueOn(id_);
+
+  // DEBUG_INFO(MOD_SERVOS, "[set max] servo control table max set | %s id=%u zero=%u min=%u max=%u dir=%d\n",
+  //    key_, id_, zero_ticks_, limit_min_, limit_max_, dir_);
+}
+
+// -------------------------------------------------------------------
+//                     SERVO CONFIG INSTANCES
+// -------------------------------------------------------------------
+
+#define MID_TICK 2048
+#define TICK_100DEG 1138
+#define TICK_10DEG 113
+
+#define DEFAULT_ZERO MID_TICK
+#define DEFAULT_MIN MID_TICK - TICK_100DEG
+#define DEFAULT_MAX MID_TICK + TICK_100DEG
+
+#define WRIST_ZERO 475
+#define BASE_ZERO 2735
+#define WRIST_MIN WRIST_ZERO - TICK_10DEG
+#define WRIST_MAX WRIST_ZERO + TICK_100DEG + TICK_100DEG
+
+ServoConfig arm1("arm1", ID_ARM1, DEFAULT_ZERO, -1.0, DEFAULT_MIN, DEFAULT_MAX);
+ServoConfig arm2("arm2", ID_ARM2, DEFAULT_ZERO, 1.0, DEFAULT_MIN, DEFAULT_MAX);
+ServoConfig wrist("wrist", ID_WRIST, WRIST_ZERO, 1.0, WRIST_MIN, WRIST_MAX);
+ServoConfig grip1("grip1", ID_GRIP1, DEFAULT_ZERO, 1.0, DEFAULT_MIN, DEFAULT_MAX);
+ServoConfig grip2("grip2", ID_GRIP2, DEFAULT_ZERO, -1.0, DEFAULT_MIN, DEFAULT_MAX);
+ServoConfig base("base", ID_BASE, BASE_ZERO, 1.0, DEFAULT_MIN, DEFAULT_MAX);
+
+ServoConfig *all_servos[] = { &arm1, &arm2, &wrist, &grip1, &grip2, &base };
+constexpr uint8_t SERVO_COUNT = sizeof(all_servos) / sizeof(all_servos[0]);
+
+// -------------------------------------------------------------------
+//                     ENFORCE SERVO LIMITS
+// -------------------------------------------------------------------
+
+void init_servo_limits() {
+
+  // load from eeprom
+  for (int i = 0; i < SERVO_COUNT; i++) {
+    ServoConfig *cfg = all_servos[i];
+    cfg->init();
+  }
+}
+
+// -------------------------------------------------------------------
+//                     HELPER FUNCTIONS
+// -------------------------------------------------------------------
+
+ServoConfig *find_servo(uint8_t id) {
+  for (uint8_t i = 0; i < SERVO_COUNT; i++)
+    if (all_servos[i]->get_id() == id) return all_servos[i];
+  return nullptr;
+}
+
+ServoConfig *find_servo(const char *name) {
+  for (uint8_t i = 0; i < SERVO_COUNT; i++)
+    if (strcasecmp(all_servos[i]->get_key(), name) == 0) return all_servos[i];
+  return nullptr;
+}
+
+double ticks2deg(uint8_t id, int ticks) {
+  if (auto *s = find_servo(id))
+    return (ticks - s->zero_ticks()) * (360.0 / 4096.0) * s->dir();
+  return 0.0;
+}
+
+int deg2ticks(uint8_t id, double deg) {
+  ServoConfig *s = find_servo(id);
+  if (!s) return 0;
+  return s->zero_ticks() + (int)round(deg / (360.0 / 4096.0) * s->dir());
+}
+
+int per2ticks(uint8_t id, double per) {
+  ServoConfig *s = find_servo(id);
+  if (!s) return 0;
+
+  double min_t = s->min_ticks();
+  double max_t = s->max_ticks();
+  double range = max_t - min_t;
+  double dir = s->dir();
+
+  if (range <= 0) return min_t;
+
+  // Clamp 0–100%
+  if (per < 0) per = 0;
+  if (per > 100) per = 100;
+
+  // Map percent to ticks considering direction
+  double ticks = (dir > 0)
+                   ? min_t + (per / 100.0) * range
+                   : max_t - (per / 100.0) * range;
+
+  return (int)round(ticks);
+}
+
+double ticks2per(uint8_t id, int ticks) {
+  ServoConfig *s = find_servo(id);
+  if (!s) return 0.0;
+
+  double min_t = s->min_ticks();
+  double max_t = s->max_ticks();
+  double dir = s->dir();
+  double range = max_t - min_t;
+
+  if (range <= 0) return 0.0;
+
+  double per = (dir > 0)
+                 ? (ticks - min_t) * 100.0 / range
+                 : (max_t - ticks) * 100.0 / range;
+
+  // Clamp to [0, 100]
+  if (per < 0) per = 0;
+  if (per > 100) per = 100;
+  return per;
+}
+
+double per2deg(uint8_t id, double per) {
+  ServoConfig *s = find_servo(id);
+  if (!s) return 0;
+  int ticks = per2ticks(id, per);
+  return ticks2deg(id, ticks);
+}
+
+uint8_t name2id(const char *name) {
+  ServoConfig *s = find_servo(name);
+  return s ? s->get_id() : 0;
+}
+
+const char *id2name(uint8_t id) {
+  ServoConfig *s = find_servo(id);
+  return s ? s->get_key() : "err";
+}
+
+String servo_id2name(uint8_t id) {
+  return String(id2name(id));
+}
+
+// -------------------------------------------------------------------
+//                           LED HELPERS
+// -------------------------------------------------------------------
+
+bool lOn(uint8_t id) {
+  RUN_PING(id);
+  dxl.ledOn(id);
+  return true;
+}
+bool lOff(uint8_t id) {
+  RUN_PING(id);
+  dxl.ledOff(id);
+  return true;
+}
+
+// -------------------------------------------------------------------
+//                GROUP OPERATIONS (MULTIPLE SERVOS)
+// -------------------------------------------------------------------
+void torqueOnGroup(const std::vector<uint8_t> &ids) {
+  for (auto id : ids)
+    if (dxl_ping_cached(id)) dxl.torqueOn(id);
+}
+
+void torqueOffGroup(const std::vector<uint8_t> &ids) {
+  for (auto id : ids)
+    if (dxl_ping_cached(id)) {
+      dxl.torqueOff(id);
+      delay(30);
+    }
+}
+
+// -------------------------------------------------------------------
+//                   POSITION + STATUS HELPERS
+// -------------------------------------------------------------------
+
+double getPos_deg(int id) {
+  return ticks2deg(id, dxl.getPresentPosition(id));
+}
+
+double getPos_per(int id) {
+  return ticks2per(id, dxl.getPresentPosition(id));
+}
+
+bool setGoal_deg(int id, double goal_deg) {
+  int goal_ticks = deg2ticks(id, goal_deg);
+  return safeSetGoalPosition(id, goal_ticks);
+}
+int getMin_ticks(int id) {
+  ServoConfig *s = find_servo(id);
+  if (!s) return 0;
+  return s->min_ticks();
+}
+
+int getMax_ticks(int id) {
+  ServoConfig *s = find_servo(id);
+  if (!s) return 0;
+  return s->max_ticks();
+}
+
+// -------------------------------------------------------------------
+//                        STALL DETECTION
+// -------------------------------------------------------------------
+
+bool checkStall(uint8_t id) {
+  int curr = dxl.getPresentCurrent(id);
+  int temp = dxl.readControlTableItem(ControlTableItem::PRESENT_TEMPERATURE, id);
+  if (temp >= TEMP_LIMIT_C || curr > STALL_CURRENT_mA) {
+    dxl.torqueOff(id);
+    lOn(id);
+    // DEBUG_ERR(MOD_SERVOS, " STALL id=%d curr=%d temp=%d\n", id, curr, temp);
+    return true;
+  }
+  return false;
+}
+
+// -------------------------------------------------------------------
+//                        READ STATUS (ALL OR SINGLE SERVO)
+// -------------------------------------------------------------------
+void print_servo_status(uint8_t id) {
+  //---- basic status for each servo ----
+  uint8_t startIndex = 0;
+  uint8_t endIndex = SERVO_COUNT;
+
+  if (id > 0) {
+    // find servo object by ID
+    ServoConfig *s = find_servo(id);
+
+    if (s) {
+      // find its index in the all_servos[] array
+      for (uint8_t i = 0; i < SERVO_COUNT; i++) {
+        if (all_servos[i] == s) {
+          startIndex = i;
+          endIndex = i + 1;
+          break;
+        }
+      }
+    }
+  }
+
+  for (uint8_t i = startIndex; i < endIndex && i < SERVO_COUNT; i++) {
+    ServoConfig *s = all_servos[i];
+    uint8_t sid = s->get_id();
+
+    if (!dxl_ping_cached(sid, true)) {
+      // DEBUG_ERR(MOD_SERVOS, " no ping name=%s id=%d\n", s->get_key(), sid);
+    } else {
+      int pos_ticks = dxl.getPresentPosition(sid);
+      int curr_mA = dxl.getPresentCurrent(sid);
+      int temp_C = dxl.readControlTableItem(ControlTableItem::PRESENT_TEMPERATURE, sid);
+
+      double pos_deg = ticks2deg(sid, pos_ticks);
+      double pos_per = ticks2per(sid, pos_ticks);  // percentage of configured range
+
+      LOG_INFO(MOD_SERVOS, "info", "servo_status");
+      LOG_VAR("servo_id", sid);
+      LOG_VAR("servo_name", id2name(sid));
+      LOG_VAR("pos_ticks", pos_ticks);
+      LOG_VAR("pos_deg", pos_deg);
+      LOG_VAR("pos_per", pos_per);
+      LOG_VAR("current_ma", curr_mA);
+      LOG_VAR("temp_c", temp_C);
+      LOG_VAR("min_ticks", s->min_ticks());
+      LOG_VAR("zero_ticks", s->zero_ticks());
+      LOG_VAR("max_ticks", s->max_ticks());
+    }
+  }
+
+  // ---- XY metrics (for 2-arm systems) ----
+  if (id == 0 && dxl_ping_cached(ID_ARM1) && dxl_ping_cached(ID_ARM2)) {
+    double _a1_servo_deg = ticks2deg(ID_ARM1, dxl.getPresentPosition(ID_ARM1));
+    double _a2_servo_deg = ticks2deg(ID_ARM2, dxl.getPresentPosition(ID_ARM2));
+    kin.solve_x_y_from_a1_a2(_a1_servo_deg, _a2_servo_deg);
+    print_kinematics_state();
+  } else if (id == 0) {
+    print_kinematics_state();
+  }
+}
+
+// -------------------------------------------------------------------
+//                   DXL PING CACHE (30s TTL)
+// -------------------------------------------------------------------
+
+static constexpr uint32_t DXL_PING_CACHE_TTL_MS = 30UL * 1000UL;
+
+struct ping_cache_entry_t {
+  bool valid;
+  bool present;
+  uint32_t last_check_ms;
+};
+
+static ping_cache_entry_t ping_cache[SERVO_COUNT];
+
+// -------------------------------------------------------------------
+// Cached ping wrapper
+// -------------------------------------------------------------------
+
+bool dxl_ping_cached(uint8_t id, bool invalidate_cache) {
+  uint32_t now = millis();
+
+  // Find servo index
+  for (uint8_t i = 0; i < SERVO_COUNT; i++) {
+    if (all_servos[i]->get_id() == id) {
+
+      ping_cache_entry_t &e = ping_cache[i];
+
+      // Use cached result if still valid
+      if (e.valid && (now - e.last_check_ms) < DXL_PING_CACHE_TTL_MS && !invalidate_cache) {
+        return e.present;
+      }
+
+      // Re-check
+      bool ok = dxl.ping(id);
+
+      e.valid = true;
+      e.present = ok;
+      e.last_check_ms = now;
+
+      return ok;
+    }
+  }
+
+  // Unknown ID → do NOT spam the bus
+  return false;
+}
