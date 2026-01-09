@@ -279,7 +279,7 @@ UIButton ui_buttons[] = {
   { 64, "y+", "k_color_y_plus", nullptr, true, false },
   { 65, "z+", "k_color_z_plus", nullptr, true, false },
 
-  { 66, "info", "k_servos_info", nullptr, true, false },
+  { 66, "info", "k_system_test", nullptr, true, false },
   { 67, "zero", "k_run_zero", nullptr, true, false },
   { 68, "stop", "k_set_stop_all", nullptr, true, false },
   { 69, "reboot", "k_reboot_all", nullptr, true, false },

@@ -7,9 +7,22 @@
 extern const int SCREEN_W;
 extern const int SCREEN_H;
 
-// ----------------------------------------------------------
-//                   FONT DEFINITIONS
-// ----------------------------------------------------------
+// ---------------------------------------------------------------------------------------------------------------------------------
+//  FONT DEFINITIONS
+//
+//  THE FOLLOWING CHANGES ARE NEEDED IN
+//
+//  C:\Users\gigel\AppData\Local\Arduino15\packages\arduino\hardware\mbed_giga\4.4.1\libraries\Arduino_H7_Video\src\lv_conf_8.h
+//  AND
+//  C:\Users\gigel\AppData\Local\Arduino15\packages\arduino\hardware\mbed_giga\4.4.1\libraries\Arduino_H7_Video\src\lv_conf_9.h
+//
+//  #define LV_FONT_MONTSERRAT_14 1
+//  #define LV_FONT_MONTSERRAT_26 1
+//  #define LV_FONT_MONTSERRAT_30 1
+//  #define LV_FONT_MONTSERRAT_40 1
+//
+// ---------------------------------------------------------------------------------------------------------------------------------
+
 #define FONT_TITLE_PTR &lv_font_montserrat_40
 #define FONT_BTN_LARGE_PTR &lv_font_montserrat_30
 #define FONT_BTN_SMALL_PTR &lv_font_montserrat_26

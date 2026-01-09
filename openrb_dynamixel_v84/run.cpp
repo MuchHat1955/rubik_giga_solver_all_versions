@@ -1190,7 +1190,7 @@ bool cmd_read_cube_colors(const String &mode_in) {
     if (!ok) {
       LOG_ERR(MOD_RUN, "color_analyzer_set_colors_failed", colors_just_read);
       String diagram_str = rubik_54_to_labeled_diagram(colors_just_read);
-      __serial.print(diagram_str);
+      Serial_giga_print(diagram_str);
       color_reader.clear_color_reader();
       ori.restore_cube_orientation();
       return false;

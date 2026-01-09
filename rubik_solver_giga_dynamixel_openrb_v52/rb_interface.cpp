@@ -79,15 +79,17 @@ bool RBInterface::send_stop_command() {
 // ============================================================
 void RBInterface::poll() {
   static String line;  // persists across calls
+  // LOG_PRINTF_RB("line {%s}\n", line.c_str());
 
   while (_SERIAL_RB.available()) {
     char c = _SERIAL_RB.read();
+    LOG_PRINTF_RB("c {%s}\n", c);
 
     if (c == '\n') {
       line.trim();
 
       if (!line.isEmpty()) {
-        LOG_PRINTF_RB("serial rb responded {%s}\n", line.c_str());
+        LOG_PRINTF_RB("line received {%s}\n", line.c_str());
         handle_line(line);
         line = "";  // reset for next line
         break;      // keep original behavior: handle one line per poll
@@ -95,8 +97,10 @@ void RBInterface::poll() {
 
       line = "";  // empty line, reset and continue
     } else {
+      LOG_PRINTF_RB("crr line {%s}\n", line.c_str());
       line += c;
     }
+    delay(2);
   }
 }
 
@@ -594,7 +598,7 @@ bool runCommand(const String& command,
       LOG_ERR("[RB] error=timeout command={%s}\n", command.c_str());
       return false;
     }
-    delay(1);
+    delay(2);
   }
 
   return cmd_states[id].ok_bool;

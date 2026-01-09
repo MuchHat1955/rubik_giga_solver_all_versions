@@ -41,8 +41,6 @@ public:
   }
 
 private:
-  HardwareSerial* serial_rb = &_SERIAL_RB;
-
   uint32_t current_cmd_id_ = 0;
   bool waiting_for_start_ = false;
   bool waiting_for_end_ = false;

@@ -971,8 +971,8 @@ bool cmdMoveGripperClamp() {
       if (per1 > 115.0) per1 = 115.0;
       if (per2 > 115.0) per2 = 115.0;
     }
-    // __serial.println(touched1);
-    // __serial.println(touched2);
+    // Serial_giga_println(touched1);
+    // Serial_giga_println(touched2);
     return (touched1 && touched2);
   }
   return false;

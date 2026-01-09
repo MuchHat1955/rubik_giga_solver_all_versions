@@ -102,7 +102,7 @@ void process_serial_command(const char* line);
 
 class serial_line_history {
 public:
-  explicit serial_line_history(Stream& s);
+  explicit serial_line_history();
 
   // Call frequently from loop()
   void poll();
@@ -120,8 +120,6 @@ public:
   void clear_partial();              // discard partial line
 
 private:
-  Stream& serial_;   // 🔴 THIS MUST BE Stream&, NOT HardwareSerial&
-
   // ring buffer for complete lines
   char lines_[LINE_HISTORY][LINE_MAX_LEN];
   int head_;     // index of newest line

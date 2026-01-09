@@ -648,7 +648,7 @@ const char jsonBuffer[] = R"json(
     "equal_columns": "all",
     "rows": [
        [
-        { "text": "info", "type": "action", "key": "k_servos_info","status": "yes" },
+        { "text": "tests", "type": "action", "key": "k_system_test","status": "yes" },
         { "text": "zero", "type": "action", "key": "k_run_zero","status": "yes" },
         { "text": "reboot", "type": "action", "key": "k_reboot_all","status": "yes" },
         { "text": "stop", "type": "action", "key": "k_set_stop_all","status": "yes" }

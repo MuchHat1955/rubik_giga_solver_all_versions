@@ -19,9 +19,9 @@
  *    - Dynamixel XL430 servos via Serial1 + DIR pin
  *    - Adafruit TCS34725 color sensor on I2C (SDA=20, SCL=21)
  *    - servos rb controller - connected over #define _SERIAL_RB Serial4 (in utils.h) 
- *        // board has a bug and shows Serial4 as serial3
+ *        // GIGA board has a bug and shows Serial4 as serial3
  *    - solver teensy 4.1 - connected over #define _SERIAL_SOLVER. Serial3 (in utils.h) 
- *        // board has a bug and shows Serial3 as Serial2
+ *        // GIGA board has a bug and shows Serial3 as Serial2
  *
  * ---------------------------------------------------------------
  *  Purpose:
@@ -35,6 +35,9 @@
 #include <lvgl.h>
 #include <Arduino_GigaDisplayTouch.h>
 #include <ArduinoJson.h>
+
+#include <Arduino_USBHostMbed5.h>
+
 #include <map>
 #include <vector>
 #include <algorithm>
@@ -84,7 +87,7 @@ lv_style_t style_num_btn_pressed;  // bright flash on press
 
 void buttonAction(const char* key, const char* name);
 int incrementValue(const char* key, int delta);
-bool runStartupTests();
+bool runStartupTests(bool force_run);
 
 String rb_version = "na";
 String solver_version = "na";
@@ -165,40 +168,13 @@ void setup() {
   }
 
   // ----------------------------------------------------------
-  // STARTUP SELF TEST
+  // STARTUP FOR SERIALS TO RB AND SOLVER
   // ----------------------------------------------------------
   init_rb_wrappers();
 
-  // start rb servos controller
-  bool rb_ok = !rb.begin();
-  if (!rb_ok) {
-    LOG_ERR("[RB] error=rb_interface_could_not_start\n");
-    setFooter("rb failed", _ERROR);
-    delay(666);
-  } else {
-    if (!runStartupTests()) {
-      LOG_ERR("[SYSTEM] error=startup_tests_failed\n");
-      setFooter("startup tests failed", _ERROR);
-      delay(666);
-    } else {
-      setFooter("startup test ok", _DONE_SUCCESS);
-    }
-  }
+  // below also starts the communication
+  runStartupTests(true);
 
-  // start teensy cube solution solver
-  bool solver_ok = solver_begin();
-  if (!solver_ok) {
-    LOG_ERR("[SOLVER] error=solver_interface_could_not_start\n");
-    if (rb_ok) setFooter("rb ok | solver failed", _ERROR);
-    else setFooter("rb failed | solver failed", _ERROR);
-    delay(666);
-  } else {
-    if (rb_ok) setFooter("rb ok | solver ok", _ERROR);
-    else {
-      setFooter("rb failed | solver ok", _ERROR);
-      delay(666);
-    }
-  }
   LOG_PRINTF("---- [SETUP] end ----\n");
 }
 
@@ -210,7 +186,7 @@ void loop() {
 
   rb.poll();
 
-  update_bee_logging();
+  // update_bee_logging(); TODO -> NOT USED
 
   // Run LVGL event handler
   ui_loop();

@@ -1,10 +1,5 @@
 /*
 HARDWARE IS OpenRB-150
-to debug recompile with serial instead of serial1
-
-// TODO change below in utils.h for debugging vs normal usage
-#define __serial Serial // logs in IDE for debugging
-#define __serial Serial2 // normal usage, nothing shows in IDE
 */
 
 #include <Arduino.h>
@@ -19,7 +14,6 @@ to debug recompile with serial instead of serial1
 #include <math.h>
 #include <algorithm>
 
-bool serial_ok = false;
 String version_str = "na";
 String protocol_str = "protocol v1";
 
@@ -31,7 +25,7 @@ void serial_print_lowercase(const char *s) {
   while (*s) {
     char c = *s++;
     if (c >= 'A' && c <= 'Z') c = c - 'A' + 'a';
-    __serial.print(c);
+    Serial_giga_print(c);
   }
 }
 
@@ -56,7 +50,7 @@ const char *extract_version_from_file() {
 }
 
 void print_build_banner() {
-  __serial.print("----- dynamixel servos controller ");
+  Serial_giga_print("----- dynamixel servos controller ");
   version_str = String(extract_version_from_file());
   version_str += " | built ";
   version_str += String(__DATE__);
@@ -65,8 +59,8 @@ void print_build_banner() {
   version_str += " | ";
   version_str += protocol_str;
   version_str.toLowerCase();
-  __serial.print(version_str.c_str());
-  __serial.println(" -----");
+  Serial_giga_print(version_str.c_str());
+  Serial_giga_println(" -----");
 }
 
 // -------------------------------------------------------------------
@@ -74,16 +68,11 @@ void print_build_banner() {
 // -------------------------------------------------------------------
 
 void setup() {
-  Serial.begin(115300);
+  Serial.begin(115200);
   delay(555);
-  Serial.println("setup started");
+  Serial.println("[RB ECHO] setup started");
 
-  __serial.begin(115200);
-  unsigned long end_millis = millis() + 11000;
-  while (!__serial && millis() < end_millis) {
-    delay(11);
-  }
-  if (__serial) serial_ok = true;
+  Serial_giga_begin(115200);
   delay(666);
 
   init_color_sensor();
@@ -124,15 +113,15 @@ void setup() {
     }
   }
 
-  __serial.println();
+  Serial_giga_println_empty();
   print_build_banner();
-  __serial.println(get_help_text());
-  __serial.println("----------------------------------------------------------------------------");
+  Serial_giga_println(get_help_text());
+  Serial_giga_println("----------------------------------------------------------------------------");
 
   init_servo_limits();
-  __serial.println();
+  Serial_giga_println_empty();
 
-  Serial.println("setup end");
+  Serial.println("[RB ECHO] setup end");
 }
 
 // -------------------------------------------------------------------
@@ -145,8 +134,6 @@ void loop() {
   if (serial_line.count() < 1) return;
 
   const char *line = serial_line.read(0);
-  Serial.print("loop line received=");
-  Serial.println(line);
   if (!line) return;
 
   process_serial_command(line);

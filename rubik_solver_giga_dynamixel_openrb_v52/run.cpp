@@ -16,6 +16,7 @@ int last_onecolor_read_slot = -1;
 
 String getRbVersion();
 String getSolverVersion();
+bool runStartupTests(bool force_run);
 
 //-----------------------------------------------------------------------------------------
 
@@ -319,17 +320,28 @@ bool runSolveCubeRunSolutionByKey(const char* key, bool& result) {
   return true;  //handled
 }
 
+unsigned long millis_last_tests_run = 0;
+
 // TODO-> TO TEST
 bool runSystemByKey(const char* key, bool& result) {
   if (!key) return false;
 
   String cmd;
 
-  if (strcmp(key, "k_servos_info") == 0) cmd = "INFOSERVO";
-  else if (strcmp(key, "k_reboot_all") == 0) cmd = "REBOOTALL";
+  if (strcmp(key, "k_reboot_all") == 0) cmd = "REBOOTALL";
   else if (strcmp(key, "k_set_stop_all") == 0) cmd = "SETSTOPALL";
   else if (strcmp(key, "k_run_zero") == 0) cmd = "RUN 0";
   else return false;
+
+  if (strcmp(key, "k_system_test") == 0) {
+    setFooter("running... startup tests", _RUNNING_NOSTOP);
+    bool force_run = false;
+    // run twice in a row and 2nd one will rerun all resulting of results
+    if (millis_last_tests_run > 0 && millis() < millis_last_tests_run + 33000) force_run = true;
+    runStartupTests(force_run);
+    millis_last_tests_run = millis();
+    return true;
+  }
 
   String text = "running... " + cmd;
   if (strcmp(key, "k_run_zero") == 0) setFooter(text.c_str(), _RUNNING_STOP);

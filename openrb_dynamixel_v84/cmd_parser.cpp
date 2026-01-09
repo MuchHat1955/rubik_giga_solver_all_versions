@@ -153,8 +153,8 @@ bool cmd_get_version(int argc, double *argv) {
 }
 
 bool cmd_help(int argc, double *argv) {
-  __serial.println();
-  __serial.println(get_help_text());
+  Serial_giga_println_empty();
+  Serial_giga_println(get_help_text());
   return true;
 }
 
@@ -250,8 +250,7 @@ void process_serial_command(String &line) {
   U.trim();
   U.toUpperCase();
 
-    Serial.print("process serial command=");
-  Serial.println(line);
+  increment_cmd_no();
 
   // derive count of args and id flag from format
   auto derive_format_info = [](const char *fmt, int &min_args) {
@@ -405,7 +404,6 @@ void process_serial_command(String &line) {
       if (argn > 0) p1 = (double)argv[0];
 
       //
-      increment_cmd_no();
       LOG_LN();
       LOG_INFO(MOD_CMD, "command_start", cmd.name);
       LOG_VAR("arg", p1);
@@ -447,9 +445,8 @@ void process_serial_command(const char *line) {
 // class serial_line_history
 // ============================================================
 
-serial_line_history::serial_line_history(Stream &s)
-  : serial_(s),
-    head_(0),
+serial_line_history::serial_line_history()
+  : head_(0),
     count_(0),
     cur_len_(0) {
 }
@@ -459,15 +456,13 @@ serial_line_history::serial_line_history(Stream &s)
 // ============================================================
 
 void serial_line_history::poll() {
-  while (serial_.available()) {
-    char c = serial_.read();
+  while (Serial_giga_available()) {
+    char c = Serial_giga_read();
 
     if (c == '\r') continue;
 
     if (c == '\n') {
       commit_line();
-      Serial.print("line received=");
-      Serial.println(cur_);
       return;  // process one full line per poll
     }
 
@@ -557,6 +552,13 @@ void serial_line_history::clear_partial() {
 void serial_line_history::commit_line() {
   cur_[cur_len_] = '\0';
 
+  //Serial.print("[GIGA] line=");
+  //Serial.println(cur_);
+
+  // echo
+  Serial_giga_print("[RB ECHO] line=");
+  Serial_giga_println(cur_);
+
   head_ = (head_ + 1) % LINE_HISTORY;
   strncpy(lines_[head_], cur_, LINE_MAX_LEN);
   lines_[head_][LINE_MAX_LEN - 1] = '\0';
@@ -572,4 +574,4 @@ int serial_line_history::resolve_index(int idx) const {
   return (head_ - idx + LINE_HISTORY) % LINE_HISTORY;
 }
 
-serial_line_history serial_line(__serial);
+serial_line_history serial_line;
