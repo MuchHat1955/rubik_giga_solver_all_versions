@@ -74,15 +74,19 @@ void print_build_banner() {
 // -------------------------------------------------------------------
 
 void setup() {
+  Serial.begin(115300);
+  delay(555);
+  Serial.println("setup started");
+
   __serial.begin(115200);
   unsigned long end_millis = millis() + 11000;
-  while (!Serial && millis() < end_millis) {
+  while (!__serial && millis() < end_millis) {
     delay(11);
   }
-  if (Serial) serial_ok = true;
+  if (__serial) serial_ok = true;
   delay(666);
 
-  init_color_sensor_led();
+  init_color_sensor();
 
   dxl.begin(57600);
   dxl.setPortProtocolVersion(PROTOCOL);
@@ -127,6 +131,8 @@ void setup() {
 
   init_servo_limits();
   __serial.println();
+
+  Serial.println("setup end");
 }
 
 // -------------------------------------------------------------------
@@ -139,6 +145,8 @@ void loop() {
   if (serial_line.count() < 1) return;
 
   const char *line = serial_line.read(0);
+  Serial.print("loop line received=");
+  Serial.println(line);
   if (!line) return;
 
   process_serial_command(line);

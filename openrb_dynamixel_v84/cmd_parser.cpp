@@ -249,6 +249,10 @@ void process_serial_command(String &line) {
   String U = line;
   U.trim();
   U.toUpperCase();
+
+    Serial.print("process serial command=");
+  Serial.println(line);
+
   // derive count of args and id flag from format
   auto derive_format_info = [](const char *fmt, int &min_args) {
     min_args = 0;
@@ -398,7 +402,7 @@ void process_serial_command(String &line) {
 
       // ~~~~~~~~~~~~~~~- Execute Command ~~~~~~~~~~~~~~~-
       double p1 = 0;
-      if (argc > 0) p1 = (double)argv[0];
+      if (argn > 0) p1 = (double)argv[0];
 
       //
       increment_cmd_no();
@@ -407,7 +411,7 @@ void process_serial_command(String &line) {
       LOG_VAR("arg", p1);
 
       // read_print_kinematics_state();
-      bool ok = cmd.handler(argc, argv);
+      bool ok = cmd.handler(argn, argv);
       if (!cmd.handler) {
         LOG_ERR(MOD_CMD, "error", "no_handler");
         LOG_VAR("command", cmd.name);
@@ -462,6 +466,8 @@ void serial_line_history::poll() {
 
     if (c == '\n') {
       commit_line();
+      Serial.print("line received=");
+      Serial.println(cur_);
       return;  // process one full line per poll
     }
 
@@ -566,4 +572,4 @@ int serial_line_history::resolve_index(int idx) const {
   return (head_ - idx + LINE_HISTORY) % LINE_HISTORY;
 }
 
-serial_line_history serial_line(Serial);
+serial_line_history serial_line(__serial);

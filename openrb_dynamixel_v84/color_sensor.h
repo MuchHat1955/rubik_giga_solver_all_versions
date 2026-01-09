@@ -3,4 +3,4 @@
 #include "log.h"
 
 char read_color();
-void init_color_sensor_led();
+bool init_color_sensor();

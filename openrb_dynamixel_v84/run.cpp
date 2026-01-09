@@ -90,17 +90,17 @@ bool robot_move_callback(const String &mv) {
   LOG_INFO(MOD_ROBOTMOVE, "info", "robot_move_start");
   LOG_VAR("move", mv.c_str());
 
-  if (mv == "z_plus") return cmd_run_right_down();
-  if (mv == "z_minus") return cmd_run_left_down();
-  if (mv == "z_180") return cmd_run_top_down();
+  if (mv == "z_plus" || mv == "z+") return cmd_run_right_down();
+  if (mv == "z_minus" || mv == "z-") return cmd_run_left_down();
+  if (mv == "z_180" || mv == "z2") return cmd_run_top_down();
 
-  if (mv == "y_plus") return cmd_run_cube_left();
-  if (mv == "y_minus") return cmd_run_cube_right();
-  if (mv == "y_180") return cmd_run_cube_back();
+  if (mv == "y_plus" || mv == "y+") return cmd_run_cube_left();
+  if (mv == "y_minus" || mv == "y-") return cmd_run_cube_right();
+  if (mv == "y_180" || mv == "y2") return cmd_run_cube_back();
 
-  if (mv == "d_minus") return cmd_run_down_layer(RUN_DOWN_LEFT);
-  if (mv == "d_plus") return cmd_run_down_layer(RUN_DOWN_RIGHT);
-  if (mv == "d_180") return cmd_run_down_layer(RUN_DOWN_BACK);
+  if (mv == "d_minus" || mv == "d+") return cmd_run_down_layer(RUN_DOWN_LEFT);
+  if (mv == "d_plus" || mv == "d-") return cmd_run_down_layer(RUN_DOWN_RIGHT);
+  if (mv == "d_180" || mv == "d2") return cmd_run_down_layer(RUN_DOWN_BACK);
 
   LOG_ERR(MOD_RUN, "error", "invalid robot move");
   LOG_VAR("move", mv.c_str());

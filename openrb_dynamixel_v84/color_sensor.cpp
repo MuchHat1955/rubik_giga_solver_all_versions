@@ -12,9 +12,23 @@ static bool tcs_initialized = false;
 
 #define COLOR_SENSOR_LED_PIN 10  // choose any free digital pin
 
-void init_color_sensor_led() {
+bool init_color_sensor() {
+  bool ok = false;
+
+    if (!tcs_initialized) {
+    DEBUG_INFO(MOD_COLORSENSOR, "tcs_begin");
+    if (!tcs.begin()) {
+      DEBUG_ERR(MOD_COLORSENSOR, "tcs_not_found");
+      ok=false;;
+    }
+    tcs_initialized = true;
+    DEBUG_INFO(MOD_COLORSENSOR, "tcs_initialized");
+    ok = true;
+  }
+
   pinMode(COLOR_SENSOR_LED_PIN, OUTPUT);
   analogWrite(COLOR_SENSOR_LED_PIN, 0);  // LED OFF (active LOW)
+  return ok;
 }
 
 void color_sensor_led_on() {

@@ -65,6 +65,7 @@ void log_begin(log_module_t e_module, int i_type, const char *key, const String 
 void log_begin_str(log_module_t enum_module, int i_type, const char *key, const String v) {
 #if LOG_ENABLE || DEBUG_ENABLE
   if (!serial_ok) return;
+
   if (log_line_open > 0) {
     __serial.println();
     log_line_open--;
@@ -97,6 +98,11 @@ void log_begin_str(log_module_t enum_module, int i_type, const char *key, const 
   serial_print_with_underscores(key);
   __serial.print("=");
   serial_print_with_underscores(v.c_str());
+
+  Serial.print("logging ");
+  Serial.print(key);
+  Serial.print("=");
+  Serial.println(v);
 
   log_line_open = 1;
 #else
