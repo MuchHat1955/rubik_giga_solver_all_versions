@@ -28,7 +28,7 @@ static bool solver_startup_tests_ok = false;
 bool runStartupTests(bool force_rerun) {
 
   if (!force_rerun &&                                  //
-      rb_startup_test_ok && solver_startup_test_ok &&  //
+      rb_startup_tests_ok && solver_startup_tests_ok &&  //
       rb_begin_ok && solver_begin_ok) {
     LOG_PRINTF_RUN("startup tests skipped | already run and ok/n");
     setFooter("startup tests | rb ok | solver ok", _DONE_SUCCESS);
@@ -52,7 +52,7 @@ bool runStartupTests(bool force_rerun) {
       if (rb_begin_ok) delay(666);
     }
     // start teensy cube solver serial
-    if (!solver_begin_ok || force_rerun)) {
+    if (!solver_begin_ok || force_rerun) {
         setFooter("starting... solver", _RUNNING_NOSTOP);
         solver_begin_ok = solver_begin();
         if (solver_begin_ok) delay(666);
@@ -78,8 +78,8 @@ bool runStartupTests(bool force_rerun) {
 
   // run tests only if both begin are ok
   if (rb_begin_ok && solver_begin_ok) {
-    if (!rb_startup_tests_ok || force_rerun)) rb_startup_tests_ok = runRbStartupTests();
-    if (!solver_startup_tests_ok || force_rerun)) solver_startup_tests_ok = runSolverStartupTests();
+    if (!rb_startup_tests_ok || force_rerun) rb_startup_tests_ok = runRbStartupTests();
+    if (!solver_startup_tests_ok || force_rerun) solver_startup_tests_ok = runSolverStartupTests();
 
     if (!rb_startup_tests_ok) LOG_ERR("[RB] error=rb_startup_tests_failed\n");
     if (!solver_startup_tests_ok) LOG_ERR("[SOLVER] error=solver_startup_tests_failed\n");
@@ -118,6 +118,7 @@ bool runSolverStartupTests() {
   //TODO->TO IMPLEMENT add a startup test for solver, send a test cube
 
   LOG_PRINTF("---- start solver startup run tests\n");
+  bool tests_ok=true;
 
   /*/
   int cmd_id = 0;
