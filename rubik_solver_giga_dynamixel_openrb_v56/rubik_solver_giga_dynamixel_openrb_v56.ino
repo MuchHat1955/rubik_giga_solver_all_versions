@@ -125,6 +125,7 @@ String getSketchVersionWithDate() {
   return ver + " " + d + " " + t;
 }
 
+/* below are tests
 static void read_serial(HardwareSerial& s, const char* tag) {
   while (s.available()) {
     char c = s.read();
@@ -148,13 +149,14 @@ static void print_serial() {
   read_serial(Serial3, "s3");
   read_serial(Serial4, "s4");
 }
+*/
 
 void __delay(unsigned long a_delay) {
   unsigned long start = millis();
 
   while (millis() - start < a_delay) {
-    rb.poll();          // keep draining RB UART
-    delay(0);           // yield without blocking RX
+    rb.poll();  // keep draining RB UART
+    delay(0);   // yield without blocking RX
   }
 }
 
@@ -178,7 +180,7 @@ void setup() {
   ui_init();  // sets up LVGL + touch + draws initial menu
 
   // test
-  begin_serial();
+  // begin_serial();
 
   // ----------------------------------------------------------
   // STYLE INITIALIZATION (LVGL)

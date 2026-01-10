@@ -189,7 +189,11 @@ bool runRunOrientationByKey(const char* key, bool& result) {
   send_orientation_data_bool = true;
   result = runCommand(cmd, "", &cmd_id);
   send_orientation_data_bool = false;
+
   // TODO parse and check if logging for CHECKORI says ok
+  // TODO print in footer the result of DETECT from ori_orientation=u->u_r->r_f->f_d->d_l->l_b->b, short version
+  // and update the respective text buttons
+  // TODO ONECOLOR does not send back the color
 
   if (!result) {
     LOG_ERR("[RUN] error=%s", getLastError(cmd_id).c_str());
@@ -220,6 +224,7 @@ bool runColorStickerByKey(const char* key, bool& result) {
 
   // ---------------- Run command ----------------
   int cmd_id = -1;
+  last_onecolor_read_slot = slot.toInt();
   result = runCommand("ONECOLOR", slot, &cmd_id);
 
   // ---------------- Footer + logging ----------------
@@ -231,8 +236,17 @@ bool runColorStickerByKey(const char* key, bool& result) {
   } else {
     int icmd = -1;
     char one_color_char = getLastColorOneColor(&icmd);
-    last_onecolor_read_slot = slot.toInt();
-    buttons_set_text_by_key(key, String(one_color_char).c_str());
+    /*
+    // below is already handled in INFO
+    static int lastSlot = -1;
+    static char lastClr = '.';
+    if (lastClr != one_color_char || lastSlot != last_onecolor_read_slot) {
+      // avoid using the one below too often
+      buttons_set_text_by_key(key, String(one_color_char).c_str());
+      lastClr = one_color_char;
+      lastSlot = last_onecolor_read_slot;
+    }
+    */
     text = String("read color sticker c") + slot + " " + String(one_color_char) + " done";
     setFooter(text.c_str(), _DONE_SUCCESS);
   }

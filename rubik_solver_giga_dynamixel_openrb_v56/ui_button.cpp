@@ -155,6 +155,10 @@ void buttons_set_text_by_key(const char* key, const char* a_text, bool refresh_u
   UIButton* btn_ptr = find_button_by_key(key);
   if (!btn_ptr) return;
 
+  if (strcmp(btn_ptr->get_text(), a_text) == 0) {
+    LOG_PRINTF_MENU("buttons_set_text_by_key already set key {%s} refresh_ui {%d}\n", key, refresh_ui);
+    return;
+  }
   LOG_PRINTF_MENU("buttons_set_text_by_key key {%s} refresh_ui {%d}\n", key, refresh_ui);
 
   btn_ptr->set_text(a_text);
@@ -178,12 +182,14 @@ void buttons_set_text_by_key(const char* key, const char* a_text, bool refresh_u
 void buttons_set_color_string(const char* color_string) {
   set_last_color_string_54(color_string);
 }
-void buttons_set_one_color_string(const char one_color) {
-  char clr_char = one_color;
+void buttons_set_one_color_string(char clr_char) {
 
-  String key_str = String("k_color_c") + String(last_onecolor_read_slot);
-  buttons_set_text_by_key(key_str.c_str(), String(clr_char).c_str());
+  char text[2] = { clr_char, '\0' };
+
+  String key_str = "k_color_c" + String(last_onecolor_read_slot);
+  buttons_set_text_by_key(key_str.c_str(), text, true);
 }
+
 // ============================================================================
 // Global button registry
 // ============================================================================

@@ -62,9 +62,9 @@ void print_build_banner() {
   Serial_giga_print(version_str.c_str());
   Serial_giga_println(" -----");
 
-  Serial.print("[RB ECHO] build banner {");
-  Serial.print(version_str.c_str());
-  Serial.println("}");
+  //Serial.print("[RB ECHO] build banner {");
+  //Serial.print(version_str.c_str());
+  //Serial.println("}");
 }
 
 // -------------------------------------------------------------------

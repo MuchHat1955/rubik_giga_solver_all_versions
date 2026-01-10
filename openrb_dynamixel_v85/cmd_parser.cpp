@@ -424,7 +424,9 @@ void process_serial_command(String &line) {
   // --------------------------------------------------
   // Execute command
   // --------------------------------------------------
+  LOG_LN();
   bool ok = process_serial_command_run(line);
+  LOG_LN();
 
   // --------------------------------------------------
   // End command (MOVED HERE)
@@ -463,9 +465,9 @@ bool process_serial_command_run(String &line) {
       }
     }
   };
-  Serial.print("[RB ECHO] processing serial command line {");
-  Serial.print(line.c_str());
-  Serial.println("}");
+  //Serial.print("[RB ECHO] processing serial command line {");
+  //Serial.print(line.c_str());
+  //Serial.println("}");
 
   max_speed = 1.0;
   speed = 1.0;
@@ -765,8 +767,8 @@ void serial_line_history::commit_line() {
   //Serial.println(cur_);
 
   // echo
-  Serial_giga_print("[RB ECHO] line=");
-  Serial_giga_println(cur_);
+  // Serial_giga_print("[RB ECHO] line=");
+  // Serial_giga_println(cur_);
 
   head_ = (head_ + 1) % LINE_HISTORY;
   strncpy(lines_[head_], cur_, LINE_MAX_LEN);

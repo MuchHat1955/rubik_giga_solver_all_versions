@@ -190,6 +190,8 @@ void RBInterface::handle_line(const String& line) {
     payload.trim();
 
     if (info_cb_) info_cb_(module, id, payload);
+  } else {
+    LOG_PRINTF_RB("unhandled line {%s}\n", line.c_str());
   }
 }
 
@@ -421,7 +423,8 @@ static void rb_info_cb(const String& mod,
   // info=read_one_color color=G
   // ------------------------------------------------------------
   if (msg.indexOf("read_one_color") >= 0) {
-    int eq = msg.indexOf('color=');
+    // LOG_PRINTF("[RB INFO] read_one_color msg {%s}\n", msg.c_str());
+    int eq = msg.indexOf("color=");
     if (eq > 0) {
       String value = msg.substring(eq + 1);
       value.trim();
@@ -429,10 +432,18 @@ static void rb_info_cb(const String& mod,
       st.color_one_color_char = value.charAt(0);
       last_color_one_color_char = st.color_one_color_char;
       last_color_one_color_cmd = id;
+
       // update buttons
-      buttons_set_one_color_string(last_color_one_color_char);
+      static int last_cmd = -1;
+      static char last_clr = '.';
+      if (last_color_one_color_char != last_clr ||  //
+          last_cmd != last_color_one_color_cmd) {
+        // avoid calling above too often
+        buttons_set_one_color_string(last_color_one_color_char);
+        last_clr = last_color_one_color_char;
+        last_cmd == last_color_one_color_cmd;
+      }
     }
-    return;
   }
 
   // ------------------------------------------------------------
@@ -524,7 +535,7 @@ static void rb_info_cb(const String& mod,
     value.trim();
     st.version_string = value;
 
-    LOG_PRINTF("[RB INFO] version is %s\n", value.c_str());
+    LOG_PRINTF("[RB INFO] version {%s}\n", value.c_str());
 
     // ✅ COMPLETE VERSION COMMAND HERE
     st.finished_bool = true;
@@ -569,6 +580,7 @@ static void rb_info_cb(const String& mod,
     }
     return;
   }
+  LOG_PRINTF("[RB INFO] msg not parsed {%s}\n", msg.c_str());
 }
 
 String getLastColorString() {
@@ -625,7 +637,7 @@ bool runCommand(const String& command, const String& params, int* cmdId) {
   unsigned long t0 = millis();
   while (!cmd_states[id].finished_bool) {
     rb.poll();
-    if (millis() - t0 > SERIAL_CMD_END_TIMEOUT) { //TODO make this variable as INFO messages come back as oposite to 30 mins now
+    if (millis() - t0 > SERIAL_CMD_END_TIMEOUT) {  //TODO make this variable as INFO messages come back as oposite to 30 mins now
       cmd_states[id].last_error = "timeout_waiting_for_command_end_command\n";
       LOG_ERR("[RB] error=timeout_waiting_for_command_end_command={%s} id=%lu\n",
               command.c_str(), (unsigned long)id);
@@ -634,7 +646,7 @@ bool runCommand(const String& command, const String& params, int* cmdId) {
     delay(2);
   }
   LOG_PRINTF_RUN("end... command {%s} params {%s} id {%d} result {%s}\n",  //
-             command.c_str(), params.c_str(), id, cmd_states[id].ok_bool ? "ok" : "fail");
+                 command.c_str(), params.c_str(), id, cmd_states[id].ok_bool ? "ok" : "fail");
   return cmd_states[id].ok_bool;
 }
 

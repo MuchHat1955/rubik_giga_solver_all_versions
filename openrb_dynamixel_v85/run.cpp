@@ -986,7 +986,9 @@ bool cmd_read_one_color(int argc, double *argv) {
 
   char c = cmd_read_one_color_run(slot);
   LOG_INFO(MOD_COLORSENSOR, "info", "read_one_color");
+  LOG_VAR("slot", slot);
   LOG_VAR("color", c);
+  LOG_LN();
 
   if (c == '.') return false;
   return true;

@@ -77,6 +77,7 @@ void log_begin_str(log_module_t enum_module, int i_type, const char *key, const 
 
 
   if (enum_module == MOD_RUN) Serial_giga_print("RUN");
+  if (enum_module == MOD_CMD) Serial_giga_print("CMD");
   if (enum_module == MOD_SERVO_MOVE) Serial_giga_print("SERVOMOVE");
   if (enum_module == MOD_SERVOS) Serial_giga_print("SERVOS");
   if (enum_module == MOD_COLORSCAN) Serial_giga_print("COLORSCAN");
@@ -84,7 +85,8 @@ void log_begin_str(log_module_t enum_module, int i_type, const char *key, const 
   if (enum_module == MOD_CUBEORI) Serial_giga_print("CUBEORI");
   if (enum_module == MOD_CUBEMOVE) Serial_giga_print("CUBEMOVE");
   if (enum_module == MOD_ROBOTMOVE) Serial_giga_print("ROBOTMOVE");
-  if (enum_module == MOD_CMD) Serial_giga_print("CMD");
+  if (enum_module == MOD_COLORSENSOR) Serial_giga_print("COLORSENSOR");
+  if (enum_module == MOD_KIN) Serial_giga_print("KIN");
 
   Serial_giga_print(" (");
   Serial_giga_print(cmd_no);
