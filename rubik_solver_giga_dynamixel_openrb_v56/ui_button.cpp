@@ -187,6 +187,10 @@ void buttons_set_one_color_string(char clr_char) {
   char text[2] = { clr_char, '\0' };
 
   String key_str = "k_color_c" + String(last_onecolor_read_slot);
+
+  LOG_PRINTF_MENU("DBG color char='%c' hex=0x%02X\n",
+                  clr_char, (unsigned char)clr_char);
+
   buttons_set_text_by_key(key_str.c_str(), text, true);
 }
 

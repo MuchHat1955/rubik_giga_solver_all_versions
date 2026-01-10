@@ -302,6 +302,17 @@ void set_last_orientation(String a_ori) {
   last_orientation = a_ori;
 }
 
+static bool extract_kv(const String& msg, const char* key, String& out) {
+  int p = msg.indexOf(key);
+  if (p < 0) return false;
+
+  p += strlen(key);
+  int e = msg.indexOf(' ', p);
+  out = msg.substring(p, e < 0 ? msg.length() : e);
+  out.trim();
+  return true;
+}
+
 static void rb_command_end_cb(uint32_t id,
                               const String& result,
                               const String& duration) {
@@ -352,27 +363,19 @@ static void rb_info_cb(const String& mod,
     st_servo.cmd_id = id;
 
     auto extract_int = [&](const char* key, int& out) {
-      int p = msg.indexOf(key);
-      if (p < 0) return;
-      p += strlen(key);
-      int e = msg.indexOf(' ', p);
-      out = msg.substring(p, e < 0 ? msg.length() : e).toInt();
+      String v;
+      if (!extract_kv(msg, key, v)) return;
+      out = v.toInt();
     };
 
     auto extract_float = [&](const char* key, float& out) {
-      int p = msg.indexOf(key);
-      if (p < 0) return;
-      p += strlen(key);
-      int e = msg.indexOf(' ', p);
-      out = msg.substring(p, e < 0 ? msg.length() : e).toFloat();
+      String v;
+      if (!extract_kv(msg, key, v)) return;
+      out = v.toFloat();
     };
 
     auto extract_string = [&](const char* key, String& out) {
-      int p = msg.indexOf(key);
-      if (p < 0) return;
-      p += strlen(key);
-      int e = msg.indexOf(' ', p);
-      out = msg.substring(p, e < 0 ? msg.length() : e);
+      extract_kv(msg, key, out);
     };
 
     extract_int("servo_id=", st_servo.servo_id);
@@ -393,25 +396,22 @@ static void rb_info_cb(const String& mod,
       last_servo_status_by_id[st_servo.servo_id] = st_servo;
       last_servo_status_cmd = id;
     }
-
     return;
   }
 
   // ------------------------------------------------------------
-  // COLORSCAN color_string_curr / color_string_curr_face
+  // COLORSCAN color_string_curr
   // ------------------------------------------------------------
   if (msg.indexOf("color_string_curr") >= 0) {
-    int eq = msg.indexOf('=');
-    if (eq > 0) {
-      String value = msg.substring(eq + 1);
-      value.trim();
+    String value;
+    if (extract_kv(msg, "color_string_curr=", value)) {
 
       st.color_string_curr = value;
       last_color_string_curr = value;
       last_color_string_curr_cmd = id;
+
       if (send_cube_view_bool) {
         ui_cube_view_set_colors(value);
-        // update buttons
         buttons_set_color_string(value.c_str());
       }
     }
@@ -419,167 +419,162 @@ static void rb_info_cb(const String& mod,
   }
 
   // ------------------------------------------------------------
-  // COLORSCAN color_string_curr / color_string_curr_face
-  // info=read_one_color color=G
+  // COLORSCAN read_one_color
+  // info=read_one_color slot=2 color=G
   // ------------------------------------------------------------
   if (msg.indexOf("read_one_color") >= 0) {
-    // LOG_PRINTF("[RB INFO] read_one_color msg {%s}\n", msg.c_str());
-    int eq = msg.indexOf("color=");
-    if (eq > 0) {
-      String value = msg.substring(eq + 1);
-      value.trim();
 
-      st.color_one_color_char = value.charAt(0);
-      last_color_one_color_char = st.color_one_color_char;
+    String value;
+    if (extract_kv(msg, "color=", value) && value.length() == 1) {
+
+      char clr = value[0];
+
+      st.color_one_color_char = clr;
+      last_color_one_color_char = clr;
       last_color_one_color_cmd = id;
 
-      // update buttons
       static int last_cmd = -1;
       static char last_clr = '.';
-      if (last_color_one_color_char != last_clr ||  //
-          last_cmd != last_color_one_color_cmd) {
-        // avoid calling above too often
-        buttons_set_one_color_string(last_color_one_color_char);
-        last_clr = last_color_one_color_char;
-        last_cmd == last_color_one_color_cmd;
+
+      if (last_clr != clr || last_cmd != (int)id) {
+        buttons_set_one_color_string(clr);
+        last_clr = clr;
+        last_cmd = id;
       }
     }
+    return;
   }
 
   // ------------------------------------------------------------
   // COLORSCAN color_read_step
   // ------------------------------------------------------------
-  const char* k_color_step = "color_read_step=";
-  if (msg.startsWith(k_color_step)) {
-    int step = msg.substring(strlen(k_color_step)).toInt();
+  {
+    String v;
+    if (extract_kv(msg, "color_read_step=", v)) {
+      int step = v.toInt();
 
-    st.color_read_step = step;
-    last_color_read_step = step;
-    last_color_read_step_cmd = id;
+      st.color_read_step = step;
+      last_color_read_step = step;
+      last_color_read_step_cmd = id;
 
-    // TODO-> TO TEST
-    if (send_readcolors_progress_bool) {
-      ui_moves_progress_set_index(step);
+      if (send_readcolors_progress_bool) {
+        ui_moves_progress_set_index(step);
+      }
+      return;
     }
-    //
-    return;
   }
 
   // ------------------------------------------------------------
   // COLORSCAN color_read_start_with_map
   // ------------------------------------------------------------
-  const char* k_color_map = "color_read_start_with_map=";
-  if (msg.startsWith(k_color_map)) {
-    String map = msg.substring(strlen(k_color_map));
-    map.trim();
+  {
+    String map;
+    if (extract_kv(msg, "color_read_start_with_map=", map)) {
 
-    st.color_read_map = map;
-    last_color_read_map = map;
-    last_color_read_map_cmd = id;
+      st.color_read_map = map;
+      last_color_read_map = map;
+      last_color_read_map_cmd = id;
 
-    // TODO-> TO TEST
-    if (send_readcolors_progress_bool) {
-      //TODO-> OPTIONAL TO IMPLEMENT actual colors for the z+ y+ etc map
-
-      // below are most likely the colors, they will be trimmed by the ui code if too many
-      ui_moves_progress_set_map(map, "GRBOOBRGWYYW");
-      ui_moves_progress_set_index(0);
+      if (send_readcolors_progress_bool) {
+        ui_moves_progress_set_map(map, "GRBOOBRGWYYW");
+        ui_moves_progress_set_index(0);
+      }
+      return;
     }
-    return;
   }
 
   // ------------------------------------------------------------
   // robot_move_step
   // ------------------------------------------------------------
-  const char* k_robot_step = "robot_move_step=";
-  if (msg.startsWith(k_robot_step)) {
-    int step = msg.substring(strlen(k_robot_step)).toInt();
+  {
+    String v;
+    if (extract_kv(msg, "robot_move_step=", v)) {
+      int step = v.toInt();
 
-    st.robot_move_step = step;
-    last_robot_move_step = step;
-    last_robot_move_step_cmd = id;
+      st.robot_move_step = step;
+      last_robot_move_step = step;
+      last_robot_move_step_cmd = id;
 
-    // TODO-> TO TEST
-    if (send_move_robot_progress_bool) {
-      ui_moves_progress_set_index(step);
+      if (send_move_robot_progress_bool) {
+        ui_moves_progress_set_index(step);
+      }
+      return;
     }
-    return;
   }
 
   // ------------------------------------------------------------
-  // CUBEMOVE cube_move_step
+  // cube_move_step
   // ------------------------------------------------------------
-  int cms = msg.indexOf("cube_move_step=");
-  if (cms >= 0) {
-    int start = cms + strlen("cube_move_step=");
-    int end = msg.indexOf(' ', start);
-    int step = msg.substring(start, end < 0 ? msg.length() : end).toInt();
+  {
+    String v;
+    if (extract_kv(msg, "cube_move_step=", v)) {
+      int step = v.toInt();
 
-    st.cube_move_step = step;
-    last_cube_move_step = step;
-    last_cube_move_step_cmd = id;
+      st.cube_move_step = step;
+      last_cube_move_step = step;
+      last_cube_move_step_cmd = id;
 
-    // TODO-> TO TEST
-    if (send_move_cube_progress_bool) {
-      ui_moves_progress_set_index(step);
+      if (send_move_cube_progress_bool) {
+        ui_moves_progress_set_index(step);
+      }
+      return;
     }
-    return;
   }
 
   // ------------------------------------------------------------
-  // version=v83_|_built_dec_30_2025_14_10_39_|_protocol_v1
+  // version
   // ------------------------------------------------------------
-  if (msg.startsWith("version=")) {
+  {
+    String value;
+    if (extract_kv(msg, "version=", value)) {
 
-    String value = msg.substring(strlen("version="));
-    value.trim();
-    st.version_string = value;
+      st.version_string = value;
+      LOG_PRINTF("[RB INFO] version {%s}\n", value.c_str());
 
-    LOG_PRINTF("[RB INFO] version {%s}\n", value.c_str());
+      st.finished_bool = true;
+      st.ok_bool = true;
+      last_finished_cmd_id = id;
 
-    // ✅ COMPLETE VERSION COMMAND HERE
-    st.finished_bool = true;
-    st.ok_bool = true;
-    last_finished_cmd_id = id;
-
-    rb.force_command_end();  // <<< THIS IS CRITICAL
-    return;
-  }
-
-  // ------------------------------------------------------------
-  // cube_color_string_54=......................................
-  // ------------------------------------------------------------
-  const char* k_color_prefix = "cube_color_string_54=";
-  if (msg.startsWith(k_color_prefix)) {
-    String value = msg.substring(strlen(k_color_prefix));
-    value.trim();
-
-    st.color_string_54 = value;
-    last_color_string_54 = value;
-    if (send_cube_view_bool) {
-      ui_cube_view_set_colors(value);
-      // update buttons
-      buttons_set_color_string(value.c_str());
+      rb.force_command_end();
+      return;
     }
-    return;
   }
 
   // ------------------------------------------------------------
-  // orientation=u->u_r->r_f->f_d->d_l->l_b->b
+  // cube_color_string_54
   // ------------------------------------------------------------
-  const char* k_ori_prefix = "orientation=";
-  if (msg.startsWith(k_ori_prefix)) {
-    String value = msg.substring(strlen(k_ori_prefix));
-    value.trim();
+  {
+    String value;
+    if (extract_kv(msg, "cube_color_string_54=", value)) {
 
-    st.orientation = value;
-    last_orientation = value;
-    // TODO-> TO TEST
-    if (send_orientation_data_bool) {
-      buttons_set_text_ori(value.c_str());
+      st.color_string_54 = value;
+      last_color_string_54 = value;
+
+      if (send_cube_view_bool) {
+        ui_cube_view_set_colors(value);
+        buttons_set_color_string(value.c_str());
+      }
+      return;
     }
-    return;
   }
+
+  // ------------------------------------------------------------
+  // orientation
+  // ------------------------------------------------------------
+  {
+    String value;
+    if (extract_kv(msg, "orientation=", value)) {
+
+      st.orientation = value;
+      last_orientation = value;
+
+      if (send_orientation_data_bool) {
+        buttons_set_text_ori(value.c_str());
+      }
+      return;
+    }
+  }
+
   LOG_PRINTF("[RB INFO] msg not parsed {%s}\n", msg.c_str());
 }
 
