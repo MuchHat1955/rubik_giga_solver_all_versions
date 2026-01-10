@@ -10,11 +10,11 @@
 #include <kvstore.h>
 #include <kvstore_global_api.h>
 
-// on the board is marked as Serial2
-#define _SERIAL_SOLVER Serial3 
+// on the board is marked as Serial1
+#define _SERIAL_SOLVER Serial2
 
 // on the board is marked as Serial3
-#define _SERIAL_RB Serial4
+#define _SERIAL_RB Serial3
 
 #define SERIAL_BAUD 115200
 #define SERIAL_TIMEOUT 500

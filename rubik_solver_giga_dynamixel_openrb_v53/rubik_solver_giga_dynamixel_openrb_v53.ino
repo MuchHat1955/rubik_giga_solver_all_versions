@@ -22,6 +22,8 @@
  *        // GIGA board has a bug and shows Serial4 as serial3
  *    - solver teensy 4.1 - connected over #define _SERIAL_SOLVER. Serial3 (in utils.h) 
  *        // GIGA board has a bug and shows Serial3 as Serial2
+ *    - if board crashes and cannot upload click on the reset twice fast and 
+ *       goes into a boot mode (diff com) green flashes
  *
  * ---------------------------------------------------------------
  *  Purpose:
@@ -35,8 +37,6 @@
 #include <lvgl.h>
 #include <Arduino_GigaDisplayTouch.h>
 #include <ArduinoJson.h>
-
-#include <Arduino_USBHostMbed5.h>
 
 #include <map>
 #include <vector>
@@ -125,6 +125,30 @@ String getSketchVersionWithDate() {
   return ver + " " + d + " " + t;
 }
 
+static void read_serial(HardwareSerial& s, const char* tag) {
+  while (s.available()) {
+    char c = s.read();
+    Serial.print(tag);
+    Serial.print("{");
+    Serial.write(c);
+    Serial.println("}");
+  }
+}
+
+static void begin_serial() {
+  Serial1.begin(115200);
+  Serial2.begin(115200);
+  Serial3.begin(115200);
+  Serial4.begin(115200);
+}
+
+static void print_serial() {
+  read_serial(Serial1, "s1");
+  read_serial(Serial2, "s2");
+  read_serial(Serial3, "s3");
+  read_serial(Serial4, "s4");
+}
+
 void setup() {
   // ----------------------------------------------------------
   // SERIAL INIT (for logs)
@@ -143,6 +167,9 @@ void setup() {
   LOG_PRINTF("---- [SETUP] start ----\n");
 
   ui_init();  // sets up LVGL + touch + draws initial menu
+
+  // test
+  begin_serial();
 
   // ----------------------------------------------------------
   // STYLE INITIALIZATION (LVGL)
@@ -185,6 +212,9 @@ void loop() {
   LOG_RESET();
 
   rb.poll();
+
+  // test
+  // print_serial();
 
   // update_bee_logging(); TODO -> NOT USED
 
@@ -315,13 +345,6 @@ void loop() {
  *        Dynamixel2Arduino
  *        Adafruit_TCS34725
  *        ArduinoJson (optional)
- *
- * ---------------------------------------------------------------
- *  Future Extensions:
- *    - Save/load parameters to Flash or SD.
- *    - Implement on-board solver algorithm (Kociemba).
- *    - Real-time 3D cube visualization in LVGL.
- *    - Wi-Fi or USB telemetry.
  *
  * ---------------------------------------------------------------
  *  Summary:

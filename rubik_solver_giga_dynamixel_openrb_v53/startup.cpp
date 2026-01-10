@@ -28,7 +28,7 @@ static bool solver_startup_tests_ok = false;
 // and builds a summary string (errors + counts).
 bool runStartupTests(bool force_rerun) {
 
-  if (!force_rerun &&                                  //
+  if (!force_rerun &&                                    //
       rb_startup_tests_ok && solver_startup_tests_ok &&  //
       rb_begin_ok && solver_begin_ok) {
     LOG_PRINTF_RUN("startup tests skipped | already run and ok/n");
@@ -49,15 +49,15 @@ bool runStartupTests(bool force_rerun) {
     // start rb servos serial
     if (!rb_begin_ok || force_rerun) {
       setFooter("starting... rb", _RUNNING_NOSTOP);
-      rb_begin_ok = !rb.begin();
+      rb_begin_ok = rb.begin();
       if (rb_begin_ok) delay(666);
     }
     // start teensy cube solver serial
     if (!solver_begin_ok || force_rerun) {
-        setFooter("starting... solver", _RUNNING_NOSTOP);
-        solver_begin_ok = solver_begin();
-        if (solver_begin_ok) delay(666);
-      }
+      setFooter("starting... solver", _RUNNING_NOSTOP);
+      solver_begin_ok = solver_begin();
+      if (solver_begin_ok) delay(666);
+    }
 
     if (!rb_begin_ok) LOG_ERR("[RB] error=rb_serial_failed\n");
     if (!solver_begin_ok) LOG_ERR("[SOLVER] error=solver_serial_failed\n");
@@ -79,8 +79,14 @@ bool runStartupTests(bool force_rerun) {
 
   // run tests only if both begin are ok
   if (rb_begin_ok && solver_begin_ok) {
-    if (!rb_startup_tests_ok || force_rerun) rb_startup_tests_ok = runRbStartupTests();
-    if (!solver_startup_tests_ok || force_rerun) solver_startup_tests_ok = runSolverStartupTests();
+    if (!rb_startup_tests_ok || force_rerun) {
+      setFooter("running... rb tests", _RUNNING_NOSTOP);
+      rb_startup_tests_ok = runRbStartupTests();
+    }
+    if (!solver_startup_tests_ok || force_rerun) {
+      setFooter("running... solver tests", _RUNNING_NOSTOP);
+      solver_startup_tests_ok = runSolverStartupTests();
+    }
 
     if (!rb_startup_tests_ok) LOG_ERR("[RB] error=rb_startup_tests_failed\n");
     if (!solver_startup_tests_ok) LOG_ERR("[SOLVER] error=solver_startup_tests_failed\n");
@@ -119,7 +125,7 @@ bool runSolverStartupTests() {
   //TODO->TO IMPLEMENT add a startup test for solver, send a test cube
 
   LOG_PRINTF("---- start solver startup run tests\n");
-  bool tests_ok=true;
+  bool tests_ok = true;
 
   /*/
   int cmd_id = 0;

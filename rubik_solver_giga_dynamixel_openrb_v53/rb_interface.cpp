@@ -23,10 +23,17 @@ bool RBInterface::begin() {
   _SERIAL_RB.setTimeout(SERIAL_TIMEOUT);
 
   setFooter("starting rb...", _RUNNING_NOSTOP);
+  LOG_PRINTF_RB("staring get rb version\n");
 
   String ver = getRbInterfaceVersion();
-  if (ver == "err" || ver.isEmpty()) return false;
-  return true;
+  LOG_PRINTF_RB("end get rb version {%s}\n", ver.c_str());
+
+  bool result = true;
+  if (ver == "err" || ver.isEmpty()) result = false;
+  LOG_PRINTF_RB("begin result {%d}\n", result);
+  rb_version = v;
+
+  return result;
 }
 
 // ============================================================
@@ -52,7 +59,6 @@ uint32_t RBInterface::send_command(const String& command,
     LOG_ERR("[RB] error=timeout command={%s} params={%s}\n", command.c_str(), params.c_str());
     return -1;  // command never received TODO-> TO IMPLEMENT use this}
   }
-  current_cmd_id_++;
   return current_cmd_id_;
 }
 
@@ -83,13 +89,13 @@ void RBInterface::poll() {
 
   while (_SERIAL_RB.available()) {
     char c = _SERIAL_RB.read();
-    LOG_PRINTF_RB("c {%s}\n", c);
+    // LOG_PRINTF_RB("c {%s}\n", c);
 
     if (c == '\n') {
       line.trim();
 
       if (!line.isEmpty()) {
-        LOG_PRINTF_RB("line received {%s}\n", line.c_str());
+        LOG_PRINTF_RB("...line received {%s}\n", line.c_str());
         handle_line(line);
         line = "";  // reset for next line
         break;      // keep original behavior: handle one line per poll
@@ -97,7 +103,7 @@ void RBInterface::poll() {
 
       line = "";  // empty line, reset and continue
     } else {
-      LOG_PRINTF_RB("crr line {%s}\n", line.c_str());
+      // LOG_PRINTF_RB("crr line {%s}\n", line.c_str());
       line += c;
     }
     delay(2);
@@ -134,21 +140,30 @@ void RBInterface::handle_line(const String& line) {
       return;
     }
 
-    if (line.indexOf("command_end=") >= 0) {
-      String result, duration;
+    if (line.indexOf("command_end=") >= 0 && line.indexOf("result=") >= 0) {
 
+      String result;
+      String duration = "0";  // ✅ default if missing
+
+      // ---------------- result ----------------
       int r = line.indexOf("result=");
       if (r >= 0) {
         int e = line.indexOf(' ', r);
-        result = line.substring(r + 7, e < 0 ? line.length() : e);
+        result = line.substring(r + 7,
+                                e < 0 ? line.length() : e);
       }
 
+      // ---------------- duration (optional) ----------------
       int d = line.indexOf("duration=");
-      if (d >= 0)
-        duration = line.substring(d + 9);
+      if (d >= 0) {
+        int e = line.indexOf(' ', d);
+        duration = line.substring(d + 9,
+                                  e < 0 ? line.length() : e);
+      }
 
       if (command_end_cb_)
         command_end_cb_(result, duration);
+
       waiting_for_end_ = false;
       return;
     }
@@ -278,9 +293,20 @@ void set_last_orientation(String a_ori) {
 }
 
 static void rb_command_end_cb(const String& result, const String& duration) {
-  LOG_PRINTF("[RB CMD] done %s (%s)\n", result.c_str(), duration.c_str());
 
-  uint32_t id = rb.get_current_cmd_id();  // see note below
+  LOG_PRINTF("[RB CMD] end received=%s\n", result.c_str());
+
+  if (result.isEmpty() && duration.isEmpty()) {
+    // Intermediate / malformed command_end (e.g. VERSION)
+    LOG_PRINTF("[RB CMD] done (no result yet)\n");
+    return;  // ⚠️ IMPORTANT: do NOT mark command finished yet
+  }
+
+  uint32_t id = rb.get_current_cmd_id();
+  LOG_PRINTF("[RB CMD] (%d) done result=%s duration=%s\n",
+             id,
+             result.c_str(),
+             duration.c_str());
 
   auto& st = cmd_states[id];
   st.finished_bool = true;
@@ -293,7 +319,7 @@ static void rb_command_end_cb(const String& result, const String& duration) {
   const size_t MAX_CMD_HISTORY = 20;
 
   if (cmd_states.size() > MAX_CMD_HISTORY) {
-    auto oldest = cmd_states.begin();  // std::map is ordered by key
+    auto oldest = cmd_states.begin();
     cmd_states.erase(oldest);
   }
 }
@@ -496,11 +522,20 @@ static void rb_info_cb(const String& mod,
   // ------------------------------------------------------------
   // version=v83_|_built_dec_30_2025_14_10_39_|_protocol_v1
   // ------------------------------------------------------------
-  const char* k_version_prefix = "version=";
-  if (msg.startsWith(k_version_prefix)) {
-    String value = msg.substring(strlen(k_version_prefix));
+  if (msg.startsWith("version=")) {
+
+    String value = msg.substring(strlen("version="));
     value.trim();
     st.version_string = value;
+
+    LOG_PRINTF("[RB INFO] version is %s\n", value.c_str());
+
+    // ✅ COMPLETE VERSION COMMAND HERE
+    st.finished_bool = true;
+    st.ok_bool = true;
+    last_finished_cmd_id = id;
+
+    rb.force_command_end();  // <<< THIS IS CRITICAL
     return;
   }
 
@@ -653,7 +688,7 @@ String getRbInterfaceVersion() {
     rb.poll();
     if (millis() - t0 > SERIAL_CMD_TIMEOUT) {
       LOG_ERR("[RB] error=rb_version_command_timeout\n");
-      LOG_ERR("[RB] error=no_rb_version\n");
+      LOG_ERR("[RB] id=%d finished=%d\n", id, cmd_states[id].finished_bool);
       return "err";
     }
     delay(5);
@@ -669,7 +704,7 @@ String getRbInterfaceVersion() {
   if (v.isEmpty()) {
     return "rb interface version unknown";
   }
-  return "rb interface version " + v;
+  return v;
 }
 
 String getLastColorStringCurr(int* cmd_id) {

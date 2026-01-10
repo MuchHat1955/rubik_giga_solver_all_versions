@@ -39,6 +39,9 @@ public:
   uint32_t get_current_cmd_id() const {
     return current_cmd_id_;
   }
+  void force_command_end() {
+    waiting_for_end_ = false;
+  }
 
 private:
   uint32_t current_cmd_id_ = 0;

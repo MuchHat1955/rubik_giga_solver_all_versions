@@ -3,6 +3,8 @@
 #include "logging.h"
 #include "ui_touch.h"
 
+extern String solver_version;
+
 bool is_valid_color_string(const String &str54) {
 
   if (str54.length() != 54) return false;
@@ -358,6 +360,7 @@ bool solver_begin() {
 
   String ver = solver_get_version();
   if (ver == "err" || ver.isEmpty()) return false;
+  solver_version = ver;
   return true;
 }
 
@@ -525,8 +528,8 @@ bool solver_find_solution(const String &cube54,
 
         int m_end = line.indexOf(' ', m);
         int move_count = line.substring(
-                             m + 11,
-                             m_end < 0 ? line.length() : m_end)
+                               m + 11,
+                               m_end < 0 ? line.length() : m_end)
                            .toInt();
 
         // --- verify move count ---
@@ -535,8 +538,7 @@ bool solver_find_solution(const String &cube54,
           if (!last_solver_error.isEmpty())
             last_solver_error += "\n";
           last_solver_error +=
-            "move count mismatch parsed=" + String(computed) +
-            " reported=" + String(move_count);
+            "move count mismatch parsed=" + String(computed) + " reported=" + String(move_count);
 
           LOG_ERR("[SOLVER] %s\n", last_solver_error.c_str());
           return false;

@@ -671,7 +671,7 @@ const char jsonBuffer[] = R"json(
   },
   "k_robot_moves": {
     "title": "robot moves",
-    "footer": "tap to execute robot moves",
+    "footer": "robot moves",
     "columns": 3,
     "equal_columns": "all",
     "rows": [
@@ -700,7 +700,7 @@ const char jsonBuffer[] = R"json(
   },
   "k_cube_moves": {
     "title": "cube moves",
-    "footer": "tap to run a cube move",
+    "footer": "cube moves",
     "columns": 3,
     "equal_columns": "all",
     "rows": [
@@ -744,7 +744,7 @@ const char jsonBuffer[] = R"json(
   },
   "k_colors_and_orientation": {
     "title": "colors and orientation",
-    "footer": "tap to execute colors and orientation commands",
+    "footer": "colors and orientation",
     "columns": 3,
     "equal_columns": "all",
     "rows": [

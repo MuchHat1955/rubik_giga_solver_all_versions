@@ -149,6 +149,7 @@ bool cmd_get_version(int argc, double *argv) {
   LOG_INFO(MOD_CMD, "command_start", "version");
   LOG_INFO(MOD_CMD, "version", version_str);
   LOG_INFO(MOD_CMD, "command_end", "version");
+  LOG_VAR("result", "ok");
   return true;
 }
 
