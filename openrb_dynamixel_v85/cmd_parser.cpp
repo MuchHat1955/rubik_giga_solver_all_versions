@@ -20,6 +20,7 @@ extern ColorAnalyzer color_analyzer;
 extern serial_line_history serial_line;
 
 extern const char runHelp[];
+extern int cmd_no;
 
 /*
  TODO -> use below
@@ -416,7 +417,9 @@ void process_serial_command(String &line) {
   active_cmd_name = U;
   unsigned long t0 = millis();
 
+  LOG_LN();
   LOG_INFO(MOD_CMD, "command_start", U.c_str());
+  LOG_VAR("cmd_id", cmd_no);
 
   // --------------------------------------------------
   // Execute command
@@ -438,7 +441,9 @@ void process_serial_command(String &line) {
 
   LOG_INFO(MOD_CMD, "command_end", U.c_str());
   LOG_VAR("result", ok ? "ok" : "fail");
+  LOG_VAR("cmd_id", cmd_no);
   LOG_VAR("duration", duration_str.c_str());
+  LOG_LN();
 
   cmd_in_progress = false;
   active_cmd_name = "";

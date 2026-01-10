@@ -24,7 +24,7 @@ bool RBInterface::begin() {
   _SERIAL_RB.setTimeout(SERIAL_TIMEOUT);
 
   setFooter("starting rb...", _RUNNING_NOSTOP);
-  LOG_PRINTF_RB("staring get rb version\n");
+  LOG_PRINTF_RB("starting get rb version\n");
 
   String ver = getRbInterfaceVersion();
   LOG_PRINTF_RB("end get rb version {%s}\n", ver.c_str());
@@ -53,11 +53,11 @@ uint32_t RBInterface::send_command(const String& command,
   _SERIAL_RB.println(line);
 
   unsigned long t0 = millis();
-  while (waiting_for_start_ && millis() - t0 < 3000) {
+  while (waiting_for_start_ && millis() - t0 < 6000) {
     poll();
   }
   if (waiting_for_start_) {
-    LOG_ERR("[RB] error=timeout command={%s} params={%s}\n", command.c_str(), params.c_str());
+    LOG_ERR("[RB CMD ERR] error=timeout command={%s} params={%s}\n", command.c_str(), params.c_str());
     return -1;  // command never received TODO-> TO IMPLEMENT use this}
   }
   return current_cmd_id_;
@@ -146,7 +146,10 @@ void RBInterface::handle_line(const String& line) {
 
     if (line.indexOf("command_start=") >= 0) {
       current_cmd_id_ = id;
-      waiting_for_start_ = false;
+      waiting_for_start_ = false;  //NOW
+      LOG_PRINTF("[RB CMD START] (%lu) started id=%d\n",
+                 (unsigned long)id,
+                 id);
       return;
     }
 
@@ -306,14 +309,14 @@ static void rb_command_end_cb(uint32_t id,
                               const String& result,
                               const String& duration) {
 
-  LOG_PRINTF("[RB CMD] (%lu) done result=%s duration=%s\n",
+  LOG_PRINTF("[RB CMD END] (%lu) done result=%s duration=%s\n",
              (unsigned long)id,
              result.c_str(),
              duration.isEmpty() ? "0" : duration.c_str());
 
   auto it = cmd_states.find(id);
   if (it == cmd_states.end()) {
-    LOG_ERR("[RB CMD] command_end for unknown id=%lu\n",
+    LOG_ERR("[RB CMD END] command_end for unknown id=%lu\n",
             (unsigned long)id);
     return;
   }
@@ -608,12 +611,13 @@ void init_rb_wrappers() {
 
 bool runCommand(const String& command, const String& params, int* cmdId) {
 
+  LOG_PRINTF("starting... command {%s} params {%s} id {na}\n", command.c_str(), params.c_str());
   uint32_t id = rb.send_command(command, params);
+
   if ((int32_t)id < 0) {  // send_command returned -1
     LOG_ERR("[RB] error=send_command_failed command={%s}\n", command.c_str());
-    return false; 
+    return false;
   }
-  LOG_PRINTF("running command (%d) {%s} params {%s}\n", id, command.c_str(), params.c_str());
 
   if (cmdId) *cmdId = (int)id;
 
