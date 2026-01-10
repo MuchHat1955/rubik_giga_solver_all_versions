@@ -86,30 +86,39 @@ bool RBInterface::send_stop_command() {
 // ============================================================
 void RBInterface::poll() {
   static String line;  // persists across calls
-  // LOG_PRINTF_RB("line {%s}\n", line.c_str());
 
   while (_SERIAL_RB.available()) {
     char c = _SERIAL_RB.read();
-    // LOG_PRINTF_RB("c {%s}\n", c);
 
+    // Handle line end
     if (c == '\n') {
       line.trim();
 
       if (!line.isEmpty()) {
-        LOG_PRINTF_RB("...line received {%s}\n", line.c_str());
+        // LOG_PRINTF_RB("...line received {%s}\n", line.c_str());
         handle_line(line);
-        line = "";  // reset for next line
-        break;      // keep original behavior: handle one line per poll
       }
 
-      line = "";  // empty line, reset and continue
-    } else {
-      // LOG_PRINTF_RB("crr line {%s}\n", line.c_str());
-      line += c;
+      line = "";  // reset for next line
+      continue;   // ✅ keep draining buffer
     }
-    delay(2);
+
+    // Ignore CR (optional but recommended)
+    if (c == '\r') {
+      continue;
+    }
+
+    // Append character
+    line += c;
+
+    // Optional safety: prevent runaway lines
+    if (line.length() > 512) {
+      LOG_ERR("[RB] error=line_too_long\n");
+      line = "";
+    }
   }
 }
+
 
 // ============================================================
 // Handle one protocol line
@@ -163,7 +172,7 @@ void RBInterface::handle_line(const String& line) {
       }
 
       if (command_end_cb_)
-        command_end_cb_(result, duration);
+        command_end_cb_(id, result, duration);
 
       waiting_for_end_ = false;
       return;
@@ -293,36 +302,24 @@ void set_last_orientation(String a_ori) {
   last_orientation = a_ori;
 }
 
-static void rb_command_end_cb(const String& result, const String& duration) {
+static void rb_command_end_cb(uint32_t id,
+                              const String& result,
+                              const String& duration) {
 
-  LOG_PRINTF("[RB CMD] end received=%s\n", result.c_str());
-
-  if (result.isEmpty() && duration.isEmpty()) {
-    // Intermediate / malformed command_end (e.g. VERSION)
-    LOG_PRINTF("[RB CMD] done (no result yet)\n");
-    return;  // ⚠️ IMPORTANT: do NOT mark command finished yet
-  }
-
-  uint32_t id = rb.get_current_cmd_id();
-  LOG_PRINTF("[RB CMD] (%d) done result=%s duration=%s\n",
-             id,
+  LOG_PRINTF("[RB CMD] (%lu) done result=%s duration=%s\n",
+             (unsigned long)id,
              result.c_str(),
-             duration.c_str());
+             duration.isEmpty() ? "0" : duration.c_str());
 
-  auto& st = cmd_states[id];
-  st.finished_bool = true;
-  st.ok_bool = (result == "ok");
-  last_finished_cmd_id = id;
-
-  // --------------------------------------------------
-  // PRUNE OLD COMMAND STATES (keep last 20)
-  // --------------------------------------------------
-  const size_t MAX_CMD_HISTORY = 20;
-
-  if (cmd_states.size() > MAX_CMD_HISTORY) {
-    auto oldest = cmd_states.begin();
-    cmd_states.erase(oldest);
+  auto it = cmd_states.find(id);
+  if (it == cmd_states.end()) {
+    LOG_ERR("[RB CMD] command_end for unknown id=%lu\n",
+            (unsigned long)id);
+    return;
   }
+
+  it->second.finished_bool = true;
+  it->second.ok_bool = (result == "ok");
 }
 
 static void rb_error_cb(const String& module, uint32_t id, const String& payload) {
@@ -609,29 +606,30 @@ void init_rb_wrappers() {
   rb.on_info(rb_info_cb);
 }
 
-bool runCommand(const String& command,
-                const String& params,
-                int* cmdId) {
-
-  LOG_PRINTF("running command {%s} params {%s}\n", command.c_str(), params.c_str());
+bool runCommand(const String& command, const String& params, int* cmdId) {
 
   uint32_t id = rb.send_command(command, params);
+  if ((int32_t)id < 0) {  // send_command returned -1
+    LOG_ERR("[RB] error=send_command_failed command={%s}\n", command.c_str());
+    return false;
+  }
+  LOG_PRINTF("running command (%d) {%s} params {%s}\n", id, command.c_str(), params.c_str());
 
-  if (cmdId)
-    *cmdId = (int)id;
+  if (cmdId) *cmdId = (int)id;
 
+  // Create state *after* we know id
   rb_cmd_state_t st;
   st.command_name = command;
   st.command_params = params;
   cmd_states[id] = st;
 
   unsigned long t0 = millis();
-
   while (!cmd_states[id].finished_bool) {
     rb.poll();
     if (millis() - t0 > SERIAL_CMD_TIMEOUT) {
       cmd_states[id].last_error = "timeout waiting for command_end";
-      LOG_ERR("[RB] error=timeout command={%s}\n", command.c_str());
+      LOG_ERR("[RB] error=timeout command={%s} id=%lu\n",
+              command.c_str(), (unsigned long)id);
       return false;
     }
     delay(2);
@@ -639,6 +637,7 @@ bool runCommand(const String& command,
 
   return cmd_states[id].ok_bool;
 }
+
 
 bool checkServosStatus() {
   int cmd_id = -1;

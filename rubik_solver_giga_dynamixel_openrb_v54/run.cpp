@@ -36,7 +36,7 @@ void buttonAction_run(const char* btn_key) {
 
   //String footer_txt = String("start ") + String(btn_key);
   //setFooter(footer_txt.c_str());
-  delay(11);
+  __delay(11);
   LOG_PRINTF_RUN("running action for key {%s}\n", btn_key);
 
   bool handled = false;

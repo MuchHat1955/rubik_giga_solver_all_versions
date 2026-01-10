@@ -183,7 +183,7 @@ void drawButtonOverlayById(int btn_id) {
     lv_timer_handler();
     delay(5);
   }
-  delay(15);
+  __delay(15);
 }
 
 void drawButtonOverlayByKey(const char *btn_key) {

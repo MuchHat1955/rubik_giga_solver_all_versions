@@ -19,3 +19,5 @@
 #define SERIAL_BAUD 115200
 #define SERIAL_TIMEOUT 500
 #define SERIAL_CMD_TIMEOUT 6000
+
+void __delay(unsigned long a_delay);

@@ -172,7 +172,7 @@ void buttons_set_text_by_key(const char* key, const char* a_text, bool refresh_u
     lv_timer_handler();
     delay(5);
   }
-  delay(15);
+  __delay(15);
 }
 
 void buttons_set_color_string(const char* color_string) {

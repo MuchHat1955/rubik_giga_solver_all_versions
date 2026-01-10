@@ -73,14 +73,14 @@ void setFooter_v1(const char *msg) {
     lv_timer_handler();
     lv_obj_invalidate(footLbl_old);
     lv_refr_now(NULL);
-    delay(15);
+    __delay(15);
 
     LOG_PRINTF_MENU("calling lv timer handler 6 times\n");
     for (int i = 0; i < 6; ++i) {
       lv_timer_handler();
       delay(5);
     }
-    delay(15);
+    __delay(15);
   }
 }
 
@@ -346,7 +346,7 @@ void setFooter(const char *msg, footer_state_t state) {
       delay(5);
     }
   }
-  delay(15);
+  __delay(15);
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

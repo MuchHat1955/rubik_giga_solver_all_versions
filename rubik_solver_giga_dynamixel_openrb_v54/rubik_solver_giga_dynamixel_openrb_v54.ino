@@ -149,6 +149,15 @@ static void print_serial() {
   read_serial(Serial4, "s4");
 }
 
+void __delay(unsigned long a_delay) {
+  unsigned long start = millis();
+
+  while (millis() - start < a_delay) {
+    rb.poll();          // keep draining RB UART
+    delay(0);           // yield without blocking RX
+  }
+}
+
 void setup() {
   // ----------------------------------------------------------
   // SERIAL INIT (for logs)

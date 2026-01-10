@@ -33,7 +33,7 @@ bool runStartupTests(bool force_rerun) {
       rb_begin_ok && solver_begin_ok) {
     LOG_PRINTF_RUN("startup tests skipped | already run and ok/n");
     setFooter("startup tests | rb ok | solver ok", _DONE_SUCCESS);
-    delay(666);
+    __delay(666);
     return true;
   }
 
@@ -50,13 +50,13 @@ bool runStartupTests(bool force_rerun) {
     if (!rb_begin_ok || force_rerun) {
       setFooter("starting... rb", _RUNNING_NOSTOP);
       rb_begin_ok = rb.begin();
-      if (rb_begin_ok) delay(666);
+      if (rb_begin_ok) __delay(666);
     }
     // start teensy cube solver serial
     if (!solver_begin_ok || force_rerun) {
       setFooter("starting... solver", _RUNNING_NOSTOP);
       solver_begin_ok = solver_begin();
-      if (solver_begin_ok) delay(666);
+      if (solver_begin_ok) __delay(666);
     }
 
     if (!rb_begin_ok) LOG_ERR("[RB] error=rb_serial_failed\n");
@@ -74,7 +74,7 @@ bool runStartupTests(bool force_rerun) {
 
     if (!rb_begin_ok || !solver_begin_ok) setFooter(begin_result.c_str(), _DONE_ERROR);
     else setFooter(begin_result.c_str(), _DONE_SUCCESS);
-    delay(666);
+    __delay(666);
   }
 
   // run tests only if both begin are ok
@@ -100,7 +100,7 @@ bool runStartupTests(bool force_rerun) {
 
     if (!rb_startup_tests_ok || !solver_startup_tests_ok) setFooter(startup_tests_result.c_str(), _DONE_ERROR);
     else setFooter(startup_tests_result.c_str(), _DONE_SUCCESS);
-    delay(666);
+    __delay(666);
   }
   return rb_startup_tests_ok && solver_startup_tests_ok;
 }
@@ -110,7 +110,7 @@ bool runRbStartupTests() {
   LOG_PRINTF("---- start rb startup run tests\n");
 
   int cmd_id = 0;
-  bool tests_ok = runCommand("INFOSERVOS", "0", &cmd_id);
+  bool tests_ok = runCommand("READSERVO", "0", &cmd_id);
 
   if (tests_ok) {
     LOG_PRINTF("startup status ok\n");

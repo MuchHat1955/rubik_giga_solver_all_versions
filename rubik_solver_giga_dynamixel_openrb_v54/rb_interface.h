@@ -8,7 +8,7 @@
 class RBInterface {
 public:
   using command_end_cb_t =
-    std::function<void(const String& result, const String& duration)>;
+    void (*)(uint32_t id, const String& result, const String& duration);
 
   using info_cb_t =
     std::function<void(const String& module,

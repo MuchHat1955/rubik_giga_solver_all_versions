@@ -1352,7 +1352,6 @@ bool cmd_detect_cube(int argc, double *argv) {
 // INFOSERVO <id> : print key control-table data for one servo
 // -------------------------------------------------------------------
 bool print_servo_info(uint8_t id) {
-  RUN_PING(id);
 
   LOG_INFO(MOD_RUN, "info", "checking_if_servo_is_ok");
   bool _ok = servo_ok(id);  //

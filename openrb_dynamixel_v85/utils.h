@@ -6,6 +6,7 @@
 //                         UTILS - DECLARATIONS
 // -------------------------------------------------------------------
 
+
 #define Serial_giga Serial3
 #define Serial_giga_begin(b) \
   do { Serial3.begin(b); } while (0)
@@ -18,6 +19,22 @@
   do { Serial3.println(v); } while (0)
 #define Serial_giga_println_empty() \
   do { Serial3.println(); } while (0)
+
+/*
+  #define Serial_giga Serial
+#define Serial_giga_begin(b) \
+  do { Serial.begin(b); } while (0)
+#define Serial_giga_available() (Serial.available())
+#define Serial_giga_read() (Serial.read())
+
+#define Serial_giga_print(v) \
+  do { Serial.print(v); } while (0)
+#define Serial_giga_println(v) \
+  do { Serial.println(v); } while (0)
+#define Serial_giga_println_empty() \
+  do { Serial.println(); } while (0)
+
+  */
 
 /*
 #define Serial_giga Serial2
