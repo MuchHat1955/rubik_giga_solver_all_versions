@@ -119,7 +119,7 @@ static void footer_stop_cb(lv_event_t *e) {
 
   LOG_PRINTF_MENU("footer stop button pressed\n");
 
-  setFooter("sending... stop command", _RUNNING_NOSTOP);
+  setFooter("start... stop command", _RUNNING_NOSTOP);
   bool ok = rb.send_stop_command();
 
   if (ok) setFooter("stop command received", _DONE_SUCCESS);

@@ -48,13 +48,13 @@ bool runStartupTests(bool force_rerun) {
   if (!rb_begin_ok || !solver_begin_ok || force_rerun) {
     // start rb servos serial
     if (!rb_begin_ok || force_rerun) {
-      setFooter("starting... rb", _RUNNING_NOSTOP);
+      setFooter("start... rb", _RUNNING_NOSTOP);
       rb_begin_ok = rb.begin();
       if (rb_begin_ok) __delay(666);
     }
     // start teensy cube solver serial
     if (!solver_begin_ok || force_rerun) {
-      setFooter("starting... solver", _RUNNING_NOSTOP);
+      setFooter("start... solver", _RUNNING_NOSTOP);
       solver_begin_ok = solver_begin();
       if (solver_begin_ok) __delay(666);
     }
@@ -107,24 +107,24 @@ bool runStartupTests(bool force_rerun) {
 
 
 bool runRbStartupTests() {
-  LOG_PRINTF("---- start rb startup run tests\n");
+  LOG_PRINTF_RUN("start... rb startup run tests\n");
 
   int cmd_id = 0;
   bool tests_ok = runCommand("READSERVO", "0", &cmd_id);
 
   if (tests_ok) {
-    LOG_PRINTF("startup status ok\n");
+    LOG_PRINTF_RUN("startup status ok\n");
   } else {
     setFooter(getLastError(cmd_id).c_str(), _DONE_ERROR);
   }
-  LOG_PRINTF("---- end rb startup run tests\n");
+  LOG_PRINTF_RUN("end... rb startup run tests\n");
   return tests_ok;
 }
 
 bool runSolverStartupTests() {
   //TODO->TO IMPLEMENT add a startup test for solver, send a test cube
 
-  LOG_PRINTF("---- start solver startup run tests\n");
+  LOG_PRINTF_RUN("start... solver startup run tests\n");
   bool tests_ok = true;
 
   /*/
@@ -132,11 +132,11 @@ bool runSolverStartupTests() {
   bool tests_ok = runCommand("INFOSERVOS", "0", &cmd_id);
 
   if (tests_ok) {
-    LOG_PRINTF("startup status ok\n");
+    LOG_PRINTF_RUN("startup status ok\n");
   } else {
     setFooter(getLastError(cmd_id).c_str(), _DONE_ERROR);
   }
   */
-  LOG_PRINTF("---- end solver startup run tests\n");
+  LOG_PRINTF_RUN("end... solver startup run tests\n");
   return tests_ok;
 }

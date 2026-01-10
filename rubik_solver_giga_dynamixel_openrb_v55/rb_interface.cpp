@@ -5,11 +5,6 @@
 #include "ui_button.h"
 #include "run.h"
 
-/*
-  uint32_t id = rb.send_command("READSERVO", "0");
-  Serial.printf("Started command id %lu\n", id);
-*/
-
 // ============================================================
 // Constructor
 // ============================================================
@@ -24,10 +19,10 @@ bool RBInterface::begin() {
   _SERIAL_RB.setTimeout(SERIAL_TIMEOUT);
 
   setFooter("starting rb...", _RUNNING_NOSTOP);
-  LOG_PRINTF_RB("starting get rb version\n");
+  LOG_PRINTF_RB("start... get rb version\n");
 
   String ver = getRbInterfaceVersion();
-  LOG_PRINTF_RB("end get rb version {%s}\n", ver.c_str());
+  LOG_PRINTF_RB("end... get rb version with {%s}\n", ver.c_str());
 
   bool result = true;
   if (ver == "err" || ver.isEmpty()) result = false;
@@ -611,7 +606,7 @@ void init_rb_wrappers() {
 
 bool runCommand(const String& command, const String& params, int* cmdId) {
 
-  LOG_PRINTF("starting... command {%s} params {%s} id {na}\n", command.c_str(), params.c_str());
+  LOG_PRINTF_RUN("start... command {%s} params {%s} id {na}\n", command.c_str(), params.c_str());
   uint32_t id = rb.send_command(command, params);
 
   if ((int32_t)id < 0) {  // send_command returned -1
@@ -638,7 +633,7 @@ bool runCommand(const String& command, const String& params, int* cmdId) {
     }
     delay(2);
   }
-  LOG_PRINTF("ending... command {%s} params {%s} id {%d} result {%s}\n",  //
+  LOG_PRINTF_RUN("end... command {%s} params {%s} id {%d} result {%s}\n",  //
              command.c_str(), params.c_str(), id, cmd_states[id].ok_bool ? "ok" : "fail");
   return cmd_states[id].ok_bool;
 }

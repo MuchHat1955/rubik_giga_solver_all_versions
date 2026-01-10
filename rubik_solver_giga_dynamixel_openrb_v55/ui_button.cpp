@@ -155,7 +155,7 @@ void buttons_set_text_by_key(const char* key, const char* a_text, bool refresh_u
   UIButton* btn_ptr = find_button_by_key(key);
   if (!btn_ptr) return;
 
-  LOG_PRINTF("buttons_set_text_by_key \nkey{%s} \ntext{%s} \nrefresh ui{%d}\n", key, a_text, refresh_ui);
+  LOG_PRINTF_MENU("buttons_set_text_by_key key {%s} refresh_ui {%d}\n", key, refresh_ui);
 
   btn_ptr->set_text(a_text);
   lv_obj_t* lv_btn = btn_ptr->get_ptr();
