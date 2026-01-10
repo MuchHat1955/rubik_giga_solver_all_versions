@@ -91,6 +91,7 @@ bool cmd_getcolor_data(int argc, double *argv);
 void print_colors_analyzer_detail();
 bool cmd_get_version(int argc, double *argv);
 
+bool process_serial_command_run(String &line);
 void process_serial_command(const char* line);
 
 // ============================================================

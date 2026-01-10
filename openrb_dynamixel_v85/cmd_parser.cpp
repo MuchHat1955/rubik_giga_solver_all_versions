@@ -146,10 +146,7 @@ static int parse_args(const String &line, const char *fmt, double *out, int max_
 }
 
 bool cmd_get_version(int argc, double *argv) {
-  LOG_INFO(MOD_CMD, "command_start", "version");
   LOG_INFO(MOD_CMD, "version", version_str);
-  LOG_INFO(MOD_CMD, "command_end", "version");
-  LOG_VAR("result", "ok");
   return true;
 }
 
@@ -246,12 +243,211 @@ String normalize_moves_plus_minus(const String &in) {
 //                    PROCESS SERIAL COMMAND (DISPATCHER)
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-
 
+static bool is_meta_command(const String &U) {
+  return U.startsWith("VERSION") || U.startsWith("REBOOTALL") || U.startsWith("STOP") || U.startsWith("HELP");
+}
+
+static const unsigned long META_TIMEOUT_MS = 200;
+static const unsigned long SHORT_TIMEOUT_MS = 3000;
+static const unsigned long LONG_BASE_MS = 2000;
+static const unsigned long PER_MOVE_MS = 900;        // realistic servo move
+static const unsigned long MAX_TIMEOUT_MS = 180000;  // 3 minutes hard cap
+
+enum cmd_class_t {
+  CMD_META,
+  CMD_SHORT,
+  CMD_LONG
+};
+
+cmd_class_t classify_command(const String &U) {
+  if (U.startsWith("HELP") ||     //
+      U.startsWith("VERSION") ||  //
+      U.startsWith("STOP") ||     //
+      U.startsWith("REBOOTALL")) {
+    return CMD_META;
+  }
+
+  if (U.startsWith("READSERVO") ||  //
+      U.startsWith("INFOSERVO") ||  //
+      U.startsWith("ONECOLOR") ||   //
+      U.startsWith("CHECKORI")) {
+    return CMD_SHORT;
+  }
+
+  return CMD_LONG;
+}
+
+int estimate_move_count(const String &U) {
+
+  String s = U;
+  s.trim();
+  s.toUpperCase();
+
+  // --------------------------------------------------
+  // Hardcoded READCOLORS costs (known behavior)
+  // --------------------------------------------------
+  if (s.startsWith("READCOLORS")) {
+
+    if (s.indexOf("BOTTOM") >= 0) {
+      return 12;
+    }
+
+    if (s.indexOf("ALL") >= 0) {
+      return 24;
+    }
+
+    // fallback for other modes (centers, solved, etc.)
+    return 8;
+  }
+
+  // --------------------------------------------------
+  // Generic: count space-separated parameters
+  // (excluding command name)
+  // --------------------------------------------------
+  int count = 0;
+  bool in_token = false;
+  bool first_token = true;
+
+  for (int i = 0; i < s.length(); i++) {
+    char c = s[i];
+
+    if (c == ' ' || c == '\t') {
+      if (in_token) {
+        if (!first_token) count++;
+        first_token = false;
+        in_token = false;
+      }
+    } else {
+      in_token = true;
+    }
+  }
+
+  // Count last token
+  if (in_token && !first_token) {
+    count++;
+  }
+
+  return count;
+}
+
+unsigned long estimate_timeout_ms(const String &U) {
+
+  cmd_class_t cls = classify_command(U);
+
+  if (cls == CMD_META)
+    return META_TIMEOUT_MS;
+
+  if (cls == CMD_SHORT)
+    return SHORT_TIMEOUT_MS;
+
+  // CMD_LONG
+  unsigned long timeout = LONG_BASE_MS;
+
+  if (U.startsWith("MOVECUBE") || U.startsWith("MOVEROBOT")) {
+    int moves = estimate_move_count(U);
+    timeout += (unsigned long)moves * PER_MOVE_MS;
+  }
+
+  if (U.startsWith("READCOLORS")) {
+    timeout += 15000;  // known slow sensor path
+  }
+
+  if (timeout > MAX_TIMEOUT_MS)
+    timeout = MAX_TIMEOUT_MS;
+
+  return timeout;
+}
+
 void process_serial_command(String &line) {
+
+  static unsigned long cmd_start_ms = 0;
+  static bool cmd_in_progress = false;
+  static String active_cmd_name = "";
+
   String U = line;
   U.trim();
   U.toUpperCase();
 
+  cmd_start_ms = millis();
+  unsigned long cmd_timeout_ms = estimate_timeout_ms(U);
+
+  const bool is_meta =
+    U.startsWith("VERSION") ||    //
+    U.startsWith("REBOOTALL") ||  //
+    U.startsWith("STOP") ||       //
+    U.startsWith("HELP");
+
+  if (cmd_in_progress && millis() - cmd_start_ms > cmd_timeout_ms) {
+
+    LOG_ERR(MOD_CMD, "error", "command_forced_timeout");
+    LOG_VAR("running", active_cmd_name.c_str());
+
+    cmd_in_progress = false;
+    active_cmd_name = "";
+  }
+
+  // --------------------------------------------------
+  // Busy guard
+  // --------------------------------------------------
+  if (cmd_in_progress && !is_meta) {
+    LOG_ERR(MOD_CMD, "error", "command_rejected_busy");
+    LOG_VAR("incoming", U.c_str());
+    LOG_VAR("running", active_cmd_name.c_str());
+    return;
+  }
+
+  // --------------------------------------------------
+  // Break busy for meta commands
+  // --------------------------------------------------
+  if (cmd_in_progress && is_meta) {
+    LOG_ERR(MOD_CMD, "warning", "meta_command_breaks_busy");
+    LOG_VAR("incoming", U.c_str());
+    LOG_VAR("running", active_cmd_name.c_str());
+    cmd_in_progress = false;
+    active_cmd_name = "";
+  }
+
+  // --------------------------------------------------
+  // Start command
+  // --------------------------------------------------
   increment_cmd_no();
+
+  cmd_in_progress = true;
+  active_cmd_name = U;
+  unsigned long t0 = millis();
+
+  LOG_INFO(MOD_CMD, "command_start", U.c_str());
+
+  // --------------------------------------------------
+  // Execute command
+  // --------------------------------------------------
+  bool ok = process_serial_command_run(line);
+
+  // --------------------------------------------------
+  // End command (MOVED HERE)
+  // --------------------------------------------------
+  unsigned long duration_ms = millis() - t0;
+
+  String duration_str;
+  if (duration_ms <= 999) {
+    duration_str = String(duration_ms) + "ms";
+  } else {
+    duration_str = String(duration_ms / 1000UL) + "s";
+    duration_str += String(duration_ms % 1000UL) + "ms";
+  }
+
+  LOG_INFO(MOD_CMD, "command_end", U.c_str());
+  LOG_VAR("result", ok ? "ok" : "fail");
+  LOG_VAR("duration", duration_str.c_str());
+
+  cmd_in_progress = false;
+  active_cmd_name = "";
+}
+
+bool process_serial_command_run(String &line) {
+  String U = line;
+  U.trim();
+  U.toUpperCase();
 
   // derive count of args and id flag from format
   auto derive_format_info = [](const char *fmt, int &min_args) {
@@ -288,7 +484,7 @@ void process_serial_command(String &line) {
           LOG_ERR(MOD_CMD, "error", "missing argument");
           LOG_VAR("command", cmd.name);
           LOG_VAR("result", "fail");
-          return;
+          return false;
         }
         String params = line.substring(space_idx + 1);
         params.trim();
@@ -296,19 +492,19 @@ void process_serial_command(String &line) {
           //
           LOG_ERR(MOD_CMD, "error", "missing argument");
           LOG_VAR("command", cmd.name);
-          return;
+          return false;
         }
 
-        String params_ = "\"" + params + "\"";
-        LOG_INFO(MOD_CMD, "command_start", cmd.name);
-        LOG_VAR("params", params_.c_str());
+        //String params_ = "\"" + params + "\"";
+        //LOG_INFO(MOD_CMD, "command_start", cmd.name);
+        //LOG_VAR("params", params_.c_str());
 
         bool ok = false;
 
         if (check_servos_stop_all()) {
           LOG_ERR(MOD_CMD, "error", "servos_stop_flag_on");
           LOG_VAR("command", cmd.name);
-          return;
+          return false;
         }
 
         if (strcmp(cmd.name, "MOVECUBE") == 0) {
@@ -323,6 +519,7 @@ void process_serial_command(String &line) {
           ok = ori.robot_move(params);
         }
 
+        /*
         LOG_INFO(MOD_CMD, "command_end", cmd.name);
         LOG_VAR("result", ok ? "ok" : "fail");
         unsigned long duration_ms = millis() - millis_start;
@@ -333,7 +530,8 @@ void process_serial_command(String &line) {
           duration_str += String(duration_ms % 1000UL) + "ms";
         }
         LOG_VAR("duration", duration_str.c_str());
-        return;
+        */
+        return ok;
       }
       // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~--
       // Special handling for READCOLORS (string command)
@@ -345,39 +543,39 @@ void process_serial_command(String &line) {
         if (space_idx < 0) {
           LOG_ERR(MOD_CMD, "error", "missing argument");
           LOG_VAR("command", cmd.name);
-          return;
+          return false;
         }
         String params = line.substring(space_idx + 1);
         params.trim();
         if (params.length() == 0) {
           LOG_ERR(MOD_CMD, "error", "missing argument");
           LOG_VAR("command", cmd.name);
-          return;
+          return false;
         }
 
-        String params_ = "\"" + params + "\"";
-        LOG_INFO(MOD_CMD, "command_start", cmd.name);
-        LOG_VAR("params", params_.c_str());
+        //String params_ = "\"" + params + "\"";
+        //LOG_INFO(MOD_CMD, "command_start", cmd.name);
+        //LOG_VAR("params", params_.c_str());
 
         // Unified logging (same style as MOVEROBOT)
         // serial_printf_verbose("~~~- START READCOLORS params: %s ~~~-", params.c_str());
-        params_ = "\"" + params + "\"";
+        String params_ = "\"" + params + "\"";
         LOG_INFO(MOD_CMD, "readcolors_start_mode", params_.c_str());
 
         bool ok = cmd_read_cube_colors(params);
 
-        LOG_INFO(MOD_CMD, "command_end", cmd.name);
-        LOG_VAR("result", ok ? "ok" : "fail");
-        unsigned long duration_ms = millis() - millis_start;
-        String duration_str = "";
-        if (duration_ms <= 999) duration_str = String(duration_ms) + "ms";
-        else {
-          duration_str = String(duration_ms / 1000UL) + "s";
-          duration_str += String(duration_ms % 1000UL) + "ms";
-        }
-        LOG_VAR("duration", duration_str.c_str());
+        //LOG_INFO(MOD_CMD, "command_end", cmd.name);
+        //LOG_VAR("result", ok ? "ok" : "fail");
+        //unsigned long duration_ms = millis() - millis_start;
+        //String duration_str = "";
+        //if (duration_ms <= 999) duration_str = String(duration_ms) + "ms";
+        //else {
+        //  duration_str = String(duration_ms / 1000UL) + "s";
+        //   duration_str += String(duration_ms % 1000UL) + "ms";
+        // }
+        //LOG_VAR("duration", duration_str.c_str());
 
-        return;
+        return ok;
       }
 
 
@@ -400,7 +598,7 @@ void process_serial_command(String &line) {
         LOG_VAR("argn", argn);
         LOG_VAR("min_args", min_args);
         LOG_VAR("usage", cmd.desc);
-        return;
+        return false;
       }
 
       // ~~~~~~~~~~~~~~~- Execute Command ~~~~~~~~~~~~~~~-
@@ -408,20 +606,20 @@ void process_serial_command(String &line) {
       if (argn > 0) p1 = (double)argv[0];
 
       //
-      LOG_LN();
-      LOG_INFO(MOD_CMD, "command_start", cmd.name);
-      LOG_VAR("arg", p1);
+      //LOG_LN();
+      //LOG_INFO(MOD_CMD, "command_start", cmd.name);
+      //LOG_VAR("arg", p1);
 
       // read_print_kinematics_state();
-      bool ok = cmd.handler(argn, argv);
       if (!cmd.handler) {
         LOG_ERR(MOD_CMD, "error", "no_handler");
         LOG_VAR("command", cmd.name);
-        return;
+        return false;
       }
-      //
-      LOG_INFO(MOD_CMD, "command_end", cmd.name);
-      LOG_VAR("result", ok ? "ok" : "fail");
+      bool ok = cmd.handler(argn, argv);
+      /*
+      //LOG_INFO(MOD_CMD, "command_end", cmd.name);
+      //LOG_VAR("result", ok ? "ok" : "fail");
       unsigned long duration_ms = millis() - millis_start;
       String duration_str = "";
       if (duration_ms <= 999) duration_str = String(duration_ms) + "ms";
@@ -432,11 +630,13 @@ void process_serial_command(String &line) {
       LOG_VAR("duration", duration_str.c_str());
 
       // read_print_kinematics_state();
-      return;
+      */
+      return ok;
     }
   }
   //
   LOG_ERR(MOD_CMD, "error", "unknown_command");  //
+  return false;
 }
 
 void process_serial_command(const char *line) {
