@@ -384,12 +384,12 @@ String solver_get_version() {
       char c = _SERIAL_SOLVER.read();
       if (t_first_rx == 0) {
         t_first_rx = millis();
-        LOG_PRINTF_SOLVER("first char after %lu ms\n", t_first_rx - t0);
+        // LOG_PRINTF_SOLVER("first char after %lu ms\n", t_first_rx - t0);
       }
 
       if (c == '\n') {
         line.trim();
-        LOG_PRINTF_SOLVER("line received {%s}\n", line.c_str());
+        // LOG_PRINTF_SOLVER("line received {%s}\n", line.c_str());
 
         if (line.startsWith("version=")) {
           String v = line.substring(strlen("version="));

@@ -31,7 +31,7 @@ bool runStartupTests(bool force_rerun) {
   if (!force_rerun &&                                    //
       rb_startup_tests_ok && solver_startup_tests_ok &&  //
       rb_begin_ok && solver_begin_ok) {
-    LOG_PRINTF_RUN("startup tests skipped | already run and ok/n");
+    LOG_PRINTF_RUN("startup tests skipped | already run and ok\n");
     setFooter("startup tests | rb ok | solver ok", _DONE_SUCCESS);
     __delay(666);
     return true;

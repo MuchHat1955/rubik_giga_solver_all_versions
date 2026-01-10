@@ -126,7 +126,7 @@ void drawButtonOverlayById(int btn_id) {
 
   // --- BUSY state ---
   if (busy) {
-    LOG_PRINTF_MENU("overlay BUSY\n");
+    // LOG_PRINTF_MENU("overlay BUSY\n");
     lv_obj_set_style_bg_color(btn, baseColor, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_border_color(btn, baseColor, LV_PART_MAIN);
@@ -152,7 +152,7 @@ void drawButtonOverlayById(int btn_id) {
 
   // --- ACTIVE state ---
   else if (active) {
-    LOG_PRINTF_MENU("overlay ACTIVE\n");
+    // LOG_PRINTF_MENU("overlay ACTIVE\n");
     lv_obj_set_style_bg_color(btn, baseColor, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_border_color(btn, baseColor, LV_PART_MAIN);

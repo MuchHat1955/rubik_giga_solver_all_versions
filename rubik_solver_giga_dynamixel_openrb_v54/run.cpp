@@ -363,7 +363,7 @@ bool runSystemByKey(const char* key, bool& result) {
     setFooter((cmd + " done").c_str(), _DONE_SUCCESS);
   }
   String system_info = getSystemText();
-  LOG_PRINTF("updated system info /n{%s}/n", system_info.c_str());
+  LOG_PRINTF("updated system info \n{%s}\n", system_info.c_str());
   buttons_set_text_by_key("k_system_info_text", system_info.c_str());
 
   return true;

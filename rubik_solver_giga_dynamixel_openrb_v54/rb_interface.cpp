@@ -31,7 +31,7 @@ bool RBInterface::begin() {
 
   bool result = true;
   if (ver == "err" || ver.isEmpty()) result = false;
-  LOG_PRINTF_RB("begin result {%d}\n", result);
+  // LOG_PRINTF_RB("begin result {%d}\n", result);
   rb_version = ver;
 
   return result;
