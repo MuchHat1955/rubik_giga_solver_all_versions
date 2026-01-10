@@ -611,7 +611,7 @@ bool runCommand(const String& command, const String& params, int* cmdId) {
   uint32_t id = rb.send_command(command, params);
   if ((int32_t)id < 0) {  // send_command returned -1
     LOG_ERR("[RB] error=send_command_failed command={%s}\n", command.c_str());
-    return false;
+    return false; 
   }
   LOG_PRINTF("running command (%d) {%s} params {%s}\n", id, command.c_str(), params.c_str());
 
