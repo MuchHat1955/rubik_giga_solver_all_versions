@@ -5,6 +5,10 @@
 #include "run.h"
 #include "ui_status.h"
 
+bool pending_btn_text_bool = false;
+char pending_key[40] = { 0 };
+char pending_text[64] = { 0 };
+
 // ============================================================================
 // UIButton implementation
 // ============================================================================
@@ -131,13 +135,21 @@ String ori_text_to_compact(const char* ori_text) {
 void buttons_set_text_ori(const char* ori_text) {
   UIButton* btn_ptr = nullptr;
 
+  LOG_PRINTF_MENU("set_text_ori={%s}\n", ori_text);
+
   btn_ptr = find_button_by_key("k_orientation_val");
   // convert ori text to small format
   String ori_text_compact = ori_text_to_compact(ori_text);
-  if (btn_ptr) btn_ptr->set_text(ori_text_compact.c_str());
+  if (btn_ptr) {
+    LOG_PRINTF_MENU("set_btn_ori={%s}\n", ori_text_compact.c_str());
+    buttons_set_text_by_key("k_orientation_val", ori_text_compact.c_str(), true);
+    // below must be after the call above, otherwise it skips it as already set
+    btn_ptr->set_text(ori_text_compact.c_str());
+  }
   set_last_orientation(ori_text);
 }
 
+//TODO fix below and others to set the text just like in set_text_ori
 void buttons_set_text_front_color(char* clr_text) {
   UIButton* btn_ptr = nullptr;
 
@@ -149,8 +161,31 @@ void buttons_set_text_front_color(char* clr_text) {
   if (btn_ptr) btn_ptr->set_text(clr_text);
 }
 
+static void ui_apply_pending_btn_text(void* param) {
+  (void)param;
+
+  if (!pending_btn_text_bool) return;
+  pending_btn_text_bool = false;
+
+  UIButton* btn_ptr = find_button_by_key(pending_key);
+  if (!btn_ptr) return;
+
+  lv_obj_t* lv_btn = btn_ptr->get_ptr();
+  if (!lv_btn) return;
+
+  lv_obj_t* lbl = lv_obj_get_child(lv_btn, 0);
+  if (!lbl) return;
+
+  lv_label_set_text(lbl, pending_text);
+
+  // This WILL repaint immediately
+  lv_obj_invalidate(lbl);
+}
+
 void buttons_set_text_by_key(const char* key, const char* a_text, bool refresh_ui) {
   if (!key || !a_text) return;
+
+  //log_all_buttons(false);
 
   UIButton* btn_ptr = find_button_by_key(key);
   if (!btn_ptr) return;
@@ -159,24 +194,53 @@ void buttons_set_text_by_key(const char* key, const char* a_text, bool refresh_u
     LOG_PRINTF_MENU("buttons_set_text_by_key already set key {%s} refresh_ui {%d}\n", key, refresh_ui);
     return;
   }
-  LOG_PRINTF_MENU("buttons_set_text_by_key key {%s} refresh_ui {%d}\n", key, refresh_ui);
+  if (strlen(a_text) < 15) LOG_PRINTF_MENU("buttons_set_text_by_key key {%s} text{%s} refresh_ui {%d}\n", key, a_text, refresh_ui);
+  else LOG_PRINTF_MENU("buttons_set_text_by_key key {%s} refresh_ui {%d}\n", key, refresh_ui);
 
   btn_ptr->set_text(a_text);
   lv_obj_t* lv_btn = btn_ptr->get_ptr();
-  lv_obj_t* lbl = lv_obj_get_child(lv_btn, 0);
+  lv_obj_t* lbl = nullptr;
+  if (lv_btn) lbl = lv_obj_get_child(lv_btn, 0);
   if (lbl) lv_label_set_text(lbl, a_text);
 
   if (!refresh_ui) return;
+  LOG_PRINTF_MENU("buttons_set_text_by_key refresh_ui\n");
+  // log_all_buttons(false);
+  // lv_obj_invalidate(lv_btn);
+  // lv_refr_now(NULL);
 
-  lv_obj_invalidate(lv_btn);
-  lv_refr_now(NULL);
+  //  lv_obj_invalidate(lv_btn);
+  //  lv_refr_now(NULL);
+
+  // store request (truncate safely)
+  strncpy(pending_key, key, sizeof(pending_key) - 1);
+  pending_key[sizeof(pending_key) - 1] = '\0';
+
+  strncpy(pending_text, a_text, sizeof(pending_text) - 1);
+  pending_text[sizeof(pending_text) - 1] = '\0';
+
+  pending_btn_text_bool = true;
+
+  if (strlen(a_text) < 15)
+    LOG_PRINTF_MENU("buttons_set_text_by_key queued key {%s} text{%s}\n", key, a_text);
+  else
+    LOG_PRINTF_MENU("buttons_set_text_by_key queued key {%s}\n", key);
+
+  if (lbl) lv_obj_invalidate(lbl);
+  if (lv_btn) lv_obj_mark_layout_as_dirty(lv_btn);
+
+  // 🚨 THIS is the critical line
+  lv_async_call(ui_apply_pending_btn_text, nullptr);
+
+  //lv_refr_now(NULL);
 
   // Force redraw passes to ensure UI visibly updates on hardware
-  for (int i = 0; i < 6; ++i) {
-    lv_timer_handler();
-    delay(5);
-  }
-  __delay(15);
+  // for (int i = 0; i < 6; ++i) {
+  //  lv_timer_handler();
+  //   delay(5);
+  //}
+  //delay(5);
+  LOG_PRINTF_MENU("buttons_set_text_by_key end\n");
 }
 
 void buttons_set_color_string(const char* color_string) {

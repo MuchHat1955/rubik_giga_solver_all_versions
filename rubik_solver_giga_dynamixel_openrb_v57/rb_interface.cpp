@@ -563,7 +563,7 @@ static void rb_info_cb(const String& mod,
   // ------------------------------------------------------------
   {
     String value;
-    if (extract_kv(msg, "orientation=", value)) {
+    if (extract_kv(msg, "ori_orientation=", value)) {
 
       st.orientation = value;
       last_orientation = value;

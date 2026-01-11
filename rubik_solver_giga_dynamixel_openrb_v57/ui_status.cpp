@@ -173,6 +173,35 @@ void drawButtonOverlayById(int btn_id) {
 
     lv_obj_t *lbl = lv_obj_get_child(btn, 0);
     if (lbl) lv_label_set_text(lbl, btn_ptr->get_text());
+
+    // --- cube color background override (exact match only) ---
+    lv_color_t bg_col;
+    bool set_bg_bool = true;
+
+    const char *txt = btn_ptr->get_text();
+
+    if (strcmp(txt, "R") == 0) bg_col = lv_palette_main(LV_PALETTE_RED);
+    else if (strcmp(txt, "G") == 0) bg_col = lv_palette_main(LV_PALETTE_GREEN);
+    else if (strcmp(txt, "B") == 0) bg_col = lv_palette_main(LV_PALETTE_BLUE);
+    else if (strcmp(txt, "Y") == 0) bg_col = lv_palette_main(LV_PALETTE_YELLOW);
+    else if (strcmp(txt, "O") == 0) bg_col = lv_palette_main(LV_PALETTE_ORANGE);
+    else if (strcmp(txt, "W") == 0) bg_col = lv_color_white();
+    else
+      set_bg_bool = false;
+
+    if (set_bg_bool) {
+      // background
+      lv_obj_set_style_bg_color(btn, bg_col, LV_PART_MAIN);
+      lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
+
+      // border (most common "outline")
+      lv_obj_set_style_border_color(btn, bg_col, LV_PART_MAIN);
+
+      // LVGL outline part (used by some themes)
+      lv_obj_set_style_outline_color(btn, bg_col, LV_PART_MAIN);
+      lv_obj_set_style_outline_width(btn, 2, LV_PART_MAIN);
+      lv_obj_set_style_outline_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
+    }
   }
 
   lv_obj_invalidate(btn);

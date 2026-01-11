@@ -16,6 +16,9 @@
 void drawButtonOverlay(int btn_id);
 
 extern RBInterface rb;
+extern bool pending_btn_text_bool;
+extern char pending_key[40];
+extern char pending_text[64];
 
 // ----------------------------------------------------------
 //                   LVGL GLOBALS
@@ -549,7 +552,27 @@ void ui_refresh() {
   // TODO-> TO CHECK if this is still needed
 }
 
+//TODO should be only one place where  lv_timer_handler(); is called
 void ui_loop() {
+  if (pending_btn_text_bool) {
+    pending_btn_text_bool = false;
+
+    UIButton *btn_ptr = find_button_by_key(pending_key);
+    if (btn_ptr) {
+      btn_ptr->set_text(pending_text);
+      LOG_PRINTF_MENU("set pending text on key {%s} text{%s}\n", pending_key, pending_text);
+
+      lv_obj_t *lv_btn = btn_ptr->get_ptr();
+      if (lv_btn) {
+        lv_obj_t *lbl = lv_obj_get_child(lv_btn, 0);
+        if (lbl) lv_label_set_text(lbl, pending_text);
+
+        // request redraw (safe here)
+        lv_obj_invalidate(lv_btn);
+      }
+    }
+  }
+
   lv_timer_handler();
   ui_refresh();
 }

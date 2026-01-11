@@ -255,8 +255,14 @@ void buildMenu(const char *menuKey) {
         lv_obj_set_style_bg_opa(cell, LV_OPA_TRANSP, 0);
         lv_obj_set_style_border_width(cell, 0, 0);
 
+        // use status text if available
+        const char* _text = txt;
+        UIButton *btn_ptr = find_button_by_key(key);
+        if (btn_ptr) _text = btn_ptr->get_text();
+        if(!_text)_text=txt;
+
         lv_obj_t *lbl = lv_label_create(cell);
-        lv_label_set_text(lbl, txt);
+        lv_label_set_text(lbl, _text);
         lv_obj_set_style_text_font(lbl, btnFont, 0);
         lv_obj_set_style_text_color(lbl, COLOR_BTN_TEXT, 0);
         lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_CENTER, 0);
@@ -295,8 +301,14 @@ void buildMenu(const char *menuKey) {
         lv_obj_set_style_bg_color(btn, colorBtn, LV_PART_MAIN);
         lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, LV_PART_MAIN);
 
+        // use status text if available
+        const char* _text = txt;
+        UIButton *btn_ptr = find_button_by_key(key);
+        if (btn_ptr) _text = btn_ptr->get_text();
+        if(!_text)_text=txt;
+
         lv_obj_t *lbl = lv_label_create(btn);
-        lv_label_set_text(lbl, txt);
+        lv_label_set_text(lbl, _text);
         lv_obj_center(lbl);
         lv_obj_set_style_text_font(lbl, btnFont, 0);
         lv_obj_set_style_text_color(lbl, COLOR_BTN_TEXT, 0);
@@ -314,7 +326,6 @@ void buildMenu(const char *menuKey) {
         }
 
         // get the button id from the map
-        UIButton *btn_ptr = find_button_by_key(key);
         int btn_id = 0;
         if (btn_ptr) btn_id = btn_ptr->get_id();
 
