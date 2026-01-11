@@ -143,6 +143,11 @@ void buttons_set_text_ori(const char* ori_text) {
   if (btn_ptr) {
     LOG_PRINTF_MENU("set_btn_ori={%s}\n", ori_text_compact.c_str());
     buttons_set_text_by_key("k_orientation_val", ori_text_compact.c_str(), true);
+    char buf[2];
+    buf[0] = ori_text_compact.charAt(2);
+    buf[1] = '\0';
+    buttons_set_text_by_key("k_color_read_front_color_value", buf, true);
+
     // below must be after the call above, otherwise it skips it as already set
     btn_ptr->set_text(ori_text_compact.c_str());
   }
@@ -161,6 +166,7 @@ void buttons_set_text_front_color(char* clr_text) {
   if (btn_ptr) btn_ptr->set_text(clr_text);
 }
 
+/*
 static void ui_apply_pending_btn_text(void* param) {
   (void)param;
 
@@ -180,7 +186,7 @@ static void ui_apply_pending_btn_text(void* param) {
 
   // This WILL repaint immediately
   lv_obj_invalidate(lbl);
-}
+} */
 
 void buttons_set_text_by_key(const char* key, const char* a_text, bool refresh_ui) {
   if (!key || !a_text) return;
@@ -212,6 +218,7 @@ void buttons_set_text_by_key(const char* key, const char* a_text, bool refresh_u
   //  lv_obj_invalidate(lv_btn);
   //  lv_refr_now(NULL);
 
+  /*
   // store request (truncate safely)
   strncpy(pending_key, key, sizeof(pending_key) - 1);
   pending_key[sizeof(pending_key) - 1] = '\0';
@@ -225,14 +232,22 @@ void buttons_set_text_by_key(const char* key, const char* a_text, bool refresh_u
     LOG_PRINTF_MENU("buttons_set_text_by_key queued key {%s} text{%s}\n", key, a_text);
   else
     LOG_PRINTF_MENU("buttons_set_text_by_key queued key {%s}\n", key);
+  */
 
   if (lbl) lv_obj_invalidate(lbl);
   if (lv_btn) lv_obj_mark_layout_as_dirty(lv_btn);
 
-  // 🚨 THIS is the critical line
-  lv_async_call(ui_apply_pending_btn_text, nullptr);
+  if (!lv_obj_is_valid(lv_btn)) {
+    LOG_ERR("btn lv obj is invalid (stale) key=%s\n", key);
+  }
 
-  //lv_refr_now(NULL);
+  // 🚨 THIS is the critical line
+  // lv_async_call(ui_apply_pending_btn_text, nullptr);
+
+  lv_timer_handler();
+  lv_refr_now(NULL);
+  lv_timer_handler();
+  lv_refr_now(NULL);
 
   // Force redraw passes to ensure UI visibly updates on hardware
   // for (int i = 0; i < 6; ++i) {
@@ -299,7 +314,7 @@ UIButton ui_buttons[] = {
   { 24, "y-", "k_robot_moves_y_minus", nullptr, true, false },
   { 25, "y-", "k_robot_moves_y2", nullptr, true, false },
 
-  { 26, "front color is:", "", nullptr, false, false },
+  { 26, "front color is->", "", nullptr, false, false },
   { 27, "color na", "k_cube_moves_front_color_value", nullptr, true, false },
 
   { 28, "f+", "k_cube_moves_f_plus", nullptr, true, false },
@@ -327,14 +342,14 @@ UIButton ui_buttons[] = {
   { 45, "d2", "k_cube_moves_d2", nullptr, true, false },
 
   { 46, "orientation", "", nullptr, false, false },
-  { 47, "orientation na", "k_orientation_val", nullptr, true, false },
+  { 47, "f:na r:na", "k_orientation_val", nullptr, true, false },
 
   { 48, "detect", "k_orientation_detect", nullptr, true, false },
   { 49, "check", "k_orientation_check", nullptr, true, false },
   { 50, "restore", "k_orientation_restore", nullptr, true, false },
 
   { 51, "color read", "", nullptr, false, false },
-  { 52, "front is", "k_color_read_front_color_value", nullptr, true, false },
+  { 52, "f:na", "k_color_read_front_color_value", nullptr, true, false },
 
   { 53, "all", "k_orientation_color_read_all", nullptr, true, false },
   { 54, "bottom", "k_orientation_color_read_bottom", nullptr, true, false },

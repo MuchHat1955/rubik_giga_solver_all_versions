@@ -19,6 +19,7 @@ extern RBInterface rb;
 extern bool pending_btn_text_bool;
 extern char pending_key[40];
 extern char pending_text[64];
+void ui_loop();
 
 // ----------------------------------------------------------
 //                   LVGL GLOBALS
@@ -371,7 +372,7 @@ void buttonAction_executeAction(int btn_id) {
     LOG_SECTION_START_MENU("update overlay for btn {%s}", btn_key);
     // show busy
     b->set_is_busy(true);
-    drawButtonOverlayById(btn_id);
+    drawButtonOverlayById(btn_id);  //NOW
     //.................
     buttonAction_run(btn_key);
     //.................
@@ -380,6 +381,7 @@ void buttonAction_executeAction(int btn_id) {
     drawButtonOverlayById(btn_id);
     LOG_SECTION_END_MENU();
   }
+  ui_loop();
   LOG_SECTION_END_MENU();
 }
 
@@ -554,8 +556,10 @@ void ui_refresh() {
 
 //TODO should be only one place where  lv_timer_handler(); is called
 void ui_loop() {
+  /*
   if (pending_btn_text_bool) {
     pending_btn_text_bool = false;
+    LOG_PRINTF_MENU("entering ui loop pending text\n", pending_key, pending_text);
 
     UIButton *btn_ptr = find_button_by_key(pending_key);
     if (btn_ptr) {
@@ -571,8 +575,6 @@ void ui_loop() {
         lv_obj_invalidate(lv_btn);
       }
     }
-  }
-
+  } */
   lv_timer_handler();
-  ui_refresh();
 }

@@ -255,11 +255,15 @@ void buildMenu(const char *menuKey) {
         lv_obj_set_style_bg_opa(cell, LV_OPA_TRANSP, 0);
         lv_obj_set_style_border_width(cell, 0, 0);
 
+        if (strcmp(it["status"] | "", "yes") == 0 && strlen(key)) {
+          updateButtonPtrByKey(key, cell);
+        }
+
         // use status text if available
-        const char* _text = txt;
+        const char *_text = txt;
         UIButton *btn_ptr = find_button_by_key(key);
         if (btn_ptr) _text = btn_ptr->get_text();
-        if(!_text)_text=txt;
+        if (!_text) _text = txt;
 
         lv_obj_t *lbl = lv_label_create(cell);
         lv_label_set_text(lbl, _text);
@@ -302,10 +306,10 @@ void buildMenu(const char *menuKey) {
         lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, LV_PART_MAIN);
 
         // use status text if available
-        const char* _text = txt;
+        const char *_text = txt;
         UIButton *btn_ptr = find_button_by_key(key);
         if (btn_ptr) _text = btn_ptr->get_text();
-        if(!_text)_text=txt;
+        if (!_text) _text = txt;
 
         lv_obj_t *lbl = lv_label_create(btn);
         lv_label_set_text(lbl, _text);
