@@ -5,11 +5,13 @@
 #include "ui_button.h"
 #include "run.h"
 
+
+extern String rb_version;
+
 // ============================================================
 // Constructor
 // ============================================================
 RBInterface::RBInterface() {}
-extern String rb_version;
 
 // ============================================================
 // Begin communication
@@ -272,9 +274,10 @@ static uint32_t last_servo_status_cmd = 0;
 
 static std::map<uint32_t, rb_cmd_state_t> cmd_states;
 static uint32_t last_finished_cmd_id = 0;
-static String last_color_string_54 = "";
-static String last_orientation = "";
-static String last_cube_solution = "";
+
+String last_color_string_54 = "";
+String last_orientation = "";
+String last_cube_solution = "";
 
 // ================= GLOBAL LAST-SEEN STATE =================
 static char last_color_one_color_char = '.';
@@ -294,13 +297,6 @@ static uint32_t last_robot_move_step_cmd = 0;
 
 static String last_color_read_map;
 static uint32_t last_color_read_map_cmd = 0;
-
-void set_last_color_string_54(String a_color_string) {
-  last_color_string_54 = a_color_string;
-}
-void set_last_orientation(String a_ori) {
-  last_orientation = a_ori;
-}
 
 static bool extract_kv(const String& msg, const char* key, String& out) {
   int p = msg.indexOf(key);
@@ -412,7 +408,7 @@ static void rb_info_cb(const String& mod,
 
       if (send_cube_view_bool) {
         ui_cube_view_set_colors(value);
-        buttons_set_color_string(value.c_str());
+        last_color_string_54 = value;
       }
     }
     return;
@@ -551,8 +547,8 @@ static void rb_info_cb(const String& mod,
       last_color_string_54 = value;
 
       if (send_cube_view_bool) {
-        ui_cube_view_set_colors(value);
-        buttons_set_color_string(value.c_str());
+        LOG_PRINTF_RB("updating cube view {%s}\n", get_last_color_string54().c_str());
+        ui_cube_view_set_colors(last_color_string_54);
       }
       return;
     }
@@ -578,16 +574,13 @@ static void rb_info_cb(const String& mod,
   LOG_PRINTF("[RB INFO] msg not parsed {%s}\n", msg.c_str());
 }
 
-String getLastColorString() {
+String get_last_color_string54() {
   return last_color_string_54;
 }
-String getLastCubeSolution() {
+String get_last_cube_solution() {
   return last_cube_solution;
 }
-void setLastCubeSolution(String a_solution) {
-  last_cube_solution = a_solution;
-}
-String getLastOrientation() {
+String get_last_orientation() {
   return last_orientation;
 }
 String getColorStringForCmd(int cmd_id) {
@@ -634,8 +627,8 @@ bool runCommand(const String& command, const String& params, int* cmdId) {
     rb.poll();
     if (millis() - t0 > SERIAL_CMD_END_TIMEOUT) {  //TODO make this variable as INFO messages come back as oposite to 30 mins now
       cmd_states[id].last_error = "timeout_waiting_for_command_end_command\n";
-      LOG_ERR("[RB] error=timeout_waiting_for_command_end_command={%s} id=%lu\n",
-              command.c_str(), (unsigned long)id);
+      LOG_ERR("[RB] error=timeout_waiting_for_command_end_command{%s} id{%lu} actual_secs {%d} max_expected_secs {%d}\n",
+              command.c_str(), (unsigned long)id, (millis() - t0) / 1000, SERIAL_CMD_END_TIMEOUT / 1000);
       return false;
     }
     delay(2);
@@ -714,10 +707,6 @@ String getRbInterfaceVersion() {
   return v;
 }
 
-String getLastColorStringCurr(int* cmd_id) {
-  if (cmd_id) *cmd_id = last_color_string_curr_cmd;
-  return last_color_string_curr;
-}
 char getLastColorOneColor(int* cmd_id) {
   if (cmd_id) *cmd_id = last_color_one_color_cmd;
   return last_color_one_color_char;

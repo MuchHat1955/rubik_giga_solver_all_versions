@@ -68,14 +68,9 @@ bool getLastResult(int cmdId);
 String getLastCommandName(int cmdId);
 String getLastCommandParams(int cmdId);
 
-String getLastColorString();
-String getLastOrientation();
-String getLastCubeSolution();
-String getColorStringForCmd(int cmd_id);
 String getOrientationForCmd(int cmd_id);
 String getRbInterfaceVersion();
 
-String getLastColorStringCurr(int* cmd_id = nullptr);
 int getLastColorReadStep(int* cmd_id = nullptr);
 int getLastCubeMoveStep(int* cmd_id = nullptr);
 int getLastRobotMoveStep(int* cmd_id = nullptr);
@@ -83,6 +78,6 @@ String getLastColorReadMap(int* cmd_id = nullptr);
 String getLastServoStatusStr(int servo_id);
 char getLastColorOneColor(int* cmd_id);
 
-void set_last_color_string_54(String a_color_string);
-void set_last_orientation(String a_ori);
-void setLastCubeSolution(String a_solution);
+String get_last_orientation();
+String get_last_cube_solution();
+String get_last_color_string54();

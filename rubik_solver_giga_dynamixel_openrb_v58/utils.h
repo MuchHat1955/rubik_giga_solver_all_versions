@@ -19,6 +19,6 @@
 #define SERIAL_BAUD 115200
 #define SERIAL_TIMEOUT 500
 #define SERIAL_CMD_TIMEOUT 6000
-#define SERIAL_CMD_END_TIMEOUT (30 * 6000)  // longest command TODO
+#define SERIAL_CMD_END_TIMEOUT (1800 * 1000)  // longest command 30 mins TODO
 
 void __delay(unsigned long a_delay);

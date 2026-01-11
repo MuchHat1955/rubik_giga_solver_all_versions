@@ -14,6 +14,8 @@ bool send_readcolors_progress_bool = false;
 bool send_cube_view_bool = false;
 int last_onecolor_read_slot = -1;
 
+extern String last_cube_solution;
+
 String getRbVersion();
 String getSolverVersion();
 bool runStartupTests(bool force_run);
@@ -225,7 +227,9 @@ bool runColorStickerByKey(const char* key, bool& result) {
   // ---------------- Run command ----------------
   int cmd_id = -1;
   last_onecolor_read_slot = slot.toInt();
+  send_cube_view_bool = true;
   result = runCommand("ONECOLOR", slot, &cmd_id);
+  send_cube_view_bool = false;
 
   // ---------------- Footer + logging ----------------
   if (!result) {
@@ -264,7 +268,7 @@ bool runSolveCubeFindSolutionByKey(const char* key, bool& result) {
   int cmd_id = -1;
   result = false;
 
-  String cube = getLastColorString();
+  String cube = get_last_color_string54();
   String solution = "";
   int solution_move_count = 0;
   int solution_millis = 0;
@@ -285,7 +289,7 @@ bool runSolveCubeFindSolutionByKey(const char* key, bool& result) {
 
   // set solution if ok
   if (solution_ok) {
-    setLastCubeSolution(solution);
+    last_cube_solution = solution;
     result = true;
   } else LOG_ERR("[SOLVER] solver_error=no_solution_found cube=%s\n", cube.c_str());
 
@@ -310,8 +314,8 @@ bool runSolveCubeRunSolutionByKey(const char* key, bool& result) {
   int cmd_id = -1;
   result = false;
 
-  String solution = getLastCubeSolution();
-  ui_cube_view_set_colors(getLastColorString());
+  String solution = get_last_cube_solution();
+  ui_cube_view_set_colors(get_last_color_string54());
 
   if (solution.isEmpty()) {
     LOG_ERR("[SOLVER] %s no solution\n", key);
@@ -405,7 +409,9 @@ bool runColorReadByKey(const char* key, bool& result) {
 
   int cmd_id = -1;
   send_readcolors_progress_bool = true;
+  send_cube_view_bool = true;
   result = runCommand(cmd, param, &cmd_id);
+  send_cube_view_bool = false;
   send_readcolors_progress_bool = false;
 
   if (!result) {

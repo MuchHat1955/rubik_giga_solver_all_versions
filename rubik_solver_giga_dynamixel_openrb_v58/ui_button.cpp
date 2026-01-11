@@ -5,9 +5,7 @@
 #include "run.h"
 #include "ui_status.h"
 
-bool pending_btn_text_bool = false;
-char pending_key[40] = { 0 };
-char pending_text[64] = { 0 };
+extern String last_orientation;
 
 // ============================================================================
 // UIButton implementation
@@ -154,7 +152,7 @@ void buttons_set_text_ori(const char* ori_text) {
     // below must be after the call above, otherwise it skips it as already set
     btn_ptr->set_text(ori_text_compact.c_str());
   }
-  set_last_orientation(ori_text);
+  last_orientation = ori_text;
 }
 
 //TODO fix below and others to set the text just like in set_text_ori using buttons_set_text_by_key("k_orientation_val", ori_text_compact.c_str(), true);
@@ -168,28 +166,6 @@ void buttons_set_text_front_color(char* clr_text) {
   btn_ptr = find_button_by_key("k_color_read_front_color_value");
   if (btn_ptr) btn_ptr->set_text(clr_text);
 }
-
-/*
-static void ui_apply_pending_btn_text(void* param) {
-  (void)param;
-
-  if (!pending_btn_text_bool) return;
-  pending_btn_text_bool = false;
-
-  UIButton* btn_ptr = find_button_by_key(pending_key);
-  if (!btn_ptr) return;
-
-  lv_obj_t* lv_btn = btn_ptr->get_ptr();
-  if (!lv_btn) return;
-
-  lv_obj_t* lbl = lv_obj_get_child(lv_btn, 0);
-  if (!lbl) return;
-
-  lv_label_set_text(lbl, pending_text);
-
-  // This WILL repaint immediately
-  lv_obj_invalidate(lbl);
-} */
 
 void buttons_set_text_by_key(const char* key, const char* a_text, bool refresh_ui) {
   if (!key || !a_text) return;
@@ -261,9 +237,6 @@ void buttons_set_text_by_key(const char* key, const char* a_text, bool refresh_u
   LOG_PRINTF_MENU("buttons_set_text_by_key end\n");
 }
 
-void buttons_set_color_string(const char* color_string) {
-  set_last_color_string_54(color_string);
-}
 void buttons_set_one_color_string(char clr_char) {
 
   char text[2] = { clr_char, '\0' };

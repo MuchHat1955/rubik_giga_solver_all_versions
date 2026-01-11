@@ -18,7 +18,7 @@ String getRbVersion();
 String getSolverVersion();
 void buildMenu(const char *menuKey);
 String getSystemText();
-String getLastColorString();
+String get_last_color_string54();
 
 extern RBInterface rb;
 
@@ -571,6 +571,7 @@ void buildMenu(const char *menuKey) {
     lv_obj_align(cube, LV_ALIGN_TOP_MID, 0, 0);
 
     y += cube_h;
+    ui_cube_view_set_colors(get_last_color_string54());
 
     LOG_PRINTF("cube view created\n");
     // END TEST
@@ -608,6 +609,9 @@ void buildMenu(const char *menuKey) {
 
     LOG_PRINTF("progress bar created\n");
   }
+
+  // updates menus as available
+  buttons_set_text_ori(get_last_orientation().c_str());
 
   setFooter(footer);
   lv_obj_invalidate(lv_scr_act());

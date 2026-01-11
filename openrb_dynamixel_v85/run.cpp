@@ -1133,7 +1133,7 @@ bool cmd_read_cube_colors(const String &mode_in) {
     return false;
   }
   // needed to restore after read
-  bool ok = false;
+  bool ok = false;  //NOWNOW
 
   if (do_full) {  //
     LOG_INFO(MOD_RUN, "info", "full");
@@ -1165,6 +1165,8 @@ bool cmd_read_cube_colors(const String &mode_in) {
     }
   }
 
+  //TODO read should have set the colors in the reader no need to set again
+
   String colors_just_read = color_reader.get_justread_color_string_54();
   LOG_INFO(MOD_RUN, "just_read_string_54", colors_just_read);
   // use colors to set the orientation to match colors
@@ -1184,7 +1186,7 @@ bool cmd_read_cube_colors(const String &mode_in) {
     LOG_ERR(MOD_RUN, "error", "failed");
     return false;
   }
-  if (!do_centers) {
+  if (!do_centers && !do_bottom) {
     // set the colors and clear the reader
     ok = color_analyzer.set_colors(colors_just_read);
     // clear reader after done
@@ -1198,8 +1200,24 @@ bool cmd_read_cube_colors(const String &mode_in) {
       return false;
     }
     color_reader.clear_color_reader();
+    NOWNOW
   }
+  if (do_bottom) {
+    // set the colors and clear the reader
+    String filled_2_layers = fill_colors_if_top_two_layers_solved(colors_just_read);
+    ok = color_analyzer.set_colors(filled_2_layers);
+    // clear reader after done
 
+    if (!ok) {
+      LOG_ERR(MOD_RUN, "color_analyzer_set_colors_failed", colors_just_read);
+      String diagram_str = rubik_54_to_labeled_diagram(colors_just_read);
+      Serial_giga_print(diagram_str);
+      color_reader.clear_color_reader();
+      ori.restore_cube_orientation();
+      return false;
+    }
+    color_reader.clear_color_reader();
+  }
   // restore ori
   ori.restore_cube_orientation();
 

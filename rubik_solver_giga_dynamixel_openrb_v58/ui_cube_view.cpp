@@ -141,9 +141,20 @@ void ui_cube_view_set_colors(const String& s) {
     lv_obj_set_style_bg_color(cube_cells[i],
                               color_from_char(s[i]),
                               0);
+    lv_obj_invalidate(cube_cells[i]);
 
     // LOG_PRINTF("setting cell %d color %c\n", i, s[i]);
   }
+
+  // force a visible redraw
+  lv_refr_now(NULL);
+
+  LOG_PRINTF_MENU("calling lv timer handler 6 times\n");
+  for (int i = 0; i < 6; ++i) {
+    lv_timer_handler();
+    delay(5);
+  }
+  __delay(15);
 }
 
 // ------------------------------------------------------------------

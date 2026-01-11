@@ -75,7 +75,7 @@ bool runStartupTests(bool force_rerun) {
 
     if (!rb_begin_ok || !solver_begin_ok) setFooter(begin_result.c_str(), _DONE_ERROR);
     else setFooter(begin_result.c_str(), _DONE_SUCCESS);
-    __delay(666);
+    __delay(1333);
   }
 
   // run tests only if both begin are ok
@@ -101,7 +101,7 @@ bool runStartupTests(bool force_rerun) {
 
     if (!rb_startup_tests_ok || !solver_startup_tests_ok) setFooter(startup_tests_result.c_str(), _DONE_ERROR);
     else setFooter(startup_tests_result.c_str(), _DONE_SUCCESS);
-    __delay(666);
+    __delay(1333);
   }
   return rb_startup_tests_ok && solver_startup_tests_ok;
 }
@@ -140,19 +140,19 @@ bool runSolverStartupTests() {
                                        solution_time_to_compute);
 
   if (tests_ok) {
-    String footer_text = "solution found " +                        //
+    String footer_text = "test solution found " +                        //
                          String(solution_move_count) + " moves " +  //
                          String(solution_time_to_compute) + "ms";
     LOG_PRINTF_SOLVER("solver test ok %s\n", footer_text.c_str());
     setFooter(footer_text.c_str(), _DONE_SUCCESS);
-    __delay(666);
+    __delay(1333);
   } else {
-    String footer_text = "solution not found returned " +           //
+    String footer_text = "test solution not found returned " +           //
                          String(solution_move_count) + " moves " +  //
                          String(solution_time_to_compute) + "ms";
     LOG_PRINTF_SOLVER("solver test failed %s\n", footer_text.c_str());
     setFooter(footer_text.c_str(), _DONE_ERROR);
-    __delay(666);
+    __delay(1333);
   }
 
   LOG_PRINTF_RUN("end... solver startup run tests } result {%d}\n", tests_ok);
