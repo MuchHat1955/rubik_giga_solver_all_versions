@@ -57,11 +57,20 @@ char test_cube[5][55] = {
 */
 
 static int count_moves(const char *s) {
-  if (!s || !*s) return 0;
+  if (!s) return 0;
 
-  int count = 1;  // at least one move if non-empty
+  int count = 0;
+  bool in_token = false;
+
   while (*s) {
-    if (*s == ' ') count++;
+    if (*s != ' ') {
+      if (!in_token) {
+        count++;
+        in_token = true;
+      }
+    } else {
+      in_token = false;
+    }
     s++;
   }
   return count;
@@ -222,7 +231,7 @@ void handle_command(char *line) {
       ms);
     __serial.println();
     delay(333);
-    blink_led(2);
+    blink_led(6);
   }
 }
 

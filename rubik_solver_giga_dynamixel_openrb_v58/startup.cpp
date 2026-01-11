@@ -5,6 +5,7 @@
 #include "ui_status.h"  // for updateButtonStateByKey()
 #include "logging.h"
 #include "rb_interface.h"
+#include "rubik_solver.h"
 
 extern RBInterface rb;
 
@@ -121,22 +122,39 @@ bool runRbStartupTests() {
   return tests_ok;
 }
 
+String test_colors54 = "DRLUUBFBRBLURRLRUBLRDDFDLFUFUFFDBRDUBRUFLLFDDBFLUBLRBD";
+
 bool runSolverStartupTests() {
-  //TODO->TO IMPLEMENT add a startup test for solver, send a test cube
 
-  LOG_PRINTF_RUN("start... solver startup run tests\n");
-  bool tests_ok = true;
+  String test_solution_found = "";
+  int solution_move_count = 0;
+  int solution_time_to_compute = 0;
 
-  /*/
-  int cmd_id = 0;
-  bool tests_ok = runCommand("INFOSERVOS", "0", &cmd_id);
+  LOG_PRINTF_SOLVER("start... solver test solution\n");
+  setFooter("run... solver test", _RUNNING_NOSTOP);
+
+  // the actual test
+  bool tests_ok = solver_find_solution(test_colors54,
+                                       test_solution_found,
+                                       solution_move_count,
+                                       solution_time_to_compute);
 
   if (tests_ok) {
-    LOG_PRINTF_RUN("startup status ok\n");
+    String footer_text = "solution found " +                        //
+                         String(solution_move_count) + " moves " +  //
+                         String(solution_time_to_compute) + "ms";
+    LOG_PRINTF_SOLVER("solver test ok %s\n", footer_text.c_str());
+    setFooter(footer_text.c_str(), _DONE_SUCCESS);
+    __delay(666);
   } else {
-    setFooter(getLastError(cmd_id).c_str(), _DONE_ERROR);
+    String footer_text = "solution not found returned " +           //
+                         String(solution_move_count) + " moves " +  //
+                         String(solution_time_to_compute) + "ms";
+    LOG_PRINTF_SOLVER("solver test failed %s\n", footer_text.c_str());
+    setFooter(footer_text.c_str(), _DONE_ERROR);
+    __delay(666);
   }
-  */
-  LOG_PRINTF_RUN("end... solver startup run tests\n");
+
+  LOG_PRINTF_RUN("end... solver startup run tests } result {%d}\n", tests_ok);
   return tests_ok;
 }

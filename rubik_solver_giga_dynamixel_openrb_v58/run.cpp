@@ -397,8 +397,8 @@ bool runColorReadByKey(const char* key, bool& result) {
     cmd = "READCOLORS";
     param = "bottom";
   } else if (strcmp(key, "k_orientation_color_read_sensor") == 0) {
-    cmd = "READCOLORS";
-    param = "centers";
+    cmd = "COLORSENSOR";
+    param = "";
   } else return false;
 
   setFooter("running... read colors", _RUNNING_STOP);
