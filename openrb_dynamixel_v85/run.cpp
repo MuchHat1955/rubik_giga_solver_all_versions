@@ -1133,8 +1133,8 @@ bool cmd_read_cube_colors(const String &mode_in) {
     return false;
   }
   // needed to restore after read
-  bool ok = false; 
-  
+  bool ok = false;
+
   if (do_full) {  //
     LOG_INFO(MOD_RUN, "info", "full");
     // the function below handles clearing etc
@@ -1173,7 +1173,7 @@ bool cmd_read_cube_colors(const String &mode_in) {
   // colors are in the color reader
   // set the colors and clear the reader
   String colors_just_read = color_reader.get_justread_color_string_54();
-  LOG_INFO(MOD_RUN, "just_read_string_54", colors_just_read);
+  LOG_INFO(MOD_RUN, "color_string_54", colors_just_read);
 
   // if bottoms fill the rest from the bottoms
   if (do_bottom) {
@@ -1189,6 +1189,9 @@ bool cmd_read_cube_colors(const String &mode_in) {
       //Serial_giga_print(diagram_str);
       color_reader.clear_color_reader();
       ori.restore_cube_orientation();
+
+      String colors_just_read = color_reader.get_justread_color_string_54();
+      LOG_INFO(MOD_RUN, "color_string_54", colors_just_read);
       return false;
     }
   }
@@ -1202,12 +1205,15 @@ bool cmd_read_cube_colors(const String &mode_in) {
       //Serial_giga_print(diagram_str);
       color_reader.clear_color_reader();
       ori.restore_cube_orientation();
+
+      String colors_just_read = color_reader.get_justread_color_string_54();
+      LOG_INFO(MOD_RUN, "color_string_54", colors_just_read);
       return false;
     }
   }
   if (do_centers) {
     // do not update the analyzer
-    LOG_INFO(MOD_RUN, "after update", ori.get_orientation_string());
+    LOG_INFO(MOD_RUN, "ori_orientation", ori.get_orientation_string());
   }
 
   //compute the ori, regardless of type of read
@@ -1219,14 +1225,13 @@ bool cmd_read_cube_colors(const String &mode_in) {
       // color_reader.clear_color_reader();
       ok = false;
     }
-    LOG_INFO(MOD_RUN, "after update", ori.get_orientation_string());
   }
   // restore ori anyway
   color_reader.clear_color_reader();
   ori.restore_cube_orientation();
 
   // After read
-  LOG_INFO(MOD_RUN, "color_analyze_color_string_54", color_analyzer.get_standard_color_string_54());
+  LOG_INFO(MOD_RUN, "color_string_54", color_analyzer.get_standard_color_string_54());
   LOG_INFO(MOD_RUN, "color_analyzer_is_valid", color_analyzer.is_color_string_valid_bool());
   LOG_INFO(MOD_RUN, "ori_orientation", ori.get_orientation_string());
   return true;
