@@ -610,6 +610,7 @@ void buildMenu(const char *menuKey) {
     LOG_PRINTF("progress bar created\n");
   }
 
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // updates menus as available
   buttons_set_text_ori(get_last_orientation().c_str());
 
@@ -617,6 +618,11 @@ void buildMenu(const char *menuKey) {
   lv_obj_invalidate(lv_scr_act());
   LOG_SECTION_END_MENU();
 }
+
+TODO add detect cube command in the robot moves tests
+TODO maybe add detect cube in the startup tests
+TODO add 3 small icons for: /cube detected/color known/solution known
+TODO add detect cube before read colors in the main menu
 
 // ----------------------------------------------------------
 //                     MENU JSON DATA

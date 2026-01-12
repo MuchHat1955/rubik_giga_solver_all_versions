@@ -525,7 +525,7 @@ bool CubeColorReader::read_cube(int scan_mode) {
   String color_read_map_str = color_read_map_to_string(orientation_map_ptr, total_steps);
   LOG_INFO(MOD_COLORSCAN, "color_read_start_with_map", color_read_map_str);
   LOG_INFO(MOD_COLORSCAN, "color_read_start_with_step_count", total_steps);
-  LOG_INFO(MOD_COLORSCAN, "in_progress_cube_color_string_54", get_justread_color_string_54().c_str());  //should be empty for non-bottom
+  LOG_INFO(MOD_COLORSCAN, "in_progress_cube_color_string_54", get_justread_color_string_54().c_str()); 
 
   // the fill 2 layers is now here as the centers are known
   if (scan_mode == SCAN_MODE_SOLVED) {
@@ -535,10 +535,10 @@ bool CubeColorReader::read_cube(int scan_mode) {
       //String diagram_str = rubik_54_to_labeled_diagram(colors_justread_54);
       //Serial_giga_print(diagram_str);
       LOG_INFO(MOD_COLORSCAN, "clear colors and restore ori, mode was", mode_string);
-      ori_.restore_cube_orientation();
       clear_color_reader();
-      fill_unknown_();
+      ori_.restore_cube_orientation();
       LOG_INFO(MOD_COLORSCAN, "color_string_54", get_justread_color_string_54().c_str());
+      LOG_INFO(MOD_COLORSCAN, "ori_orientation", ori.get_orientation_string().c_str());
       return false;
     }
     set_colors(filled);
@@ -558,10 +558,10 @@ bool CubeColorReader::read_cube(int scan_mode) {
 
       if (scan_mode != SCAN_MODE_CENTERS) {
         LOG_INFO(MOD_COLORSCAN, "clear colors and restore ori, mode was", mode_string);
-        ori_.restore_cube_orientation();
         clear_color_reader();
-        fill_unknown_();
-        LOG_INFO(MOD_COLORSCAN, "color_string_54", get_justread_color_string_54().c_str());  //should be empty for non-bottom
+        ori_.restore_cube_orientation();
+        LOG_INFO(MOD_COLORSCAN, "color_string_54", get_justread_color_string_54().c_str());
+        LOG_INFO(MOD_COLORSCAN, "ori_orientation", ori.get_orientation_string().c_str());
       }
       return false;
     }
@@ -571,13 +571,9 @@ bool CubeColorReader::read_cube(int scan_mode) {
   LOG_INFO(MOD_COLORSCAN, "info", "color_scan_completed");
   //String diagram_str = rubik_54_to_labeled_diagram(colors_justread_54);
   //Serial_giga_print(diagram_str);
-  LOG_INFO(MOD_COLORSCAN, "color_string_54", get_justread_color_string_54().c_str());
-  //LOG_INFO(MOD_COLORSCAN, "color_string_faces", get_justread_color_string_faces().c_str());
-  LOG_INFO(MOD_COLORSCAN, "ori_orientation", ori.get_orientation_string().c_str());
-  //LOG_INFO(MOD_COLORSCAN, "restore ori, mode was", mode_string);
   ori_.restore_cube_orientation();
+  LOG_INFO(MOD_COLORSCAN, "color_string_54", get_justread_color_string_54().c_str());
   LOG_INFO(MOD_COLORSCAN, "ori_orientation", ori.get_orientation_string().c_str());
-
   return true;
 }
 

@@ -1170,7 +1170,7 @@ bool cmd_read_cube_colors(const String &mode_in) {
     return false;
   }
 
-  // colors are in the color reader
+  // colors are in the color reader only at this point
   // set the colors and clear the reader
   String colors_just_read = color_reader.get_justread_color_string_54();
   LOG_INFO(MOD_RUN, "color_string_54", colors_just_read);
@@ -1188,9 +1188,10 @@ bool cmd_read_cube_colors(const String &mode_in) {
       //String diagram_str = rubik_54_to_labeled_diagram(colors_just_read);
       //Serial_giga_print(diagram_str);
       color_reader.clear_color_reader();
+      color_analyzer.clear_color_analyzer();
       ori.restore_cube_orientation();
 
-      String colors_just_read = color_reader.get_justread_color_string_54();
+      String colors_just_read = color_analyzer.get_standard_color_string_54();
       LOG_INFO(MOD_RUN, "color_string_54", colors_just_read);
       return false;
     }
@@ -1204,29 +1205,29 @@ bool cmd_read_cube_colors(const String &mode_in) {
       //String diagram_str = rubik_54_to_labeled_diagram(colors_just_read);
       //Serial_giga_print(diagram_str);
       color_reader.clear_color_reader();
+      color_analyzer.clear_color_analyzer();
       ori.restore_cube_orientation();
 
-      String colors_just_read = color_reader.get_justread_color_string_54();
+      String colors_just_read = color_analyzer.get_standard_color_string_54();
       LOG_INFO(MOD_RUN, "color_string_54", colors_just_read);
       return false;
     }
   }
   if (do_centers) {
-    // do not update the analyzer
-    LOG_INFO(MOD_RUN, "ori_orientation", ori.get_orientation_string());
+    // do not update the analyzer for centers
   }
 
   //compute the ori, regardless of type of read
   if (ok) {
     LOG_INFO(MOD_RUN, "updating ori from color_string_54", colors_just_read);
-    LOG_INFO(MOD_RUN, "before update", ori.get_orientation_string());
+    LOG_INFO(MOD_RUN, "ori before update", ori.get_orientation_string());
     if (!update_ori_from_color_reader_54(colors_just_read)) {
       LOG_ERR(MOD_RUN, "error", "could not update ori from colors");
       // color_reader.clear_color_reader();
       ok = false;
     }
   }
-  // restore ori anyway
+  // restore ori always
   color_reader.clear_color_reader();
   ori.restore_cube_orientation();
 
@@ -1239,7 +1240,7 @@ bool cmd_read_cube_colors(const String &mode_in) {
 
 bool cmd_getcolor_data(int argc, double *argv) {
   LOG_INFO(MOD_RUN, "cube_color_string_54", color_analyzer.get_standard_color_string_54());
-  LOG_INFO(MOD_RUN, "orientation", ori.get_orientation_string());
+  LOG_INFO(MOD_RUN, "ori_orientation", ori.get_orientation_string());
   print_colors_analyzer_detail();
   return true;
 }
@@ -1364,6 +1365,8 @@ bool cmd_detect_cube(int argc, double *argv) {
       return false;
     }
   }
+  LOG_INFO(MOD_RUN, "cube_color_string_54", color_analyzer.get_standard_color_string_54());
+  LOG_INFO(MOD_RUN, "ori_orientation", ori.get_orientation_string());
 
   // Safety fallback: no touch detected
   RUN_CMD(cmdMoveGripperPer(G_OPEN), "open gripper");
@@ -1457,15 +1460,19 @@ bool cmd_check_ori_run() {
   }
   // face ori says should be in front
   char robot_face_that_should_be_showing_in_front = ori.robot_face_to_cube_face('f');
-  LOG_INFO(MOD_CMD, "face that should be showing per ori", robot_face_that_should_be_showing_in_front);
+  LOG_INFO(MOD_CMD, "cibe face that should be in front", robot_face_that_should_be_showing_in_front);
 
   if (robot_face_that_should_be_showing_in_front != robot_face_showing_in_front) {
-    LOG_ERR(MOD_CMD, "ori face does not match robot face in front, robot", robot_face_showing_in_front);
-    LOG_VAR("ori", robot_face_that_should_be_showing_in_front);
+    LOG_ERR(MOD_CMD, "ori face does not match robot face in front, robot_face_front", robot_face_showing_in_front);
+    LOG_VAR("cube_face_front", robot_face_that_should_be_showing_in_front);
     return false;
   }
-  LOG_INFO(MOD_CMD, "front face matches ori, robot", robot_face_showing_in_front);
-  LOG_VAR("ori", robot_face_that_should_be_showing_in_front);
+  LOG_INFO(MOD_CMD, "front face matches ori, robot_face_front", robot_face_showing_in_front);
+  LOG_VAR("cube_face_front", robot_face_that_should_be_showing_in_front);
+
+  LOG_INFO(MOD_RUN, "cube_color_string_54", color_analyzer.get_standard_color_string_54());
+  LOG_INFO(MOD_RUN, "ori_orientation", ori.get_orientation_string());
+
   return true;
 }
 
