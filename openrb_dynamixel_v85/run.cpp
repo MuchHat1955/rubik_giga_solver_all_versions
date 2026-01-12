@@ -1133,8 +1133,8 @@ bool cmd_read_cube_colors(const String &mode_in) {
     return false;
   }
   // needed to restore after read
-  bool ok = false;  //NOWNOW
-
+  bool ok = false; 
+  
   if (do_full) {  //
     LOG_INFO(MOD_RUN, "info", "full");
     // the function below handles clearing etc
@@ -1165,12 +1165,52 @@ bool cmd_read_cube_colors(const String &mode_in) {
     }
   }
 
-  //TODO read should have set the colors in the reader no need to set again
+  if (!ok) {
+    LOG_ERR(MOD_RUN, "error", "color read failed");
+    return false;
+  }
 
+  // colors are in the color reader
+  // set the colors and clear the reader
   String colors_just_read = color_reader.get_justread_color_string_54();
   LOG_INFO(MOD_RUN, "just_read_string_54", colors_just_read);
-  // use colors to set the orientation to match colors
-  // lfr... should be set in colors by the robot pos
+
+  // if bottoms fill the rest from the bottoms
+  if (do_bottom) {
+    String filled_2_layers = fill_colors_if_top_two_layers_solved(colors_just_read);
+    if (filled_2_layers == "") {
+      LOG_ERR(MOD_RUN, "fill_colors_if_top_two_layers_solved)failed from", colors_just_read);
+      ok = false;
+    }
+    if (ok) ok = color_analyzer.set_colors(filled_2_layers);
+    if (!ok) {
+      LOG_ERR(MOD_RUN, "color_analyzer_set_colors_failed", filled_2_layers);
+      //String diagram_str = rubik_54_to_labeled_diagram(colors_just_read);
+      //Serial_giga_print(diagram_str);
+      color_reader.clear_color_reader();
+      ori.restore_cube_orientation();
+      return false;
+    }
+  }
+  // update the analyzers
+  if (do_full || do_solved) {
+    if (ok) ok = color_analyzer.set_colors(colors_just_read);
+    if (!ok) {
+      LOG_ERR(MOD_RUN, "color_analyzer_set_colors_failed", colors_just_read);
+
+      //String diagram_str = rubik_54_to_labeled_diagram(colors_just_read);
+      //Serial_giga_print(diagram_str);
+      color_reader.clear_color_reader();
+      ori.restore_cube_orientation();
+      return false;
+    }
+  }
+  if (do_centers) {
+    // do not update the analyzer
+    LOG_INFO(MOD_RUN, "after update", ori.get_orientation_string());
+  }
+
+  //compute the ori, regardless of type of read
   if (ok) {
     LOG_INFO(MOD_RUN, "updating ori from color_string_54", colors_just_read);
     LOG_INFO(MOD_RUN, "before update", ori.get_orientation_string());
@@ -1181,52 +1221,13 @@ bool cmd_read_cube_colors(const String &mode_in) {
     }
     LOG_INFO(MOD_RUN, "after update", ori.get_orientation_string());
   }
-  // do not set the final colors in the analyzer if it failed
-  if (!ok) {
-    LOG_ERR(MOD_RUN, "error", "failed");
-    return false;
-  }
-  if (!do_centers && !do_bottom) {
-    // set the colors and clear the reader
-    ok = color_analyzer.set_colors(colors_just_read);
-    // clear reader after done
-
-    if (!ok) {
-      LOG_ERR(MOD_RUN, "color_analyzer_set_colors_failed", colors_just_read);
-      String diagram_str = rubik_54_to_labeled_diagram(colors_just_read);
-      Serial_giga_print(diagram_str);
-      color_reader.clear_color_reader();
-      ori.restore_cube_orientation();
-      return false;
-    }
-    color_reader.clear_color_reader();
-    NOWNOW
-  }
-  if (do_bottom) {
-    // set the colors and clear the reader
-    String filled_2_layers = fill_colors_if_top_two_layers_solved(colors_just_read);
-    ok = color_analyzer.set_colors(filled_2_layers);
-    // clear reader after done
-
-    if (!ok) {
-      LOG_ERR(MOD_RUN, "color_analyzer_set_colors_failed", colors_just_read);
-      String diagram_str = rubik_54_to_labeled_diagram(colors_just_read);
-      Serial_giga_print(diagram_str);
-      color_reader.clear_color_reader();
-      ori.restore_cube_orientation();
-      return false;
-    }
-    color_reader.clear_color_reader();
-  }
-  // restore ori
+  // restore ori anyway
+  color_reader.clear_color_reader();
   ori.restore_cube_orientation();
 
   // After read
-  LOG_INFO(MOD_RUN, "color_reader_should_be_clear_string_54", color_analyzer.get_standard_color_string_54());
   LOG_INFO(MOD_RUN, "color_analyze_color_string_54", color_analyzer.get_standard_color_string_54());
-  // LOG_INFO(MOD_RUN, "color_analyze_string_faces", color_analyzer.get_color_string_faces());
   LOG_INFO(MOD_RUN, "color_analyzer_is_valid", color_analyzer.is_color_string_valid_bool());
-  LOG_INFO(MOD_RUN, "color_analyzer_is_fixable", color_analyzer.is_string_fixable_bool());
   LOG_INFO(MOD_RUN, "ori_orientation", ori.get_orientation_string());
   return true;
 }

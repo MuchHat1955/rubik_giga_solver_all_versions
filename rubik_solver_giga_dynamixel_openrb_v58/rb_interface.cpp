@@ -541,7 +541,8 @@ static void rb_info_cb(const String& mod,
   // ------------------------------------------------------------
   {
     String value;
-    if (extract_kv(msg, "cube_color_string_54=", value)) {
+    if (extract_kv(msg, "cube_color_string_54=", value) ||  //
+        extract_kv(msg, "in_progress_cube_color_string_54=", value)) {
 
       st.color_string_54 = value;
       last_color_string_54 = value;
